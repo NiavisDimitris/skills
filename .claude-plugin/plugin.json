@@ -1,0 +1,21 @@
+{
+  "name": "design-qa",
+  "description": "Figma vs. code design-parity QA across every designed state, with an agent-readable report and fix plan plus an interactive HTML report for humans.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Dimitris Niavis"
+  },
+  "homepage": "https://github.com/<owner>/design-qa-skill",
+  "repository": "https://github.com/<owner>/design-qa-skill",
+  "license": "MIT",
+  "keywords": [
+    "design-qa",
+    "figma",
+    "design-system",
+    "visual-regression",
+    "design-parity",
+    "playwright",
+    "ci",
+    "qa"
+  ]
+}

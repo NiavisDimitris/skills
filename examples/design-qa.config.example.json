@@ -1,0 +1,47 @@
+{
+  "app": {
+    "baseUrl": "http://localhost:3000",
+    "start": "npm run dev",
+    "readyUrl": "/",
+    "auth": { "type": "none", "envPrefix": "DESIGN_QA_APP", "login": null },
+    "headers": {}
+  },
+  "surfaces": {
+    "orders": {
+      "route": "/orders",
+      "fixture": "rich-orders",
+      "fullPage": false,
+      "figma": { "fileKey": "AbCdEfGhIjKlMnOp", "nodeId": "12:345" },
+      "states": {
+        "with-data": { "fixture": "rich-orders" },
+        "empty":     { "mock": { "urlPattern": "**/api/orders*", "status": 200, "body": { "items": [] } } },
+        "loading":   { "mock": { "urlPattern": "**/api/orders*", "delayMs": 60000 } },
+        "error":     { "mock": { "urlPattern": "**/api/orders*", "status": 500, "body": { "error": "boom" } } },
+        "hover":     { "action": "hover", "selector": "[data-testid=order-row]:first-child" },
+        "selected":  { "action": "click", "selector": "[data-testid=order-row]:first-child" },
+        "focus":     { "action": "keyboard", "keys": "Tab Tab Tab" }
+      }
+    }
+  },
+  "designSystem": {
+    "name": "Acme DS",
+    "componentCatalog": "design-qa/components.json",
+    "tokenMap": "design-qa/token-map.md",
+    "knownDrifts": "design-qa/known-drifts.md",
+    "designRules": "design.md"
+  },
+  "tolerances": { "px": 1, "colorDeltaE": 1.5, "pixelDiff": { "pass": 1, "review": 5 } },
+  "commands": { "test": "npm test", "lint": [], "cwd": "." },
+  "report": {
+    "outDir": "qa-reports",
+    "topN": 5,
+    "embedImages": true,
+    "ranking": {
+      "severity": { "BLOCKER": 3, "WARNING": 2, "DS_CANDIDATE": 1 },
+      "ledger": { "structure": 3, "component": 3, "state": 3, "style": 2, "behavior": 2 }
+    }
+  },
+  "ticket": { "provider": "jira", "baseUrl": "https://acme.atlassian.net", "writeBack": false, "trustPreviewUrl": false },
+  "figma": { "access": ["mcp", "rest"] },
+  "capture": { "driver": "script", "reducedMotion": false }
+}

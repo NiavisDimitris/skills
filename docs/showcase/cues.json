@@ -1,0 +1,817 @@
+{
+ "title": "design-qa showcase",
+ "duration": 60,
+ "fps": 60,
+ "width": 1920,
+ "height": 1080,
+ "bpm": 120,
+ "key": "A minor",
+ "progression": [
+  "Am",
+  "F",
+  "C",
+  "G"
+ ],
+ "progressionNote": "one chord per bar (2 s), bar 1 starts at 0.0 s",
+ "sections": [
+  {
+   "name": "intro",
+   "start": 0,
+   "end": 8,
+   "music": "pad + soft arp, closed hats from 4.0 s, no kick"
+  },
+  {
+   "name": "build",
+   "start": 8,
+   "end": 10,
+   "music": "noise riser, snare roll accelerating, filter opening, kick quarters from 9.0 s"
+  },
+  {
+   "name": "dropA",
+   "start": 10,
+   "end": 22,
+   "music": "full groove: kick 4-on-floor, clap 2 & 4, hats, sidechained sub bass, off-beat chord stabs"
+  },
+  {
+   "name": "dropB",
+   "start": 22,
+   "end": 37,
+   "music": "groove + short pluck motif for lift"
+  },
+  {
+   "name": "dropC",
+   "start": 37,
+   "end": 46,
+   "music": "groove + open hats / percussion variation"
+  },
+  {
+   "name": "dropD",
+   "start": 46,
+   "end": 55,
+   "music": "full energy: motif + 16th hats"
+  },
+  {
+   "name": "breakdown",
+   "start": 55,
+   "end": 57.5,
+   "music": "drums out, pad + sub swell under the tagline"
+  },
+  {
+   "name": "end",
+   "start": 57.5,
+   "end": 60,
+   "music": "final impact + held chord, decays to silence by 60.0 s"
+  }
+ ],
+ "scenes": [
+  {
+   "id": "exact",
+   "start": 0,
+   "end": 2
+  },
+  {
+   "id": "isnt",
+   "start": 2,
+   "end": 3.2
+  },
+  {
+   "id": "closeins",
+   "start": 3.2,
+   "end": 8
+  },
+  {
+   "id": "scale",
+   "start": 8,
+   "end": 10
+  },
+  {
+   "id": "reveal",
+   "start": 10,
+   "end": 13
+  },
+  {
+   "id": "terminal",
+   "start": 13,
+   "end": 18
+  },
+  {
+   "id": "states",
+   "start": 18,
+   "end": 22
+  },
+  {
+   "id": "compare",
+   "start": 22,
+   "end": 30
+  },
+  {
+   "id": "pins",
+   "start": 30,
+   "end": 37
+  },
+  {
+   "id": "matrix",
+   "start": 37,
+   "end": 42
+  },
+  {
+   "id": "outputs",
+   "start": 42,
+   "end": 46
+  },
+  {
+   "id": "fixloop",
+   "start": 46,
+   "end": 51
+  },
+  {
+   "id": "ci",
+   "start": 51,
+   "end": 55
+  },
+  {
+   "id": "close",
+   "start": 55,
+   "end": 60
+  }
+ ],
+ "events": [
+  {
+   "t": 0.1,
+   "type": "word"
+  },
+  {
+   "t": 0.2,
+   "type": "word"
+  },
+  {
+   "t": 0.3,
+   "type": "word"
+  },
+  {
+   "t": 0.4,
+   "type": "word"
+  },
+  {
+   "t": 0.9,
+   "type": "whoosh",
+   "dir": "up",
+   "dur": 0.6
+  },
+  {
+   "t": 2,
+   "type": "flip"
+  },
+  {
+   "t": 2.25,
+   "type": "flip"
+  },
+  {
+   "t": 2.5,
+   "type": "flip"
+  },
+  {
+   "t": 2.75,
+   "type": "flip"
+  },
+  {
+   "t": 2.9,
+   "type": "marker"
+  },
+  {
+   "t": 3.2,
+   "type": "whoosh",
+   "dir": "in",
+   "dur": 0.4
+  },
+  {
+   "t": 3.45,
+   "type": "marker"
+  },
+  {
+   "t": 4.8,
+   "type": "whoosh",
+   "dir": "right",
+   "dur": 0.35
+  },
+  {
+   "t": 5.05,
+   "type": "marker"
+  },
+  {
+   "t": 6.4,
+   "type": "whoosh",
+   "dir": "right",
+   "dur": 0.35
+  },
+  {
+   "t": 6.65,
+   "type": "marker"
+  },
+  {
+   "t": 8,
+   "type": "whoosh",
+   "dir": "out",
+   "dur": 0.6
+  },
+  {
+   "t": 8,
+   "type": "riser",
+   "end": 10
+  },
+  {
+   "t": 8.4,
+   "type": "pop",
+   "severity": "BLOCKER"
+  },
+  {
+   "t": 8.62,
+   "type": "pop",
+   "severity": "WARNING"
+  },
+  {
+   "t": 8.82,
+   "type": "pop",
+   "severity": "WARNING"
+  },
+  {
+   "t": 9,
+   "type": "pop",
+   "severity": "BLOCKER"
+  },
+  {
+   "t": 9.16,
+   "type": "pop",
+   "severity": "WARNING"
+  },
+  {
+   "t": 9.3,
+   "type": "pop",
+   "severity": "PASS"
+  },
+  {
+   "t": 9.42,
+   "type": "pop",
+   "severity": "WARNING"
+  },
+  {
+   "t": 9.52,
+   "type": "pop",
+   "severity": "BLOCKER"
+  },
+  {
+   "t": 9.61,
+   "type": "pop",
+   "severity": "WARNING"
+  },
+  {
+   "t": 9.69,
+   "type": "pop",
+   "severity": "WARNING"
+  },
+  {
+   "t": 9.76,
+   "type": "pop",
+   "severity": "DS_CANDIDATE"
+  },
+  {
+   "t": 9.82,
+   "type": "pop",
+   "severity": "WARNING"
+  },
+  {
+   "t": 9.87,
+   "type": "pop",
+   "severity": "BLOCKER"
+  },
+  {
+   "t": 9.91,
+   "type": "pop",
+   "severity": "WARNING"
+  },
+  {
+   "t": 10,
+   "type": "impact"
+  },
+  {
+   "t": 10.55,
+   "type": "pop",
+   "severity": "BLOCKER",
+   "big": true
+  },
+  {
+   "t": 11,
+   "type": "shimmer"
+  },
+  {
+   "t": 13,
+   "type": "whoosh",
+   "dir": "up",
+   "dur": 0.5
+  },
+  {
+   "t": 13.4,
+   "type": "key",
+   "index": 0
+  },
+  {
+   "t": 13.447,
+   "type": "key",
+   "index": 1
+  },
+  {
+   "t": 13.494,
+   "type": "key",
+   "index": 2
+  },
+  {
+   "t": 13.541,
+   "type": "key",
+   "index": 3
+  },
+  {
+   "t": 13.588,
+   "type": "key",
+   "index": 4
+  },
+  {
+   "t": 13.635,
+   "type": "key",
+   "index": 5
+  },
+  {
+   "t": 13.682,
+   "type": "key",
+   "index": 6
+  },
+  {
+   "t": 13.729,
+   "type": "key",
+   "index": 7
+  },
+  {
+   "t": 13.776,
+   "type": "key",
+   "index": 8
+  },
+  {
+   "t": 13.823,
+   "type": "key",
+   "index": 9
+  },
+  {
+   "t": 13.87,
+   "type": "key",
+   "index": 10
+  },
+  {
+   "t": 13.917,
+   "type": "key",
+   "index": 11
+  },
+  {
+   "t": 13.964,
+   "type": "key",
+   "index": 12
+  },
+  {
+   "t": 14.011,
+   "type": "key",
+   "index": 13
+  },
+  {
+   "t": 14.058,
+   "type": "key",
+   "index": 14
+  },
+  {
+   "t": 14.105,
+   "type": "key",
+   "index": 15
+  },
+  {
+   "t": 14.152,
+   "type": "key",
+   "index": 16
+  },
+  {
+   "t": 14.199,
+   "type": "key",
+   "index": 17
+  },
+  {
+   "t": 14.246,
+   "type": "key",
+   "index": 18
+  },
+  {
+   "t": 14.4,
+   "type": "enter"
+  },
+  {
+   "t": 15.1,
+   "type": "done",
+   "index": 0
+  },
+  {
+   "t": 15.7,
+   "type": "done",
+   "index": 1
+  },
+  {
+   "t": 16.3,
+   "type": "done",
+   "index": 2
+  },
+  {
+   "t": 16.9,
+   "type": "done",
+   "index": 3
+  },
+  {
+   "t": 17,
+   "type": "thud"
+  },
+  {
+   "t": 17.6,
+   "type": "whoosh",
+   "dir": "in",
+   "dur": 0.4
+  },
+  {
+   "t": 18,
+   "type": "swish",
+   "index": 0
+  },
+  {
+   "t": 18.07,
+   "type": "swish",
+   "index": 1
+  },
+  {
+   "t": 18.14,
+   "type": "swish",
+   "index": 2
+  },
+  {
+   "t": 18.21,
+   "type": "swish",
+   "index": 3
+  },
+  {
+   "t": 18.28,
+   "type": "swish",
+   "index": 4
+  },
+  {
+   "t": 18.35,
+   "type": "swish",
+   "index": 5
+  },
+  {
+   "t": 18.42,
+   "type": "swish",
+   "index": 6
+  },
+  {
+   "t": 18.49,
+   "type": "swish",
+   "index": 7
+  },
+  {
+   "t": 18.56,
+   "type": "swish",
+   "index": 8
+  },
+  {
+   "t": 19.8,
+   "type": "stamp",
+   "severity": "BLOCKER"
+  },
+  {
+   "t": 20.1,
+   "type": "stamp",
+   "severity": "DS_CANDIDATE"
+  },
+  {
+   "t": 21.2,
+   "type": "whoosh",
+   "dir": "in",
+   "dur": 0.8
+  },
+  {
+   "t": 22,
+   "type": "hit"
+  },
+  {
+   "t": 23.5,
+   "type": "click"
+  },
+  {
+   "t": 25,
+   "type": "click"
+  },
+  {
+   "t": 25.1,
+   "type": "sweep",
+   "end": 26.3
+  },
+  {
+   "t": 26.5,
+   "type": "click"
+  },
+  {
+   "t": 26.55,
+   "type": "flip"
+  },
+  {
+   "t": 28,
+   "type": "whoosh",
+   "dir": "in",
+   "dur": 0.6
+  },
+  {
+   "t": 30,
+   "type": "pop",
+   "severity": "BLOCKER",
+   "index": 0
+  },
+  {
+   "t": 30.2,
+   "type": "pop",
+   "severity": "WARNING",
+   "index": 1
+  },
+  {
+   "t": 30.4,
+   "type": "pop",
+   "severity": "WARNING",
+   "index": 2
+  },
+  {
+   "t": 30.6,
+   "type": "pop",
+   "severity": "WARNING",
+   "index": 3
+  },
+  {
+   "t": 30.8,
+   "type": "pop",
+   "severity": "WARNING",
+   "index": 4
+  },
+  {
+   "t": 31,
+   "type": "pop",
+   "severity": "WARNING",
+   "index": 5
+  },
+  {
+   "t": 31.2,
+   "type": "pop",
+   "severity": "WARNING",
+   "index": 6
+  },
+  {
+   "t": 31.4,
+   "type": "pop",
+   "severity": "PASS",
+   "index": 7
+  },
+  {
+   "t": 31.6,
+   "type": "pop",
+   "severity": "PASS",
+   "index": 8
+  },
+  {
+   "t": 32,
+   "type": "whoosh",
+   "dir": "in",
+   "dur": 0.45
+  },
+  {
+   "t": 32.4,
+   "type": "pop",
+   "severity": "WARNING",
+   "card": true
+  },
+  {
+   "t": 34.6,
+   "type": "whoosh",
+   "dir": "left",
+   "dur": 0.4
+  },
+  {
+   "t": 35,
+   "type": "pop",
+   "severity": "WARNING",
+   "card": true
+  },
+  {
+   "t": 36.5,
+   "type": "whoosh",
+   "dir": "out",
+   "dur": 0.5
+  },
+  {
+   "t": 37,
+   "type": "hit"
+  },
+  {
+   "t": 37,
+   "type": "tick",
+   "index": 0
+  },
+  {
+   "t": 37.1,
+   "type": "tick",
+   "index": 1
+  },
+  {
+   "t": 37.2,
+   "type": "tick",
+   "index": 2
+  },
+  {
+   "t": 37.3,
+   "type": "tick",
+   "index": 3
+  },
+  {
+   "t": 37.4,
+   "type": "tick",
+   "index": 4
+  },
+  {
+   "t": 37.5,
+   "type": "tick",
+   "index": 5
+  },
+  {
+   "t": 37.6,
+   "type": "tick",
+   "index": 6
+  },
+  {
+   "t": 38.3,
+   "type": "stamp",
+   "severity": "BLOCKER"
+  },
+  {
+   "t": 40,
+   "type": "stamp",
+   "severity": "DS_CANDIDATE"
+  },
+  {
+   "t": 42,
+   "type": "whoosh",
+   "dir": "left",
+   "dur": 0.4
+  },
+  {
+   "t": 42.05,
+   "type": "whoosh",
+   "dir": "right",
+   "dur": 0.4
+  },
+  {
+   "t": 44,
+   "type": "whoosh",
+   "dir": "in",
+   "dur": 0.5
+  },
+  {
+   "t": 46.2,
+   "type": "click"
+  },
+  {
+   "t": 46.3,
+   "type": "toast"
+  },
+  {
+   "t": 46.6,
+   "type": "whoosh",
+   "dir": "up",
+   "dur": 0.3
+  },
+  {
+   "t": 47,
+   "type": "success",
+   "index": 0
+  },
+  {
+   "t": 47.4,
+   "type": "success",
+   "index": 1
+  },
+  {
+   "t": 47.8,
+   "type": "success",
+   "index": 2
+  },
+  {
+   "t": 48.2,
+   "type": "success",
+   "index": 3
+  },
+  {
+   "t": 48.6,
+   "type": "success",
+   "index": 4
+  },
+  {
+   "t": 49,
+   "type": "riser",
+   "end": 50.2,
+   "short": true
+  },
+  {
+   "t": 50.2,
+   "type": "chime"
+  },
+  {
+   "t": 51,
+   "type": "whoosh",
+   "dir": "up",
+   "dur": 0.4
+  },
+  {
+   "t": 51.4,
+   "type": "fail"
+  },
+  {
+   "t": 53,
+   "type": "click"
+  },
+  {
+   "t": 53.8,
+   "type": "success",
+   "index": 4
+  },
+  {
+   "t": 54.2,
+   "type": "click"
+  },
+  {
+   "t": 54.5,
+   "type": "reverse",
+   "end": 55
+  },
+  {
+   "t": 55,
+   "type": "word"
+  },
+  {
+   "t": 55.12,
+   "type": "word"
+  },
+  {
+   "t": 55.24,
+   "type": "word"
+  },
+  {
+   "t": 55.36,
+   "type": "word"
+  },
+  {
+   "t": 55.48,
+   "type": "word"
+  },
+  {
+   "t": 56.2,
+   "type": "word"
+  },
+  {
+   "t": 56.32,
+   "type": "word"
+  },
+  {
+   "t": 56.44,
+   "type": "word"
+  },
+  {
+   "t": 56.56,
+   "type": "word"
+  },
+  {
+   "t": 56.68,
+   "type": "word"
+  },
+  {
+   "t": 57.5,
+   "type": "impact",
+   "final": true
+  },
+  {
+   "t": 57.8,
+   "type": "pop",
+   "severity": "BLOCKER",
+   "big": true
+  },
+  {
+   "t": 58.1,
+   "type": "shimmer"
+  }
+ ]
+}

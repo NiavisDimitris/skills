@@ -1,0 +1,25 @@
+{
+  "state": "hover",
+  "root": "[data-testid=orders-page]",
+  "regions": [
+    {
+      "region": "Page header",
+      "selector": "header.page-header",
+      "text": "Orders · Track and manage customer orders"
+    },
+    {
+      "region": "Toolbar",
+      "selector": "[data-testid=orders-toolbar]",
+      "text": "Search by order ID or customer · All statuses · 1–12 of 124 · New order"
+    },
+    {
+      "region": "Table",
+      "selector": "[data-testid=orders-table]",
+      "text": "ORDER · CUSTOMER · STATUS · TOTAL · CREATED · UPDATED"
+    }
+  ],
+  "target": ".orders-row:nth-child(2)",
+  "matches": [
+    ":hover"
+  ]
+}

@@ -1,0 +1,396 @@
+{
+  "fileKey": "aBcD3fGh1JkLmN0pQrStUv",
+  "nodeId": "1204:3310",
+  "name": "Orders / With data",
+  "frame": {
+    "width": 1440,
+    "height": 900
+  },
+  "variables": {
+    "--ads-color-text-primary": "#111827",
+    "--ads-color-text-secondary": "#6B7280",
+    "--ads-color-surface-subtle": "#F9FAFB",
+    "--ads-color-surface-hover": "#F0F4FA",
+    "--ads-color-surface-selected": "#E6EEFF",
+    "--ads-color-focus-ring": "#2563EB",
+    "--ads-space-3": "12px",
+    "--ads-space-4": "16px",
+    "--ads-space-6": "24px",
+    "--ads-radius-md": "6px",
+    "--ads-radius-lg": "8px",
+    "--ads-font-size-xl": "24px",
+    "--ads-font-weight-semibold": 600
+  },
+  "layers": [
+    {
+      "id": "1204:3310",
+      "name": "Orders / With data",
+      "type": "FRAME",
+      "bounds": [
+        0,
+        0,
+        1440,
+        900
+      ],
+      "fills": [
+        "--ads-color-bg-canvas"
+      ]
+    },
+    {
+      "id": "1204:3311",
+      "name": "App header",
+      "type": "INSTANCE",
+      "component": "AppHeader",
+      "bounds": [
+        0,
+        0,
+        1440,
+        56
+      ]
+    },
+    {
+      "id": "1204:3312",
+      "name": "Sidebar",
+      "type": "INSTANCE",
+      "component": "SideNav",
+      "variantProperties": {
+        "Active": "Orders"
+      },
+      "bounds": [
+        0,
+        57,
+        232,
+        843
+      ]
+    },
+    {
+      "id": "1204:3314",
+      "name": "Page title",
+      "type": "TEXT",
+      "characters": "Orders",
+      "style": {
+        "fontSize": 24,
+        "fontWeight": 600,
+        "lineHeight": 32
+      },
+      "tokens": {
+        "fill": "--ads-color-text-primary",
+        "fontSize": "--ads-font-size-xl",
+        "fontWeight": "--ads-font-weight-semibold"
+      },
+      "bounds": [
+        264,
+        78,
+        82,
+        32
+      ]
+    },
+    {
+      "id": "1204:3315",
+      "name": "Page subtitle",
+      "type": "TEXT",
+      "characters": "Track and manage customer orders",
+      "tokens": {
+        "fill": "--ads-color-text-secondary"
+      },
+      "bounds": [
+        264,
+        116,
+        236,
+        20
+      ]
+    },
+    {
+      "id": "1204:3316",
+      "name": "Toolbar",
+      "type": "FRAME",
+      "layout": {
+        "mode": "HORIZONTAL",
+        "gap": 12
+      },
+      "bounds": [
+        264,
+        152,
+        1144,
+        36
+      ]
+    },
+    {
+      "id": "1204:3317",
+      "name": "Search",
+      "type": "INSTANCE",
+      "component": "Input",
+      "variantProperties": {
+        "Size": "md",
+        "Icon": "Leading"
+      },
+      "characters": "Search orders",
+      "bounds": [
+        264,
+        152,
+        320,
+        36
+      ]
+    },
+    {
+      "id": "1204:3318",
+      "name": "Status filter",
+      "type": "INSTANCE",
+      "component": "Select",
+      "characters": "All statuses",
+      "bounds": [
+        596,
+        152,
+        168,
+        36
+      ]
+    },
+    {
+      "id": "1204:3319",
+      "name": "New order",
+      "type": "INSTANCE",
+      "component": "Button",
+      "variantProperties": {
+        "Variant": "Primary",
+        "Size": "md"
+      },
+      "bounds": [
+        1288,
+        152,
+        120,
+        36
+      ]
+    },
+    {
+      "id": "1204:3320",
+      "name": "Card",
+      "type": "FRAME",
+      "padding": 24,
+      "tokens": {
+        "padding": "--ads-space-6",
+        "radius": "--ads-radius-lg",
+        "stroke": "--ads-color-border-subtle"
+      },
+      "bounds": [
+        264,
+        204,
+        1144,
+        520
+      ]
+    },
+    {
+      "id": "1204:3322",
+      "name": "Table.Header",
+      "type": "INSTANCE",
+      "component": "Table.Header",
+      "variantProperties": {
+        "Sticky": "True"
+      },
+      "tokens": {
+        "fill": "--ads-color-surface-subtle"
+      },
+      "bounds": [
+        288,
+        228,
+        1096,
+        40
+      ]
+    },
+    {
+      "id": "1204:3323",
+      "name": "Table.HeaderCell / Total",
+      "type": "INSTANCE",
+      "component": "Table.HeaderCell",
+      "variantProperties": {
+        "Sortable": "True",
+        "Align": "End"
+      }
+    },
+    {
+      "id": "1204:3324",
+      "name": "Row 1",
+      "type": "INSTANCE",
+      "component": "Table.Row",
+      "variantProperties": {
+        "State": "Default"
+      },
+      "bounds": [
+        288,
+        268,
+        1096,
+        48
+      ],
+      "reactions": [
+        {
+          "trigger": "ON_HOVER",
+          "action": "CHANGE_TO",
+          "destinationId": "1204:3431",
+          "transition": {
+            "type": "SMART_ANIMATE",
+            "duration": 160,
+            "easing": "EASE_OUT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1204:3325",
+      "name": "Status badge",
+      "type": "INSTANCE",
+      "component": "Badge",
+      "variantProperties": {
+        "Status": "Success"
+      }
+    },
+    {
+      "id": "1204:3326",
+      "name": "Total",
+      "type": "TEXT",
+      "characters": "$1,240.00",
+      "style": {
+        "fontFeatureSettings": {
+          "tnum": true
+        }
+      }
+    },
+    {
+      "id": "1204:3340",
+      "name": "Pagination",
+      "type": "INSTANCE",
+      "component": "Pagination",
+      "variantProperties": {
+        "Position": "Bottom"
+      },
+      "bounds": [
+        288,
+        668,
+        1096,
+        32
+      ]
+    },
+    {
+      "id": "1204:3388",
+      "name": "Orders / Empty",
+      "type": "FRAME",
+      "bounds": [
+        0,
+        0,
+        1440,
+        900
+      ]
+    },
+    {
+      "id": "1204:3391",
+      "name": "EmptyState",
+      "type": "INSTANCE",
+      "component": "EmptyState",
+      "variantProperties": {
+        "Size": "md"
+      },
+      "characters": "No orders yet"
+    },
+    {
+      "id": "1204:3392",
+      "name": "Create order",
+      "type": "INSTANCE",
+      "component": "Button",
+      "variantProperties": {
+        "Variant": "Primary",
+        "Size": "md"
+      }
+    },
+    {
+      "id": "1204:3402",
+      "name": "Orders / Loading",
+      "type": "FRAME",
+      "bounds": [
+        0,
+        0,
+        1440,
+        900
+      ]
+    },
+    {
+      "id": "1204:3405",
+      "name": "Skeleton / Row",
+      "type": "INSTANCE",
+      "component": "Skeleton",
+      "variantProperties": {
+        "Shape": "Text"
+      },
+      "tokens": {
+        "radius": "--ads-radius-md",
+        "fill": "--ads-color-skeleton"
+      }
+    },
+    {
+      "id": "1204:3417",
+      "name": "Orders / Error",
+      "type": "FRAME",
+      "bounds": [
+        0,
+        0,
+        1440,
+        900
+      ]
+    },
+    {
+      "id": "1204:3419",
+      "name": "Alert",
+      "type": "INSTANCE",
+      "component": "Alert",
+      "variantProperties": {
+        "Variant": "Critical"
+      },
+      "characters": "Couldn't load orders"
+    },
+    {
+      "id": "1204:3420",
+      "name": "Retry",
+      "type": "INSTANCE",
+      "component": "Button",
+      "variantProperties": {
+        "Variant": "Secondary",
+        "Size": "sm"
+      }
+    },
+    {
+      "id": "1204:3431",
+      "name": "Orders / Row / State=Hover",
+      "type": "COMPONENT",
+      "component": "Table.Row",
+      "variantProperties": {
+        "State": "Hover"
+      },
+      "tokens": {
+        "fill": "--ads-color-surface-hover"
+      }
+    },
+    {
+      "id": "1204:3440",
+      "name": "Orders / Row / State=Focus",
+      "type": "COMPONENT",
+      "component": "Table.Row",
+      "variantProperties": {
+        "State": "Focus"
+      },
+      "tokens": {
+        "stroke": "--ads-color-focus-ring"
+      },
+      "strokeAlign": "INSIDE",
+      "strokeWeight": 2
+    },
+    {
+      "id": "1204:3452",
+      "name": "Orders / Row / State=Selected",
+      "type": "COMPONENT",
+      "component": "Table.Row",
+      "variantProperties": {
+        "State": "Selected"
+      },
+      "tokens": {
+        "fill": "--ads-color-surface-selected"
+      }
+    }
+  ]
+}

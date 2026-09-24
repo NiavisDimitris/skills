@@ -1,0 +1,84 @@
+# CI for this repo (design-qa-skill itself): runs the test suite, validates
+# the sample report and template rendering, and blocks accidental
+# proprietary content from landing under skills/.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is the floor (package.json "engines" requires >=20, since
+        # Playwright 1.63 needs it); 22 is tested alongside it to catch
+        # next-major regressions early.
+        node-version: [20, 22]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run tests
+        run: npm test
+
+      - name: Validate the sample report against the schema
+        run: node skills/design-qa/scripts/validate.mjs examples/sample/sample-report.json
+
+      - name: Render the sample report and fix plan
+        run: |
+          node skills/design-qa/scripts/render-report.mjs \
+            --in examples/sample/sample-report.json \
+            --out /tmp/report.html \
+            --embed-images \
+            --fixplan /tmp/fixplan.md
+
+      - name: No proprietary content under skills/
+        # Denylist of internal codenames, paths and identifiers that must
+        # never appear in this public repo. The pattern (a grep -E regex)
+        # lives in the DENYLIST repository secret, not in this file, so the
+        # check doesn't publish the terms it guards. Only file names are
+        # printed. Skipped when the secret isn't available (e.g. fork PRs).
+        # If this fails, you (probably) pasted something from a private
+        # codebase - scrub it, don't trim the list to make it pass.
+        env:
+          DENYLIST: ${{ secrets.DENYLIST }}
+        run: |
+          if [ -z "$DENYLIST" ]; then
+            echo "DENYLIST secret not set - skipping."
+            exit 0
+          fi
+          if grep -rEIil "$DENYLIST" skills/; then
+            echo "::error::The files above match the DENYLIST secret, likely proprietary content. Remove it before merging."
+            exit 1
+          fi
+          echo "Clean - no denylisted strings under skills/."
+
+      - name: Upload rendered sample report
+        if: matrix.node-version == 20
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-report-html
+          path: /tmp/report.html

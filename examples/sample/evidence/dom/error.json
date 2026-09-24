@@ -1,0 +1,28 @@
+{
+  "state": "error",
+  "root": "[data-testid=orders-page]",
+  "regions": [
+    {
+      "region": "Page header",
+      "selector": "header.page-header",
+      "text": "Orders · Track and manage customer orders"
+    },
+    {
+      "region": "Toolbar",
+      "selector": "[data-testid=orders-toolbar]",
+      "text": "Search by order ID or customer · All statuses · 1–12 of 124 · New order"
+    },
+    {
+      "region": "Error banner",
+      "selector": "[data-testid=orders-error]",
+      "role": "alert",
+      "text": "Couldn't load orders · Retry"
+    }
+  ],
+  "retry": {
+    "clicked": true,
+    "requestsAfterClick": [
+      "GET /api/orders"
+    ]
+  }
+}

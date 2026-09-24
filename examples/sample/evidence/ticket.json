@@ -1,0 +1,49 @@
+{
+  "provider": "jira",
+  "key": "ACME-482",
+  "url": "https://acme.atlassian.net/browse/ACME-482",
+  "title": "Orders list: table with empty, loading and error states",
+  "status": "In review",
+  "links": {
+    "figma": "https://www.figma.com/design/aBcD3fGh1JkLmN0pQrStUv/Acme-Console?node-id=1204-3310",
+    "pullRequest": "https://github.com/acme/console/pull/1287"
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "text": "The Orders page lists orders in a table with order ID, customer, status, total and created date, newest first."
+    },
+    {
+      "id": "AC-2",
+      "text": "When there are no orders, show the empty state with a 'Create order' action."
+    },
+    {
+      "id": "AC-3",
+      "text": "When the request fails, show a retry button."
+    },
+    {
+      "id": "AC-4",
+      "text": "While orders load, show skeleton rows; the skeleton must appear only after 300 ms."
+    }
+  ],
+  "expectedBehaviors": [
+    {
+      "acRef": "AC-2",
+      "state": "empty",
+      "trigger": "GET /api/orders returns []",
+      "expected": "Empty state with a 'Create order' button"
+    },
+    {
+      "acRef": "AC-3",
+      "state": "error",
+      "trigger": "GET /api/orders fails",
+      "expected": "Error banner with a Retry button that re-requests orders"
+    },
+    {
+      "acRef": "AC-4",
+      "state": "loading",
+      "trigger": "GET /api/orders is slow",
+      "expected": "Skeleton appears only after 300 ms"
+    }
+  ]
+}

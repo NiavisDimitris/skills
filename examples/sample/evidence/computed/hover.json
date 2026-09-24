@@ -1,0 +1,102 @@
+{
+  "Page title": {
+    "selector": "h1.page-title",
+    "count": 1,
+    "samples": [
+      {
+        "font-size": "24px",
+        "font-weight": "500",
+        "line-height": "32px",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 264,
+          "y": 78,
+          "w": 75,
+          "h": 32
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "Card": {
+    "selector": ".orders-card",
+    "count": 1,
+    "samples": [
+      {
+        "padding": "20px",
+        "border-radius": "8px",
+        "background-color": "rgb(255, 255, 255)",
+        "__rect": {
+          "x": 264,
+          "y": 204,
+          "w": 1144,
+          "h": 656
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "Table row (hover)": {
+    "selector": ".orders-row:hover",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(207, 216, 230)",
+        "transition-duration": "0.4s",
+        "__rect": {
+          "x": 284,
+          "y": 312,
+          "w": 1104,
+          "h": 48
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "Table row": {
+    "selector": ".orders-row",
+    "count": 12,
+    "samples": [
+      {
+        "transition-property": "background-color",
+        "transition-duration": "0.4s",
+        "transition-timing-function": "ease",
+        "__rect": {
+          "x": 284,
+          "y": 264,
+          "w": 1104,
+          "h": 48
+        },
+        "__visible": true
+      },
+      {
+        "transition-property": "background-color",
+        "transition-duration": "0.4s",
+        "transition-timing-function": "ease",
+        "__rect": {
+          "x": 284,
+          "y": 312,
+          "w": 1104,
+          "h": 48
+        },
+        "__visible": true
+      },
+      {
+        "transition-property": "background-color",
+        "transition-duration": "0.4s",
+        "transition-timing-function": "ease",
+        "__rect": {
+          "x": 284,
+          "y": 360,
+          "w": 1104,
+          "h": 48
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  }
+}

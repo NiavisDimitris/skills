@@ -1,0 +1,534 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "design-qa report (schemaVersion 1.0)",
+  "description": "Agent-readable Figma-to-code design-parity report. Keys whose value may be null can be omitted (treated as null). Cross-field rules that JSON Schema cannot express (unique finding ids, findingIds/relatedFindings references, derived scorecard counts/parity/verdict, pixel-diff bands against configured tolerances) are enforced by scripts/validate.mjs.",
+  "type": "object",
+  "required": ["schemaVersion", "meta", "scorecard", "stateMatrix", "findings", "ledgers", "openDecisions", "fixLoop", "evidence"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": "1.0" },
+    "meta": { "$ref": "#/definitions/meta" },
+    "scorecard": { "$ref": "#/definitions/scorecard" },
+    "stateMatrix": { "type": "array", "items": { "$ref": "#/definitions/stateMatrixRow" } },
+    "findings": { "type": "array", "items": { "$ref": "#/definitions/finding" } },
+    "ledgers": { "$ref": "#/definitions/ledgers" },
+    "openDecisions": { "type": "array", "items": { "$ref": "#/definitions/openDecision" } },
+    "fixLoop": { "type": "array", "items": { "$ref": "#/definitions/fixLoopEntry" } },
+    "evidence": { "$ref": "#/definitions/evidenceIndex" }
+  },
+  "definitions": {
+    "nullableString": { "type": ["string", "null"] },
+    "count": { "type": "integer", "minimum": 0 },
+    "findingRefs": { "type": "array", "items": { "type": "string" } },
+    "severity": { "enum": ["BLOCKER", "WARNING", "PASS", "CANNOT_VERIFY", "DS_CANDIDATE"] },
+    "resolution": { "enum": ["FIX_CODE", "SYNC_FIGMA", "INTENTIONAL", "DATA", "NONE", "UNCLASSIFIED"] },
+    "ledgerName": { "enum": ["structure", "component", "style", "state", "behavior"] },
+    "stateResult": { "enum": ["PASS", "FAIL", "CANNOT_VERIFY", "MISSING_IN_CODE", "MISSING_IN_DESIGN", "NOT_SPECIFIED"] },
+    "ledgerResult": { "enum": ["PASS", "FAIL", "CANNOT_VERIFY", "DATA"] },
+    "size": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["feature", "generatedAt", "skillVersion", "mode", "figma", "app", "tools", "degradations"],
+      "properties": {
+        "feature": { "type": "string", "minLength": 1 },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "skillVersion": { "type": "string" },
+        "mode": { "enum": ["audit", "fix", "sync", "ci"] },
+        "ticket": {
+          "type": ["object", "null"],
+          "required": ["provider"],
+          "properties": {
+            "provider": { "enum": ["jira", "linear", "github", "none"] },
+            "key": { "$ref": "#/definitions/nullableString" },
+            "url": { "$ref": "#/definitions/nullableString" },
+            "title": { "$ref": "#/definitions/nullableString" }
+          }
+        },
+        "figma": {
+          "type": "object",
+          "required": ["fileKey", "nodeId", "url", "frame"],
+          "properties": {
+            "fileKey": { "type": "string", "minLength": 1 },
+            "nodeId": { "type": "string", "minLength": 1 },
+            "url": { "type": "string", "format": "uri" },
+            "frame": { "$ref": "#/definitions/size" }
+          }
+        },
+        "app": {
+          "type": "object",
+          "required": ["url", "kind", "viewport", "dpr"],
+          "properties": {
+            "url": { "type": "string", "format": "uri" },
+            "kind": { "enum": ["local", "preview", "staging", "prod"] },
+            "route": { "$ref": "#/definitions/nullableString" },
+            "commit": { "$ref": "#/definitions/nullableString" },
+            "branch": { "$ref": "#/definitions/nullableString" },
+            "viewport": { "$ref": "#/definitions/size" },
+            "dpr": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "fixture": { "$ref": "#/definitions/nullableString" },
+        "tools": {
+          "type": "object",
+          "required": ["figmaAccess", "capture", "ticket"],
+          "properties": {
+            "figmaAccess": { "enum": ["mcp", "devmode-mcp", "rest", "manual"] },
+            "capture": { "enum": ["script", "playwright-mcp", "builtin"] },
+            "ticket": { "enum": ["mcp", "rest", "pasted", "none"] }
+          }
+        },
+        "degradations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["step", "reason", "impact"],
+            "properties": {
+              "step": { "type": "string" },
+              "reason": { "type": "string" },
+              "impact": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "scorecard": {
+      "type": "object",
+      "required": ["parity", "verdict", "bySeverity", "byResolution", "pixelDiff", "stateCoverage"],
+      "properties": {
+        "parity": { "type": "number", "minimum": 0, "maximum": 100 },
+        "verdict": { "enum": ["PASS", "REVIEW", "FAIL"] },
+        "bySeverity": {
+          "type": "object",
+          "required": ["BLOCKER", "WARNING", "PASS", "CANNOT_VERIFY", "DS_CANDIDATE"],
+          "properties": {
+            "BLOCKER": { "$ref": "#/definitions/count" },
+            "WARNING": { "$ref": "#/definitions/count" },
+            "PASS": { "$ref": "#/definitions/count" },
+            "CANNOT_VERIFY": { "$ref": "#/definitions/count" },
+            "DS_CANDIDATE": { "$ref": "#/definitions/count" }
+          }
+        },
+        "byResolution": {
+          "type": "object",
+          "required": ["FIX_CODE", "SYNC_FIGMA", "INTENTIONAL", "DATA", "NONE", "UNCLASSIFIED"],
+          "properties": {
+            "FIX_CODE": { "$ref": "#/definitions/count" },
+            "SYNC_FIGMA": { "$ref": "#/definitions/count" },
+            "INTENTIONAL": { "$ref": "#/definitions/count" },
+            "DATA": { "$ref": "#/definitions/count" },
+            "NONE": { "$ref": "#/definitions/count" },
+            "UNCLASSIFIED": { "$ref": "#/definitions/count" }
+          }
+        },
+        "pixelDiff": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["percent", "band"],
+            "properties": {
+              "percent": { "type": "number", "minimum": 0, "maximum": 100 },
+              "band": { "enum": ["pass", "review", "fail"] },
+              "image": { "$ref": "#/definitions/nullableString" }
+            }
+          }
+        },
+        "stateCoverage": {
+          "type": "object",
+          "required": ["total", "designed", "specified", "implemented", "verified"],
+          "properties": {
+            "total": { "$ref": "#/definitions/count" },
+            "designed": { "$ref": "#/definitions/count" },
+            "specified": { "$ref": "#/definitions/count" },
+            "implemented": { "$ref": "#/definitions/count" },
+            "verified": { "$ref": "#/definitions/count" }
+          }
+        }
+      }
+    },
+    "stateMatrixRow": {
+      "type": "object",
+      "required": ["state", "label", "result", "findings"],
+      "properties": {
+        "state": { "type": "string", "minLength": 1, "description": "Normalised state id: with-data, empty, loading, error, hover, focus, active, selected, disabled, …" },
+        "label": { "type": "string" },
+        "designed": {
+          "type": ["object", "null"],
+          "required": ["nodeId", "name"],
+          "properties": {
+            "nodeId": { "type": "string" },
+            "name": { "type": "string" }
+          }
+        },
+        "specified": {
+          "type": ["object", "null"],
+          "required": ["acRef", "text"],
+          "properties": {
+            "acRef": { "type": "string" },
+            "text": { "type": "string" }
+          }
+        },
+        "implemented": {
+          "type": ["object", "null"],
+          "required": ["driver", "detail"],
+          "properties": {
+            "driver": { "enum": ["fixture", "query", "mock", "storage", "action", "source"] },
+            "detail": { "type": "string" }
+          }
+        },
+        "captured": {
+          "type": ["object", "null"],
+          "properties": {
+            "figma": { "type": ["string", "null"] },
+            "app": { "type": ["string", "null"] },
+            "diff": { "type": ["string", "null"] }
+          }
+        },
+        "result": { "enum": ["PASS", "FAIL", "CANNOT_VERIFY", "MISSING_IN_CODE", "MISSING_IN_DESIGN", "NOT_SPECIFIED"] },
+        "note": { "type": ["string", "null"] },
+        "findings": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": ["id", "title", "ledger", "severity", "resolution", "region", "element", "expected", "actual", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^DQ-\\d{3,}$" },
+        "title": { "type": "string", "minLength": 1 },
+        "ledger": { "$ref": "#/definitions/ledgerName" },
+        "state": { "$ref": "#/definitions/nullableString" },
+        "severity": { "$ref": "#/definitions/severity" },
+        "resolution": { "$ref": "#/definitions/resolution" },
+        "region": { "type": "string" },
+        "element": {
+          "type": "object",
+          "properties": {
+            "selector": { "$ref": "#/definitions/nullableString" },
+            "figmaLayerPath": { "$ref": "#/definitions/nullableString" },
+            "figmaNodeId": { "$ref": "#/definitions/nullableString" }
+          }
+        },
+        "property": { "$ref": "#/definitions/nullableString" },
+        "expected": {
+          "type": "object",
+          "required": ["source"],
+          "properties": {
+            "value": { "$ref": "#/definitions/nullableString" },
+            "token": { "$ref": "#/definitions/nullableString" },
+            "source": { "enum": ["figma", "ticket", "design-rules"] }
+          }
+        },
+        "actual": {
+          "type": "object",
+          "required": ["source"],
+          "properties": {
+            "value": { "$ref": "#/definitions/nullableString" },
+            "token": { "$ref": "#/definitions/nullableString" },
+            "source": {
+              "type": "object",
+              "properties": {
+                "file": { "$ref": "#/definitions/nullableString" },
+                "line": { "type": ["integer", "null"], "minimum": 1 },
+                "snippet": { "$ref": "#/definitions/nullableString" }
+              }
+            }
+          }
+        },
+        "delta": { "$ref": "#/definitions/nullableString" },
+        "tolerance": { "$ref": "#/definitions/nullableString" },
+        "fix": {
+          "type": ["object", "null"],
+          "required": ["summary", "files", "effort"],
+          "properties": {
+            "summary": { "type": "string", "minLength": 1 },
+            "patchHint": { "$ref": "#/definitions/nullableString" },
+            "files": { "type": "array", "items": { "type": "string" } },
+            "effort": { "type": "integer", "minimum": 1, "maximum": 5 }
+          }
+        },
+        "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidenceItem" } },
+        "rank": {
+          "type": ["object", "null"],
+          "description": "Derived by render-report.mjs when null. fix-now/debt: FIX_CODE findings (engineer); sync-figma: SYNC_FIGMA findings (designer); none: everything else. Only BLOCKER, WARNING and DS_CANDIDATE findings are ranked.",
+          "required": ["score", "bucket"],
+          "properties": {
+            "score": { "type": "number" },
+            "bucket": { "enum": ["fix-now", "debt", "sync-figma", "none"] }
+          }
+        },
+        "signoff": {
+          "type": ["object", "null"],
+          "required": ["by", "date", "reason"],
+          "properties": {
+            "by": { "type": "string" },
+            "date": { "type": "string" },
+            "reason": { "type": "string" }
+          }
+        },
+        "knownDrift": { "$ref": "#/definitions/nullableString" },
+        "acRef": { "$ref": "#/definitions/nullableString" }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["severity"], "properties": { "severity": { "enum": ["PASS", "CANNOT_VERIFY"] } } },
+          "then": {
+            "properties": {
+              "resolution": { "const": "NONE", "errorMessage": "must be NONE when severity is PASS or CANNOT_VERIFY" }
+            }
+          }
+        },
+        {
+          "if": { "required": ["severity"], "properties": { "severity": { "enum": ["BLOCKER", "WARNING", "DS_CANDIDATE"] } } },
+          "then": {
+            "properties": {
+              "resolution": {
+                "not": { "const": "NONE" },
+                "errorMessage": "must not be NONE when severity is BLOCKER, WARNING or DS_CANDIDATE (use FIX_CODE, SYNC_FIGMA, INTENTIONAL, DATA or UNCLASSIFIED)"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["resolution", "severity", "rank"],
+            "properties": {
+              "resolution": { "const": "FIX_CODE" },
+              "severity": { "enum": ["BLOCKER", "WARNING", "DS_CANDIDATE"] },
+              "rank": { "type": "object" }
+            }
+          },
+          "then": {
+            "properties": {
+              "rank": {
+                "properties": {
+                  "bucket": {
+                    "enum": ["fix-now", "debt"],
+                    "errorMessage": "must be \"fix-now\" or \"debt\" for a FIX_CODE finding with severity BLOCKER, WARNING or DS_CANDIDATE"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["resolution", "severity", "rank"],
+            "properties": {
+              "resolution": { "const": "SYNC_FIGMA" },
+              "severity": { "enum": ["BLOCKER", "WARNING", "DS_CANDIDATE"] },
+              "rank": { "type": "object" }
+            }
+          },
+          "then": {
+            "properties": {
+              "rank": {
+                "properties": {
+                  "bucket": {
+                    "const": "sync-figma",
+                    "errorMessage": "must be \"sync-figma\" for a SYNC_FIGMA finding: fix-now and debt are for FIX_CODE only"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["rank"],
+            "properties": { "rank": { "type": "object" } },
+            "not": {
+              "required": ["resolution", "severity"],
+              "properties": {
+                "resolution": { "enum": ["FIX_CODE", "SYNC_FIGMA"] },
+                "severity": { "enum": ["BLOCKER", "WARNING", "DS_CANDIDATE"] }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rank": {
+                "properties": {
+                  "bucket": {
+                    "const": "none",
+                    "errorMessage": "must be \"none\": only FIX_CODE and SYNC_FIGMA findings with severity BLOCKER, WARNING or DS_CANDIDATE are ranked"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "evidenceItem": {
+      "type": "object",
+      "required": ["type", "path"],
+      "properties": {
+        "type": { "enum": ["screenshot", "computed", "dom", "figma", "diff"] },
+        "path": { "type": "string", "minLength": 1 },
+        "crop": {
+          "type": ["object", "null"],
+          "required": ["x", "y", "w", "h"],
+          "properties": {
+            "x": { "type": "integer", "minimum": 0 },
+            "y": { "type": "integer", "minimum": 0 },
+            "w": { "type": "integer", "minimum": 1 },
+            "h": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "state": { "$ref": "#/definitions/nullableString" }
+      }
+    },
+    "presence": {
+      "type": "object",
+      "required": ["present"],
+      "properties": {
+        "present": { "type": "boolean" },
+        "order": { "type": ["integer", "null"] },
+        "label": { "$ref": "#/definitions/nullableString" }
+      }
+    },
+    "ledgers": {
+      "type": "object",
+      "required": ["structure", "component", "style", "state", "behavior"],
+      "properties": {
+        "structure": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["region", "figma", "app", "result", "findingIds"],
+            "properties": {
+              "region": { "type": "string" },
+              "figma": { "$ref": "#/definitions/presence" },
+              "app": { "$ref": "#/definitions/presence" },
+              "result": { "$ref": "#/definitions/ledgerResult" },
+              "findingIds": { "$ref": "#/definitions/findingRefs" }
+            }
+          }
+        },
+        "component": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["figmaComponent", "expectedComponent", "result", "findingIds"],
+            "properties": {
+              "figmaComponent": { "type": "string" },
+              "variant": { "$ref": "#/definitions/nullableString" },
+              "expectedComponent": { "type": "string" },
+              "actualComponent": { "$ref": "#/definitions/nullableString" },
+              "result": { "$ref": "#/definitions/ledgerResult" },
+              "findingIds": { "$ref": "#/definitions/findingRefs" }
+            }
+          }
+        },
+        "style": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["elementClass", "selector", "property", "result", "findingIds"],
+            "properties": {
+              "elementClass": { "type": "string" },
+              "selector": { "type": "string" },
+              "property": { "type": "string" },
+              "figma": { "type": ["string", "number", "null"] },
+              "token": { "$ref": "#/definitions/nullableString" },
+              "computed": { "type": ["string", "number", "null"] },
+              "sourceValue": { "$ref": "#/definitions/nullableString" },
+              "result": { "$ref": "#/definitions/ledgerResult" },
+              "findingIds": { "$ref": "#/definitions/findingRefs" }
+            }
+          }
+        },
+        "state": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["state", "result", "findingIds"],
+            "properties": {
+              "state": { "type": "string" },
+              "result": { "$ref": "#/definitions/stateResult" },
+              "findingIds": { "$ref": "#/definitions/findingRefs" }
+            }
+          }
+        },
+        "behavior": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["trigger", "expected", "result", "findingIds"],
+            "properties": {
+              "state": { "$ref": "#/definitions/nullableString" },
+              "trigger": { "type": "string" },
+              "expected": { "type": "string" },
+              "observed": { "$ref": "#/definitions/nullableString" },
+              "acRef": { "$ref": "#/definitions/nullableString" },
+              "result": { "$ref": "#/definitions/ledgerResult" },
+              "findingIds": { "$ref": "#/definitions/findingRefs" }
+            }
+          }
+        }
+      }
+    },
+    "openDecision": {
+      "type": "object",
+      "required": ["id", "question", "options", "relatedFindings"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^OD-\\d+$" },
+        "question": { "type": "string", "minLength": 1 },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "consequence"],
+            "properties": {
+              "label": { "type": "string" },
+              "consequence": { "type": "string" }
+            }
+          }
+        },
+        "recommendation": { "$ref": "#/definitions/nullableString" },
+        "relatedFindings": { "$ref": "#/definitions/findingRefs" }
+      }
+    },
+    "fixLoopEntry": {
+      "type": "object",
+      "required": ["iteration", "action", "findingIds", "result"],
+      "properties": {
+        "iteration": { "type": "integer", "minimum": 0 },
+        "action": { "type": "string" },
+        "findingIds": { "$ref": "#/definitions/findingRefs" },
+        "testsRun": { "$ref": "#/definitions/nullableString" },
+        "result": { "enum": ["green", "red", "skipped"] },
+        "pixelDiffAfter": {
+          "type": ["object", "null"],
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 100 }
+        }
+      }
+    },
+    "stateEvidence": {
+      "type": "object",
+      "properties": {
+        "figma": { "$ref": "#/definitions/nullableString" },
+        "app": { "$ref": "#/definitions/nullableString" },
+        "diff": { "$ref": "#/definitions/nullableString" },
+        "computed": { "$ref": "#/definitions/nullableString" },
+        "dom": { "$ref": "#/definitions/nullableString" }
+      }
+    },
+    "evidenceIndex": {
+      "type": "object",
+      "required": ["states"],
+      "properties": {
+        "figmaSpec": { "$ref": "#/definitions/nullableString" },
+        "ticket": { "$ref": "#/definitions/nullableString" },
+        "capture": { "$ref": "#/definitions/nullableString" },
+        "states": { "type": "object", "additionalProperties": { "$ref": "#/definitions/stateEvidence" } }
+      }
+    }
+  }
+}

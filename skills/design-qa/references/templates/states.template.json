@@ -1,0 +1,15 @@
+{
+  "with-data": {
+    "fixture": "rich-orders",
+    "wait": "[data-testid=orders-table]"
+  },
+  "empty": {
+    "mock": { "urlPattern": "**/api/orders*", "status": 200, "body": { "items": [], "total": 0 }, "contentType": "application/json" },
+    "wait": "[data-testid=empty-state]"
+  },
+  "hover": {
+    "action": "hover",
+    "selector": "[data-testid=order-row]:first-child",
+    "settleMs": 250
+  }
+}

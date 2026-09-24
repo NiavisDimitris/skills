@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Items</title>
+<style>
+  body { margin: 0; font: 16px/1.5 Arial, Helvetica, sans-serif; color: #1a1a1a; background: #ffffff; }
+  header { padding: 16px 24px; border-bottom: 1px solid #dddddd; }
+  h1 { font-size: 24px; margin: 0; }
+  .row { padding: 12px 24px; border-bottom: 1px solid #eeeeee; background: #ffffff; }
+  .row:hover { background: #f0f4ff; }
+  .empty, .error { padding: 24px; margin: 0; }
+  .error { color: #b00020; }
+  .spinner { width: 24px; height: 24px; margin: 24px; border: 3px solid #cccccc; border-top-color: #333333; border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header><h1>Items</h1><p class="hint" hidden>Tip: rows are clickable</p></header>
+<main id="app"><div class="spinner" role="status" aria-label="Loading"></div></main>
+<script>
+  const app = document.getElementById('app');
+  fetch('/api/items')
+    .then((res) => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then((items) => {
+      if (!items.length) {
+        app.innerHTML = '<p class="empty">No items yet</p>';
+        return;
+      }
+      app.innerHTML = items.map((item) => '<div class="row" tabindex="0">' + item.name + '</div>').join('');
+    })
+    .catch(() => {
+      app.innerHTML = '<p class="error" role="alert">Something went wrong</p>';
+    });
+</script>
+</body>
+</html>

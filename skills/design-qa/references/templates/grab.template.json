@@ -1,0 +1,17 @@
+{
+  "pageTitle": {
+    "selector": "main h1",
+    "props": ["font-family", "font-size", "font-weight", "line-height", "letter-spacing", "color", "text-transform", "margin-bottom"],
+    "limit": 1
+  },
+  "tableRow": {
+    "selector": "[data-testid=order-row]",
+    "props": ["height", "padding-top", "padding-right", "padding-bottom", "padding-left", "column-gap", "background-color", "border-bottom-width", "border-bottom-color", "cursor"],
+    "limit": 5
+  },
+  "primaryButton": {
+    "selector": "[data-ds-component='Button'][data-variant='primary']",
+    "props": ["height", "padding-left", "padding-right", "border-radius", "background-color", "color", "font-size", "font-weight", "box-shadow", "outline-width", "outline-color", "outline-offset", "transition-duration", "transition-timing-function"],
+    "limit": 3
+  }
+}

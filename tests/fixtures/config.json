@@ -1,0 +1,31 @@
+{
+  "$schema": "../../skills/design-qa/schemas/config.schema.json",
+  "app": {
+    "baseUrl": "${APP_URL}",
+    "start": null,
+    "readyUrl": "/",
+    "auth": { "type": "cookie", "envPrefix": "ITEMS_APP", "login": null },
+    "headers": { "x-preview-bypass": "${PREVIEW_BYPASS}" }
+  },
+  "surfaces": {
+    "items": {
+      "route": "/items/{fixture}",
+      "fixture": "three-items",
+      "fullPage": false,
+      "figma": { "fileKey": "AbCdEf123456", "nodeId": "1:2" },
+      "states": {
+        "with-data": { "fixture": "three-items" },
+        "empty": { "fixture": "none", "mock": { "urlPattern": "**/api/items*", "status": 200, "body": [] } },
+        "loading": { "fixture": "three-items", "mock": { "urlPattern": "**/api/items*", "delayMs": 30000 } },
+        "hover": { "fixture": "three-items", "action": "hover", "selector": ".row" },
+        "disabled": { "fixture": "three-items", "query": "readonly=1" },
+        "error": {}
+      }
+    }
+  },
+  "tolerances": { "px": 1, "colorDeltaE": 2, "pixelDiff": { "pass": 0.5, "review": 3 } },
+  "report": { "outDir": "qa", "topN": 3, "embedImages": true, "ranking": { "ledger": { "style": 3 } } },
+  "ticket": { "provider": "jira", "baseUrl": null, "writeBack": false, "trustPreviewUrl": true },
+  "figma": { "access": ["rest", "manual"] },
+  "capture": { "driver": "script", "reducedMotion": true }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Items (Design)",
+  "document": {
+    "id": "0:0",
+    "name": "Document",
+    "type": "DOCUMENT",
+    "children": [
+      {
+        "id": "0:1",
+        "name": "Screens",
+        "type": "CANVAS",
+        "children": [
+          { "id": "1:2", "name": "Items", "type": "FRAME", "absoluteBoundingBox": { "x": 0, "y": 0, "width": 800, "height": 600 } },
+          { "id": "1:50", "name": "Items – Error", "type": "FRAME", "absoluteBoundingBox": { "x": 900, "y": 0, "width": 800, "height": 600 } },
+          { "id": "1:60", "name": "Settings – Empty", "type": "FRAME", "absoluteBoundingBox": { "x": 1800, "y": 0, "width": 800, "height": 600 } }
+        ]
+      },
+      { "id": "0:2", "name": "Archive", "type": "CANVAS", "children": [] }
+    ]
+  }
+}

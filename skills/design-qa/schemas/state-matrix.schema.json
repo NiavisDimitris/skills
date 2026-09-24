@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "design-qa state matrix",
+  "description": "Array of state-matrix rows (the same shape as report.stateMatrix[]), as written by scripts/lib/state-discovery.mjs. Results produced before capture are provisional: CANNOT_VERIFY rows noted \"pending capture\" are replaced by PASS/FAIL once the state has been captured and compared.",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/stateMatrixRow"
+  },
+  "definitions": {
+    "stateMatrixRow": {
+      "type": "object",
+      "required": [
+        "state",
+        "label",
+        "result",
+        "findings"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Normalised state id: with-data, empty, loading, error, hover, focus, active, selected, disabled, …"
+        },
+        "label": {
+          "type": "string"
+        },
+        "designed": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "nodeId",
+            "name"
+          ],
+          "properties": {
+            "nodeId": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+        "specified": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "acRef",
+            "text"
+          ],
+          "properties": {
+            "acRef": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        },
+        "implemented": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "driver",
+            "detail"
+          ],
+          "properties": {
+            "driver": {
+              "enum": [
+                "fixture",
+                "query",
+                "mock",
+                "storage",
+                "action",
+                "source"
+              ]
+            },
+            "detail": {
+              "type": "string"
+            }
+          }
+        },
+        "captured": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "figma": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "app": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "diff": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "result": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "CANNOT_VERIFY",
+            "MISSING_IN_CODE",
+            "MISSING_IN_DESIGN",
+            "NOT_SPECIFIED"
+          ]
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

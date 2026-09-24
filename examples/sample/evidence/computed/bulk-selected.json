@@ -1,0 +1,78 @@
+{
+  "Page title": {
+    "selector": "h1.page-title",
+    "count": 1,
+    "samples": [
+      {
+        "font-size": "24px",
+        "font-weight": "500",
+        "line-height": "32px",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 264,
+          "y": 78,
+          "w": 75,
+          "h": 32
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "Bulk-action bar": {
+    "selector": "[data-testid=orders-bulk-bar]",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(17, 24, 39)",
+        "border-radius": "10px",
+        "position": "fixed",
+        "__rect": {
+          "x": 400,
+          "y": 808,
+          "w": 640,
+          "h": 56
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "Table row": {
+    "selector": ".orders-row",
+    "count": 12,
+    "samples": [
+      {
+        "background-color": "rgb(238, 242, 255)",
+        "__rect": {
+          "x": 284,
+          "y": 264,
+          "w": 1104,
+          "h": 48
+        },
+        "__visible": true
+      },
+      {
+        "background-color": "rgb(238, 242, 255)",
+        "__rect": {
+          "x": 284,
+          "y": 312,
+          "w": 1104,
+          "h": 48
+        },
+        "__visible": true
+      },
+      {
+        "background-color": "rgb(238, 242, 255)",
+        "__rect": {
+          "x": 284,
+          "y": 360,
+          "w": 1104,
+          "h": 48
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  }
+}

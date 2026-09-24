@@ -1,0 +1,258 @@
+# Adopter workflow: drop this file into YOUR repo at
+# .github/workflows/design-qa.yml and fill in every <owner> and secret
+# marked below. It checks out the design-qa-skill repo at a pinned ref,
+# runs the design-qa skill headlessly against your PR's preview URL (or
+# starts the app itself if there isn't one), and gates the PR on the
+# result.
+#
+# Required repo secrets (Settings -> Secrets and variables -> Actions):
+#   ANTHROPIC_API_KEY            - Claude Code auth for the headless run
+#   FIGMA_TOKEN                  - only needed if the skill fetches Figma via REST
+#   JIRA_BASE_URL                - e.g. https://acme.atlassian.net (omit if unused)
+#   JIRA_EMAIL                   - Jira account email for API auth (omit if unused)
+#   JIRA_API_TOKEN                - Jira API token (omit if unused)
+#   DESIGN_QA_APP_USER           - target app login username, if it needs auth
+#   DESIGN_QA_APP_PASS           - target app login password
+#   DESIGN_QA_APP_COOKIE         - pre-authenticated cookie, as an alternative to user/pass
+#   DESIGN_QA_APP_STORAGE_STATE_JSON - a Playwright storageState JSON blob, as another
+#                                       alternative to user/pass or cookie. This workflow
+#                                       writes it to a temp file and exports
+#                                       DESIGN_QA_APP_STORAGE_STATE (a file path) for the
+#                                       skill's scripts, which expect a path, not raw JSON.
+#
+# GITHUB_TOKEN is provided by Actions automatically - you don't set it.
+#
+# Replace every <owner> below with the GitHub org/user that owns the
+# design-qa-skill repo you installed this from.
+
+name: Design QA
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      ticket:
+        description: "Ticket key (e.g. ACME-482). Leave empty to derive it from the branch name or PR title."
+        required: false
+        type: string
+      figma_url:
+        description: "Figma link. Leave empty to let the ticket supply it."
+        required: false
+        type: string
+      target_url:
+        description: "URL to test against. Leave empty to use the PR's deployment preview, or start the app locally."
+        required: false
+        type: string
+
+concurrency:
+  group: design-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  design-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Checkout design-qa-skill
+        uses: actions/checkout@v4
+        with:
+          # <owner>: set this to the org/user that owns design-qa-skill.
+          repository: <owner>/design-qa-skill
+          # Pin to a released tag (not a moving branch) so this workflow's
+          # behavior doesn't change out from under you between runs. Bump
+          # deliberately when you want the newer skill/scripts.
+          ref: v0.1.0
+          path: .design-qa-skill
+          # If design-qa-skill is a private repo, uncomment and set a PAT
+          # (classic, repo scope) or a fine-grained token with read access:
+          # token: ${{ secrets.DESIGN_QA_SKILL_TOKEN }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install design-qa-skill scripts
+        working-directory: .design-qa-skill
+        run: npm ci
+
+      - name: Install Playwright browser
+        working-directory: .design-qa-skill
+        run: npx playwright install --with-deps chromium
+
+      - name: Make the skill discoverable to Claude Code
+        # Claude Code discovers skills under .claude/skills/, so copy it
+        # there. --add-dir on the claude run below additionally keeps
+        # .design-qa-skill (with its installed node_modules) readable so
+        # the skill's own scripts can still resolve playwright/pixelmatch/pngjs
+        # when invoked from that path.
+        run: |
+          mkdir -p .claude/skills
+          cp -r .design-qa-skill/skills/design-qa .claude/skills/design-qa
+
+      - name: Resolve ticket key
+        id: ticket
+        env:
+          INPUT_TICKET: ${{ inputs.ticket }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BRANCH_NAME: ${{ github.head_ref }}
+        run: |
+          if [ -n "$INPUT_TICKET" ]; then
+            TICKET="$INPUT_TICKET"
+          else
+            # Look for a JIRA-style key (e.g. ACME-482) in the branch name
+            # first, then the PR title. Empty is fine - the skill can run
+            # from a Figma link and/or target URL alone.
+            TICKET=$(echo "$BRANCH_NAME" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -n1 || true)
+            if [ -z "$TICKET" ]; then
+              TICKET=$(echo "$PR_TITLE" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -n1 || true)
+            fi
+          fi
+          echo "value=$TICKET" >> "$GITHUB_OUTPUT"
+          echo "Resolved ticket: ${TICKET:-<none>}"
+
+      - name: Resolve target URL
+        id: target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TARGET_URL: ${{ inputs.target_url }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -e
+          TARGET_URL=""
+
+          if [ -n "$INPUT_TARGET_URL" ]; then
+            # Branch 1: explicit workflow_dispatch input wins.
+            TARGET_URL="$INPUT_TARGET_URL"
+            echo "Using target_url input: $TARGET_URL"
+          fi
+
+          if [ -z "$TARGET_URL" ]; then
+            # Branch 2: ask this commit's most recent deployment (Vercel,
+            # Netlify and similar all post one) for its environment_url.
+            DEPLOYMENT_ID=$(gh api "repos/$REPO/deployments?sha=$SHA" 2>/dev/null | jq -r 'sort_by(.created_at) | last | .id // empty')
+            if [ -n "$DEPLOYMENT_ID" ]; then
+              TARGET_URL=$(gh api "repos/$REPO/deployments/$DEPLOYMENT_ID/statuses" 2>/dev/null | jq -r 'map(select(.environment_url != null)) | sort_by(.created_at) | last | .environment_url // empty')
+            fi
+            if [ -n "$TARGET_URL" ]; then
+              echo "Using deployment environment_url: $TARGET_URL"
+            fi
+          fi
+
+          if [ -z "$TARGET_URL" ]; then
+            # Branch 3: nothing above worked - start the app ourselves from
+            # design-qa.config.json's app.start, then poll app.baseUrl.
+            echo "No target_url input or deployment found; starting the app locally."
+            BASE_URL=$(jq -r '.app.baseUrl' design-qa.config.json)
+            START_CMD=$(jq -r '.app.start' design-qa.config.json)
+            nohup bash -c "$START_CMD" > /tmp/design-qa-app.log 2>&1 &
+            for i in $(seq 1 60); do
+              curl -sSf "$BASE_URL" >/dev/null 2>&1 && break
+              sleep 2
+            done
+            TARGET_URL="$BASE_URL"
+            echo "Started app locally: $TARGET_URL"
+          fi
+
+          echo "value=$TARGET_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Materialize app storage state (if provided)
+        # DESIGN_QA_APP_STORAGE_STATE_JSON holds the raw Playwright storageState
+        # JSON. The skill's scripts expect DESIGN_QA_APP_STORAGE_STATE to be a
+        # FILE PATH, not JSON text, so write it to a temp file here and export
+        # the path via $GITHUB_ENV so every later step (claude, validate,
+        # render) picks it up. printf, not echo, so the JSON's own content is
+        # never reinterpreted as echo flags or escape sequences.
+        env:
+          STORAGE_STATE_JSON: ${{ secrets.DESIGN_QA_APP_STORAGE_STATE_JSON }}
+        run: |
+          if [ -n "$STORAGE_STATE_JSON" ]; then
+            STATE_PATH="$RUNNER_TEMP/design-qa-storage-state.json"
+            printf '%s' "$STORAGE_STATE_JSON" > "$STATE_PATH"
+            echo "DESIGN_QA_APP_STORAGE_STATE=$STATE_PATH" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run design-qa (ci mode)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          DESIGN_QA_APP_USER: ${{ secrets.DESIGN_QA_APP_USER }}
+          DESIGN_QA_APP_PASS: ${{ secrets.DESIGN_QA_APP_PASS }}
+          DESIGN_QA_APP_COOKIE: ${{ secrets.DESIGN_QA_APP_COOKIE }}
+          TICKET: ${{ steps.ticket.outputs.value }}
+          TARGET_URL: ${{ steps.target.outputs.value }}
+          FIGMA_URL: ${{ inputs.figma_url }}
+        run: |
+          mkdir -p qa-reports/ci
+          claude -p "Use the design-qa skill in ci mode. Ticket: $TICKET. Target URL: $TARGET_URL. Figma: $FIGMA_URL (may be empty - take it from the ticket). Config: design-qa.config.json. Write outputs to qa-reports/ci. Do not ask questions." \
+            --permission-mode acceptEdits \
+            --allowedTools "Bash,Read,Write,Edit,Glob,Grep" \
+            --max-turns 80 \
+            --add-dir .design-qa-skill
+
+      - name: Validate report
+        run: node .design-qa-skill/skills/design-qa/scripts/validate.mjs qa-reports/ci/report.json
+
+      - name: Render HTML report and fix plan
+        run: |
+          node .design-qa-skill/skills/design-qa/scripts/render-report.mjs \
+            --in qa-reports/ci/report.json \
+            --out qa-reports/ci/report.html \
+            --embed-images \
+            --fixplan qa-reports/ci/report-fixplan.md
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-qa-report
+          path: qa-reports/ci
+
+      - name: Post or update PR comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -e
+          MARKER="<!-- design-qa -->"
+          BODY_FILE=$(mktemp)
+          echo "$MARKER" > "$BODY_FILE"
+          cat qa-reports/ci/report-fixplan.md >> "$BODY_FILE"
+
+          EXISTING_ID=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq "[.[] | select(.body | startswith(\"$MARKER\"))][0].id // empty")
+
+          if [ -n "$EXISTING_ID" ]; then
+            gh api "repos/$REPO/issues/comments/$EXISTING_ID" -X PATCH -f body=@"$BODY_FILE"
+          else
+            gh pr comment "$PR_NUMBER" --body-file "$BODY_FILE"
+          fi
+
+      - name: Gate on verdict
+        run: |
+          VERDICT=$(jq -r '.scorecard.verdict // empty' qa-reports/ci/report.json)
+          echo "Verdict: $VERDICT"
+          if [ -z "$VERDICT" ]; then
+            echo "design-qa failed: no verdict found in report.json at .scorecard.verdict - treating a missing verdict as a failure."
+            exit 1
+          fi
+          if [ "$VERDICT" = "FAIL" ]; then
+            echo "design-qa failed: an open BLOCKER, a designed state missing in the implementation, or a pixel diff above the review band. See the report-fixplan.md comment on this PR and the design-qa-report artifact."
+            exit 1
+          fi

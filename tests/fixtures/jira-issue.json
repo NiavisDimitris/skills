@@ -1,0 +1,63 @@
+{
+  "key": "ABC-12",
+  "fields": {
+    "summary": "Items list: empty and error states",
+    "status": { "name": "In Review" },
+    "issuetype": { "name": "Story" },
+    "labels": ["frontend"],
+    "parent": { "key": "ABC-1" },
+    "description": {
+      "version": 1,
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "Design: " },
+            { "type": "text", "text": "Figma", "marks": [{ "type": "link", "attrs": { "href": "https://www.figma.com/design/AbCdEf123456/Items?node-id=1-2" } }] },
+            { "type": "text", "text": ". Owner " },
+            { "type": "mention", "attrs": { "id": "u1", "text": "@Dana" } },
+            { "type": "hardBreak" },
+            { "type": "text", "text": "Branch: feature/items-empty-state" }
+          ]
+        },
+        { "type": "heading", "attrs": { "level": 3 }, "content": [{ "type": "text", "text": "Acceptance criteria" }] },
+        {
+          "type": "bulletList",
+          "content": [
+            { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Shows one row per item" }] }] },
+            { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "When there are no items, show an empty state with a create button" }] }] },
+            { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Show a skeleton while the list is loading" }] }] },
+            { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "If the request fails, show an error banner with Retry" }] }] }
+          ]
+        },
+        { "type": "heading", "attrs": { "level": 3 }, "content": [{ "type": "text", "text": "Notes" }] },
+        {
+          "type": "table",
+          "content": [
+            { "type": "tableRow", "content": [
+              { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Env" }] }] },
+              { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "URL" }] }] }
+            ] },
+            { "type": "tableRow", "content": [
+              { "type": "tableCell", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Staging" }] }] },
+              { "type": "tableCell", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "https://staging.example.com/items" }] }] }
+            ] }
+          ]
+        },
+        { "type": "codeBlock", "attrs": { "language": "json" }, "content": [{ "type": "text", "text": "{ \"items\": [] }" }] }
+      ]
+    },
+    "comment": {
+      "comments": [
+        { "body": { "version": 1, "type": "doc", "content": [ { "type": "paragraph", "content": [
+          { "type": "text", "text": "Preview ready: https://items-git-feature-empty.vercel.app and PR https://github.com/acme/web/pull/42." }
+        ] } ] } }
+      ]
+    },
+    "attachment": [
+      { "filename": "empty-state.png", "content": "https://example.atlassian.net/rest/api/3/attachment/content/100", "mimeType": "image/png" }
+    ],
+    "subtasks": []
+  }
+}

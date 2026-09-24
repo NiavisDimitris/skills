@@ -1,0 +1,122 @@
+{
+  "Page title": {
+    "selector": "h1.page-title",
+    "count": 1,
+    "samples": [
+      {
+        "font-size": "24px",
+        "font-weight": "500",
+        "line-height": "32px",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 264,
+          "y": 78,
+          "w": 75,
+          "h": 32
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "Card": {
+    "selector": ".orders-card",
+    "count": 1,
+    "samples": [
+      {
+        "padding": "20px",
+        "border-radius": "8px",
+        "background-color": "rgb(255, 255, 255)",
+        "__rect": {
+          "x": 264,
+          "y": 204,
+          "w": 1144,
+          "h": 464
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "Table header": {
+    "selector": "[data-testid=orders-table] thead",
+    "count": 1,
+    "samples": [
+      {
+        "font-size": "12px",
+        "font-weight": "700",
+        "text-transform": "uppercase",
+        "color": "rgb(17, 24, 39)",
+        "border-bottom": "2px solid rgb(209, 213, 219)",
+        "__rect": {
+          "x": 284,
+          "y": 224,
+          "w": 1104,
+          "h": 40
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "Skeleton": {
+    "selector": "[data-testid=orders-skeleton]",
+    "count": 1,
+    "samples": [
+      {
+        "display": "block",
+        "__rect": {
+          "x": 284,
+          "y": 264,
+          "w": 1104,
+          "h": 384
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "Skeleton bar": {
+    "selector": ".orders-skeleton .ads-skeleton",
+    "count": 48,
+    "samples": [
+      {
+        "border-radius": "2px",
+        "background-color": "rgb(209, 213, 219)",
+        "height": "12px",
+        "__rect": {
+          "x": 300,
+          "y": 282,
+          "w": 84,
+          "h": 12
+        },
+        "__visible": true
+      },
+      {
+        "border-radius": "2px",
+        "background-color": "rgb(209, 213, 219)",
+        "height": "12px",
+        "__rect": {
+          "x": 450,
+          "y": 282,
+          "w": 168,
+          "h": 12
+        },
+        "__visible": true
+      },
+      {
+        "border-radius": "10px",
+        "background-color": "rgb(209, 213, 219)",
+        "height": "20px",
+        "__rect": {
+          "x": 750,
+          "y": 278,
+          "w": 72,
+          "h": 20
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 48
+  }
+}

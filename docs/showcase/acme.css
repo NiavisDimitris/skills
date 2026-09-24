@@ -1,0 +1,73 @@
+/* Acme Console — the fictional product under QA. Two variants share one layout;
+   .is-app carries the deliberate mismatches design-qa finds. */
+.acme { position: relative; width: 1440px; height: 900px; background: #fff; color: #0a0a0a; font: 400 14px/1.45 var(--sans); overflow: hidden; text-align: left; letter-spacing: -0.005em; }
+.acme .a-top { position: absolute; left: 0; right: 0; top: 0; height: 56px; border-bottom: 1px solid #ebebeb; display: flex; align-items: center; gap: 12px; padding: 0 20px; background: #fff; }
+.acme .a-logo { width: 28px; height: 28px; border-radius: 8px; background: #4f46e5; box-shadow: inset 0 -8px 12px rgb(0 0 0 / 0.18); }
+.acme .a-top b { font-weight: 600; font-size: 15px; letter-spacing: -0.015em; }
+.acme .gsearch { margin-left: 196px; width: 380px; height: 36px; border: 1px solid #e5e5e5; border-radius: 9px; display: flex; align-items: center; gap: 8px; padding: 0 10px; color: #a3a3a3; background: #fafafa; }
+.acme .gsearch kbd { margin-left: auto; font: 500 11px/1 var(--mono); color: #737373; border: 1px solid #e5e5e5; border-radius: 5px; padding: 3px 5px; background: #fff; }
+.acme .a-right { margin-left: auto; display: flex; align-items: center; gap: 18px; color: #525252; }
+.acme .avatar { width: 32px; height: 32px; border-radius: 50%; background: #e0e7ff; color: #3730a3; font-weight: 600; font-size: 12px; display: grid; place-items: center; }
+.acme .a-side { position: absolute; top: 56px; left: 0; bottom: 0; width: 232px; border-right: 1px solid #ebebeb; background: #fcfcfc; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+.acme .nav { height: 36px; display: flex; align-items: center; gap: 11px; padding: 0 10px; border-radius: 8px; color: #525252; font-weight: 450; }
+.acme .nav.on { background: #eef2ff; color: #4338ca; font-weight: 550; }
+.acme .a-main { position: absolute; top: 56px; left: 232px; right: 0; bottom: 0; padding: 32px 40px; }
+.acme h1 { margin: 0; font-size: 28px; line-height: 34px; letter-spacing: -0.028em; font-weight: 600; }
+.acme.is-app h1 { font-weight: 500; }
+.acme .a-sub { margin-top: 6px; color: #737373; }
+.acme .a-toolbar { margin-top: 24px; display: flex; align-items: center; gap: 12px; }
+.acme .input { width: 300px; height: 38px; border: 1px solid #e5e5e5; border-radius: 9px; display: flex; align-items: center; gap: 8px; padding: 0 12px; color: #a3a3a3; }
+.acme .select { height: 38px; border: 1px solid #e5e5e5; border-radius: 9px; display: flex; align-items: center; gap: 28px; padding: 0 12px; color: #404040; }
+.acme .btn { margin-left: auto; height: 38px; border-radius: 9px; background: #4f46e5; color: #fff; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; white-space: nowrap; }
+.acme .btn.sm { height: 34px; margin: 18px 0 0; padding: 0 14px; }
+.acme .btn.outline { background: #fff; color: #0a0a0a; border: 1px solid #e5e5e5; }
+.acme .a-card { margin-top: 20px; border: 1px solid #e5e5e5; border-radius: 12px; background: #fff; padding: 24px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.04); }
+.acme.is-app .a-card { padding: 20px; }
+.acme table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.acme th { box-shadow: 1px 0 0 #fafafa; height: 40px; padding: 0 16px; text-align: left; font-weight: 500; font-size: 13px; color: #737373; background: #fafafa; white-space: nowrap; }
+.acme.is-design thead th:first-child { border-radius: 8px 0 0 8px; }
+.acme.is-design thead th:last-child { border-radius: 0 8px 8px 0; }
+.acme.is-app th { background: transparent; color: #0a0a0a; font-weight: 700; font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; border-bottom: 2px solid #0a0a0a; }
+.acme td { height: 52px; padding: 0 16px; border-bottom: 1px solid #f1f1f1; white-space: nowrap; }
+.acme tbody tr:last-child td { border-bottom: 0; }
+.acme .r { text-align: right; }
+.acme .num { font-variant-numeric: tabular-nums; font-weight: 500; }
+.acme .mono { font: 400 13px/1 var(--mono); color: #525252; }
+.acme .muted { color: #737373; }
+.acme td.name { max-width: 250px; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.acme tr.hover td { background: #f0f4fa; box-shadow: 1px 0 0 #f0f4fa; }
+.acme.is-app tr.hover td { background: #cfd8e6; box-shadow: 1px 0 0 #cfd8e6; }
+.acme tr.focus { outline: 2px solid #4f46e5; outline-offset: -2px; }
+.acme tr.sel td { background: #eef2ff; box-shadow: 1px 0 0 #eef2ff; }
+.acme .st { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+.acme .st-paid { background: #ecfdf5; color: #047857; }
+.acme .st-pending { background: #fffbeb; color: #b45309; }
+.acme .st-shipped { background: #eff6ff; color: #1d4ed8; }
+.acme .st-refunded { background: #f5f5f5; color: #525252; }
+.acme .pager { display: flex; align-items: center; gap: 6px; margin-top: 16px; }
+.acme.is-design .pager .muted { margin-right: auto; }
+.acme.is-app .pager { margin: 0 0 0 auto; }
+.acme.is-app .pager .muted { margin-right: 6px; }
+.acme.is-app .a-toolbar .btn { margin-left: 6px; }
+.acme .pg { min-width: 30px; height: 30px; border: 1px solid #e5e5e5; border-radius: 7px; display: grid; place-items: center; font-size: 13px; color: #404040; padding: 0 6px; }
+.acme .pg.on { background: #0a0a0a; color: #fff; border-color: #0a0a0a; }
+.acme .empty-design { height: 380px; text-align: center; vertical-align: middle; white-space: normal; }
+.acme .empty-design .btn { display: inline-flex; }
+.acme .empty-ill { width: 60px; height: 60px; border-radius: 50%; background: #eef2ff; color: #4f46e5; display: grid; place-items: center; margin: 0 auto 16px; }
+.acme .empty-t { font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
+.acme .empty-s { color: #737373; margin-top: 4px; }
+.acme .empty-app { height: 380px; }
+.acme .sk { display: inline-block; height: 12px; border-radius: 6px; background: #efefef; vertical-align: middle; }
+.acme.is-app .sk { border-radius: 2px; }
+.acme .err-cell { padding: 28px 0 8px; white-space: normal; }
+.acme .alert { display: flex; align-items: flex-start; gap: 12px; border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; border-radius: 10px; padding: 14px 16px; }
+.acme .alert .btn { margin: 0 0 0 auto; height: 32px; }
+.acme .alert-t { font-weight: 600; color: #991b1b; }
+.acme .alert-s { margin-top: 2px; }
+.acme .cb { width: 16px; height: 16px; border: 1.5px solid #d4d4d4; border-radius: 4px; display: inline-grid; place-items: center; vertical-align: middle; background: #fff; }
+.acme .cb.on { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+.acme th.c-cb, .acme td.c-cb { width: 20px; padding-right: 0; }
+.acme .bulkbar { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); height: 50px; background: #0a0a0a; color: #fff; border-radius: 12px; display: flex; align-items: center; gap: 20px; padding: 0 16px 0 20px; box-shadow: 0 12px 32px rgb(0 0 0 / 0.22); z-index: 2; white-space: nowrap; }
+.acme .bulkbar .sep { width: 1px; height: 20px; background: rgb(255 255 255 / 0.2); }
+.acme .bulkbar .bx { color: #a3a3a3; display: grid; place-items: center; }
+.acme.is-app th { box-shadow: none; }

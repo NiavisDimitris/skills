@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>__DESIGN_QA_TITLE__</title>
+</head>
+<body>
+<h1 id="feature"></h1>
+<p>Minimal template used by the renderer tests; it follows the same contract as templates/report.html.</p>
+<script id="design-qa-data" type="application/json">/*__DESIGN_QA_DATA__*/</script>
+<script id="design-qa-assets" type="application/json">/*__DESIGN_QA_ASSETS__*/</script>
+<script>
+  const report = JSON.parse(document.getElementById('design-qa-data').textContent);
+  document.getElementById('feature').textContent = report.meta.feature;
+</script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "design-qa.config.json",
+  "description": "Per-repo configuration for the design-qa skill. String values may contain ${ENV_VAR} placeholders, expanded from the environment by scripts/capture.mjs (a missing variable is an error). Unknown keys are reported as warnings by scripts/validate.mjs, not errors.",
+  "type": "object",
+  "required": ["app", "surfaces"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "app": {
+      "type": "object",
+      "required": ["baseUrl"],
+      "properties": {
+        "baseUrl": {
+          "type": "string",
+          "pattern": "^(https?://|\\$\\{)",
+          "errorMessage": "must be an absolute http(s) URL or a ${ENV_VAR} placeholder",
+          "description": "Where the app runs, e.g. http://localhost:3000 or ${PREVIEW_URL}."
+        },
+        "start": { "type": ["string", "null"], "description": "Command that starts the app locally (e.g. npm run dev)." },
+        "readyUrl": { "type": "string", "description": "Path or URL polled until the app answers." },
+        "auth": {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "enum": ["none", "basic", "cookie", "storageState", "login"] },
+            "envPrefix": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$", "default": "DESIGN_QA_APP" },
+            "login": {
+              "type": ["object", "null"],
+              "required": ["url", "userSelector", "passSelector", "submitSelector"],
+              "properties": {
+                "url": { "type": "string" },
+                "userSelector": { "type": "string" },
+                "passSelector": { "type": "string" },
+                "submitSelector": { "type": "string" },
+                "successSelector": { "type": "string" }
+              }
+            }
+          }
+        },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/surface" }
+    },
+    "designSystem": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "componentCatalog": { "type": ["string", "null"] },
+        "tokenMap": { "type": ["string", "null"] },
+        "knownDrifts": { "type": ["string", "null"] },
+        "designRules": { "type": ["string", "null"] }
+      }
+    },
+    "tolerances": {
+      "type": "object",
+      "properties": {
+        "px": { "type": "number", "minimum": 0 },
+        "colorDeltaE": { "type": "number", "minimum": 0 },
+        "pixelDiff": {
+          "type": "object",
+          "required": ["pass", "review"],
+          "properties": {
+            "pass": { "type": "number", "minimum": 0, "maximum": 100 },
+            "review": { "type": "number", "minimum": 0, "maximum": 100 }
+          }
+        }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "properties": {
+        "test": { "type": ["string", "null"] },
+        "lint": { "type": "array", "items": { "type": "string" } },
+        "cwd": { "type": "string" }
+      }
+    },
+    "report": {
+      "type": "object",
+      "properties": {
+        "outDir": { "type": "string" },
+        "topN": { "type": "integer", "minimum": 0 },
+        "embedImages": { "type": "boolean" },
+        "ranking": {
+          "type": "object",
+          "properties": {
+            "severity": {
+              "type": "object",
+              "properties": {
+                "BLOCKER": { "type": "number" },
+                "WARNING": { "type": "number" },
+                "DS_CANDIDATE": { "type": "number" }
+              }
+            },
+            "ledger": {
+              "type": "object",
+              "properties": {
+                "structure": { "type": "number" },
+                "component": { "type": "number" },
+                "style": { "type": "number" },
+                "state": { "type": "number" },
+                "behavior": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ticket": {
+      "type": "object",
+      "properties": {
+        "provider": { "enum": ["jira", "linear", "github", "none"] },
+        "baseUrl": { "type": ["string", "null"] },
+        "writeBack": { "type": "boolean" },
+        "trustPreviewUrl": { "type": "boolean" }
+      }
+    },
+    "figma": {
+      "type": "object",
+      "properties": {
+        "access": { "type": "array", "items": { "enum": ["mcp", "devmode-mcp", "rest", "manual"] } }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "properties": {
+        "driver": { "enum": ["script", "playwright-mcp", "builtin"] },
+        "reducedMotion": { "type": "boolean" }
+      }
+    }
+  },
+  "definitions": {
+    "surface": {
+      "type": "object",
+      "required": ["route"],
+      "properties": {
+        "route": { "type": "string", "description": "Route template; may contain {id}/{fixture}, replaced by a state's fixture value." },
+        "fixture": { "type": ["string", "null"] },
+        "fullPage": { "type": "boolean" },
+        "figma": {
+          "type": "object",
+          "required": ["fileKey", "nodeId"],
+          "properties": {
+            "fileKey": { "type": "string", "minLength": 1 },
+            "nodeId": { "type": "string", "minLength": 1 }
+          }
+        },
+        "states": { "type": "object", "additionalProperties": { "$ref": "#/definitions/driver" } }
+      }
+    },
+    "driver": {
+      "type": "object",
+      "description": "How to put the app into one state before capture. All keys optional; an empty object means the default render.",
+      "properties": {
+        "fixture": { "type": "string", "description": "Replaces {fixture}/{id} in the route, otherwise appended as ?fixture=<value>." },
+        "query": { "type": "string", "description": "Query string merged into the URL, e.g. ?state=empty or state=empty." },
+        "mock": {
+          "type": "object",
+          "required": ["urlPattern"],
+          "properties": {
+            "urlPattern": { "type": "string", "minLength": 1, "description": "Playwright glob, e.g. **/api/items*" },
+            "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+            "body": {},
+            "delayMs": { "type": "integer", "minimum": 0 },
+            "contentType": { "type": "string" }
+          }
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "local": { "type": "object" },
+            "session": { "type": "object" }
+          }
+        },
+        "action": { "enum": ["hover", "focus", "active", "click", "keyboard"] },
+        "selector": { "type": "string", "minLength": 1 },
+        "keys": { "type": "string", "description": "Keys for action keyboard, space separated (Playwright names, e.g. Tab Tab Enter or Shift+Tab)." },
+        "settleMs": { "type": "integer", "minimum": 0 },
+        "viewport": {
+          "type": "object",
+          "required": ["width", "height"],
+          "properties": {
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "reducedMotion": { "type": "boolean" },
+        "wait": { "type": "string", "description": "Selector to wait for in this state (overrides capture --wait)." },
+        "source": { "type": "string", "description": "Implemented in code but not drivable at runtime (file reference); the state is reported as CANNOT_VERIFY." }
+      }
+    }
+  }
+}

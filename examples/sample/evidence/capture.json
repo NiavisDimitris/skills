@@ -1,0 +1,143 @@
+{
+  "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders",
+  "kind": "preview",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "dpr": 1,
+  "fullPage": false,
+  "commit": "9f3c2a1e7b4d8c06a5f2e19d3b7c4a8e0f6d2b51",
+  "branch": "feat/orders-list",
+  "timestamp": "2026-09-22T14:29:41Z",
+  "states": {
+    "with-data": {
+      "driver": {
+        "fixture": "fixtures/orders/with-data.json"
+      },
+      "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders?fixture=fixtures/orders/with-data.json",
+      "screenshot": "app/with-data.png",
+      "computed": "computed/with-data.json",
+      "dom": "dom/with-data.json",
+      "settleMs": 250,
+      "durationMs": 2412,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": []
+    },
+    "loading": {
+      "driver": {
+        "mock": {
+          "urlPattern": "**/api/orders*",
+          "delayMs": 2000
+        },
+        "wait": "[data-testid=orders-skeleton]"
+      },
+      "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders",
+      "screenshot": "app/loading.png",
+      "computed": "computed/loading.json",
+      "dom": "dom/loading.json",
+      "settleMs": 0,
+      "durationMs": 1873,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": []
+    },
+    "error": {
+      "driver": {
+        "mock": {
+          "urlPattern": "**/api/orders*",
+          "status": 500,
+          "body": "{\"error\":\"internal\"}",
+          "contentType": "application/json"
+        }
+      },
+      "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders",
+      "screenshot": "app/error.png",
+      "computed": "computed/error.json",
+      "dom": "dom/error.json",
+      "settleMs": 250,
+      "durationMs": 2105,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": []
+    },
+    "hover": {
+      "driver": {
+        "action": "hover",
+        "selector": "[data-testid=orders-table] tbody tr:nth-child(2)"
+      },
+      "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders",
+      "screenshot": "app/hover.png",
+      "computed": "computed/hover.json",
+      "dom": "dom/hover.json",
+      "settleMs": 250,
+      "durationMs": 2688,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": []
+    },
+    "focus": {
+      "driver": {
+        "action": "keyboard",
+        "keys": "Tab Tab Tab Tab Tab Tab"
+      },
+      "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders",
+      "screenshot": "app/focus.png",
+      "computed": "computed/focus.json",
+      "dom": "dom/focus.json",
+      "settleMs": 250,
+      "durationMs": 2540,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": []
+    },
+    "bulk-selected": {
+      "driver": {
+        "action": "click",
+        "selector": "[data-testid=orders-select-all]"
+      },
+      "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders",
+      "screenshot": "app/bulk-selected.png",
+      "computed": "computed/bulk-selected.json",
+      "dom": "dom/bulk-selected.json",
+      "settleMs": 250,
+      "durationMs": 2731,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": []
+    },
+    "selected": {
+      "driver": {},
+      "url": null,
+      "screenshot": null,
+      "computed": null,
+      "dom": null,
+      "settleMs": null,
+      "durationMs": 0,
+      "warnings": [
+        "not captured: no runtime driver (needs a fixture, query, mock, storage, action or viewport)"
+      ],
+      "skipped": true
+    }
+  },
+  "degradations": [
+    {
+      "step": "capture:selected",
+      "reason": "no runtime driver (needs a fixture, query, mock, storage, action or viewport)",
+      "impact": "State \"selected\" cannot be verified (CANNOT_VERIFY)."
+    }
+  ]
+}

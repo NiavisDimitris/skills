@@ -1,0 +1,40 @@
+{
+  "Page title": {
+    "selector": "h1.page-title",
+    "count": 1,
+    "samples": [
+      {
+        "font-size": "24px",
+        "font-weight": "500",
+        "line-height": "32px",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 264,
+          "y": 78,
+          "w": 75,
+          "h": 32
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "Row focus ring": {
+    "selector": ".orders-row:focus-visible",
+    "count": 1,
+    "samples": [
+      {
+        "outline": "2px solid rgb(37, 99, 235)",
+        "outline-offset": "-2px",
+        "__rect": {
+          "x": 284,
+          "y": 264,
+          "w": 1104,
+          "h": 48
+        },
+        "__visible": true
+      }
+    ],
+    "inlineStyleOutliers": 0
+  }
+}

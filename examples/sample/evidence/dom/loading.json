@@ -1,0 +1,40 @@
+{
+  "state": "loading",
+  "root": "[data-testid=orders-page]",
+  "regions": [
+    {
+      "region": "Page header",
+      "selector": "header.page-header",
+      "text": "Orders · Track and manage customer orders"
+    },
+    {
+      "region": "Toolbar",
+      "selector": "[data-testid=orders-toolbar]",
+      "text": "Search by order ID or customer · All statuses · 1–12 of 124 · New order"
+    },
+    {
+      "region": "Skeleton",
+      "selector": "[data-testid=orders-skeleton]",
+      "text": ""
+    }
+  ],
+  "table": {
+    "rows": 8,
+    "skeletonBars": 48
+  },
+  "timeline": [
+    {
+      "ms": 0,
+      "skeletonVisible": true
+    },
+    {
+      "ms": 300,
+      "skeletonVisible": true
+    },
+    {
+      "ms": 2010,
+      "skeletonVisible": false,
+      "rows": 12
+    }
+  ]
+}
