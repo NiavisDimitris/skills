@@ -3,7 +3,7 @@
    step frame by frame at any speed and the soundtrack (cues.json) lands on the same frames. */
 (async function () {
   'use strict';
-  const W = 1920, H = 1080, FPS = 60, DUR = 65.4;
+  const W = 1920, H = 1080, FPS = 60, DUR = 71.6;
   // Playback runs the 60 s timeline at 0.75× speed (80 s of video), so every caption and close-in can be read.
   const STRETCH = 4 / 3;
   const VP = document.getElementById('viewport');
@@ -198,7 +198,10 @@
      SCENE 1–4 · The Figma canvas (0–10 s)
      ===================================================================== */
   function buildCanvas() {
-    const S = scene('canvas', 0, 10, 'light canvas');
+    // Opening, paced so a first-time viewer can follow it:
+    // the design holds (tagged "Figma"), a divider slowly reveals what shipped and parks mid-frame
+    // so both halves can be compared, then completes; the differences get marked, then three close-ins.
+    const S = scene('canvas', 0, 16.2, 'light canvas');
     const grid = el('div', 'dotgrid', null, S.root);
     const world = el('div', 'world', null, S.root);
     const ov = el('div', 'layer', null, S.root);
@@ -215,14 +218,18 @@
       const lab = el('div', 'flabel', `<b>${label.split(' / ')[0]}</b> / ${label.split(' / ')[1]}`, ov);
       return { x, y, slot, lab, label };
     });
-    // the hero frame flips between design and shipped app
     vis(frames[0].lab, false);
+    const heroDesign = frames[0].slot.firstElementChild;
     const heroApp = frameOf('app', 'hover');
     frames[0].slot.appendChild(heroApp);
-    const heroDesign = frames[0].slot.firstElementChild;
     const sel = el('div', 'fsel', '<i></i><i></i><i></i><i></i>', ov);
     const dim = el('div', 'fdim', '1440 × 900', ov);
     const heroLab = el('div', 'flabel', '', ov);
+    // before/after divider with a tag on each side
+    const divider = el('div', 'abs', '<div class="wipe-knob"></div>', ov);
+    divider.style.cssText += ';width:3px;margin-left:-1.5px;background:var(--fg);z-index:6';
+    const tagFig = el('div', 'pane-tag', '<span class="dot"></span>Figma design', ov);
+    const tagShip = el('div', 'pane-tag app', '<span class="dot"></span>What shipped', ov);
     const rings = [0, 1, 2].map(() => el('div', 'ring', null, ov));
     const rlApp = redline(ov, ''), rlDes = redline(ov, 'ok');
     const rowBox = el('div', 'abs', null, ov);
@@ -238,162 +245,172 @@
     const tagD = el('div', 'pane-tag', '<span class="dot"></span>Figma · Orders / Empty', split);
     const tagA = el('div', 'pane-tag app', '<span class="dot"></span>Shipped · GET /api/orders → []', split);
     const nb = el('div', 'notbuilt', '<span>Not built</span>', split);
-    const divider = el('div', 'abs', null, split);
-    divider.style.cssText += ';width:2px;background:#e5e5e5';
+    const divSplit = el('div', 'abs', null, split);
+    divSplit.style.cssText += ';width:2px;background:#e5e5e5';
     // zoom-out pins
+    const Z0 = 13.6, ZK = 1.3;
     const popAt = [];
-    const popTimes = [8.40, 8.62, 8.82, 9.00, 9.16, 9.30, 9.42, 9.52, 9.61, 9.69, 9.76, 9.82, 9.87, 9.91];
+    const popOld = [8.40, 8.62, 8.82, 9.00, 9.16, 9.30, 9.42, 9.52, 9.61, 9.69, 9.76, 9.82, 9.87, 9.91];
     const popSev = ['BLOCKER', 'WARNING', 'WARNING', 'BLOCKER', 'WARNING', 'PASS', 'WARNING', 'BLOCKER', 'WARNING', 'WARNING', 'DS_CANDIDATE', 'WARNING', 'BLOCKER', 'WARNING'];
     const fOrder = [4, 2, 6, 8, 10, 1, 5, 11, 3, 7, 9, 0, 6, 10];
-    popTimes.forEach((pt, i) => popAt.push({ t: pt, f: fOrder[i], lx: 320 + rnd() * 980, ly: 140 + rnd() * 620, pn: pin(ov, null, popSev[i], 'sm') }));
+    popOld.forEach((pt, i) => popAt.push({ t: Z0 + (pt - 8.0) * ZK, f: fOrder[i], lx: 320 + rnd() * 980, ly: 140 + rnd() * 620, pn: pin(ov, null, popSev[i], 'sm') }));
     const whiteout = el('div', 'layer', null, S.root);
     whiteout.style.background = '#f5f5f5';
     // headline
     const hl = el('div', 'cap', null, S.root);
     hl.style.fontSize = '132px';
     const hlWords = 'Your design is exact.'.split(' ').map((w) => { const s = el('span', 'w', null, hl); s.textContent = w; return s; });
+    const HL_OUT = 3.0;
     S.caps = [
-      cap(S.root, { t0: 2.0, t1: 3.12, text: 'Production isn’t.', x: 96, y: 56, size: 58, stagger: 0.07, out: 0.12 }),
-      cap(S.root, { t0: 3.36, t1: 4.66, text: '!20px. The design says 24.', x: 96, y: 918, size: 76 }),
-      cap(S.root, { t0: 4.96, t1: 6.26, text: 'A hardcoded hex. Not the token.', x: 96, y: 918, size: 76 }),
-      cap(S.root, { t0: 6.56, t1: 7.86, text: 'Empty state? Designed. !Never !built.', x: 96, y: 918, size: 76 }),
-      cap(S.root, { t0: 8.04, t1: 8.44, text: 'Every screen.', x: 96, y: 930, size: 80, out: 0.1, stagger: 0.04 }),
-      cap(S.root, { t0: 8.5, t1: 8.94, text: 'Every state.', x: 96, y: 930, size: 80, out: 0.1, stagger: 0.04 }),
-      cap(S.root, { t0: 9.0, t1: 9.44, text: 'Every release.', x: 96, y: 930, size: 80, out: 0.1, stagger: 0.04 }),
-      cap(S.root, { t0: 9.5, t1: 10.2, text: 'By eye?', x: 960, y: 440, size: 170, align: 'center', stagger: 0.06, out: 0.01 }),
+      cap(S.root, { t0: 3.16, t1: 6.86, text: 'Then it ships. And it isn’t.', x: 96, y: 56, size: 58, stagger: 0.07 }),
+      cap(S.root, { t0: 7.16, t1: 9.06, text: '!20px. The design says 24.', x: 96, y: 918, size: 76 }),
+      cap(S.root, { t0: 9.36, t1: 11.26, text: 'A hardcoded hex. Not the token.', x: 96, y: 918, size: 76 }),
+      cap(S.root, { t0: 11.56, t1: 13.46, text: 'Empty state? Designed. !Never !built.', x: 96, y: 918, size: 76 }),
+      cap(S.root, { t0: 13.64, t1: 14.2, text: 'Every screen.', x: 96, y: 930, size: 80, out: 0.12, stagger: 0.04 }),
+      cap(S.root, { t0: 14.28, t1: 14.84, text: 'Every state.', x: 96, y: 930, size: 80, out: 0.12, stagger: 0.04 }),
+      cap(S.root, { t0: 14.92, t1: 15.48, text: 'Every release.', x: 96, y: 930, size: 80, out: 0.12, stagger: 0.04 }),
+      cap(S.root, { t0: 15.56, t1: 16.4, text: 'By eye?', x: 960, y: 440, size: 170, align: 'center', stagger: 0.06, out: 0.01 }),
     ];
     const A = ANCH['app/hover'];
     const card = A.card, table = A.table, row = A['row-2'], thead = A.thead;
     const yh = thead.y + thead.h / 2;
     const cam = track([
       { t: 0, x: 720, y: 470, s: 0.84 },
-      { t: 3.2, x: 720, y: 470, s: 0.84 },
-      { t: 3.66, x: card.x + 30, y: yh + 30, s: 5.2, e: E.inOutExpo },
-      { t: 4.8, x: card.x + 30, y: yh + 30, s: 5.5, e: E.lin },
-      { t: 5.18, x: row.x + 360, y: row.y + row.h / 2 + 92, s: 2.1, e: E.inOutExpo },
-      { t: 6.4, x: row.x + 380, y: row.y + row.h / 2 + 92, s: 2.2, e: E.lin },
-      { t: 8.0, x: 720, y: 450, s: 1.1, e: E.lin },
-      { t: 8.72, x: 3240, y: 1854, s: 0.262, e: E.outExpo },
-      { t: 9.5, x: 3240, y: 1854, s: 0.255, e: E.lin },
-      { t: 10, x: 3240, y: 1700, s: 0.232, e: E.inCubic },
+      { t: 3.0, x: 720, y: 470, s: 0.84 },
+      { t: 6.2, x: 720, y: 468, s: 0.865, e: E.lin },
+      { t: 7.0, x: 720, y: 468, s: 0.865 },
+      { t: 7.46, x: card.x + 30, y: yh + 30, s: 5.2, e: E.inOutExpo },
+      { t: 9.2, x: card.x + 30, y: yh + 30, s: 5.6, e: E.lin },
+      { t: 9.58, x: row.x + 360, y: row.y + row.h / 2 + 92, s: 2.1, e: E.inOutExpo },
+      { t: 11.4, x: row.x + 380, y: row.y + row.h / 2 + 92, s: 2.25, e: E.lin },
+      { t: 13.6, x: 720, y: 450, s: 1.1, e: E.lin },
+      { t: 14.5, x: 3240, y: 1854, s: 0.262, e: E.outExpo },
+      { t: 15.5, x: 3240, y: 1854, s: 0.255, e: E.lin },
+      { t: 16.2, x: 3240, y: 1700, s: 0.232, e: E.inCubic },
     ]);
-    const splitCam = track([{ t: 6.4, x: 0, y: 0, s: 1 }]);
+    // divider position: glide to the middle, rest there so both halves can be compared, then complete
+    const wipeAt = (t) => t < 3.1 ? 0 : t < 4.2 ? 0.5 * E.inOutCubic((t - 3.1) / 1.1) : t < 5.5 ? lerp(0.5, 0.55, (t - 4.2) / 1.3) : lerp(0.55, 1, E.inOutCubic(clamp((t - 5.5) / 0.8)));
     S.measure = () => {
       const r = hl.getBoundingClientRect();
       S.hlW = r.width; S.hlH = r.height;
+      S.tfW = tagFig.getBoundingClientRect().width; S.tsW = tagShip.getBoundingClientRect().width;
     };
     S.render = (t) => {
       let c = cam(t);
-      if (t >= 8 && t < 8.001) c = cam(8.0);
+      if (t >= 13.6 && t < 13.601) c = cam(13.6);
       world.style.transform = camCSS(c);
-      blur(world, t > 6.4 && t < 8 ? 0 : motionBlur(cam, t, 0.9));
-      // dot grid follows the camera, keeps a readable pitch
+      blur(world, t > 11.4 && t < 13.6 ? 0 : motionBlur(cam, t, 0.9));
       let g = 24 * c.s; while (g < 16) g *= 2; while (g > 34) g /= 2;
       grid.style.backgroundSize = `${f2(g)}px ${f2(g)}px`;
       grid.style.backgroundPosition = `${f2((W / 2 - c.x * c.s) % g)}px ${f2((H / 2 - c.y * c.s) % g)}px`;
-      // hero frame rise + flips
+      // hero frame rises in
       const rise = P(t, 0.86, 0.75);
       const oy = (1 - rise) * 170;
       tr(frames[0].slot, 0, oy);
       op(frames[0].slot, clamp((t - 0.86) / 0.22));
-      const flips = [2.0, 2.25, 2.5, 2.75];
-      let showApp = false;
-      flips.forEach((ft, i) => { if (t >= ft) showApp = i % 2 === 0; });
-      if (t >= 2.75) showApp = true;
-      vis(heroApp, showApp); vis(heroDesign, !showApp);
-      const pulse = flips.some((ft) => t >= ft && t < ft + 0.06) ? 1.012 : 1;
-      heroApp.style.transform = heroDesign.style.transform = pulse !== 1 ? `scale(${pulse})` : '';
-      // other frames only exist in the wide shot
-      frames.forEach((f, i) => { if (i) vis(f.slot, t >= 7.95); });
-      // Figma chrome for the hero
+      // the reveal: shipped app shows left of the divider
+      const f = wipeAt(t);
+      vis(heroApp, f > 0.0005);
+      heroApp.style.clipPath = f > 0.0005 && f < 0.9995 ? `inset(0 ${f2((1 - f) * 100)}% 0 0)` : '';
+      frames.forEach((fr, i) => { if (i) vis(fr.slot, t >= 13.55); });
       const [hx, hy] = proj(c, 0, oy), [hx2, hy2] = proj(c, 1440, 900 + oy);
-      const chrome = t >= 0.9 && t < 3.2;
-      vis(sel, chrome); vis(dim, chrome); vis(heroLab, chrome || (t >= 7.95 && t < 10));
-      op(sel, clamp((t - 1.0) / 0.2)); op(dim, clamp((t - 1.0) / 0.2));
+      const shipped = t >= 6.2;
+      // Figma chrome for the design, red chrome once the shipped app has taken the frame
+      const chrome = (t >= 0.9 && t < 3.1) || (t >= 6.2 && t < 7.0);
+      vis(sel, chrome); vis(dim, chrome); vis(heroLab, chrome || (t >= 13.55 && t < 16.2));
+      const chOp = t < 3.1 ? clamp((t - 1.0) / 0.2) * (1 - clamp((t - 2.95) / 0.15)) : clamp((t - 6.2) / 0.2);
+      op(sel, chOp); op(dim, chOp);
       box(sel, hx - 1, hy - 1, hx2 - hx + 2, hy2 - hy + 2);
-      sel.classList.toggle('red', showApp);
-      dim.classList.toggle('red', showApp);
+      sel.classList.toggle('red', shipped); dim.classList.toggle('red', shipped);
       box(dim, (hx + hx2) / 2, hy2 + 12);
-      dim.textContent = showApp ? '1440 × 900 @1x · shipped' : '1440 × 900';
-      heroLab.innerHTML = showApp ? '<b>App capture</b> / acme-console-git-feat-orders.vercel.app' : '<b>Orders</b> / Row hover';
+      dim.textContent = shipped ? '1440 × 900 @1x · shipped' : '1440 × 900';
+      heroLab.innerHTML = shipped ? '<b>App capture</b> / acme-console-git-feat-orders.vercel.app' : '<b>Orders</b> / Row hover';
       box(heroLab, hx, hy - 26);
-      op(heroLab, t < 3.2 ? clamp((t - 1.0) / 0.2) : clamp((t - 8.1) / 0.3));
-      frames.forEach((f, i) => {
+      op(heroLab, t < 7 ? chOp : clamp((t - 13.8) / 0.3));
+      frames.forEach((fr, i) => {
         if (!i) return;
-        const on = t >= 8.1 && t < 10;
-        vis(f.lab, on);
+        const on = t >= 13.8 && t < 16.2;
+        vis(fr.lab, on);
         if (!on) return;
-        const [lx, ly] = proj(c, f.x, f.y);
-        box(f.lab, lx, ly - 22);
-        op(f.lab, clamp((t - 8.3) / 0.3));
+        const [lx, ly] = proj(c, fr.x, fr.y);
+        box(fr.lab, lx, ly - 22);
+        op(fr.lab, clamp((t - 14.0) / 0.3));
       });
-      // preview markers after the last flip
+      // divider and its two tags
+      const lineX = hx + f * (hx2 - hx);
+      const dOn = t >= 3.1 && t < 6.45;
+      vis(divider, dOn);
+      if (dOn) { box(divider, lineX, hy, 3, hy2 - hy); op(divider, clamp((t - 3.1) / 0.15) * (1 - clamp((t - 6.2) / 0.25))); }
+      const tagY = hy + 22;
+      const figOn = t >= 1.1 && t < 6.4;
+      vis(tagFig, figOn);
+      if (figOn) { box(tagFig, Math.max(hx + 18, lineX + 16), tagY); op(tagFig, clamp((t - 1.1) / 0.25) * (1 - clamp((f - 0.82) / 0.12))); }
+      const shipOn = t >= 3.3 && t < 7.0;
+      vis(tagShip, shipOn);
+      if (shipOn) { box(tagShip, Math.max(hx + 18, lineX - 16 - S.tsW), tagY); op(tagShip, clamp((f - 0.1) / 0.1) * (1 - clamp((t - 6.75) / 0.2))); }
+      // the differences, marked
       const mk = [[card.x + 12, card.y + 60], [row.x + 520, row.y + row.h / 2], [thead.x + 90, yh]];
       rings.forEach((r, i) => {
-        const on = t >= 2.9 + i * 0.06 && t < 3.25;
+        const on = t >= 6.3 + i * 0.15 && t < 7.05;
         vis(r, on);
         if (!on) return;
         const [x, y] = proj(c, mk[i][0], mk[i][1] + oy);
         box(r, x, y);
-        const u = P(t, 2.9 + i * 0.06, 0.35, E.outBack);
-        r.style.transform = `scale(${u.toFixed(3)})`;
+        r.style.transform = `scale(${P(t, 6.3 + i * 0.15, 0.35, E.outBack).toFixed(3)})`;
       });
       // close-in 1 · padding redline
-      const ci1 = t >= 3.4 && t < 4.8;
-      if (ci1) {
+      if (t >= 7.2 && t < 9.2) {
         const [x1, y1] = proj(c, card.x + 1, yh), [x2] = proj(c, table.x, yh), [x3] = proj(c, card.x + 1 + 24, yh);
-        drawRedline(rlApp, x1, x2, y1, t, 3.45, 'shipped 20px', 48);
-        drawRedline(rlDes, x1, x3, y1 - 92, t, 3.8, 'design 24px · --ads-space-6', -46);
-      } else { [rlApp, rlDes].forEach((g) => Object.values(g).forEach((e) => vis(e, false))); }
+        drawRedline(rlApp, x1, x2, y1, t, 7.25, 'shipped 20px', 48);
+        drawRedline(rlDes, x1, x3, y1 - 92, t, 7.6, 'design 24px · --ads-space-6', -46);
+      } else { [rlApp, rlDes].forEach((gg) => Object.values(gg).forEach((e) => vis(e, false))); }
       // close-in 2 · hover row
-      const ci2 = t >= 5.0 && t < 6.4;
+      const ci2 = t >= 9.4 && t < 11.4;
       vis(rowBox, ci2); vis(callout, ci2);
       if (ci2) {
         const [rx, ry] = proj(c, row.x, row.y), [rx2, ry2] = proj(c, row.x + row.w, row.y + row.h);
-        const u = P(t, 5.05, 0.35);
-        box(rowBox, rx - 4, ry - 4, (rx2 - rx + 8), ry2 - ry + 8);
-        op(rowBox, u);
-        const cu = P(t, 5.15, 0.5, E.outBack);
+        box(rowBox, rx - 4, ry - 4, rx2 - rx + 8, ry2 - ry + 8);
+        op(rowBox, P(t, 9.45, 0.35));
+        const cu = P(t, 9.55, 0.5, E.outBack);
         box(callout, W / 2 + 60, ry2 + 30);
         callout.style.transformOrigin = '0 0';
         callout.style.transform = `translateY(${f2((1 - cu) * 16)}px) scale(${(0.94 + 0.06 * cu).toFixed(3)})`;
-        op(callout, clamp((t - 5.15) / 0.18));
+        op(callout, clamp((t - 9.55) / 0.18));
       }
-      vis(scrim, t >= 3.3 && t < 6.4);
-      // close-in 3 · empty state split (whip in from the right)
-      const sp = t >= 6.4 && t < 8.3;
+      vis(scrim, t >= 7.1 && t < 11.4);
+      // close-in 3 · empty state split (whips in from the right)
+      const sp = t >= 11.4 && t < 13.9;
       vis(split, sp);
       if (sp) {
-        const inU = E.inOutQuint(clamp((t - 6.4) / 0.36));
-        const outU = E.inOutQuint(clamp((t - 8.0) / 0.3));
-        const sx = (1 - inU) * W - outU * W;
-        tr(split, sx, 0);
+        const inU = E.inOutQuint(clamp((t - 11.4) / 0.36));
+        const outU = E.inOutQuint(clamp((t - 13.6) / 0.3));
+        tr(split, (1 - inU) * W - outU * W, 0);
         const L = { x: 0, y: 0, w: 959, h: H }, R = { x: 961, y: 0, w: 959, h: H };
         const e = ANCH['design/empty']['empty-body'];
-        const pc = { x: e.x + e.w / 2, y: e.y + e.h / 2 - 40, s: lerp(1.9, 2.0, clamp((t - 6.8) / 1.2)) };
+        const pc = { x: e.x + e.w / 2, y: e.y + e.h / 2 - 40, s: lerp(1.9, 2.0, clamp((t - 11.8) / 1.6)) };
         drawPane(pd, L, pc); drawPane(pa, R, pc);
-        box(divider, 959, 0, 2, H);
+        box(divSplit, 959, 0, 2, H);
         box(tagD, 48, 48); box(tagA, 961 + 48, 48);
         const ea = ANCH['app/empty']['empty-body'];
         const [bx, by] = projPane(R, pc, ea.x + 10, ea.y + 10), [bx2, by2] = projPane(R, pc, ea.x + ea.w - 10, ea.y + ea.h - 10);
-        const nu = P(t, 6.65, 0.45, E.outBack);
-        vis(nb, t >= 6.65);
+        const nu = P(t, 11.65, 0.45, E.outBack);
+        vis(nb, t >= 11.65);
         const nx = Math.max(961 + 56, bx), ny = Math.max(150, by), nx2 = Math.min(W - 56, bx2), ny2 = Math.min(860, by2);
         box(nb, nx, ny, nx2 - nx, ny2 - ny);
         nb.style.transform = `scale(${(0.92 + 0.08 * nu).toFixed(3)})`;
-        op(nb, clamp((t - 6.65) / 0.15));
-        blur(split, (t < 6.62 || (t > 8.0 && t < 8.3)) ? clamp(Math.sin(Math.PI * clamp(t < 7 ? (t - 6.4) / 0.36 : (t - 8.0) / 0.3)) * 7, 0, 7) : 0);
+        op(nb, clamp((t - 11.65) / 0.15));
+        blur(split, (t < 11.62 || (t > 13.6 && t < 13.9)) ? clamp(Math.sin(Math.PI * clamp(t < 12 ? (t - 11.4) / 0.36 : (t - 13.6) / 0.3)) * 7, 0, 7) : 0);
       }
       // zoom-out pins
       popAt.forEach((pp) => {
-        const f = frames[pp.f];
-        const [x, y] = proj(c, f.x + pp.lx, f.y + pp.ly);
-        drawPin(pp.pn, x, y, t, pp.t, 0.9, t >= 8.3 && t < 10);
+        const fr = frames[pp.f];
+        const [x, y] = proj(c, fr.x + pp.lx, fr.y + pp.ly);
+        drawPin(pp.pn, x, y, t, pp.t, 0.9, t >= 13.9 && t < 16.2);
       });
-      op(whiteout, clamp((t - 9.42) / 0.14) * 0.9);
-      vis(whiteout, t >= 9.42);
+      op(whiteout, clamp((t - 15.48) / 0.14) * 0.9);
+      vis(whiteout, t >= 15.48);
       // headline: big and centred, then tucked top-left as the frame rises
-      const hlOn = t < 2.06;
+      const hlOn = t < HL_OUT + 0.1;
       vis(hl, hlOn);
       if (hlOn) {
         const m = P(t, 0.86, 0.6);
@@ -401,13 +418,13 @@
         const x = lerp(W / 2 - S.hlW / 2, 96, m), y = lerp(H / 2 - S.hlH / 2, 56, m);
         hl.style.left = '0px'; hl.style.top = '0px'; hl.style.transformOrigin = '0 0';
         hl.style.transform = `translate(${f2(x)}px,${f2(y)}px) scale(${sc.toFixed(4)})`;
-        const q = clamp((t - 1.96) / 0.1);
+        const q = clamp((t - HL_OUT) / 0.12);
         hlWords.forEach((w, i) => {
           const lt = t - (0.1 + i * 0.1);
           const pr = E.outExpo(clamp(lt / 0.6));
           w.style.opacity = (clamp(lt / 0.18) * (1 - q)).toFixed(3);
-          w.style.transform = `translateY(${f2((1 - pr) * 70)}px)`;
-          const b = (1 - pr) * 16;
+          w.style.transform = `translateY(${f2((1 - pr) * 70 - q * 20)}px)`;
+          const b = (1 - pr) * 16 + q * 6;
           w.style.filter = b > 0.3 ? `blur(${b.toFixed(2)}px)` : '';
         });
       }
@@ -1144,7 +1161,8 @@ open    DQ-016   engineering  ACME-515</div>`, world);
   await document.fonts.ready;
   measureAnchors(['app/hover', 'design/hover', 'app/empty', 'design/empty']);
   [buildCanvas, buildReveal, buildTerminal, buildStates, buildReport, buildMatrix, buildOutputs, buildTriage, buildFixloop, buildCI, buildClose].forEach((f) => f());
-  SCENES.forEach((s) => { s.shift = s.shift || 0; s.t0 += s.shift; s.t1 += s.shift; });
+  const OPENING_ADD = 6.2; // the opening grew from 10 s to 16.2 s of timeline
+  SCENES.forEach((s) => { s.shift = (s.shift || 0) + (s.id === 'canvas' ? 0 : OPENING_ADD); s.t0 += s.shift; s.t1 += s.shift; });
   SCENES.forEach((s) => {
     s.root.classList.add('on');
     if (s.measure) s.measure();

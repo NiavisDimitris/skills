@@ -1,11 +1,11 @@
 {
  "title": "design-qa showcase",
- "duration": 65.4,
+ "duration": 71.6,
  "playback": {
   "stretch": 1.3333333333333333,
-  "videoDuration": 87.2,
+  "videoDuration": 95.47,
   "videoBpm": 90,
-  "note": "Times in this file are timeline seconds. The rendered video plays the 65.4 s timeline at 0.75x speed: multiply by 4/3 for video time."
+  "note": "Times in this file are timeline seconds. The rendered video plays the 71.6 s timeline at 0.75x speed: multiply by 4/3 for video time."
  },
  "fps": 60,
  "width": 1920,
@@ -23,104 +23,104 @@
   {
    "name": "intro",
    "start": 0,
-   "end": 8
+   "end": 13.6
   },
   {
    "name": "build",
-   "start": 8,
-   "end": 10
+   "start": 13.6,
+   "end": 16.2
   },
   {
    "name": "dropA",
-   "start": 10,
-   "end": 22
+   "start": 16.2,
+   "end": 28.2
   },
   {
    "name": "dropB",
-   "start": 22,
-   "end": 37
+   "start": 28.2,
+   "end": 43.2
   },
   {
    "name": "dropC",
-   "start": 37,
-   "end": 44.4
+   "start": 43.2,
+   "end": 50.6
   },
   {
    "name": "triage",
-   "start": 44.4,
-   "end": 50
+   "start": 50.6,
+   "end": 56.2
   },
   {
    "name": "dropD",
-   "start": 50,
-   "end": 60.4
+   "start": 56.2,
+   "end": 66.6
   },
   {
    "name": "breakdown",
-   "start": 60.4,
-   "end": 62.9
+   "start": 66.6,
+   "end": 69.1
   },
   {
    "name": "end",
-   "start": 62.9,
-   "end": 65.4
+   "start": 69.1,
+   "end": 71.6
   }
  ],
  "scenes": [
   {
    "id": "canvas",
    "start": 0,
-   "end": 10
+   "end": 16.2
   },
   {
    "id": "reveal",
-   "start": 10,
-   "end": 13
+   "start": 16.2,
+   "end": 19.2
   },
   {
    "id": "terminal",
-   "start": 13,
-   "end": 18
+   "start": 19.2,
+   "end": 24.2
   },
   {
    "id": "states",
-   "start": 18,
-   "end": 22
+   "start": 24.2,
+   "end": 28.2
   },
   {
    "id": "report",
-   "start": 22,
-   "end": 37
+   "start": 28.2,
+   "end": 43.2
   },
   {
    "id": "matrix",
-   "start": 37,
-   "end": 42
+   "start": 43.2,
+   "end": 48.2
   },
   {
    "id": "outputs",
-   "start": 42,
-   "end": 44.4
+   "start": 48.2,
+   "end": 50.6
   },
   {
    "id": "triage",
-   "start": 44.4,
-   "end": 50
+   "start": 50.6,
+   "end": 56.2
   },
   {
    "id": "fixloop",
-   "start": 50,
-   "end": 56.4
+   "start": 56.2,
+   "end": 62.6
   },
   {
    "id": "ci",
-   "start": 56.4,
-   "end": 60.4
+   "start": 62.6,
+   "end": 66.6
   },
   {
    "id": "close",
-   "start": 60.4,
-   "end": 65.4
+   "start": 66.6,
+   "end": 71.6
   }
  ],
  "events": [
@@ -147,741 +147,743 @@
    "dur": 0.6
   },
   {
-   "t": 2,
-   "type": "flip"
+   "t": 3.1,
+   "type": "sweep",
+   "end": 4.2
   },
   {
-   "t": 2.25,
-   "type": "flip"
+   "t": 5.5,
+   "type": "sweep",
+   "end": 6.3
   },
   {
-   "t": 2.5,
-   "type": "flip"
-  },
-  {
-   "t": 2.75,
-   "type": "flip"
-  },
-  {
-   "t": 2.9,
+   "t": 6.3,
    "type": "marker"
   },
   {
-   "t": 3.2,
+   "t": 6.45,
+   "type": "marker"
+  },
+  {
+   "t": 6.6,
+   "type": "marker"
+  },
+  {
+   "t": 7,
    "type": "whoosh",
    "dir": "in",
-   "dur": 0.4
+   "dur": 0.46
   },
   {
-   "t": 3.45,
+   "t": 7.25,
    "type": "marker"
   },
   {
-   "t": 4.8,
+   "t": 9.2,
    "type": "whoosh",
    "dir": "right",
-   "dur": 0.35
+   "dur": 0.38
   },
   {
-   "t": 5.05,
+   "t": 9.45,
    "type": "marker"
   },
   {
-   "t": 6.4,
+   "t": 11.4,
    "type": "whoosh",
    "dir": "right",
-   "dur": 0.35
+   "dur": 0.36
   },
   {
-   "t": 6.65,
+   "t": 11.65,
    "type": "marker"
   },
   {
-   "t": 8,
+   "t": 13.6,
    "type": "whoosh",
    "dir": "out",
-   "dur": 0.6
+   "dur": 0.9
   },
   {
-   "t": 8,
+   "t": 13.6,
    "type": "riser",
-   "end": 10
+   "end": 16.2
   },
   {
-   "t": 8.4,
+   "t": 14.12,
    "type": "pop",
    "severity": "BLOCKER"
   },
   {
-   "t": 8.62,
+   "t": 14.406,
    "type": "pop",
    "severity": "WARNING"
   },
   {
-   "t": 8.82,
+   "t": 14.666,
    "type": "pop",
    "severity": "WARNING"
   },
   {
-   "t": 9,
+   "t": 14.9,
    "type": "pop",
    "severity": "BLOCKER"
   },
   {
-   "t": 9.16,
+   "t": 15.108,
    "type": "pop",
    "severity": "WARNING"
   },
   {
-   "t": 9.3,
+   "t": 15.29,
    "type": "pop",
    "severity": "PASS"
   },
   {
-   "t": 9.42,
+   "t": 15.446,
    "type": "pop",
    "severity": "WARNING"
   },
   {
-   "t": 9.52,
+   "t": 15.576,
    "type": "pop",
    "severity": "BLOCKER"
   },
   {
-   "t": 9.61,
+   "t": 15.693,
    "type": "pop",
    "severity": "WARNING"
   },
   {
-   "t": 9.69,
+   "t": 15.797,
    "type": "pop",
    "severity": "WARNING"
   },
   {
-   "t": 9.76,
+   "t": 15.888,
    "type": "pop",
    "severity": "DS_CANDIDATE"
   },
   {
-   "t": 9.82,
+   "t": 15.966,
    "type": "pop",
    "severity": "WARNING"
   },
   {
-   "t": 9.87,
+   "t": 16.031,
    "type": "pop",
    "severity": "BLOCKER"
   },
   {
-   "t": 9.91,
+   "t": 16.083,
    "type": "pop",
    "severity": "WARNING"
   },
   {
-   "t": 10,
+   "t": 16.2,
    "type": "impact"
   },
   {
-   "t": 10.55,
+   "t": 16.75,
    "type": "pop",
    "severity": "BLOCKER",
    "big": true
   },
   {
-   "t": 11,
+   "t": 17.2,
    "type": "shimmer"
   },
   {
-   "t": 13,
+   "t": 19.2,
    "type": "whoosh",
    "dir": "up",
    "dur": 0.5
   },
   {
-   "t": 13.4,
+   "t": 19.6,
    "type": "key",
    "index": 0
   },
   {
-   "t": 13.447,
+   "t": 19.647,
    "type": "key",
    "index": 1
   },
   {
-   "t": 13.494,
+   "t": 19.694,
    "type": "key",
    "index": 2
   },
   {
-   "t": 13.541,
+   "t": 19.741,
    "type": "key",
    "index": 3
   },
   {
-   "t": 13.588,
+   "t": 19.788,
    "type": "key",
    "index": 4
   },
   {
-   "t": 13.635,
+   "t": 19.835,
    "type": "key",
    "index": 5
   },
   {
-   "t": 13.682,
+   "t": 19.882,
    "type": "key",
    "index": 6
   },
   {
-   "t": 13.729,
+   "t": 19.929,
    "type": "key",
    "index": 7
   },
   {
-   "t": 13.776,
+   "t": 19.976,
    "type": "key",
    "index": 8
   },
   {
-   "t": 13.823,
+   "t": 20.023,
    "type": "key",
    "index": 9
   },
   {
-   "t": 13.87,
+   "t": 20.07,
    "type": "key",
    "index": 10
   },
   {
-   "t": 13.917,
+   "t": 20.117,
    "type": "key",
    "index": 11
   },
   {
-   "t": 13.964,
+   "t": 20.164,
    "type": "key",
    "index": 12
   },
   {
-   "t": 14.011,
+   "t": 20.211,
    "type": "key",
    "index": 13
   },
   {
-   "t": 14.058,
+   "t": 20.258,
    "type": "key",
    "index": 14
   },
   {
-   "t": 14.105,
+   "t": 20.305,
    "type": "key",
    "index": 15
   },
   {
-   "t": 14.152,
+   "t": 20.352,
    "type": "key",
    "index": 16
   },
   {
-   "t": 14.199,
+   "t": 20.399,
    "type": "key",
    "index": 17
   },
   {
-   "t": 14.246,
+   "t": 20.446,
    "type": "key",
    "index": 18
   },
   {
-   "t": 14.4,
+   "t": 20.6,
    "type": "enter"
   },
   {
-   "t": 15.1,
+   "t": 21.3,
    "type": "done",
    "index": 0
   },
   {
-   "t": 15.7,
+   "t": 21.9,
    "type": "done",
    "index": 1
   },
   {
-   "t": 16.3,
+   "t": 22.5,
    "type": "done",
    "index": 2
   },
   {
-   "t": 16.9,
+   "t": 23.1,
    "type": "done",
    "index": 3
   },
   {
-   "t": 17,
+   "t": 23.2,
    "type": "thud"
   },
   {
-   "t": 17.6,
+   "t": 23.8,
    "type": "whoosh",
    "dir": "in",
    "dur": 0.4
   },
   {
-   "t": 18,
+   "t": 24.2,
    "type": "swish",
    "index": 0
   },
   {
-   "t": 18.07,
+   "t": 24.27,
    "type": "swish",
    "index": 1
   },
   {
-   "t": 18.14,
+   "t": 24.34,
    "type": "swish",
    "index": 2
   },
   {
-   "t": 18.21,
+   "t": 24.41,
    "type": "swish",
    "index": 3
   },
   {
-   "t": 18.28,
+   "t": 24.48,
    "type": "swish",
    "index": 4
   },
   {
-   "t": 18.35,
+   "t": 24.55,
    "type": "swish",
    "index": 5
   },
   {
-   "t": 18.42,
+   "t": 24.62,
    "type": "swish",
    "index": 6
   },
   {
-   "t": 18.49,
+   "t": 24.69,
    "type": "swish",
    "index": 7
   },
   {
-   "t": 18.56,
+   "t": 24.76,
    "type": "swish",
    "index": 8
   },
   {
-   "t": 19.8,
+   "t": 26,
    "type": "stamp",
    "severity": "BLOCKER"
   },
   {
-   "t": 20.1,
+   "t": 26.3,
    "type": "stamp",
    "severity": "DS_CANDIDATE"
   },
   {
-   "t": 21.2,
+   "t": 27.4,
    "type": "whoosh",
    "dir": "in",
    "dur": 0.8
   },
   {
-   "t": 22,
+   "t": 28.2,
    "type": "hit"
   },
   {
-   "t": 23.5,
+   "t": 29.7,
    "type": "click"
   },
   {
-   "t": 25,
+   "t": 31.2,
    "type": "click"
   },
   {
-   "t": 25.1,
+   "t": 31.3,
    "type": "sweep",
-   "end": 26.3
+   "end": 32.5
   },
   {
-   "t": 26.5,
+   "t": 32.7,
    "type": "click"
   },
   {
-   "t": 26.55,
+   "t": 32.75,
    "type": "flip"
   },
   {
-   "t": 28,
+   "t": 34.2,
    "type": "whoosh",
    "dir": "in",
    "dur": 0.6
   },
   {
-   "t": 30,
+   "t": 36.2,
    "type": "pop",
    "severity": "BLOCKER",
    "index": 0
   },
   {
-   "t": 30.2,
+   "t": 36.4,
    "type": "pop",
    "severity": "WARNING",
    "index": 1
   },
   {
-   "t": 30.4,
+   "t": 36.6,
    "type": "pop",
    "severity": "WARNING",
    "index": 2
   },
   {
-   "t": 30.6,
+   "t": 36.8,
    "type": "pop",
    "severity": "WARNING",
    "index": 3
   },
   {
-   "t": 30.8,
+   "t": 37,
    "type": "pop",
    "severity": "WARNING",
    "index": 4
   },
   {
-   "t": 31,
+   "t": 37.2,
    "type": "pop",
    "severity": "WARNING",
    "index": 5
   },
   {
-   "t": 31.2,
+   "t": 37.4,
    "type": "pop",
    "severity": "WARNING",
    "index": 6
   },
   {
-   "t": 31.4,
+   "t": 37.6,
    "type": "pop",
    "severity": "PASS",
    "index": 7
   },
   {
-   "t": 31.6,
+   "t": 37.8,
    "type": "pop",
    "severity": "PASS",
    "index": 8
   },
   {
-   "t": 32,
+   "t": 38.2,
    "type": "whoosh",
    "dir": "in",
    "dur": 0.45
   },
   {
-   "t": 32.4,
+   "t": 38.6,
    "type": "pop",
    "severity": "WARNING",
    "card": true
   },
   {
-   "t": 34.6,
+   "t": 40.8,
    "type": "whoosh",
    "dir": "left",
    "dur": 0.4
   },
   {
-   "t": 35,
+   "t": 41.2,
    "type": "pop",
    "severity": "WARNING",
    "card": true
   },
   {
-   "t": 36.5,
+   "t": 42.7,
    "type": "whoosh",
    "dir": "out",
    "dur": 0.5
   },
   {
-   "t": 37,
+   "t": 43.2,
    "type": "hit"
   },
   {
-   "t": 37,
+   "t": 43.2,
    "type": "tick",
    "index": 0
   },
   {
-   "t": 37.1,
+   "t": 43.3,
    "type": "tick",
    "index": 1
   },
   {
-   "t": 37.2,
+   "t": 43.4,
    "type": "tick",
    "index": 2
   },
   {
-   "t": 37.3,
+   "t": 43.5,
    "type": "tick",
    "index": 3
   },
   {
-   "t": 37.4,
+   "t": 43.6,
    "type": "tick",
    "index": 4
   },
   {
-   "t": 37.5,
+   "t": 43.7,
    "type": "tick",
    "index": 5
   },
   {
-   "t": 37.6,
+   "t": 43.8,
    "type": "tick",
    "index": 6
   },
   {
-   "t": 38.3,
+   "t": 44.5,
    "type": "stamp",
    "severity": "BLOCKER"
   },
   {
-   "t": 40,
+   "t": 46.2,
    "type": "stamp",
    "severity": "DS_CANDIDATE"
   },
   {
-   "t": 42,
+   "t": 48.2,
    "type": "whoosh",
    "dir": "left",
    "dur": 0.4
   },
   {
-   "t": 42.05,
+   "t": 48.25,
    "type": "whoosh",
    "dir": "right",
    "dur": 0.4
   },
   {
-   "t": 43.6,
+   "t": 49.8,
    "type": "whoosh",
    "dir": "in",
    "dur": 0.8
   },
   {
-   "t": 44.4,
+   "t": 50.6,
    "type": "hit"
   },
   {
-   "t": 44.5,
+   "t": 50.7,
    "type": "tick",
    "index": 0
   },
   {
-   "t": 44.56,
+   "t": 50.76,
    "type": "tick",
    "index": 1
   },
   {
-   "t": 44.62,
+   "t": 50.82,
    "type": "tick",
    "index": 2
   },
   {
-   "t": 44.68,
+   "t": 50.88,
    "type": "tick",
    "index": 3
   },
   {
-   "t": 44.74,
+   "t": 50.94,
    "type": "tick",
    "index": 4
   },
   {
-   "t": 44.8,
+   "t": 51,
    "type": "tick",
    "index": 5
   },
   {
-   "t": 44.86,
+   "t": 51.06,
    "type": "tick",
    "index": 6
   },
   {
-   "t": 44.92,
+   "t": 51.12,
    "type": "tick",
    "index": 7
   },
   {
-   "t": 45.85,
+   "t": 52.05,
    "type": "click"
   },
   {
-   "t": 45.9,
+   "t": 52.1,
    "type": "swish",
    "index": 0
   },
   {
-   "t": 46.95,
+   "t": 53.15,
    "type": "click"
   },
   {
-   "t": 47,
+   "t": 53.2,
    "type": "swish",
    "index": 1
   },
   {
-   "t": 48.85,
+   "t": 55.05,
    "type": "click"
   },
   {
-   "t": 48.95,
+   "t": 55.15,
    "type": "toast"
   },
   {
-   "t": 50,
+   "t": 56.2,
    "type": "whoosh",
    "dir": "up",
    "dur": 0.4
   },
   {
-   "t": 50.2,
+   "t": 56.4,
    "type": "enter"
   },
   {
-   "t": 51,
+   "t": 57.2,
    "type": "success",
    "index": 0
   },
   {
-   "t": 51.45,
+   "t": 57.65,
    "type": "whoosh",
    "dir": "right",
    "dur": 0.35
   },
   {
-   "t": 51.6,
+   "t": 57.8,
    "type": "success",
    "index": 1
   },
   {
-   "t": 52,
+   "t": 58.2,
    "type": "whoosh",
    "dir": "right",
    "dur": 0.35
   },
   {
-   "t": 52.1,
+   "t": 58.3,
    "type": "success",
    "index": 2
   },
   {
-   "t": 52.6,
+   "t": 58.8,
    "type": "success",
    "index": 3
   },
   {
-   "t": 53.1,
+   "t": 59.3,
    "type": "success",
    "index": 4
   },
   {
-   "t": 53.6,
+   "t": 59.8,
    "type": "success",
    "index": 5
   },
   {
-   "t": 53.8,
+   "t": 60,
    "type": "riser",
-   "end": 55.1,
+   "end": 61.3,
    "short": true
   },
   {
-   "t": 55.1,
+   "t": 61.3,
    "type": "chime"
   },
   {
-   "t": 56.4,
+   "t": 62.6,
    "type": "whoosh",
    "dir": "up",
    "dur": 0.4
   },
   {
-   "t": 56.8,
+   "t": 63,
    "type": "fail"
   },
   {
-   "t": 58.4,
+   "t": 64.6,
    "type": "click"
   },
   {
-   "t": 59.2,
+   "t": 65.4,
    "type": "success",
    "index": 4
   },
   {
-   "t": 59.6,
+   "t": 65.8,
    "type": "click"
   },
   {
-   "t": 59.9,
+   "t": 66.1,
    "type": "reverse",
-   "end": 55
+   "end": 61.2
   },
   {
-   "t": 60.4,
+   "t": 66.6,
    "type": "word"
   },
   {
-   "t": 60.52,
+   "t": 66.72,
    "type": "word"
   },
   {
-   "t": 60.64,
+   "t": 66.84,
    "type": "word"
   },
   {
-   "t": 60.76,
+   "t": 66.96,
    "type": "word"
   },
   {
-   "t": 60.88,
+   "t": 67.08,
    "type": "word"
   },
   {
-   "t": 61.6,
+   "t": 67.8,
    "type": "word"
   },
   {
-   "t": 61.72,
+   "t": 67.92,
    "type": "word"
   },
   {
-   "t": 61.84,
+   "t": 68.04,
    "type": "word"
   },
   {
-   "t": 61.96,
+   "t": 68.16,
    "type": "word"
   },
   {
-   "t": 62.08,
+   "t": 68.28,
    "type": "word"
   },
   {
-   "t": 62.9,
+   "t": 69.1,
    "type": "impact",
    "final": true
   },
   {
-   "t": 63.2,
+   "t": 69.4,
    "type": "pop",
    "severity": "BLOCKER",
    "big": true
   },
   {
-   "t": 63.5,
+   "t": 69.7,
    "type": "shimmer"
   }
  ]
