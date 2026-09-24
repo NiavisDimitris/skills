@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "meta": {
     "feature": "Orders list",
     "generatedAt": "2026-09-22T14:32:08Z",
@@ -102,7 +102,13 @@
       "specified": 4,
       "implemented": 7,
       "verified": 5
-    }
+    },
+    "unexplained": 5,
+    "debt": {
+      "count": 6,
+      "ticketed": 6
+    },
+    "loopClosed": false
   },
   "stateMatrix": [
     {
@@ -2334,5 +2340,102 @@
         "dom": null
       }
     }
+  },
+  "triage": {
+    "decidedBy": "Maya Chen",
+    "decidedAt": "2026-09-22T15:05:00Z",
+    "source": "report-ui",
+    "items": [
+      {
+        "findingId": "DQ-001",
+        "decision": "fix-now",
+        "reason": null,
+        "ticket": null
+      },
+      {
+        "findingId": "DQ-002",
+        "decision": "fix-now",
+        "reason": null,
+        "ticket": null
+      },
+      {
+        "findingId": "DQ-010",
+        "decision": "fix-now",
+        "reason": null,
+        "ticket": null
+      },
+      {
+        "findingId": "DQ-003",
+        "decision": "fix-now",
+        "reason": null,
+        "ticket": null
+      },
+      {
+        "findingId": "DQ-004",
+        "decision": "debt",
+        "reason": "Spacing polish; batch it with the spacing-token sweep.",
+        "ticket": {
+          "provider": "jira",
+          "key": "ACME-511",
+          "url": "https://acme.atlassian.net/browse/ACME-511",
+          "createdAt": "2026-09-22T14:32:08Z"
+        }
+      },
+      {
+        "findingId": "DQ-006",
+        "decision": "debt",
+        "reason": "Shared PageHeader change, already tracked as KD-2 across Console.",
+        "ticket": {
+          "provider": "jira",
+          "key": "ACME-512",
+          "url": "https://acme.atlassian.net/browse/ACME-512",
+          "createdAt": "2026-09-22T14:32:08Z"
+        }
+      },
+      {
+        "findingId": "DQ-007",
+        "decision": "debt",
+        "reason": "Only visible while loading; low impact.",
+        "ticket": {
+          "provider": "jira",
+          "key": "ACME-513",
+          "url": "https://acme.atlassian.net/browse/ACME-513",
+          "createdAt": "2026-09-22T14:32:08Z"
+        }
+      },
+      {
+        "findingId": "DQ-008",
+        "decision": "debt",
+        "reason": "Motion-token clean-up is planned for the next sprint.",
+        "ticket": {
+          "provider": "jira",
+          "key": "ACME-514",
+          "url": "https://acme.atlassian.net/browse/ACME-514",
+          "createdAt": "2026-09-22T14:32:08Z"
+        }
+      },
+      {
+        "findingId": "DQ-016",
+        "decision": "debt",
+        "reason": "Needs the shared delayed-flag hook; scheduled with it.",
+        "ticket": {
+          "provider": "jira",
+          "key": "ACME-515",
+          "url": "https://acme.atlassian.net/browse/ACME-515",
+          "createdAt": "2026-09-22T14:32:08Z"
+        }
+      },
+      {
+        "findingId": "DQ-009",
+        "decision": "debt",
+        "reason": "Waiting on OD-1: design the bulk pattern or remove it.",
+        "ticket": {
+          "provider": "jira",
+          "key": "ACME-516",
+          "url": "https://acme.atlassian.net/browse/ACME-516",
+          "createdAt": "2026-09-22T14:32:08Z"
+        }
+      }
+    ]
   }
 }

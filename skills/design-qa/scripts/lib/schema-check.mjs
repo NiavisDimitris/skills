@@ -18,6 +18,7 @@ import {
   computeScorecard,
   explainVerdict,
   isOpen,
+  isTriageable,
   rankFindings,
   resolveOptions,
 } from './ranking.mjs';
@@ -258,7 +259,8 @@ function dedupe(list) {
  *         options?: anything ranking.resolveOptions accepts (wins over config),
  *         tolerances?, topN?, ranking?,
  *         skipScorecard?: boolean (the scorecard is about to be recomputed),
- *         skipRanks?: boolean (every rank is about to be recomputed) }
+ *         skipRanks?: boolean (every rank is about to be recomputed),
+ *         skipTriage?: boolean (the triage block is about to be replaced) }
  */
 export function validateReport(report, opts = {}) {
   const o = resolveOptions(
@@ -266,8 +268,10 @@ export function validateReport(report, opts = {}) {
   );
   const schemaResult = validateAgainstSchema(report, loadSchema('report'));
   const isRankPath = (e) => /^findings\[\d+\]\.rank(\.|\[|$)/.test(e.path);
-  const errors = opts.skipRanks ? schemaResult.errors.filter((e) => !isRankPath(e)) : schemaResult.errors;
-  const warnings = opts.skipRanks ? schemaResult.warnings.filter((w) => !isRankPath(w)) : schemaResult.warnings;
+  const isTriagePath = (e) => /^triage(\.|\[|$)/.test(e.path);
+  const skipped = (e) => (opts.skipRanks && isRankPath(e)) || (opts.skipTriage && isTriagePath(e));
+  const errors = schemaResult.errors.filter((e) => !skipped(e));
+  const warnings = schemaResult.warnings.filter((w) => !skipped(w));
   if (!isPlainObject(report)) return result(errors, warnings);
 
   const err = (path, message) => errors.push({ path, message });
@@ -310,6 +314,9 @@ export function validateReport(report, opts = {}) {
   const loop = Array.isArray(report.fixLoop) ? report.fixLoop : [];
   loop.forEach((entry, i) => isPlainObject(entry) && refs(entry.findingIds, `fixLoop[${i}].findingIds`));
 
+  // Triage: one decision per triageable finding, and blockers are never deferred.
+  if (!opts.skipTriage && isPlainObject(report.triage)) checkTriage(report, findings, err, warn);
+
   // Derived values: counts, parity, verdict, bands, coverage.
   if (!opts.skipScorecard && isPlainObject(report.scorecard)) compareScorecard(report, o, err);
 
@@ -341,6 +348,39 @@ export function validateReport(report, opts = {}) {
   return result(errors, warnings);
 }
 
+function checkTriage(report, findings, err, warn) {
+  const byId = new Map();
+  for (const f of findings) if (isPlainObject(f) && typeof f.id === 'string' && !byId.has(f.id)) byId.set(f.id, f);
+  const items = Array.isArray(report.triage.items) ? report.triage.items : [];
+  const seen = new Map();
+  items.forEach((item, i) => {
+    if (!isPlainObject(item) || typeof item.findingId !== 'string') return;
+    const f = byId.get(item.findingId);
+    if (!f) {
+      err(`triage.items[${i}].findingId`, `references unknown finding "${item.findingId}"`);
+      return;
+    }
+    if (seen.has(item.findingId)) {
+      err(`triage.items[${i}].findingId`, `duplicate decision for "${item.findingId}" (first at triage.items[${seen.get(item.findingId)}])`);
+      return;
+    }
+    seen.set(item.findingId, i);
+    if (!isTriageable(f)) {
+      err(
+        `triage.items[${i}].findingId`,
+        `${f.id} is not triageable (${f.severity} / ${f.resolution}): only FIX_CODE and SYNC_FIGMA findings with severity BLOCKER, WARNING or DS_CANDIDATE get a decision`,
+      );
+    } else if (item.decision === 'debt' && f.severity === 'BLOCKER') {
+      err(`triage.items[${i}].decision`, `${f.id} is a BLOCKER: blockers cannot be deferred; fix it or sign it off as INTENTIONAL`);
+    }
+  });
+  const missing = findings.filter((f) => isPlainObject(f) && isTriageable(f) && !seen.has(f.id)).map((f) => f.id);
+  if (missing.length) {
+    err('triage.items', `no decision for ${missing.join(', ')}: every FIX_CODE and SYNC_FIGMA finding with severity BLOCKER, WARNING or DS_CANDIDATE needs "fix-now" or "debt"`);
+  }
+  if (report.schemaVersion === '1.0') warn('triage', 'triage is a schemaVersion 1.1 feature; set "schemaVersion": "1.1"');
+}
+
 function compareScorecard(report, o, err) {
   const sc = report.scorecard;
   const derived = computeScorecard(report, o);
@@ -357,6 +397,19 @@ function compareScorecard(report, o, err) {
   countCheck('bySeverity', SEVERITIES, 'counted from findings[].severity');
   countCheck('byResolution', RESOLUTIONS, 'counted from findings[].resolution');
   countCheck('stateCoverage', ['total', 'designed', 'specified', 'implemented', 'verified'], 'derived from stateMatrix');
+  if (Number.isInteger(sc.unexplained) && derived.unexplained !== undefined && sc.unexplained !== derived.unexplained) {
+    err('scorecard.unexplained', `expected ${derived.unexplained} (open findings that are not ticketed debt), got ${sc.unexplained}`);
+  }
+  if (isPlainObject(sc.debt) && derived.debt) {
+    for (const k of ['count', 'ticketed']) {
+      if (Number.isInteger(sc.debt[k]) && sc.debt[k] !== derived.debt[k]) {
+        err(`scorecard.debt.${k}`, `expected ${derived.debt[k]} (${k === 'count' ? 'triage items decided "debt"' : 'debt items with a ticket'}), got ${sc.debt[k]}`);
+      }
+    }
+  }
+  if (typeof sc.loopClosed === 'boolean' && derived.loopClosed !== undefined && sc.loopClosed !== derived.loopClosed) {
+    err('scorecard.loopClosed', `expected ${derived.loopClosed} (unexplained ${derived.unexplained}, open decisions ${(report.openDecisions || []).length}), got ${sc.loopClosed}`);
+  }
   if (typeof sc.parity === 'number' && sc.parity !== derived.parity) {
     const open = findings.filter(isOpen).length;
     err('scorecard.parity', `expected ${derived.parity} (${open} open of ${findings.length} findings), got ${sc.parity}`);

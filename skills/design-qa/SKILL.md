@@ -1,7 +1,7 @@
 ---
 name: design-qa
 description: Figma ↔ code design-parity QA across every designed state (with-data, empty, loading, error, hover, focus, selected, disabled). Use when the user asks for design QA, visual QA or a parity check, says "make it match Figma" or "compare with the design", shares a figma.com URL to check against the app, gives a ticket key like ABC-123 with QA, verify or check, asks to "check this preview/staging URL against the design", or wants to "update Figma to match the code". Compares components, tokens, typography, color, spacing, radii, elevation, copy, states and behaviour while data may differ; fixes code or syncs Figma; writes report.json, a fix plan (fix the top N now, log the rest as debt) and an interactive HTML report. Runs headless in CI against PR preview URLs.
-argument-hint: <figma-url | TICKET-KEY | surface-name> [--url <app-url>] [--mode audit|fix|sync|ci] [--top N] [--states all|<list>]
+argument-hint: <figma-url | TICKET-KEY | surface-name> [--url <app-url>] [--mode audit|fix|sync|ci] [--top N] [--states all|<list>] | triage <slug> --fix <ids> [--no-fix]
 ---
 
 # Design QA
@@ -53,11 +53,21 @@ Arguments can combine a Figma URL, a ticket key (`ABC-123`), a surface name from
 | Mode | Does | Asks the user | Writes |
 |---|---|---|---|
 | `audit` | Phases 0–6 and 9. The default. | Target confirmation, open decisions | `qa-reports/` only |
-| `fix` | Audit, then drives `FIX_CODE` to 0 (Phase 7). Default when the user says "make it match" or "fix it". | Before risky or wide edits | Code, tests, `qa-reports/` |
+| `fix` | Audit, triage (Phase 10), then fixes the fix-now set (Phase 7); the rest becomes ticketed debt. Default when the user says "make it match" or "fix it". | Which diffs to fix now; before risky or wide edits | Code, tests, `qa-reports/` |
 | `sync` | Audit, then writes `SYNC_FIGMA` rows back into Figma (Phase 8). Default for "update Figma to match the code". | Before touching any Figma file | Figma, `qa-reports/` |
 | `ci` | Non-interactive audit. The verdict sets the exit status. | Never | `qa-reports/` only; never Figma, never tickets |
+| `triage` | `/design-qa triage <slug> --fix <ids>`: applies a fix-now/debt choice to an existing report (below). | Before creating any ticket | `report.json`, tickets, debt log, code |
 
 `--top N` sets the fix-now size (default `report.topN`, else 5). `--states` limits capture to a list (default `all`); excluded states stay in the matrix as `CANNOT_VERIFY` with the note "excluded by --states". When a fix pass leaves `SYNC_FIGMA` rows, offer a sync pass over the Sync to Figma list.
+
+**Triage** (`/design-qa triage <slug> --fix DQ-001,DQ-004 [--no-fix]`, the command the report's board copies; `<slug>` is the report folder under `report.outDir`):
+
+1. `node scripts/triage.mjs --report <dir>/report.json --fix <ids> --by "<name>" --source report-ui|chat` records the choice. Every other triageable finding becomes debt. Blockers cannot be debt: fix them or sign them off as `INTENTIONAL`.
+2. Show the debt list and wait for a yes, then create one ticket per debt item: Atlassian MCP in interactive sessions, else `node scripts/jira-fetch.mjs --tickets-from <dir>/report.json --write` (without `--write` it only previews). Ticket keys go back into `report.json`.
+3. `node scripts/debt-log.mjs --report <dir>/report.json` updates the cumulative debt log.
+4. Unless `--no-fix`, run the fix loop (Phase 7) on the fix-now set, then Phase 9.
+
+→ references/report.md (triage), references/ticket-ingest.md (tickets)
 
 ## 4. Phases
 
@@ -124,10 +134,10 @@ Record PASS rows too and persist every grab. Position every finding: `evidence[]
 
 ### Phase 7 — Fix loop (fix mode)
 
-1. Write the invariant test first (token audit, style value pin, layout or state-branch test) and watch it fail.
+1. Scope: the fix-now set (the recorded triage, else the default split). Write the invariant test first (token audit, style value pin, layout or state-branch test) and watch it fail.
 2. Fix with tokens over raw values and design-system components over recreations.
 3. Run `commands.test`, re-capture the touched states, re-run the ledgers and the pixel diff.
-4. Log each iteration in `fixLoop`. Repeat until no `FIX_CODE` rows remain. Never hand-edit generated files.
+4. Log each iteration in `fixLoop`. Repeat until no fix-now `FIX_CODE` rows remain. Never hand-edit generated files.
 
 → references/fix-loop.md
 
@@ -148,9 +158,21 @@ Record PASS rows too and persist every grab. Position every finding: `evidence[]
 
 → references/report.md
 
+### Phase 10 — Triage and close the loop
+
+1. Offer the recommended split in chat as a multi-select the person can change: fix now = the fix-now bucket, every blocker and the Sync to Figma list; debt = the debt bucket. Or point to the "Choose what to fix" board in `report.html`, whose "Copy for Claude Code" button produces the triage command.
+2. Apply the choice with the triage steps above. In fix mode this happens before Phase 7.
+3. The pass is closed (`scorecard.loopClosed`) when every diff is fixed, synced, signed off or tracked as ticketed debt, and no decision is open.
+4. ci mode records `triage.mjs --default --source ci-default`, never creates tickets, and lists the proposed debt in the PR comment.
+
+→ references/report.md, references/classification.md
+
 ## 5. Outputs
 
 ```text
+qa-reports/
+  design-debt.json     cumulative debt log, written by scripts/debt-log.mjs
+  design-debt.md       the same, readable (report.debtLog)
 qa-reports/<feature>/
   report.json          written by the agent, checked by scripts/validate.mjs
   report.html          rendered by scripts/render-report.mjs
@@ -176,6 +198,7 @@ An engineer's coding agent takes the fix-now block in `report-fixplan.md` (or re
 8. A state that cannot be reached is `CANNOT_VERIFY` with the missing hook named (`surfaces.<name>.states.<state>`). Never drop it.
 9. Never type credentials. Remote auth comes from environment variables or a Playwright storage-state file.
 10. ci mode never asks and never writes to Figma or tickets.
+11. Never create tickets without showing the list first and getting a yes.
 
 ## 7. Degradation ladders
 

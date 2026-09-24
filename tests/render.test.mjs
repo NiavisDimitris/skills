@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { agentPrompt, codingAgentIntro, designAgentIntro, parseDebtItems, renderFixplan } from '../skills/design-qa/scripts/lib/fixplan.mjs';
+import { agentPrompt, codingAgentIntro, designAgentIntro, parseDebtItems, renderFixplan, triageCommand } from '../skills/design-qa/scripts/lib/fixplan.mjs';
+import { validateReport } from '../skills/design-qa/scripts/lib/schema-check.mjs';
+import { applyTriage, buildTriage } from '../skills/design-qa/scripts/lib/triage.mjs';
 import { createPng, writePng } from '../skills/design-qa/scripts/lib/png.mjs';
 import { rankFindings } from '../skills/design-qa/scripts/lib/ranking.mjs';
 import { SKILL, fixture, loadFixture, run, script, tmpDir } from './_helpers.mjs';
@@ -150,9 +152,9 @@ test('fix plan: section order, fix-now ordering, paste blocks, debt and sync to 
     '# Design QA fix plan — Items list',
     '## Fix now (2)',
     '### Paste to your coding agent',
-    '## Debt (1) — log as tickets',
     '## Sync to Figma (1)',
     '### Paste to your design agent',
+    '## Debt (1) — tickets',
     '## Missing states / needs decision',
     '## Cannot verify',
   ]);
@@ -162,22 +164,27 @@ test('fix plan: section order, fix-now ordering, paste blocks, debt and sync to 
     lines[2],
     'Figma: https://www.figma.com/design/AbCdEf123456/Items?node-id=1-2 · App: http://localhost:3000/items (local) · Ticket: ABC-12 · Generated: 2026-09-23T10:00:00Z',
   );
+  assert.equal(
+    lines[3],
+    'Triage: recommended (top 2 by rank). Choose in report.html, or run /design-qa triage ABC-12 --fix DQ-001,DQ-002,DQ-003',
+  );
+  assert.equal(lines[4], '');
   const section = (from, to) => md.slice(md.indexOf(from), md.indexOf(to));
 
-  const fixNow = section('## Fix now', '## Debt');
+  const fixNow = section('## Fix now', '## Sync to Figma');
   assert.ok(fixNow.includes('1. **DQ-001 — Empty state message is missing** (BLOCKER, structure, state empty)\n   - Where: src/Items.tsx:42 · selector `main .empty`'));
   assert.ok(fixNow.includes('2. **DQ-002 — Row padding is 12px instead of 16px** (WARNING, style, state with-data)'));
   assert.ok(fixNow.includes(`\`\`\`text\n${codingAgentIntro}\n\n[DQ-001]`));
   assert.ok(fixNow.indexOf('[DQ-001]') < fixNow.indexOf('[DQ-002]'));
   assert.ok(!fixNow.includes('DQ-003'), 'SYNC_FIGMA findings never go to the coding agent');
 
-  const debtSection = section('## Debt', '## Sync to Figma');
+  const debtSection = section('## Debt', '## Missing states');
   assert.equal(
     debtSection.trim(),
-    '## Debt (1) — log as tickets\n- DQ-004 — Hard-coded grey could be a design-system token (DS_CANDIDATE, style, state with-data) — Replace the literal with var(--color-text-muted) — evidence: app/with-data.png',
+    '## Debt (1) — tickets\n- DQ-004 — Hard-coded grey could be a design-system token (DS_CANDIDATE, owner engineering) — no ticket yet — Replace the literal with var(--color-text-muted)',
   );
 
-  const sync = section('## Sync to Figma', '## Missing states');
+  const sync = section('## Sync to Figma', '## Debt');
   assert.equal(
     sync.trim(),
     [
@@ -204,9 +211,28 @@ test('fix plan: section order, fix-now ordering, paste blocks, debt and sync to 
   const debt = parseDebtItems(md);
   assert.deepEqual(debt.map((d) => d.id), ['DQ-004']);
   assert.equal(debt[0].title, 'Hard-coded grey could be a design-system token');
-  assert.equal(debt[0].meta, 'DS_CANDIDATE, style, state with-data');
+  assert.equal(debt[0].meta, 'DS_CANDIDATE, owner engineering');
+  assert.equal(debt[0].owner, 'engineering');
+  assert.equal(debt[0].ticket, null);
   assert.equal(debt[0].summary, 'Replace the literal with var(--color-text-muted)');
-  assert.equal(debt[0].evidence, 'app/with-data.png');
+});
+
+test('parseDebtItems reads the current and the older debt bullet formats', () => {
+  const md = [
+    '## Debt (3) — tickets',
+    '- DQ-004 — Card padding is 20px (24px) (WARNING, owner engineering) — ACME-511 — Use the spacing token.',
+    '- DQ-009 — Bulk bar has no design (Acme DS) (DS_CANDIDATE, owner design) — no ticket yet — –',
+    '- DQ-010 — Old format (WARNING, style, state with-data) — Fix it — evidence: app/x.png',
+    '',
+    '## Missing states / needs decision',
+    '- DQ-011 — not debt (WARNING, owner engineering) — – — –',
+  ].join('\n');
+  const items = parseDebtItems(md);
+  assert.deepEqual(items.map((i) => [i.id, i.title, i.owner, i.ticket, i.summary, i.evidence]), [
+    ['DQ-004', 'Card padding is 20px (24px)', 'engineering', 'ACME-511', 'Use the spacing token.', null],
+    ['DQ-009', 'Bulk bar has no design (Acme DS)', 'design', null, null, null],
+    ['DQ-010', 'Old format', null, null, 'Fix it', 'app/x.png'],
+  ]);
 });
 
 test('sync to Figma: several items in score order, Figma node id when there is no layer path', () => {
@@ -220,9 +246,50 @@ test('sync to Figma: several items in score order, Figma node id when there is n
   extra.fix = null;
   report.findings.push(extra);
   const md = renderFixplan({ ...report, findings: rankFindings(report.findings) });
-  const sync = md.slice(md.indexOf('## Sync to Figma'), md.indexOf('## Missing states'));
+  const sync = md.slice(md.indexOf('## Sync to Figma'), md.indexOf('## Debt'));
   assert.ok(sync.startsWith('## Sync to Figma (2)\n- DQ-008 — Empty illustration differs from the shipped one (BLOCKER, structure, state hover) — – — Figma: 1:41\n- DQ-003'));
   assert.ok(sync.indexOf('[DQ-008]') < sync.indexOf('[DQ-003]'), 'design prompts follow score order');
+});
+
+test('fix plan with triage: the decisions fill Fix now, Sync to Figma and Debt', () => {
+  const report = loadFixture('report-valid.json');
+  const { triage } = buildTriage(report, { fixIds: ['DQ-002'], decidedBy: 'Dana', decidedAt: '2026-09-24T09:00:00Z', source: 'cli' });
+  triage.items.find((i) => i.findingId === 'DQ-004').ticket = {
+    provider: 'jira', key: 'ABC-99', url: 'https://example.atlassian.net/browse/ABC-99', createdAt: '2026-09-24T09:05:00Z',
+  };
+  const triaged = applyTriage(report, triage);
+  assert.deepEqual(validateReport(triaged).errors, []);
+  const md = renderFixplan(triaged);
+  const lines = md.split('\n');
+  assert.equal(lines[3], 'Triage: 2 fix now · 2 debt (1 ticketed) · Dana, 2026-09-24');
+  const section = (from, to) => md.slice(md.indexOf(from), md.indexOf(to));
+  const fixNow = section('## Fix now', '## Sync to Figma');
+  assert.ok(fixNow.startsWith('## Fix now (2)\n1. **DQ-001'), 'the BLOCKER stays in fix now');
+  assert.ok(fixNow.includes('2. **DQ-002'));
+  assert.equal(section('## Sync to Figma', '## Debt').trim(), '## Sync to Figma (0)\n- None', 'DQ-003 was deferred, so nothing goes to the design agent now');
+  assert.equal(
+    section('## Debt', '## Missing states').trim(),
+    [
+      '## Debt (2) — tickets',
+      '- DQ-003 — Hover row uses the old highlight colour in Figma (WARNING, owner design) — no ticket yet — Update the Row/Hover variant to color.surface.hover',
+      '- DQ-004 — Hard-coded grey could be a design-system token (DS_CANDIDATE, owner engineering) — ABC-99 — Replace the literal with var(--color-text-muted)',
+    ].join('\n'),
+  );
+  assert.ok(!md.includes('Paste to your design agent'));
+
+  const syncNow = applyTriage(report, buildTriage(report, { fixIds: ['DQ-003'], decidedAt: '2026-09-24T09:00:00Z' }).triage);
+  const md2 = renderFixplan(syncNow);
+  assert.equal(md2.split('\n')[3], 'Triage: 2 fix now · 2 debt (0 ticketed) · –, 2026-09-24');
+  assert.ok(md2.includes('## Sync to Figma (1)\n- DQ-003'));
+  assert.ok(md2.includes('### Paste to your design agent'));
+});
+
+test('triageCommand: slug from the ticket key, else the kebab-cased feature', () => {
+  const report = loadFixture('report-valid.json');
+  assert.equal(triageCommand(report, ['DQ-001', 'DQ-002']), '/design-qa triage ABC-12 --fix DQ-001,DQ-002');
+  report.meta.ticket = null;
+  report.meta.feature = 'Orders list: bulk actions';
+  assert.equal(triageCommand(report, []), '/design-qa triage orders-list-bulk-actions --fix none');
 });
 
 test('agentPrompt format (snapshot)', () => {
@@ -271,7 +338,8 @@ test('renderFixplan handles empty sections', () => {
   const md = renderFixplan({ ...report, findings: rankFindings(report.findings) });
   assert.ok(md.includes('## Fix now (0)\n- None'));
   assert.ok(!md.includes('Paste to your coding agent'));
-  assert.ok(md.includes('## Debt (0) — log as tickets\n- None'));
+  assert.equal(md.split('\n')[3], 'Triage: nothing to triage');
+  assert.ok(md.includes('## Debt (0) — tickets\n- None'));
   assert.ok(md.includes('## Sync to Figma (0)\n- None'));
   assert.ok(!md.includes('Paste to your design agent'));
   assert.ok(md.includes('## Missing states / needs decision\n- None'));

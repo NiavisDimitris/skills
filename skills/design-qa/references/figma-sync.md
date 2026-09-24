@@ -13,7 +13,9 @@ Not when the design is right and the code is wrong (`FIX_CODE`), or the differen
 
 ## The work list
 
-Sync mode works through the Sync to Figma list: findings with `rank.bucket == "sync-figma"`, in score order. They are kept apart from fix-now and debt, which are the engineer's lists (classification.md).
+Sync mode works through the Sync to Figma list: `SYNC_FIGMA` findings (`rank.bucket == "sync-figma"`) that are fix now under the triage, in score order. Without a recorded triage, every one of them is fix now. They are kept apart from fix-now and debt, which are the engineer's lists (classification.md).
+
+A sync item can also wait. If the person triages it as debt, it becomes design debt: a ticket owned by design and an entry in the debt log, like code debt (report.md, "Triage and debt"). Sync mode then leaves it alone, and it no longer holds the verdict at REVIEW once its ticket exists. A 🔴 BLOCKER cannot be deferred.
 
 - In `report-fixplan.md` the list is the "Sync to Figma (k)" section, followed by a "Paste to your design agent" block. That block can go to any agent with Figma write access; it opens with "Update the Figma file so these match the shipped code. Use library components and bound variables, never arbitrary hex. Re-export the node and diff it against the app after each item."
 - In `report.html` the same list is the Sync to Figma panel beside Debt, with "Copy Figma prompt" per item and "Copy all".

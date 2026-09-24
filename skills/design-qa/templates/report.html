@@ -483,6 +483,31 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 .checklist > li { display: grid; align-items: start; grid-template-columns: 0.5rem minmax(0, 1fr); gap: 0.625rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
 .checklist > li:last-child { border-bottom: 0; }
 .checklist > li > .dot { margin-top: 0.375rem; }
+.lanes { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 768px) { .lanes { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; } }
+.lane { min-width: 0; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--muted) 50%, transparent); padding: 0.75rem; }
+.lane-head { padding: 0.25rem 0.25rem 0.75rem; }
+.lane-title { font-size: 0.875rem; font-weight: 600; }
+.lane-sub { font-size: 0.75rem; color: var(--muted-foreground); }
+.lane-list { display: grid; gap: 0.5rem; }
+.lane-empty { border: 1px dashed var(--border); border-radius: var(--radius-lg); padding: 1rem; text-align: center; font-size: 0.875rem; color: var(--muted-foreground); }
+.tri-card { display: grid; grid-template-columns: 1rem minmax(0, 1fr); gap: 0.75rem; align-items: start; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--card); padding: 0.75rem; box-shadow: var(--shadow-xs); font-size: 0.875rem; will-change: transform; }
+.tri-title { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+.tri-title .dot { flex-shrink: 0; transform: translateY(-0.0625rem); }
+.tri-open { flex: 1; min-width: 0; text-align: left; font-weight: 500; }
+.tri-open:hover { text-decoration: underline; text-underline-offset: 3px; }
+.tri-where { margin-top: 0.25rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.tri-ticket { margin-top: 0.5rem; font-size: 0.75rem; }
+.tri-ticket .badge { text-decoration: none; }
+.tri-check { position: relative; margin-top: 0.125rem; cursor: pointer; transition: background-color .15s, border-color .15s, box-shadow .15s; }
+.tri-check::after { content: ""; position: absolute; inset: -0.5rem; }
+.checkbox[aria-checked="true"] { background: var(--primary); border-color: var(--primary); }
+.checkbox[aria-checked="true"] > svg { visibility: visible; }
+.tri-check:focus-visible { border-color: var(--ring); box-shadow: var(--ring-shadow); }
+.tri-lock { display: grid; place-items: center; width: 1rem; height: 1.25rem; color: var(--muted-foreground); }
+.tri-lock svg { width: 0.875rem; height: 0.875rem; }
+.tri-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1rem; margin-top: 1rem; }
+.triage-status { font-size: 0.875rem; font-weight: 500; font-variant-numeric: tabular-nums; }
 .fix-list > li { border-bottom: 1px solid var(--border); }
 .fix-list > li:last-child { border-bottom: 0; }
 .fix-row { display: grid; grid-template-columns: 1.25rem 0.5rem minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 0.625rem 0; font-size: 0.875rem; }
@@ -611,6 +636,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     "columns-2": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /><path d=\"M12 3v18\" />",
     "copy": "<rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\" /><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\" />",
     "download": "<path d=\"M12 15V3\" /><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" /><path d=\"m7 10 5 5 5-5\" />",
+    "ellipsis": "<circle cx=\"12\" cy=\"12\" r=\"1\" /><circle cx=\"19\" cy=\"12\" r=\"1\" /><circle cx=\"5\" cy=\"12\" r=\"1\" />",
     "external-link": "<path d=\"M15 3h6v6\" /><path d=\"M10 14 21 3\" /><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\" />",
     "filter": "<path d=\"M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z\" />",
     "frame": "<line x1=\"22\" x2=\"2\" y1=\"6\" y2=\"6\" /><line x1=\"22\" x2=\"2\" y1=\"18\" y2=\"18\" /><line x1=\"6\" x2=\"6\" y1=\"2\" y2=\"22\" /><line x1=\"18\" x2=\"18\" y1=\"2\" y2=\"22\" />",
@@ -618,6 +644,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     "image-off": "<line x1=\"2\" x2=\"22\" y1=\"2\" y2=\"22\" /><path d=\"M10.41 10.41a2 2 0 1 1-2.83-2.83\" /><line x1=\"13.5\" x2=\"6\" y1=\"13.5\" y2=\"21\" /><line x1=\"18\" x2=\"21\" y1=\"12\" y2=\"15\" /><path d=\"M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59\" /><path d=\"M21 15V5a2 2 0 0 0-2-2H9\" />",
     "info": "<circle cx=\"12\" cy=\"12\" r=\"10\" /><path d=\"M12 16v-4\" /><path d=\"M12 8h.01\" />",
     "layers": "<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\" /><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\" /><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\" />",
+    "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\" /><path d=\"M7 11V7a5 5 0 0 1 10 0v4\" />",
     "maximize": "<path d=\"M8 3H5a2 2 0 0 0-2 2v3\" /><path d=\"M21 8V5a2 2 0 0 0-2-2h-3\" /><path d=\"M3 16v3a2 2 0 0 0 2 2h3\" /><path d=\"M16 21h3a2 2 0 0 0 2-2v-3\" />",
     "minimize-2": "<path d=\"m14 10 7-7\" /><path d=\"M20 10h-6V4\" /><path d=\"m3 21 7-7\" /><path d=\"M4 14h6v6\" />",
     "monitor": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\" /><line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\" /><line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\" />",
@@ -810,7 +837,8 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   var byId = {}; findings.forEach(function (f) { byId[f.id] = f; });
   var stateRow = {}; matrix.forEach(function (r) { stateRow[r.state] = r; });
   var stateOrder = matrix.map(function (r) { return r.state; });
-  var slug = String(meta.feature || 'report').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'report';
+  // Report slug (same rule as reportSlug() in scripts/lib/triage.mjs): the ticket key, else the kebab-cased feature.
+  var slug = (meta.ticket && meta.ticket.key) || String(meta.feature || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'report';
   var SEV = ['BLOCKER', 'WARNING', 'DS_CANDIDATE', 'CANNOT_VERIFY', 'PASS'];
   var RES = ['FIX_CODE', 'SYNC_FIGMA', 'UNCLASSIFIED', 'INTENTIONAL', 'DATA', 'NONE'];
   var LEDGERS = ['structure', 'component', 'style', 'state', 'behavior'];
@@ -833,7 +861,6 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   function inBucket(name) {
     return findings.filter(function (f) { return f.rank && f.rank.bucket === name; }).sort(function (a, b) { return score(b) - score(a) || tieBreak(a, b); });
   }
-  var fixNow = inBucket('fix-now'), debt = inBucket('debt'), syncFigma = inBucket('sync-figma');
   var comparable = matrix.filter(function (r) { return r.captured && (r.captured.figma || r.captured.app); });
   var signoffList = findings.filter(function (f) { return f.resolution === 'INTENTIONAL' || f.resolution === 'UNCLASSIFIED'; });
   function stateLabel(id) { var r = stateRow[id]; return r && r.label ? r.label : id; }
@@ -867,24 +894,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
       'Files: ' + (arr(fx.files).length ? fx.files.join(', ') : DASH), 'Evidence: ' + (paths.length ? paths.join(', ') : DASH));
     return lines.join('\n');
   }
-  function allPrompts() { return [PREAMBLE].concat(fixNow.map(agentPrompt)).join('\n\n'); }
-  function allDesignPrompts() { return [DESIGN_INTRO].concat(syncFigma.map(agentPrompt)).join('\n\n'); }
-  function debtMarkdown() {
-    return debt.map(function (f) {
-      var e = arr(f.evidence)[0];
-      return '- ' + f.id + ' — ' + f.title + ' (' + f.severity + ', ' + f.ledger + ', state ' + orDash(f.state) + ') — ' +
-        orDash(f.fix && f.fix.summary) + ' — evidence: ' + (e && e.path ? e.path : DASH);
-    }).join('\n') + '\n';
-  }
   function csvCell(v) { var s = blank(v) ? '' : String(v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
-  function debtCsv() {
-    var rows = [['id', 'title', 'severity', 'ledger', 'state', 'resolution', 'region', 'file', 'line', 'fix']];
-    debt.forEach(function (f) {
-      var s = (f.actual && f.actual.source) || {};
-      rows.push([f.id, f.title, f.severity, f.ledger, f.state, f.resolution, f.region, s.file, s.line, f.fix && f.fix.summary]);
-    });
-    return rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n';
-  }
 
   /* ===== 7. UI state, theme, sign-off store ===== */
   var S = {
@@ -988,9 +998,13 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
         app.commit ? h('span', { 'data-tip': app.commit + (app.branch ? ' on ' + app.branch : '') }, icon('git-branch', 'icon-3-5'), h('kbd', { class: 'kbd mono' }, String(app.commit).slice(0, 7))) : null),
       degr.length ? h('div', { class: 'meta' }, h('span', null, icon('info', 'icon-3-5'), degr.length + (degr.length === 1 ? ' check' : ' checks') + ' ran with reduced fidelity.',
         h('button', { type: 'button', class: 'link-btn', onclick: openRunDetails }, 'Run details'))) : null,
-      h('p', { class: 'summary', id: 'summary' }, 'Parity ', h('b', null, typeof SC.parity === 'number' ? SC.parity + '%' : DASH), ' · ',
-        h('b', null, findings.filter(isOpen).length + ' of ' + findings.length), ' findings open · ', h('b', null, orDash(cov.verified) + '/' + orDash(cov.total)), ' states verified',
-        worst ? [' · worst pixel diff ', h('b', null, pct(worst.p)), ' (' + stateLabel(worst.s) + ')'] : null));
+      SC.loopClosed === true
+        ? h('p', { class: 'summary', id: 'summary' }, 'Loop closed · ', h('b', null, String(arr(R.triage && R.triage.items).filter(function (i) { return i && i.decision === 'fix-now'; }).length)), ' fixed · ',
+          h('b', null, String(SC.debt && typeof SC.debt.count === 'number' ? SC.debt.count : 0)), ' tracked as debt')
+        : h('p', { class: 'summary', id: 'summary' }, 'Parity ', h('b', null, typeof SC.parity === 'number' ? SC.parity + '%' : DASH), ' · ',
+          h('b', null, findings.filter(isOpen).length + ' of ' + findings.length), ' findings open · ', h('b', null, orDash(cov.verified) + '/' + orDash(cov.total)), ' states verified',
+          worst ? [' · worst pixel diff ', h('b', null, pct(worst.p)), ' (' + stateLabel(worst.s) + ')'] : null,
+          typeof SC.unexplained === 'number' ? [' · ', h('b', null, String(SC.unexplained)), ' unexplained'] : null));
   }
 
   /* ===== 9. Hero: the annotated capture ===== */
@@ -1242,59 +1256,125 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     if (go) { setTab('overview'); heroSection.scrollIntoView({ block: 'start' }); }
   }
 
-  /* ===== 10. Overview below the hero: fix now, debt, sync, run details ===== */
-  function sectionFixNow() {
-    var list = h('ol', { class: 'fix-list' });
-    fixNow.forEach(function (f, i) {
-      var body = h('div', { class: 'fix-body', id: 'fix-body-' + f.id, hidden: true },
-        h('dl', { class: 'dl' }, h('dt', null, 'Expected → actual'), h('dd', null, eaLine(f)), h('dt', null, 'Fix'), h('dd', null, orDash(f.fix && f.fix.summary)),
-          h('dt', null, 'Classified'), h('dd', { class: 'muted' }, [LEDGER_LABEL[f.ledger] || f.ledger, f.state ? stateLabel(f.state) : null, f.resolution, 'score ' + score(f)].filter(Boolean).join(' · '))),
-        h('pre', { class: 'code-block prompt-text' }, agentPrompt(f)),
-        h('div', { class: 'row' }, btn('Details', { size: 'sm', onclick: function () { openFinding(f.id); } }),
-          f.state && stateRow[f.state] ? btn('Show in capture', { variant: 'ghost', size: 'sm', onclick: function () { selectState(f.state, true); } }) : null));
-      var exp = btn(null, { variant: 'ghost', size: 'icon-sm', icon: 'chevron-down', aria: 'Show details for ' + f.id });
-      exp.setAttribute('aria-expanded', 'false'); exp.setAttribute('aria-controls', 'fix-body-' + f.id);
-      exp.addEventListener('click', function () { body.hidden = !body.hidden; exp.setAttribute('aria-expanded', String(!body.hidden)); exp.querySelector('svg').style.transform = body.hidden ? '' : 'rotate(180deg)'; });
-      list.appendChild(h('li', { class: 'fix-item', 'data-id': f.id },
-        h('div', { class: 'fix-row' }, h('span', { class: 'n' }, String(i + 1)), dot(f.severity),
-          h('div', { class: 't' }, h('button', { type: 'button', style: 'font-weight:500;text-align:left', onclick: function () { exp.click(); } }, f.title), h('div', { class: 'w' }, whereText(f))),
-          h('div', { class: 'row', style: 'flex-wrap:nowrap;gap:0.25rem' }, copyBtn(null, function () { return agentPrompt(f); }, f.id + ' prompt', { variant: 'ghost', size: 'icon-sm', aria: 'Copy prompt for ' + f.id, tip: 'Copy agent prompt' }), exp)),
-        body));
-    });
-    return h('section', { 'aria-labelledby': 'h-fixnow' },
-      h('div', { class: 'section-head' }, h('div', null, h('h2', { class: 'section-title', id: 'h-fixnow' }, 'Fix now', h('span', { class: 'num-muted' }, String(fixNow.length))),
-        h('p', { class: 'muted', style: 'font-size:0.875rem' }, 'Highest scores first. Paste into your coding agent in this order.')),
-        fixNow.length ? copyBtn('Copy all', allPrompts, 'fix-now prompts', { variant: 'default', size: null, id: 'copy-all-fix', aria: 'Copy all fix-now prompts' }) : null),
-      fixNow.length ? h('div', { class: 'card', style: 'padding-block:0.25rem' }, h('div', { class: 'card-content' }, list)) : h('p', { class: 'muted' }, 'Nothing to fix now.'));
+  /* ===== 10. Triage board: choose what to fix (report 1.1) ===== */
+  var TRI = R.triage && typeof R.triage === 'object' ? R.triage : null;
+  var triItem = {};
+  arr(TRI && TRI.items).forEach(function (it) { if (it && it.findingId) triItem[it.findingId] = it; });
+  function isTriageable(f) { return (f.resolution === 'FIX_CODE' || f.resolution === 'SYNC_FIGMA') && ['BLOCKER', 'WARNING', 'DS_CANDIDATE'].indexOf(f.severity) !== -1; }
+  var triageable = findings.filter(isTriageable).sort(function (a, b) { return score(b) - score(a) || tieBreak(a, b); });
+  var SLUG = slug;
+  var SEL_KEY = 'design-qa:selection:' + SLUG + ':' + (meta.generatedAt || '');
+  // Recommended split: the fix-now bucket and every SYNC_FIGMA finding; blockers always stay in Fix now.
+  function recommended() {
+    var s = {};
+    triageable.forEach(function (f) { s[f.id] = f.severity === 'BLOCKER' || f.resolution === 'SYNC_FIGMA' || (f.rank && f.rank.bucket === 'fix-now') ? 'fix-now' : 'debt'; });
+    return s;
   }
+  var SEL = (function () { // recorded triage, then this browser's edits, then the blocker rule
+    var s = recommended(), saved = null;
+    triageable.forEach(function (f) { var it = triItem[f.id]; if (it && (it.decision === 'fix-now' || it.decision === 'debt')) s[f.id] = it.decision; });
+    try { saved = JSON.parse(store.get(SEL_KEY) || 'null'); } catch (e) { saved = null; }
+    if (saved && typeof saved === 'object') triageable.forEach(function (f) { if (saved[f.id] === 'fix-now' || saved[f.id] === 'debt') s[f.id] = saved[f.id]; });
+    triageable.forEach(function (f) { if (f.severity === 'BLOCKER') s[f.id] = 'fix-now'; });
+    return s;
+  })();
+  var selEdited = !!store.get(SEL_KEY);
+  function syncTriage() { findings.forEach(function (f) { f.__triage = SEL[f.id] || 'none'; }); }
+  function ticketOf(f) { var it = triItem[f.id]; return it && it.ticket && it.ticket.key ? it.ticket : null; }
+  function triageLabel(f) { var d = SEL[f.id], t = d === 'debt' ? ticketOf(f) : null; return !d ? null : t ? 'debt, ' + t.key : d === 'debt' ? 'debt' : 'fix now'; }
+  function selected(d, res) { return triageable.filter(function (f) { return SEL[f.id] === d && (!res || f.resolution === res); }); }
+  function idList(list) { return list.map(function (f) { return f.id; }); }
+  // Mirrors triageCommand() in scripts/lib/triage.mjs: code fixes, then Figma syncs, each in rank order; 'none' when empty.
+  function triageCommand() { var ids = idList(selected('fix-now', 'FIX_CODE')).concat(idList(selected('fix-now', 'SYNC_FIGMA'))); return '/design-qa triage ' + SLUG + ' --fix ' + (ids.length ? ids.join(',') : 'none'); }
+  function fixPromptText() { return [PREAMBLE].concat(selected('fix-now', 'FIX_CODE').map(agentPrompt)).join('\n\n'); }
+  function figmaPromptText() { return [DESIGN_INTRO].concat(selected('fix-now', 'SYNC_FIGMA').map(agentPrompt)).join('\n\n'); }
+  var PRIORITY = { BLOCKER: 'Highest', WARNING: 'Medium', DS_CANDIDATE: 'Low' };
+  function ticketsCsv() { // Jira CSV import columns
+    var rows = [['Summary', 'Issue Type', 'Description', 'Labels', 'Priority', 'Parent']];
+    selected('debt').forEach(function (f) {
+      rows.push([f.id + ': ' + f.title, 'Task', agentPrompt(f), f.resolution === 'SYNC_FIGMA' ? 'figma-sync' : 'design-debt', PRIORITY[f.severity] || 'Medium', (meta.ticket && meta.ticket.key) || '']);
+    });
+    return rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n';
+  }
+  function selectionJson() {
+    return JSON.stringify({ feature: meta.feature || null, slug: SLUG, reportGeneratedAt: meta.generatedAt || null, fixNow: idList(selected('fix-now')),
+      debt: idList(selected('debt')), decidedBy: null, decidedAt: new Date().toISOString() }, null, 2) + '\n';
+  }
+  var laneFix = h('ol', { class: 'lane-list', id: 'lane-fix' }), laneDebt = h('ol', { class: 'lane-list', id: 'lane-debt' });
+  var countFix = h('span', { class: 'num-muted', id: 'count-fix' }), countDebt = h('span', { class: 'num-muted', id: 'count-debt' });
+  var triStatus = h('p', { class: 'triage-status', id: 'triage-status', role: 'status' }), triButtons = h('div', { class: 'row' }), triNote = h('p', { class: 'muted', style: 'font-size:0.875rem' });
+  function triCard(f) {
+    var fix = SEL[f.id] === 'fix-now', t = ticketOf(f), el = f.element || {}, loc = sourceLocation(f);
+    var ctl = f.severity === 'BLOCKER'
+      ? h('span', { class: 'tri-lock', tabindex: '0', role: 'img', 'aria-label': f.id + ' is a blocker and stays in Fix now', 'data-tip': "Blockers can't be deferred. Sign it off as intentional instead." }, icon('lock'))
+      : h('button', { type: 'button', role: 'checkbox', class: 'checkbox tri-check', 'aria-checked': String(fix), 'aria-label': 'Fix ' + f.id + ' now: ' + f.title, onclick: function () { toggleTriage(f.id); } }, icon('check'));
+    return h('li', { class: 'tri-card', 'data-fid': f.id, 'data-decision': SEL[f.id] }, ctl,
+      h('div', { style: 'min-width:0' },
+        h('div', { class: 'tri-title' }, dot(f.severity), h('button', { type: 'button', class: 'tri-open', onclick: function () { openFinding(f.id); } }, f.title),
+          f.resolution === 'SYNC_FIGMA' ? h('span', { class: 'badge badge-outline', 'data-tip': 'Owner: design. The Figma file changes, not the code.' }, 'Figma') : null),
+        h('div', { class: 'tri-where' }, f.id + ' · ' + (loc !== DASH ? loc : orDash(el.selector))),
+        fix ? null : h('div', { class: 'tri-ticket' }, t ? h('a', { class: 'badge badge-outline', href: safeHref(t.url), target: '_blank', rel: 'noopener noreferrer', 'data-tip': 'Ticket for ' + f.id }, t.key, icon('external-link'))
+          : h('span', { class: 'muted' }, 'Ticket on apply'))));
+  }
+  function reduceMotion() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function renderBoard(first, focusId) { // FLIP: cards slide from where they were (instant with reduced motion)
+    clear(laneFix); clear(laneDebt);
+    var cards = {};
+    triageable.forEach(function (f) { cards[f.id] = triCard(f); (SEL[f.id] === 'fix-now' ? laneFix : laneDebt).appendChild(cards[f.id]); });
+    [laneFix, laneDebt].forEach(function (l) { if (!l.children.length) l.appendChild(h('li', { class: 'lane-empty' }, 'Nothing here')); });
+    var nFix = selected('fix-now').length, nDebt = selected('debt').length;
+    countFix.textContent = String(nFix); countDebt.textContent = String(nDebt);
+    triStatus.textContent = nFix + ' to fix now · ' + nDebt + ' to debt';
+    renderTriButtons();
+    if (first && !reduceMotion()) Object.keys(cards).forEach(function (id) {
+      var a = first[id]; if (!a || !cards[id].animate) return;
+      var b = cards[id].getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top;
+      if (dx || dy) cards[id].animate([{ transform: 'translate(' + dx + 'px,' + dy + 'px)' }, { transform: 'none' }], { duration: 260, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+    });
+    if (focusId && cards[focusId]) { var c = cards[focusId].querySelector('[role="checkbox"]'); if (c) c.focus({ preventScroll: true }); }
+  }
+  function renderTriButtons() {
+    clear(triButtons);
+    var code = selected('fix-now', 'FIX_CODE').length, fig = selected('fix-now', 'SYNC_FIGMA').length;
+    append(triButtons, [
+      copyBtn('Copy for Claude Code', triageCommand, 'triage command', { variant: 'default', id: 'copy-triage', tip: 'The command that applies this split' }),
+      copyBtn('Copy fix prompt (' + code + ')', fixPromptText, 'fix prompt', { id: 'copy-fix-prompt' }),
+      fig ? copyBtn('Copy Figma prompt (' + fig + ')', figmaPromptText, 'Figma prompt', { id: 'copy-figma-prompt' }) : null,
+      btn('Export selection.json', { variant: 'ghost', size: 'sm', icon: 'download', id: 'export-selection', onclick: function () { download('selection.json', selectionJson(), 'application/json'); } }),
+      btn('Export tickets CSV', { variant: 'ghost', size: 'sm', icon: 'download', id: 'export-tickets', onclick: function () { download('design-qa-tickets-' + SLUG + '.csv', ticketsCsv(), 'text/csv'); } }),
+      btn('Reset to recommended', { variant: 'ghost', size: 'sm', id: 'reset-triage', onclick: resetTriage })]);
+  }
+  function snapshot() { var m = {}; Array.prototype.forEach.call(document.querySelectorAll('.tri-card'), function (c) { m[c.getAttribute('data-fid')] = c.getBoundingClientRect(); }); return m; }
+  function persist() { if (store.set(SEL_KEY, JSON.stringify(SEL))) selEdited = true; paintTriNote(); syncTriage(); renderFindings(); }
+  function toggleTriage(id) {
+    var f = byId[id]; if (!f || f.severity === 'BLOCKER' || !SEL[id]) return;
+    var first = snapshot();
+    SEL[id] = SEL[id] === 'fix-now' ? 'debt' : 'fix-now';
+    renderBoard(first, id); persist();
+  }
+  function resetTriage() { var first = snapshot(); SEL = recommended(); renderBoard(first); persist(); toast('Selection reset to the recommended split'); }
+  function paintTriNote() {
+    triNote.textContent = (TRI ? 'Decided by ' + orDash(TRI.decidedBy) + ' on ' + fmtDate(TRI.decidedAt) + '. ' : 'Recommended from the ranking. ') +
+      (selEdited ? 'Changed in this browser: copy the command to apply it.' : 'Tick what gets fixed now; the rest becomes debt.');
+  }
+  function sectionTriage() {
+    syncTriage();
+    if (!triageable.length) return h('section', { 'aria-labelledby': 'h-triage' }, h('h2', { class: 'section-title', id: 'h-triage' }, 'Choose what to fix'), h('p', { class: 'muted' }, 'Nothing to triage: no open code or Figma findings.'));
+    renderBoard(); paintTriNote();
+    return h('section', { class: 'triage', 'aria-labelledby': 'h-triage' },
+      h('div', { class: 'section-head' }, h('div', null, h('h2', { class: 'section-title', id: 'h-triage' }, 'Choose what to fix'), triNote)),
+      h('div', { class: 'lanes' },
+        h('div', { class: 'lane', role: 'group', 'aria-labelledby': 'lane-fix-title' }, h('div', { class: 'lane-head' }, h('h3', { class: 'lane-title', id: 'lane-fix-title' }, 'Fix now', countFix), h('p', { class: 'lane-sub' }, 'Your agents get these')), laneFix),
+        h('div', { class: 'lane', role: 'group', 'aria-labelledby': 'lane-debt-title' }, h('div', { class: 'lane-head' }, h('h3', { class: 'lane-title', id: 'lane-debt-title' }, 'Debt', countDebt), h('p', { class: 'lane-sub' }, 'Become tickets and a debt-log entry')), laneDebt)),
+      h('div', { class: 'tri-actions' }, triStatus, triButtons));
+  }
+
+  /* ===== 10b. Run details ===== */
   function accItem(id, title, count, actions, content) {
     var body = h('div', { class: 'acc-body', id: id + '-body', role: 'region', 'aria-labelledby': id, hidden: true }, content);
     var trig = h('button', { type: 'button', class: 'acc-trigger', id: id, 'aria-expanded': 'false', 'aria-controls': id + '-body' }, h('span', null, title, count), icon('chevron-down'));
     trig.addEventListener('click', function () { body.hidden = !body.hidden; trig.setAttribute('aria-expanded', String(!body.hidden)); });
     return h('section', { class: 'acc-item', 'aria-labelledby': id }, h('div', { class: 'acc-head' }, h('h2', { style: 'display:flex;flex:1 1 16rem' }, trig), actions ? h('div', { class: 'row' }, actions) : null), body);
-  }
-  function simpleRow(f, sub, copyAria, copyTip) {
-    return h('div', { class: 'debt-row' }, h('button', { type: 'button', class: 'link-btn fid', onclick: function () { openFinding(f.id); } }, f.id),
-      h('div', { style: 'min-width:0' }, h('div', { class: 't' }, dot(f.severity), h('span', null, f.title)), h('div', { class: 'muted' }, sub)),
-      h('span', { class: 'muted tabular', 'data-tip': 'Rank score' }, String(score(f))),
-      copyBtn(null, function () { return agentPrompt(f); }, copyTip, { variant: 'ghost', size: 'icon-sm', aria: copyAria, tip: copyTip }));
-  }
-  function sectionDebt() {
-    return accItem('h-debt', 'Debt', h('span', { class: 'num-muted' }, String(debt.length)), debt.length ? [
-      copyBtn('Copy Markdown', debtMarkdown, 'debt list', { variant: 'ghost' }),
-      btn('Export Markdown', { variant: 'ghost', size: 'sm', icon: 'download', onclick: function () { download('design-qa-debt-' + slug + '.md', debtMarkdown(), 'text/markdown'); } }),
-      btn('Export CSV', { variant: 'ghost', size: 'sm', icon: 'download', onclick: function () { download('design-qa-debt-' + slug + '.csv', debtCsv(), 'text/csv'); } })] : null,
-      [h('p', { class: 'muted', style: 'margin-bottom:0.5rem' }, 'FIX_CODE findings below the fix-now cut. Log them as tickets.'),
-        debt.length ? debt.map(function (f) { return simpleRow(f, orDash(f.fix && f.fix.summary), 'Copy prompt for ' + f.id, 'Copy agent prompt'); }) : h('p', { class: 'muted' }, 'No debt.')]);
-  }
-  function sectionSync() {
-    return accItem('h-sync', 'Sync to Figma', h('span', { class: 'num-muted' }, String(syncFigma.length)),
-      syncFigma.length ? copyBtn('Copy all', allDesignPrompts, 'Figma prompts', { variant: 'ghost', id: 'copy-all-figma', aria: 'Copy all Figma prompts' }) : null,
-      [h('p', { class: 'muted', style: 'margin-bottom:0.5rem' }, 'The shipped code is right and the design is behind: for the designer or a design agent with Figma write access.'),
-        syncFigma.length ? syncFigma.map(function (f) {
-          var el = f.element || {};
-          return simpleRow(f, el.figmaLayerPath ? el.figmaLayerPath + (el.figmaNodeId ? ' (' + el.figmaNodeId + ')' : '') : el.figmaNodeId ? 'node ' + el.figmaNodeId : 'No layer yet (exists only in code)', 'Copy Figma prompt', 'Copy Figma prompt for ' + f.id);
-        }) : h('p', { class: 'muted' }, 'Nothing to sync to Figma.')]);
   }
   function sectionRun() {
     var tools = meta.tools || {}, app = meta.app || {}, degr = arr(meta.degradations);
@@ -1342,14 +1422,16 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   /* ===== 12. Findings DataTable: search, faceted filters, view menu, sortable columns ===== */
   var FACETS = [
     { key: 'severity', label: 'Severity', order: SEV }, { key: 'resolution', label: 'Resolution', order: RES },
-    { key: 'ledger', label: 'Ledger', order: LEDGERS }, { key: 'state', label: 'State', order: stateOrder }, { key: 'region', label: 'Region', order: null }
+    { key: 'ledger', label: 'Ledger', order: LEDGERS }, { key: 'state', label: 'State', order: stateOrder }, { key: 'region', label: 'Region', order: null },
+    { key: '__triage', label: 'Triage', order: ['fix-now', 'debt', 'none'] }
   ];
   var COLS = [
     { key: 'id', label: 'ID', sort: true, fixed: true }, { key: 'title', label: 'Title', fixed: true },
     { key: 'severity', label: 'Severity', sort: true }, { key: 'ledger', label: 'Ledger', sort: true }, { key: 'state', label: 'State', sort: true },
-    { key: 'region', label: 'Region', sort: true }, { key: 'resolution', label: 'Resolution', sort: true }, { key: 'score', label: 'Score', sort: true, num: true }
+    { key: 'region', label: 'Region', sort: true }, { key: 'resolution', label: 'Resolution', sort: true }, { key: 'triage', label: 'Triage', sort: true }, { key: 'score', label: 'Score', sort: true, num: true }
   ];
-  function facetLabel(key, v) { return key === 'state' ? stateLabel(v) : key === 'ledger' ? (LEDGER_LABEL[v] || v) : v; }
+  var TRIAGE_LABEL = { 'fix-now': 'Fix now', debt: 'Debt', none: 'Not triageable' };
+  function facetLabel(key, v) { return key === 'state' ? stateLabel(v) : key === 'ledger' ? (LEDGER_LABEL[v] || v) : key === '__triage' ? (TRIAGE_LABEL[v] || v) : v; }
   function distinct(key, order) {
     var seen = {};
     findings.forEach(function (f) { if (!blank(f[key])) seen[f[key]] = (seen[f[key]] || 0) + 1; });
@@ -1373,7 +1455,8 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   var SORTERS = {
     id: function (f) { return idNum(f.id); }, severity: function (f) { return SEV.indexOf(f.severity); },
     ledger: function (f) { return LEDGERS.indexOf(f.ledger); }, state: function (f) { var i = stateOrder.indexOf(f.state); return i === -1 ? 999 : i; },
-    region: function (f) { return String(f.region || ''); }, resolution: function (f) { return RES.indexOf(f.resolution); }, score: function (f) { return score(f); }
+    region: function (f) { return String(f.region || ''); }, resolution: function (f) { return RES.indexOf(f.resolution); }, score: function (f) { return score(f); },
+    triage: function (f) { return ['fix-now', 'debt', 'none'].indexOf(f.__triage); }
   };
   function sortList(list) {
     var get = SORTERS[S.sort.key] || SORTERS.score, dir = S.sort.dir === 'asc' ? 1 : -1;
@@ -1456,6 +1539,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     if (key === 'state') return h('td', { class: 'muted' }, f.state ? stateLabel(f.state) : DASH);
     if (key === 'region') return h('td', { class: 'muted' }, orDash(f.region));
     if (key === 'resolution') return h('td', null, orDash(f.resolution));
+    if (key === 'triage') { var tk = f.__triage === 'debt' ? ticketOf(f) : null; return h('td', null, f.__triage === 'none' ? h('span', { class: 'muted' }, DASH) : tk ? h('span', { class: 'fid' }, tk.key) : TRIAGE_LABEL[f.__triage]); }
     return h('td', { class: 'num' }, f.rank && f.rank.bucket !== 'none' ? h('span', { class: 'row', style: 'justify-content:flex-end;flex-wrap:nowrap' }, h('span', { class: 'muted', style: 'font-size:0.75rem' }, f.rank.bucket), String(score(f))) : h('span', { class: 'muted' }, DASH));
   }
   function renderFindings(o) {
@@ -1526,7 +1610,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     clear(sheetRoot);
     var panel = h('div', { class: 'sheet', id: 'finding-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'sheet-title', 'data-id': id },
       h('div', { class: 'sheet-header' }, findingBadges(f, false), h('h2', { class: 'sheet-title', id: 'sheet-title' }, f.title),
-        h('p', { class: 'sheet-description' }, orDash(f.region) + ' · ' + (LEDGER_LABEL[f.ledger] || orDash(f.ledger)) + ' ledger' + (f.rank && f.rank.bucket !== 'none' ? ' · ' + f.rank.bucket + ', score ' + score(f) : ''))),
+        h('p', { class: 'sheet-description' }, orDash(f.region) + ' · ' + (LEDGER_LABEL[f.ledger] || orDash(f.ledger)) + ' ledger' + (f.rank && f.rank.bucket !== 'none' ? ' · score ' + score(f) : '') + (triageLabel(f) ? ' · triage: ' + triageLabel(f) : ''))),
       h('div', { class: 'sheet-body' }, findingDetail(f)),
       h('button', { type: 'button', class: 'x-close', 'aria-label': 'Close', onclick: closeSheet }, icon('x')));
     panel.addEventListener('keydown', function (e) { trapFocus(panel, e); });
@@ -1836,7 +1920,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   window.addEventListener('afterprint', function () { printOpened.forEach(function (d) { if (d.tagName === 'DETAILS') d.open = false; else d.hidden = true; }); printOpened = []; });
 
   /* ===== 17. Mount ===== */
-  S.state = defaultState(); S.mode = 'app'; S.zoom = 'fit'; S.pins = true; S.figmaPins = false; S.group = false; S.openChecks = {};
+  S.state = defaultState(); S.mode = 'app'; S.zoom = 'fit'; S.pins = true; S.figmaPins = false; S.group = false; S.openChecks = {}; S.filters.__triage = {};
   applyTheme(store.get(THEME_KEY) || 'auto');
   if (!document.title || document.title.indexOf(PH + 'TITLE__') !== -1) document.title = 'Design QA — ' + (meta.feature || 'report');
   TABS.forEach(function (t) {
@@ -1845,7 +1929,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     tablist.appendChild(tabBtns[t[0]]);
     panels[t[0]] = h('div', { class: 'stack', role: 'tabpanel', id: 'panel-' + t[0], 'aria-labelledby': 'tab-' + t[0], hidden: true });
   });
-  append(panels.overview, [heroSection, sectionFixNow(), h('div', null, sectionDebt(), sectionSync()), h('div', null, sectionRun())]);
+  append(panels.overview, [heroSection, sectionTriage(), h('div', null, sectionRun())]);
   panels.findings.appendChild(sectionFindings());
   panels.states.appendChild(sectionStates());
   append(panels.decisions, sectionDecisions());

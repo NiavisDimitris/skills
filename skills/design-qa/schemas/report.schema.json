@@ -1,14 +1,15 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "design-qa report (schemaVersion 1.0)",
-  "description": "Agent-readable Figma-to-code design-parity report. Keys whose value may be null can be omitted (treated as null). Cross-field rules that JSON Schema cannot express (unique finding ids, findingIds/relatedFindings references, derived scorecard counts/parity/verdict, pixel-diff bands against configured tolerances) are enforced by scripts/validate.mjs.",
+  "description": "Agent-readable Figma-to-code design-parity report (schemaVersion 1.0 or 1.1; 1.1 adds triage and the unexplained / debt / loopClosed scorecard fields). Keys whose value may be null can be omitted (treated as null). Cross-field rules that JSON Schema cannot express (unique finding ids, findingIds/relatedFindings references, triage coverage, derived scorecard values, pixel-diff bands against configured tolerances) are enforced by scripts/validate.mjs.",
   "type": "object",
   "required": ["schemaVersion", "meta", "scorecard", "stateMatrix", "findings", "ledgers", "openDecisions", "fixLoop", "evidence"],
   "properties": {
     "$schema": { "type": "string" },
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "enum": ["1.0", "1.1"] },
     "meta": { "$ref": "#/definitions/meta" },
     "scorecard": { "$ref": "#/definitions/scorecard" },
+    "triage": { "$ref": "#/definitions/triage" },
     "stateMatrix": { "type": "array", "items": { "$ref": "#/definitions/stateMatrixRow" } },
     "findings": { "type": "array", "items": { "$ref": "#/definitions/finding" } },
     "ledgers": { "$ref": "#/definitions/ledgers" },
@@ -16,6 +17,12 @@
     "fixLoop": { "type": "array", "items": { "$ref": "#/definitions/fixLoopEntry" } },
     "evidence": { "$ref": "#/definitions/evidenceIndex" }
   },
+  "allOf": [
+    {
+      "if": { "required": ["schemaVersion"], "properties": { "schemaVersion": { "const": "1.1" } } },
+      "then": { "properties": { "scorecard": { "required": ["unexplained", "debt", "loopClosed"] } } }
+    }
+  ],
   "definitions": {
     "nullableString": { "type": ["string", "null"] },
     "count": { "type": "integer", "minimum": 0 },
@@ -148,6 +155,52 @@
             "specified": { "$ref": "#/definitions/count" },
             "implemented": { "$ref": "#/definitions/count" },
             "verified": { "$ref": "#/definitions/count" }
+          }
+        },
+        "unexplained": {
+          "$ref": "#/definitions/count",
+          "description": "1.1: findings with resolution FIX_CODE, SYNC_FIGMA or UNCLASSIFIED that are not ticketed debt."
+        },
+        "debt": {
+          "type": "object",
+          "description": "1.1: triage items decided \"debt\", and how many of them have a ticket.",
+          "required": ["count", "ticketed"],
+          "properties": {
+            "count": { "$ref": "#/definitions/count" },
+            "ticketed": { "$ref": "#/definitions/count" }
+          }
+        },
+        "loopClosed": { "type": "boolean", "description": "1.1: unexplained is 0 and there are no open decisions." }
+      }
+    },
+    "triage": {
+      "type": ["object", "null"],
+      "description": "1.1: the person's fix-now / debt decision for every triageable finding (FIX_CODE or SYNC_FIGMA with severity BLOCKER, WARNING or DS_CANDIDATE), each exactly once. A BLOCKER can never be debt.",
+      "required": ["decidedAt", "source", "items"],
+      "properties": {
+        "decidedBy": { "$ref": "#/definitions/nullableString" },
+        "decidedAt": { "type": "string", "format": "date-time" },
+        "source": { "enum": ["report-ui", "chat", "cli", "ci-default"] },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["findingId", "decision"],
+            "properties": {
+              "findingId": { "type": "string" },
+              "decision": { "enum": ["fix-now", "debt"] },
+              "reason": { "$ref": "#/definitions/nullableString" },
+              "ticket": {
+                "type": ["object", "null"],
+                "required": ["provider", "key", "url", "createdAt"],
+                "properties": {
+                  "provider": { "enum": ["jira", "linear", "github"] },
+                  "key": { "type": "string", "minLength": 1 },
+                  "url": { "type": "string", "format": "uri" },
+                  "createdAt": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
           }
         }
       }

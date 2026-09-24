@@ -51,9 +51,16 @@ Unknown keys are warnings, not errors. The JSON Schema is `schemas/config.schema
     "ranking": {
       "severity": { "BLOCKER": 3, "WARNING": 2, "DS_CANDIDATE": 1 },
       "ledger": { "structure": 3, "component": 3, "state": 3, "style": 2, "behavior": 2 }
-    }
+    },
+    "debtLog": "qa-reports/design-debt.md"
   },
-  "ticket": { "provider": "jira", "baseUrl": "https://your-org.atlassian.net", "writeBack": false, "trustPreviewUrl": false },
+  "ticket": {
+    "provider": "jira",
+    "baseUrl": "https://your-org.atlassian.net",
+    "writeBack": false,
+    "trustPreviewUrl": false,
+    "debt": { "project": null, "issueType": "Sub-task", "parent": "auto", "labels": ["design-qa", "design-debt"] }
+  },
   "figma": { "access": ["mcp", "rest"] },
   "capture": { "driver": "script", "reducedMotion": false }
 }
@@ -68,6 +75,7 @@ Which scripts read the config:
 | `capture.mjs --config design-qa.config.json [--surface <name>]` | The URL (`app.baseUrl` + the surface route), the surface's states, `app.auth` (type, env prefix, login), `app.headers`, `fullPage`, `capture.reducedMotion`. Explicit flags win; `--state <name>` alone picks that state's configured driver. `--surface` is optional when there is only one. |
 | `state-discovery.mjs --config … --surface <name>` | The surface's states, as the implemented side of the matrix. |
 | `render-report.mjs --config …`, `validate.mjs --config …` | `tolerances.pixelDiff`, `report.topN`, `report.ranking`, `report.embedImages`. |
+| The agent, for triage | `ticket.debt` (passed to `jira-fetch.mjs --tickets-from`) and `report.debtLog` (passed to `debt-log.mjs --md`). |
 | `validate.mjs design-qa.config.json` | The whole file, against the schema. |
 
 The scripts need Node 20 or later.
@@ -136,6 +144,7 @@ Paths are relative to the repository root. The files are the project's private o
 | `report.embedImages` | boolean | true | Inline images so `report.html` is one self-contained file. |
 | `report.ranking.severity` | object | `{ "BLOCKER": 3, "WARNING": 2, "DS_CANDIDATE": 1 }` | Severity weights in the ranking score. |
 | `report.ranking.ledger` | object | `{ "structure": 3, "component": 3, "state": 3, "style": 2, "behavior": 2 }` | Ledger weights in the ranking score. |
+| `report.debtLog` | path | `qa-reports/design-debt.md` | The readable, cumulative design-debt log. Pass it to `debt-log.mjs --md`; the JSON log sits next to it (`qa-reports/design-debt.json`). |
 
 ### ticket
 
@@ -143,8 +152,14 @@ Paths are relative to the repository root. The files are the project's private o
 |---|---|---|---|
 | `ticket.provider` | `jira` · `linear` · `github` · `none` | `none` | Where ticket keys point. |
 | `ticket.baseUrl` | URL or null | null | For example `https://your-org.atlassian.net`. |
-| `ticket.writeBack` | boolean | false | Allow comments and subtasks on the ticket, always after confirmation, never in ci mode. |
+| `ticket.writeBack` | boolean | false | Allow comments on the audited ticket, always after confirmation, never in ci mode. Debt tickets do not depend on it. |
 | `ticket.trustPreviewUrl` | boolean | false | Let ci mode use a preview URL found only in the ticket. |
+| `ticket.debt.project` | project key or null | null | Project for debt tickets of type `Task`. A sub-task takes its parent's project. |
+| `ticket.debt.issueType` | `Sub-task` · `Task` | `Sub-task` | Issue type of debt tickets. |
+| `ticket.debt.parent` | `"auto"`, an issue key, or null | `"auto"` | Parent of debt sub-tasks. `"auto"` is the audited ticket (`meta.ticket.key`). |
+| `ticket.debt.labels` | string array | `["design-qa", "design-debt"]` | Labels on every debt ticket. |
+
+`ticket.debt` supplies the defaults for debt tickets. Pass them to `jira-fetch.mjs --tickets-from` as `--project`, `--issuetype`, `--parent` and `--labels`; flags win (ticket-ingest.md).
 
 ### figma
 

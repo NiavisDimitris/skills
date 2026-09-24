@@ -5,6 +5,8 @@ import {
   band,
   bucketKind,
   compareIds,
+  debtSummary,
+  unexplainedFindings,
   computeScorecard,
   deriveVerdict,
   explainVerdict,
@@ -186,4 +188,75 @@ test('stateCoverage counts non-null designed/specified/implemented and PASS/FAIL
 test('computeScorecard reproduces the fixture scorecard', () => {
   const report = loadFixture('report-valid.json');
   assert.deepEqual(computeScorecard(report), report.scorecard);
+});
+
+// ---------------------------------------------------------------------------
+// Triage (schemaVersion 1.1): unexplained findings, debt, loopClosed
+// ---------------------------------------------------------------------------
+
+const TICKET = { provider: 'jira', key: 'ABC-1', url: 'https://example.atlassian.net/browse/ABC-1', createdAt: '2026-09-24T00:00:00Z' };
+const withState = (f, state) => ({ ...f, state });
+const triaged = (findings, items, over = {}) =>
+  baseReport({ schemaVersion: '1.1', findings, triage: { decidedBy: null, decidedAt: '2026-09-24T00:00:00Z', source: 'cli', items }, ...over });
+
+test('unexplained = open findings that are not ticketed debt; without triage it is the open set', () => {
+  const f = [
+    finding('DQ-001', 'WARNING', 'FIX_CODE'),
+    finding('DQ-002', 'WARNING', 'SYNC_FIGMA'),
+    finding('DQ-003', 'WARNING', 'UNCLASSIFIED'),
+    finding('DQ-004', 'WARNING', 'FIX_CODE'),
+    finding('DQ-005', 'WARNING', 'INTENTIONAL'),
+  ];
+  assert.deepEqual(unexplainedFindings(baseReport({ findings: f })).map((x) => x.id), ['DQ-001', 'DQ-002', 'DQ-003', 'DQ-004']);
+  const r = triaged(f, [
+    { findingId: 'DQ-001', decision: 'debt', ticket: TICKET },
+    { findingId: 'DQ-002', decision: 'debt', ticket: null },
+    { findingId: 'DQ-004', decision: 'fix-now', ticket: TICKET },
+  ]);
+  assert.deepEqual(unexplainedFindings(r).map((x) => x.id), ['DQ-002', 'DQ-003', 'DQ-004'], 'only ticketed debt is explained');
+  assert.deepEqual(debtSummary(r), { count: 2, ticketed: 1 });
+  assert.deepEqual(debtSummary(baseReport()), { count: 0, ticketed: 0 });
+  assert.equal(parity(r.findings), 20, 'parity is unchanged: debt is still a mismatch');
+});
+
+test('verdict: ticketed debt no longer causes REVIEW; unticketed debt does', () => {
+  const f = [finding('DQ-001', 'WARNING', 'FIX_CODE')];
+  assert.equal(deriveVerdict(triaged(f, [{ findingId: 'DQ-001', decision: 'debt', ticket: TICKET }])), 'PASS');
+  assert.equal(deriveVerdict(triaged(f, [{ findingId: 'DQ-001', decision: 'debt', ticket: null }])), 'REVIEW');
+  assert.equal(deriveVerdict(triaged(f, [{ findingId: 'DQ-001', decision: 'fix-now', ticket: null }])), 'REVIEW');
+  assert.match(explainVerdict(triaged(f, [{ findingId: 'DQ-001', decision: 'debt', ticket: null }])).reasons[0], /1 unexplained finding\(s\): DQ-001/);
+});
+
+test('verdict: a fail band only fails when its state has an unexplained finding or no findings', () => {
+  const band = { pixelDiff: { empty: { percent: 12, band: 'fail' } } };
+  const debtOnly = triaged([withState(finding('DQ-001', 'WARNING', 'FIX_CODE'), 'empty')], [{ findingId: 'DQ-001', decision: 'debt', ticket: TICKET }], { scorecard: band });
+  assert.equal(deriveVerdict(debtOnly), 'REVIEW', 'ticketed debt explains the diff');
+  assert.match(explainVerdict(debtOnly).reasons.join(' '), /fail band, but every finding there is explained/);
+  const intentional = baseReport({ findings: [withState(finding('DQ-001', 'WARNING', 'INTENTIONAL'), 'empty')], scorecard: band });
+  assert.equal(deriveVerdict(intentional), 'REVIEW');
+  const fixed = baseReport({ findings: [withState(finding('DQ-001', 'PASS', 'NONE'), 'empty'), withState(finding('DQ-002', 'WARNING', 'DATA'), 'empty')], scorecard: band });
+  assert.equal(deriveVerdict(fixed), 'REVIEW', 'fixed (PASS) and DATA findings explain it too');
+  const nothing = baseReport({ findings: [withState(finding('DQ-001', 'WARNING', 'INTENTIONAL'), 'hover')], scorecard: band });
+  assert.equal(deriveVerdict(nothing), 'FAIL', 'no finding in that state explains the diff');
+  const mixed = triaged(
+    [withState(finding('DQ-001', 'WARNING', 'FIX_CODE'), 'empty'), withState(finding('DQ-002', 'WARNING', 'INTENTIONAL'), 'empty')],
+    [{ findingId: 'DQ-001', decision: 'debt', ticket: null }],
+    { scorecard: band },
+  );
+  assert.equal(deriveVerdict(mixed), 'FAIL', 'unticketed debt leaves the diff unexplained');
+});
+
+test('computeScorecard adds unexplained, debt and loopClosed for schemaVersion 1.1 only', () => {
+  const f = [finding('DQ-001', 'WARNING', 'FIX_CODE'), finding('DQ-002', 'PASS', 'NONE')];
+  const closed = computeScorecard(triaged(f, [{ findingId: 'DQ-001', decision: 'debt', ticket: TICKET }]));
+  assert.equal(closed.unexplained, 0);
+  assert.deepEqual(closed.debt, { count: 1, ticketed: 1 });
+  assert.equal(closed.loopClosed, true);
+  assert.equal(closed.verdict, 'PASS');
+  assert.deepEqual(Object.keys(closed), ['parity', 'verdict', 'bySeverity', 'byResolution', 'pixelDiff', 'stateCoverage', 'unexplained', 'debt', 'loopClosed']);
+  const decision = computeScorecard(triaged(f, [{ findingId: 'DQ-001', decision: 'debt', ticket: TICKET }], { openDecisions: [{ id: 'OD-1' }] }));
+  assert.equal(decision.loopClosed, false, 'an open decision keeps the loop open');
+  const v10 = computeScorecard(baseReport({ schemaVersion: '1.0', findings: f }));
+  assert.equal('unexplained' in v10, false);
+  assert.equal('loopClosed' in v10, false);
 });

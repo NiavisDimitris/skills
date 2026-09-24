@@ -83,6 +83,11 @@
         "outDir": { "type": "string" },
         "topN": { "type": "integer", "minimum": 0 },
         "embedImages": { "type": "boolean" },
+        "debtLog": {
+          "type": "string",
+          "default": "qa-reports/design-debt.md",
+          "description": "Markdown design-debt log written by scripts/debt-log.mjs (the JSON log sits next to it)."
+        },
         "ranking": {
           "type": "object",
           "properties": {
@@ -114,7 +119,17 @@
         "provider": { "enum": ["jira", "linear", "github", "none"] },
         "baseUrl": { "type": ["string", "null"] },
         "writeBack": { "type": "boolean" },
-        "trustPreviewUrl": { "type": "boolean" }
+        "trustPreviewUrl": { "type": "boolean" },
+        "debt": {
+          "type": "object",
+          "description": "Tickets for triaged debt (scripts/jira-fetch.mjs --tickets-from).",
+          "properties": {
+            "project": { "type": ["string", "null"], "description": "Project key for debt tickets when there is no parent issue." },
+            "issueType": { "enum": ["Sub-task", "Task"], "default": "Sub-task" },
+            "parent": { "enum": ["auto", null], "default": "auto", "description": "auto: the report's ticket (meta.ticket.key); null: no parent, use project." },
+            "labels": { "type": "array", "items": { "type": "string", "pattern": "^\\S+$" }, "default": ["design-qa", "design-debt"] }
+          }
+        }
       }
     },
     "figma": {

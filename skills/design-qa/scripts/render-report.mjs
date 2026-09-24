@@ -34,8 +34,11 @@ Options:
                        findings[*].evidence[*].path of screenshot/figma/diff evidence,
                        evidence.states[*].figma|app|diff). Paths resolve relative to the
                        report.json directory; missing files are skipped with a warning.
-  --fixplan <file>     also write the Markdown fix plan (fix now / debt / missing states /
-                       cannot verify) with a paste-ready prompt for a coding agent
+  --fixplan <file>     also write the Markdown fix plan: Triage line, Fix now (+ paste block
+                       for a coding agent), Sync to Figma (+ paste block for a design agent),
+                       Debt — tickets, Missing states / needs decision, Cannot verify. With a
+                       triage block (schemaVersion 1.1) the person's decisions fill Fix now,
+                       Sync to Figma and Debt; otherwise the rank buckets do
   --recompute          rewrite the derived values from the rules instead of failing when the
                        stored ones disagree: every finding's rank and the scorecard
                        (severity/resolution counts, parity, verdict, pixel-diff bands,

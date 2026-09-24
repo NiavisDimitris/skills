@@ -1,11 +1,13 @@
 # Fix loop
 
-Fix mode runs the audit, then drives `FIX_CODE` to zero. The report is the starting point, not the deliverable.
+Fix mode runs the audit, lets the person choose what to fix now (triage), then drives that fix-now set to zero. The rest becomes ticketed debt. The report is the starting point, not the deliverable.
 
 ## Scope
 
-- Only `FIX_CODE` findings. Never change code to match a design that is stale (`SYNC_FIGMA`), and never touch data (`DATA`) or accepted drift (`INTENTIONAL`).
-- Work in rank order: fix-now first, then debt. When the debt is large or spreads across many files, confirm the scope with the user before starting.
+- **The fix-now set only**: `FIX_CODE` findings triaged fix now (`triage.items[].decision == "fix-now"`). Without a recorded triage, offer the split first (SKILL.md Phase 10); if the person does not choose, use the default split (the fix-now bucket plus every blocker).
+- Debt is not touched. It is ticketed and logged instead (report.md, "Triage and debt").
+- Never change code to match a design that is stale (`SYNC_FIGMA`), and never touch data (`DATA`) or accepted drift (`INTENTIONAL`).
+- Work in rank order within the fix-now set. If an item turns out much bigger than expected, ask whether to move it to debt (re-run triage; blockers cannot move) instead of widening the change.
 - A fix that would change a shared design-system component (and so every screen that uses it) is a design-system change. Ask first, or reclassify the finding as 🔵 DS_CANDIDATE.
 - Note uncommitted changes before you start, so this pass's diff stays reviewable on its own.
 
@@ -112,4 +114,4 @@ Add one `fixLoop` entry per iteration:
 
 `result` is `green`, `red` or `skipped` (no tests could run; say why in `action`).
 
-Repeat until no `FIX_CODE` rows remain. Stop early only when a fix needs a decision (reclassify as `UNCLASSIFIED` with an open decision) or the scope needs the user's approval. Then continue with Phase 9, and offer a sync pass if `SYNC_FIGMA` rows remain.
+Repeat until no fix-now `FIX_CODE` rows remain. Stop early only when a fix needs a decision (reclassify as `UNCLASSIFIED` with an open decision) or the scope needs the user's approval. Then continue with Phase 9, and offer a sync pass if fix-now `SYNC_FIGMA` rows remain. The loop is closed when `scorecard.loopClosed` is true: everything left is ticketed debt, signed off or data.

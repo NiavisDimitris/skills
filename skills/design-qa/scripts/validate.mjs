@@ -21,15 +21,18 @@ Options:
   --json             print { file, type, valid, errors, warnings } as JSON on stdout
   -h, --help         show this help
 
-Report rules: required keys and enums (keys whose value may be null can be
-omitted); finding ids unique and matching DQ-001; every findingIds /
+Report rules (schemaVersion 1.0 or 1.1): required keys and enums (keys whose value
+may be null can be omitted); finding ids unique and matching DQ-001; every findingIds /
 relatedFindings / stateMatrix[].findings entry references an existing finding;
 severity PASS or CANNOT_VERIFY ⇒ resolution NONE; BLOCKER, WARNING or
 DS_CANDIDATE ⇒ resolution other than NONE; every stateMatrix row has a result;
 rank.bucket is "fix-now" or "debt" only for FIX_CODE findings and "sync-figma"
 only for SYNC_FIGMA findings (severity BLOCKER, WARNING or DS_CANDIDATE), "none"
-otherwise; scorecard counts, parity, verdict, pixel-diff bands and state coverage
-equal the values derived from the findings (see render-report.mjs --recompute).
+otherwise; with a triage block (1.1) every triageable finding (FIX_CODE or
+SYNC_FIGMA, severity BLOCKER, WARNING or DS_CANDIDATE) has exactly one "fix-now" or
+"debt" decision and no BLOCKER is debt; scorecard counts, parity, verdict, pixel-diff
+bands, state coverage and (1.1) unexplained, debt and loopClosed equal the values
+derived from the findings (see render-report.mjs --recompute).
 Unknown keys, and a fix-now/debt split that differs from topN, are warnings.
 
 Exit codes: 0 valid · 1 invalid (or not JSON) · 2 bad arguments / file not found`;

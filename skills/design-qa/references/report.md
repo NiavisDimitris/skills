@@ -6,11 +6,13 @@ One pass produces one folder, `qa-reports/<feature>/` (or the directory the call
 |---|---|---|
 | `report.json` | the agent | coding agents, CI, the renderer. The source of truth. |
 | `report.html` | `scripts/render-report.mjs` | people: an interactive, self-contained report |
-| `report-fixplan.md` | `scripts/render-report.mjs` | engineers and their agents (fix the top N now, log the rest as debt) and the design owner (sync to Figma) |
+| `report-fixplan.md` | `scripts/render-report.mjs` | engineers and their agents (fix what was chosen now, ticket the rest) and the design owner (sync to Figma) |
 | `state-matrix.json` | `scripts/lib/state-discovery.mjs`, finalised by the agent | Phase 3 onward |
 | `evidence/` | the scripts and the agent | screenshots, specs, grabs, DOM outlines, diffs |
 
 The agent writes `report.json` and nothing else by hand. The HTML and the fix plan are always rendered from it, so the three never disagree.
+
+Across passes and features, `scripts/debt-log.mjs` keeps the design-debt log next to the feature folders: `qa-reports/design-debt.json` and `qa-reports/design-debt.md` (see "Triage and debt").
 
 ## Producing the files
 
@@ -41,11 +43,11 @@ The renderer validates first and refuses to render an invalid report. `validate.
 
 All paths inside `report.json` are relative to the folder that contains it.
 
-## The data contract (schemaVersion 1.0)
+## The data contract (schemaVersion 1.1)
 
 ```text
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "meta": {
     "feature": "orders",
     "generatedAt": "2026-09-01T10:20:00Z",                      ISO-8601
@@ -67,7 +69,10 @@ All paths inside `report.json` are relative to the folder that contains it.
     "bySeverity":   { "BLOCKER", "WARNING", "PASS", "CANNOT_VERIFY", "DS_CANDIDATE" },
     "byResolution": { "FIX_CODE", "SYNC_FIGMA", "INTENTIONAL", "DATA", "NONE", "UNCLASSIFIED" },
     "pixelDiff": { "<state>": { "percent", "band": "pass | review | fail", "image" } },
-    "stateCoverage": { "total", "designed", "specified", "implemented", "verified" }
+    "stateCoverage": { "total", "designed", "specified", "implemented", "verified" },
+    "unexplained": 0..,                                         1.1
+    "debt": { "count", "ticketed" },                            1.1
+    "loopClosed": true | false                                  1.1
   },
   "stateMatrix": [ {
     "state": "with-data | empty | loading | error | hover | focus | active | selected | disabled | …",
@@ -111,12 +116,18 @@ All paths inside `report.json` are relative to the folder that contains it.
   },
   "openDecisions": [ { "id": "OD-1", "question", "options": [ { "label", "consequence" } ], "recommendation", "relatedFindings" } ],
   "fixLoop": [ { "iteration", "action", "findingIds", "testsRun", "result": "green | red | skipped", "pixelDiffAfter" } ],
+  "triage": null | {                                            1.1, optional
+    "decidedBy", "decidedAt",                                   ISO-8601
+    "source": "report-ui | chat | cli | ci-default",
+    "items": [ { "findingId", "decision": "fix-now | debt", "reason",
+                 "ticket": null | { "provider", "key", "url", "createdAt" } } ]
+  },
   "evidence": { "figmaSpec", "ticket", "capture",
                 "states": { "<state>": { "figma", "app", "diff", "computed", "dom" } } }
 }
 ```
 
-The JSON Schema is `schemas/report.schema.json`. Keys whose value may be null can be omitted.
+The JSON Schema is `schemas/report.schema.json`. Keys whose value may be null can be omitted. Version 1.1 adds `triage` (optional) and the scorecard's `unexplained`, `debt` and `loopClosed`.
 
 ### Field notes
 
@@ -141,6 +152,9 @@ The JSON Schema is `schemas/report.schema.json`. Keys whose value may be null ca
 - `ledgers.*[].result`: `PASS`, `FAIL`, `CANNOT_VERIFY` or `DATA`.
 - `fixLoop[].pixelDiffAfter`: `{ "<state>": percent }` after the iteration, or null.
 - `evidence`: paths to `evidence/figma-spec.json`, `evidence/ticket.json`, `evidence/capture.json`, and per state the five evidence files.
+- `triage`: the person's choice of what to fix now; absent until someone triages. `decidedBy` is the person, `decidedAt` when, `source` how: `report-ui` (the board in `report.html`), `chat`, `cli` (`triage.mjs` run by hand) or `ci-default` (the default split recorded by CI).
+- `triage.items[]`: one per triageable finding, `decision` `fix-now` or `debt`, an optional `reason` (why it can wait), and `ticket` once a debt ticket exists: `{ provider, key, url, createdAt }`. `jira-fetch.mjs --tickets-from --write` fills it; after creating tickets through the Atlassian MCP, the agent fills it.
+- `scorecard.unexplained`, `debt`, `loopClosed`: derived; see "Derived rules".
 
 ## Derived rules
 
@@ -153,12 +167,20 @@ These are computed, never judged. `scripts/lib/ranking.mjs` implements them, `re
 - `BLOCKER`, `WARNING`, `DS_CANDIDATE` ⇒ `FIX_CODE`, `SYNC_FIGMA`, `INTENTIONAL`, `DATA` or `UNCLASSIFIED`.
 - Open = resolution `FIX_CODE`, `SYNC_FIGMA` or `UNCLASSIFIED`.
 
-**Parity**: `round(100 × (1 − open / max(1, findings.length)))`, capped at 99 while anything is open.
+**Parity**: `round(100 × (1 − open / max(1, findings.length)))`, capped at 99 while anything is open. Debt is still a mismatch, so it still lowers parity.
+
+**Triage**: triageable = resolution `FIX_CODE` or `SYNC_FIGMA` and severity `BLOCKER`, `WARNING` or `DS_CANDIDATE`. A `BLOCKER` can never be debt: fix it or sign it off as `INTENTIONAL`. Without a recorded `triage`, the default split applies: the fix-now bucket, every blocker and every `SYNC_FIGMA` finding are fix now; the debt bucket is debt.
+
+**Unexplained, debt, loop closed**:
+
+- `unexplained` = open findings that are not ticketed debt (ticketed debt = triaged `debt` with a `ticket`).
+- `debt.count` = findings triaged `debt`; `debt.ticketed` = those with a ticket.
+- `loopClosed` = `unexplained` is 0 and no decision is open: every diff is fixed, synced, signed off or tracked as ticketed debt.
 
 **Verdict**, first match wins:
 
-1. `FAIL`: an open `BLOCKER`, or a state result `MISSING_IN_CODE`, or a pixel-diff band `fail`.
-2. `REVIEW`: an open finding, a `CANNOT_VERIFY` finding, an open decision, a pixel-diff band `review`, or a state result `CANNOT_VERIFY` or `MISSING_IN_DESIGN`.
+1. `FAIL`: an open `BLOCKER`, or a state result `MISSING_IN_CODE`, or a pixel-diff band `fail` in a state that has an unexplained finding or no findings.
+2. `REVIEW`: an unexplained finding, a `CANNOT_VERIFY` finding, an open decision, a pixel-diff band `review`, a `fail` band whose state's findings are all explained, or a state result `CANNOT_VERIFY` or `MISSING_IN_DESIGN`.
 3. `PASS`.
 
 **Ranking**: rankable = resolution `FIX_CODE` or `SYNC_FIGMA` and severity `BLOCKER`, `WARNING` or `DS_CANDIDATE`.
@@ -175,14 +197,66 @@ Rankable `FIX_CODE` findings, sorted by score descending (ties by id): the first
 
 **Pixel-diff bands**: percent below `pass` (default 1) is `pass`; up to and including `review` (default 5) is `review`; above is `fail`.
 
+## Triage and debt
+
+The person decides which diffs get fixed now. Everything else becomes debt with a ticket and a log entry, so every diff is either fixed or tracked, and the team gets the tickets and the log ready-made.
+
+**Choosing.** Three ways, all ending in the same `triage` record:
+
+- In chat: the agent offers the recommended split (Phase 10) as a multi-select the person can change. Use the question tool when the list is short; otherwise list the triageable ids and ask for the fix-now ones.
+- In `report.html`: the "Choose what to fix" board copies `/design-qa triage <slug> --fix DQ-001,DQ-002,DQ-003`.
+- In CI: the default split, recorded with source `ci-default`. No tickets.
+
+**Recording.**
+
+```bash
+node scripts/triage.mjs --report <dir>/report.json (--fix DQ-001,DQ-004 | --selection selection.json | --default) \
+  [--by "<name>"] [--source report-ui|chat|cli|ci-default] [--dry-run]
+```
+
+- `--fix <ids>`: these findings are fix now; every other triageable finding is debt.
+- `--selection <file>`: the `selection.json` that the report's board exports:
+
+  ```json
+  {
+    "feature": "Orders list",
+    "slug": "ACME-482",
+    "reportGeneratedAt": "2026-09-22T14:32:00Z",
+    "fixNow": ["DQ-001", "DQ-002", "DQ-003"],
+    "debt": ["DQ-004", "DQ-006", "DQ-007", "DQ-008", "DQ-016"],
+    "decidedBy": null,
+    "decidedAt": "2026-09-24T10:05:00Z"
+  }
+  ```
+
+  The script warns when `slug` or `reportGeneratedAt` do not match the report.
+- `--default`: the default split. The fix-now bucket, every blocker and every `SYNC_FIGMA` finding are fix now; the debt bucket is debt.
+- `--dry-run`: print the result without writing it.
+- A blocker can never be debt: a blocker left out of the fix list stays fix now, with a warning. To accept a blocker, sign it off as `INTENTIONAL`.
+
+Re-render afterwards (Phase 9) so the scorecard, the fix plan and the HTML follow the triage.
+
+**Ticketing.** One ticket per debt item, created only after the person has seen the list and said yes: the Atlassian MCP in interactive sessions, or `jira-fetch.mjs --tickets-from <dir>/report.json`, a dry run until `--write`, which writes the keys back into `triage.items[].ticket`. Fields, labels and parent rules are in ticket-ingest.md. ci mode never creates tickets.
+
+**Logging.**
+
+```bash
+node scripts/debt-log.mjs --report <dir>/report.json [--log qa-reports/design-debt.json] [--md qa-reports/design-debt.md]
+```
+
+The log is cumulative across passes and features. Entries are upserted by slug and finding id, so a re-run updates an entry instead of duplicating it, and an entry is marked resolved when a later pass shows the finding fixed. `design-debt.json` is for tools; `design-debt.md` (config `report.debtLog`) is the list a team reads.
+
+**Closing the loop.** `scorecard.loopClosed` becomes true when `unexplained` is 0 and no decision is open. Ticketed debt no longer holds the verdict at REVIEW; unticketed debt and unfixed fix-now items still do.
+
 ## The fix plan (report-fixplan.md)
 
-"Fix the top N now, log the rest as debt, sync the design where the code is canon." Rendered by `render-report.mjs --fixplan`; never written by hand.
+"Fix what was chosen now, ticket the rest, sync the design where the code is canon." Rendered by `render-report.mjs --fixplan`; never written by hand. The lists follow the recorded `triage`, or the default split when there is none.
 
 ````markdown
 # Design QA fix plan — orders
 Verdict: FAIL · Parity 71% · States: 5/8 verified (7 designed, 4 specified, 7 implemented)
 Figma: https://www.figma.com/design/… · App: https://… (preview) · Ticket: ABC-123 · Generated: 2026-09-01T10:20:00Z
+Triage: 3 fix now · 2 debt (2 ticketed) · decided by A. Lee via report-ui, 2026-09-01
 
 ## Fix now (2)
 1. **DQ-003 — Empty state is missing the Clear filters action** (BLOCKER, state, state empty)
@@ -199,8 +273,9 @@ Fix these design-parity findings in order. Do not change data or copy beyond wha
 …
 ```
 
-## Debt (4) — log as tickets
-- DQ-010 — Row divider uses a raw hex color (WARNING, style, state with-data) — Use border/subtle — evidence: evidence/app/with-data.png
+## Debt (2) — tickets
+- DQ-010 — Row divider uses a raw hex color (WARNING, style, state with-data) — owner: engineering — ticket: ABC-131 — Use border/subtle
+- DQ-014 — Filter chips spacing differs from the design (WARNING, style, state with-data) — owner: design — ticket: ABC-132 — Update the chip gap in the Filters frame
 
 ## Sync to Figma (1)
 - DQ-011 — Error state has a Try again button the design lacks (WARNING, state, state error) — Add <DS>Button (Secondary) "Try again" to the Error variant — Figma: Orders – Error/Actions
@@ -223,11 +298,11 @@ Update the Figma file so these match the shipped code. Use library components an
 
 Sections, in order:
 
-1. Title, then the verdict, parity and state-coverage line, then the Figma, app, ticket and generation line.
-2. "Fix now (n)": numbered `fix-now` items (id, title, severity, ledger, state; where as file:line plus selector; expected versus actual; fix).
+1. Title, then the verdict, parity and state-coverage line, then the Figma, app, ticket and generation line, then a `Triage:` line: fix-now and debt counts, how many debt items have tickets, and who decided, how and when (or that the default split applies).
+2. "Fix now (n)": numbered `FIX_CODE` items triaged fix now (id, title, severity, ledger, state; where as file:line plus selector; expected versus actual; fix).
 3. "Paste to your coding agent": a fenced block with one intro sentence, then one prompt block per fix-now finding.
-4. "Debt (m) — log as tickets": `debt` bullets.
-5. "Sync to Figma (k)": `sync-figma` bullets, `- DQ-010 — <title> (<severity>, <ledger>, state <state>) — <fix.summary> — Figma: <layer path or node id>`.
+4. "Debt (m) — tickets": every finding triaged as debt, with its owner (engineering for `FIX_CODE`, design for `SYNC_FIGMA`) and its ticket key, or a note that it has no ticket yet.
+5. "Sync to Figma (k)": `SYNC_FIGMA` findings triaged fix now, `- DQ-010 — <title> (<severity>, <ledger>, state <state>) — <fix.summary> — Figma: <layer path or node id>`.
 6. "Paste to your design agent": a fenced block that starts with "Update the Figma file so these match the shipped code. Use library components and bound variables, never arbitrary hex. Re-export the node and diff it against the app after each item.", then one prompt block per sync item.
 7. "Missing states / needs decision": state rows `MISSING_IN_CODE`, `MISSING_IN_DESIGN`, `NOT_SPECIFIED`, then open decisions.
 8. "Cannot verify": ℹ️ findings and `CANNOT_VERIFY` state rows.
@@ -261,6 +336,7 @@ A single self-contained file (with `--embed-images`) that opens from disk or a C
 - **Tabs**: Overview · Findings · States · Decisions · Evidence. The ledgers are a filter inside Findings.
 - **Compare**: modes App · Figma · Side by side · Overlay · Wipe · Diff, one state at a time; zoom Fit, 100% or 200%; fullscreen.
 - **Finding detail**: expected and actual values, code location, the copyable agent prompt, and a crop pair: the Figma crop beside the app crop at 2×.
+- **Choose what to fix**: a board with two columns, Fix now and Debt, and a checkbox per triageable finding; blockers are locked in Fix now. Its primary button, "Copy for Claude Code", copies `/design-qa triage <slug> --fix DQ-001,DQ-002,DQ-003`, where the slug is the ticket key, else the feature name in kebab-case.
 - **Lists**: Fix now with copyable prompts; Debt, exportable for your tracker; Sync to Figma with "Copy Figma prompt" per item and "Copy all".
 - **States**: the coverage grid, one row per state with designed, specified, implemented and verified marks and the result.
 - **Sign-off**: reviewers mark findings as intentional with a name and a reason. Sign-offs stay in the browser until exported as JSON for the agent to record in `report.json` (as `INTENTIONAL` with `signoff`); the page never writes the report itself.
@@ -269,7 +345,7 @@ A single self-contained file (with `--embed-images`) that opens from disk or a C
 
 - **Engineer, quick path**: paste the "Paste to your coding agent" block from `report-fixplan.md`. Each item is self-contained.
 - **Engineer, full path**: read `report.json`, take the findings with `rank.bucket == "fix-now"` in score order, fix each at `actual.source`, then re-run this skill in fix or audit mode to verify. Use `evidence` paths for context and `expected.token` for the value to use.
-- **Debt**: `rank.bucket == "debt"` findings become tickets. Ticket write-back is opt-in (ticket-ingest.md).
+- **Debt**: after triage, every debt finding gets a ticket and a debt-log entry ("Triage and debt"). Tickets are created only after a yes; ci mode only proposes them in the PR comment.
 - **Designer**: paste the "Paste to your design agent" block into an agent with Figma write access, or run this skill in sync mode, which works through `rank.bucket == "sync-figma"` findings in score order (figma-sync.md). Each item names the Figma layer, the value the design must adopt and the evidence.
 - **CI**: gate on `scorecard.verdict` (ci.md).
 

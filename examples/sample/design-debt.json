@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-22T14:32:08Z",
+  "entries": [
+    {
+      "since": "2026-09-22T15:05:00Z",
+      "slug": "ACME-482",
+      "feature": "Orders list",
+      "parentTicket": "ACME-482",
+      "findingId": "DQ-004",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "owner": "engineering",
+      "title": "Card padding is 20px instead of --ads-space-6 (24px)",
+      "where": "src/features/orders/orders.css:12 · .orders-card",
+      "ticket": {
+        "provider": "jira",
+        "key": "ACME-511",
+        "url": "https://acme.atlassian.net/browse/ACME-511",
+        "createdAt": "2026-09-22T14:32:08Z"
+      },
+      "status": "open",
+      "reportPath": "sample-report.json",
+      "updatedAt": "2026-09-22T14:32:08Z"
+    },
+    {
+      "since": "2026-09-22T15:05:00Z",
+      "slug": "ACME-482",
+      "feature": "Orders list",
+      "parentTicket": "ACME-482",
+      "findingId": "DQ-006",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "owner": "engineering",
+      "title": "Page title weight is 500 instead of --ads-font-weight-semibold (600)",
+      "where": "src/components/PageHeader.module.css:8 · h1.page-title",
+      "ticket": {
+        "provider": "jira",
+        "key": "ACME-512",
+        "url": "https://acme.atlassian.net/browse/ACME-512",
+        "createdAt": "2026-09-22T14:32:08Z"
+      },
+      "status": "open",
+      "reportPath": "sample-report.json",
+      "updatedAt": "2026-09-22T14:32:08Z"
+    },
+    {
+      "since": "2026-09-22T15:05:00Z",
+      "slug": "ACME-482",
+      "feature": "Orders list",
+      "parentTicket": "ACME-482",
+      "findingId": "DQ-007",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "owner": "engineering",
+      "title": "Skeleton bars use a 2px radius instead of --ads-radius-md (6px)",
+      "where": "src/features/orders/OrdersSkeleton.tsx:14 · .orders-skeleton .ads-skeleton",
+      "ticket": {
+        "provider": "jira",
+        "key": "ACME-513",
+        "url": "https://acme.atlassian.net/browse/ACME-513",
+        "createdAt": "2026-09-22T14:32:08Z"
+      },
+      "status": "open",
+      "reportPath": "sample-report.json",
+      "updatedAt": "2026-09-22T14:32:08Z"
+    },
+    {
+      "since": "2026-09-22T15:05:00Z",
+      "slug": "ACME-482",
+      "feature": "Orders list",
+      "parentTicket": "ACME-482",
+      "findingId": "DQ-008",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "owner": "engineering",
+      "title": "Row hover transition is a hardcoded 400ms instead of --ads-motion-base (160ms)",
+      "where": "src/features/orders/orders.css:31 · .orders-row",
+      "ticket": {
+        "provider": "jira",
+        "key": "ACME-514",
+        "url": "https://acme.atlassian.net/browse/ACME-514",
+        "createdAt": "2026-09-22T14:32:08Z"
+      },
+      "status": "open",
+      "reportPath": "sample-report.json",
+      "updatedAt": "2026-09-22T14:32:08Z"
+    },
+    {
+      "since": "2026-09-22T15:05:00Z",
+      "slug": "ACME-482",
+      "feature": "Orders list",
+      "parentTicket": "ACME-482",
+      "findingId": "DQ-009",
+      "severity": "DS_CANDIDATE",
+      "resolution": "SYNC_FIGMA",
+      "owner": "design",
+      "title": "Bulk-action bar has no design (Acme DS candidate)",
+      "where": "src/features/orders/BulkActionBar.tsx:1 · [data-testid=orders-bulk-bar]",
+      "ticket": {
+        "provider": "jira",
+        "key": "ACME-516",
+        "url": "https://acme.atlassian.net/browse/ACME-516",
+        "createdAt": "2026-09-22T14:32:08Z"
+      },
+      "status": "open",
+      "reportPath": "sample-report.json",
+      "updatedAt": "2026-09-22T14:32:08Z"
+    },
+    {
+      "since": "2026-09-22T15:05:00Z",
+      "slug": "ACME-482",
+      "feature": "Orders list",
+      "parentTicket": "ACME-482",
+      "findingId": "DQ-016",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "owner": "engineering",
+      "title": "Loading skeleton appears immediately instead of after 300 ms (AC-4)",
+      "where": "src/features/orders/OrdersPage.tsx:37 · [data-testid=orders-skeleton]",
+      "ticket": {
+        "provider": "jira",
+        "key": "ACME-515",
+        "url": "https://acme.atlassian.net/browse/ACME-515",
+        "createdAt": "2026-09-22T14:32:08Z"
+      },
+      "status": "open",
+      "reportPath": "sample-report.json",
+      "updatedAt": "2026-09-22T14:32:08Z"
+    }
+  ]
+}

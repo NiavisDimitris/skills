@@ -127,8 +127,20 @@ export function runMain(metaUrl, main) {
     );
 }
 
-/** Pretty-print a path relative to the working directory when it is inside it. */
+function realPath(p) {
+  try {
+    return realpathSync(p);
+  } catch {
+    try {
+      return path.join(realpathSync(path.dirname(p)), path.basename(p));
+    } catch {
+      return p;
+    }
+  }
+}
+
+/** Pretty-print a path relative to the working directory when it is inside it (symlinks resolved). */
 export function displayPath(file) {
-  const rel = path.relative(process.cwd(), file);
+  const rel = path.relative(realPath(process.cwd()), realPath(path.resolve(file)));
   return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : file;
 }

@@ -10,7 +10,8 @@ import {
   validateReport,
   validateStateMatrix,
 } from '../skills/design-qa/scripts/lib/schema-check.mjs';
-import { rankFindings } from '../skills/design-qa/scripts/lib/ranking.mjs';
+import { computeScorecard, rankFindings } from '../skills/design-qa/scripts/lib/ranking.mjs';
+import { applyTriage, buildTriage } from '../skills/design-qa/scripts/lib/triage.mjs';
 import { ROOT, fixture, loadFixture, run, script, tmpDir } from './_helpers.mjs';
 
 const VALIDATE = script('validate.mjs');
@@ -313,4 +314,81 @@ test('CLI: --config supplies pixel-diff tolerances; config files validate by inf
   const cfgRes = await run(VALIDATE, [fixture('config.json')]);
   assert.equal(cfgRes.code, 0, cfgRes.stderr);
   assert.match(cfgRes.stdout, /valid config/);
+});
+
+// ---------------------------------------------------------------------------
+// schemaVersion 1.1: triage, unexplained, debt, loopClosed
+// ---------------------------------------------------------------------------
+
+function triagedReport() {
+  const r = loadFixture('report-valid.json');
+  const { triage } = buildTriage(r, { fixIds: ['DQ-002'], decidedBy: 'Dana', decidedAt: '2026-09-24T09:00:00Z', source: 'cli' });
+  return applyTriage(r, triage);
+}
+
+test('schemaVersion 1.1: a triaged report validates; the 1.1 scorecard fields are required and derived', () => {
+  const r = triagedReport();
+  assert.equal(r.schemaVersion, '1.1');
+  assert.deepEqual(validateReport(r).errors, []);
+  assert.deepEqual(validateReport(r).warnings, []);
+
+  const missing = triagedReport();
+  delete missing.scorecard.unexplained;
+  delete missing.scorecard.loopClosed;
+  expectError(missing, /^scorecard\.unexplained: required key is missing$/);
+  expectError(missing, /^scorecard\.loopClosed: required key is missing$/);
+
+  const drift = triagedReport();
+  drift.scorecard.unexplained = 0;
+  drift.scorecard.debt.ticketed = 2;
+  drift.scorecard.loopClosed = true;
+  expectError(drift, /^scorecard\.unexplained: expected 4 \(open findings that are not ticketed debt\), got 0$/);
+  expectError(drift, /^scorecard\.debt\.ticketed: expected 0 \(debt items with a ticket\), got 2$/);
+  expectError(drift, /^scorecard\.loopClosed: expected false \(unexplained 4, open decisions 1\), got true$/);
+
+  const future = loadFixture('report-valid.json');
+  future.schemaVersion = '2.0';
+  expectError(future, /^schemaVersion: expected one of 1\.0, 1\.1 \(got "2\.0"\)$/);
+});
+
+test('triage: a BLOCKER can never be debt', () => {
+  const r = triagedReport();
+  const i = r.triage.items.findIndex((item) => item.findingId === 'DQ-001');
+  r.triage.items[i].decision = 'debt';
+  r.scorecard = computeScorecard(r);
+  const errors = errorsOf(r);
+  assert.ok(
+    errors.includes(`triage.items[${i}].decision: DQ-001 is a BLOCKER: blockers cannot be deferred; fix it or sign it off as INTENTIONAL`),
+    errors.join('\n'),
+  );
+});
+
+test('triage: exactly one decision for every triageable finding', () => {
+  const r = triagedReport();
+  r.triage.items = r.triage.items.filter((item) => item.findingId !== 'DQ-004');
+  r.triage.items.push({ findingId: 'DQ-002', decision: 'debt', reason: null, ticket: null });
+  r.triage.items.push({ findingId: 'DQ-099', decision: 'debt' });
+  r.triage.items.push({ findingId: 'DQ-005', decision: 'debt' });
+  r.triage.items.push({ findingId: 'DQ-003', decision: 'later' });
+  r.scorecard = computeScorecard(r);
+  expectError(r, /^triage\.items: no decision for DQ-004: every FIX_CODE and SYNC_FIGMA finding with severity BLOCKER, WARNING or DS_CANDIDATE needs "fix-now" or "debt"$/);
+  expectError(r, /^triage\.items\[\d+\]\.findingId: duplicate decision for "DQ-002" \(first at triage\.items\[\d+\]\)$/);
+  expectError(r, /^triage\.items\[\d+\]\.findingId: references unknown finding "DQ-099"$/);
+  expectError(r, /^triage\.items\[\d+\]\.findingId: DQ-005 is not triageable \(PASS \/ NONE\)/);
+  expectError(r, /^triage\.items\[\d+\]\.decision: expected one of fix-now, debt \(got "later"\)$/);
+});
+
+test('triage: tickets need provider, key, url and createdAt; triage in a 1.0 report is a warning', () => {
+  const r = triagedReport();
+  const i = r.triage.items.findIndex((item) => item.findingId === 'DQ-004');
+  r.triage.items[i].ticket = { provider: 'trello', key: 'X-1' };
+  r.scorecard = computeScorecard(r);
+  expectError(r, new RegExp(`^triage\\.items\\[${i}\\]\\.ticket\\.provider: expected one of jira, linear, github`));
+  expectError(r, new RegExp(`^triage\\.items\\[${i}\\]\\.ticket\\.url: required key is missing$`));
+
+  const old = triagedReport();
+  old.schemaVersion = '1.0';
+  const result = validateReport(old);
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.warnings.map((w) => `${w.path}: ${w.message}`), ['triage: triage is a schemaVersion 1.1 feature; set "schemaVersion": "1.1"']);
 });

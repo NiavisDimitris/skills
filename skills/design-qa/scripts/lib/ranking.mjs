@@ -8,6 +8,10 @@ export const LEDGERS = Object.freeze(['structure', 'component', 'style', 'state'
 export const VERDICTS = Object.freeze(['PASS', 'REVIEW', 'FAIL']);
 export const BANDS = Object.freeze(['pass', 'review', 'fail']);
 
+export const SCHEMA_VERSIONS = Object.freeze(['1.0', '1.1']);
+export const TRIAGE_DECISIONS = Object.freeze(['fix-now', 'debt']);
+export const TRIAGE_SOURCES = Object.freeze(['report-ui', 'chat', 'cli', 'ci-default']);
+
 /** rank.bucket values: fix-now and debt are the engineer's (FIX_CODE), sync-figma the designer's. */
 export const BUCKETS = Object.freeze(['fix-now', 'debt', 'sync-figma', 'none']);
 
@@ -71,6 +75,44 @@ export function isRankable(finding) {
   return RANKABLE_RESOLUTIONS.includes(finding?.resolution) && RANKABLE_SEVERITIES.includes(finding?.severity);
 }
 
+/** Triageable findings are the rankable ones: each gets a "fix-now" or "debt" decision. */
+export function isTriageable(finding) {
+  return isRankable(finding);
+}
+
+/** findingId → triage item (first one wins; duplicates are a validation error). */
+export function triageIndex(report) {
+  const index = new Map();
+  const items = Array.isArray(report?.triage?.items) ? report.triage.items : [];
+  for (const item of items) {
+    if (item && typeof item.findingId === 'string' && !index.has(item.findingId)) index.set(item.findingId, item);
+  }
+  return index;
+}
+
+/** Ticketed debt: the person deferred it (decision "debt") and a ticket tracks it. */
+export function isTicketedDebt(finding, index) {
+  const item = index.get(finding?.id);
+  return Boolean(item && item.decision === 'debt' && item.ticket);
+}
+
+/**
+ * Unexplained findings: open (FIX_CODE, SYNC_FIGMA, UNCLASSIFIED) and not ticketed
+ * debt. Without a triage block this is exactly the open set.
+ */
+export function unexplainedFindings(report) {
+  const index = triageIndex(report);
+  const findings = Array.isArray(report?.findings) ? report.findings : [];
+  return findings.filter((f) => f && isOpen(f) && !isTicketedDebt(f, index));
+}
+
+/** { count: items decided "debt", ticketed: those with a ticket }. */
+export function debtSummary(report) {
+  const items = Array.isArray(report?.triage?.items) ? report.triage.items : [];
+  const debt = items.filter((i) => i && i.decision === 'debt');
+  return { count: debt.length, ticketed: debt.filter((i) => i.ticket).length };
+}
+
 /**
  * parity = round(100 × (1 − open / max(1, findings))). Clamped to 99 while any
  * finding is open, so 100 always means "nothing left to do".
@@ -107,15 +149,26 @@ export function derivedBands(report, opts = {}) {
   return out;
 }
 
-/** Verdict plus the human-readable reasons that produced it. */
+/**
+ * Verdict plus the human-readable reasons that produced it.
+ * FAIL: an open BLOCKER, a MISSING_IN_CODE state, or a pixel diff in the fail band
+ * for a state that has an unexplained finding or no findings at all.
+ * REVIEW: an unexplained finding (ticketed debt is explained), a CANNOT_VERIFY
+ * finding, an open decision, a review band, a fail band whose findings are all
+ * explained (fixed, INTENTIONAL, DATA or ticketed debt), or a CANNOT_VERIFY /
+ * MISSING_IN_DESIGN state. Otherwise PASS.
+ */
 export function explainVerdict(report, opts = {}) {
   const o = resolveOptions(opts);
   const findings = Array.isArray(report?.findings) ? report.findings : [];
   const matrix = Array.isArray(report?.stateMatrix) ? report.stateMatrix : [];
   const decisions = Array.isArray(report?.openDecisions) ? report.openDecisions : [];
   const bands = derivedBands(report, o);
+  const unexplained = unexplainedFindings(report);
+  const unexplainedSet = new Set(unexplained);
 
   const fail = [];
+  const explainedFailBands = [];
   for (const f of findings) {
     if (f && f.severity === 'BLOCKER' && isOpen(f)) fail.push(`${f.id} is an open BLOCKER (${f.resolution})`);
   }
@@ -123,18 +176,23 @@ export function explainVerdict(report, opts = {}) {
     if (row && row.result === 'MISSING_IN_CODE') fail.push(`state "${row.state}" is MISSING_IN_CODE`);
   }
   for (const [state, b] of Object.entries(bands)) {
-    if (b === 'fail') fail.push(`pixel diff for "${state}" is in the fail band`);
+    if (b !== 'fail') continue;
+    const inState = findings.filter((f) => f && f.state === state);
+    if (!inState.length || inState.some((f) => unexplainedSet.has(f))) fail.push(`pixel diff for "${state}" is in the fail band`);
+    else explainedFailBands.push(state);
   }
   if (fail.length) return { verdict: 'FAIL', reasons: fail };
 
   const review = [];
-  const open = findings.filter(isOpen);
-  if (open.length) review.push(`${open.length} open finding(s): ${open.map((f) => f.id).join(', ')}`);
+  if (unexplained.length) review.push(`${unexplained.length} unexplained finding(s): ${unexplained.map((f) => f.id).join(', ')}`);
   const cannot = findings.filter((f) => f && f.severity === 'CANNOT_VERIFY');
   if (cannot.length) review.push(`${cannot.length} CANNOT_VERIFY finding(s)`);
   if (decisions.length) review.push(`${decisions.length} open decision(s)`);
   for (const [state, b] of Object.entries(bands)) {
     if (b === 'review') review.push(`pixel diff for "${state}" is in the review band`);
+  }
+  for (const state of explainedFailBands) {
+    review.push(`pixel diff for "${state}" is in the fail band, but every finding there is explained`);
   }
   for (const row of matrix) {
     if (row && (row.result === 'CANNOT_VERIFY' || row.result === 'MISSING_IN_DESIGN')) {
@@ -222,7 +280,11 @@ export function findingsInBucket(findings = [], bucket) {
     .sort((a, b) => compareRanked(a, b));
 }
 
-/** The scorecard implied by the findings, state matrix, decisions and pixel-diff percents. */
+/**
+ * The scorecard implied by the findings, state matrix, decisions, triage and
+ * pixel-diff percents. schemaVersion "1.1" reports also get unexplained, debt and
+ * loopClosed (unexplained == 0 and no open decisions).
+ */
 export function computeScorecard(report, opts = {}) {
   const o = resolveOptions(opts);
   const findings = Array.isArray(report?.findings) ? report.findings : [];
@@ -239,7 +301,7 @@ export function computeScorecard(report, opts = {}) {
     const e = isObj(entry) ? entry : {};
     pixelDiff[state] = { ...e, band: bands[state] ?? e.band, image: e.image ?? null };
   }
-  return {
+  const scorecard = {
     parity: parity(findings),
     verdict: deriveVerdict(report, o),
     bySeverity,
@@ -247,4 +309,12 @@ export function computeScorecard(report, opts = {}) {
     pixelDiff,
     stateCoverage: stateCoverage(report?.stateMatrix),
   };
+  if (report?.schemaVersion === '1.1') {
+    const unexplained = unexplainedFindings(report).length;
+    const decisions = Array.isArray(report?.openDecisions) ? report.openDecisions.length : 0;
+    scorecard.unexplained = unexplained;
+    scorecard.debt = debtSummary(report);
+    scorecard.loopClosed = unexplained === 0 && decisions === 0;
+  }
+  return scorecard;
 }

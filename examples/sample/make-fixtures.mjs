@@ -608,18 +608,58 @@ function rankAll(findings) {
   return { fixNow: ids(code.slice(0, TOP_N)), debt: ids(code.slice(TOP_N)), syncFigma: ids(figma) };
 }
 
+// Triage (report 1.1): what Maya chose to fix now; everything else became ticketed debt.
+const TRIAGE = {
+  decidedBy: 'Maya Chen', decidedAt: '2026-09-22T15:05:00Z', source: 'report-ui',
+  fixNow: ['DQ-001', 'DQ-002', 'DQ-003', 'DQ-010'],
+  debt: {
+    'DQ-004': ['ACME-511', 'Spacing polish; batch it with the spacing-token sweep.'],
+    'DQ-006': ['ACME-512', 'Shared PageHeader change, already tracked as KD-2 across Console.'],
+    'DQ-007': ['ACME-513', 'Only visible while loading; low impact.'],
+    'DQ-008': ['ACME-514', 'Motion-token clean-up is planned for the next sprint.'],
+    'DQ-016': ['ACME-515', 'Needs the shared delayed-flag hook; scheduled with it.'],
+    'DQ-009': ['ACME-516', 'Waiting on OD-1: design the bulk pattern or remove it.'],
+  },
+};
+const triageable = (x) => ['FIX_CODE', 'SYNC_FIGMA'].includes(x.resolution) && ['BLOCKER', 'WARNING', 'DS_CANDIDATE'].includes(x.severity);
+function buildTriage(r) {
+  const items = r.findings.filter(triageable)
+    .sort((a, b) => b.rank.score - a.rank.score || byId(a, b))
+    .map((x) => {
+      if (TRIAGE.fixNow.includes(x.id)) return { findingId: x.id, decision: 'fix-now', reason: null, ticket: null };
+      const d = TRIAGE.debt[x.id];
+      if (!d) throw new Error(`${x.id} is triageable but has no triage decision in TRIAGE`);
+      if (x.severity === 'BLOCKER') throw new Error(`${x.id} is a BLOCKER and cannot be debt`);
+      return { findingId: x.id, decision: 'debt', reason: d[1],
+        ticket: { provider: 'jira', key: d[0], url: `https://acme.atlassian.net/browse/${d[0]}`, createdAt: r.meta.generatedAt } };
+    });
+  return { decidedBy: TRIAGE.decidedBy, decidedAt: TRIAGE.decidedAt, source: TRIAGE.source, items };
+}
+// Scorecard 1.1 extras: unexplained = open findings that are not ticketed debt; debt counts; loop closed when none is unexplained.
+function triageScore(r) {
+  const items = r.triage ? r.triage.items : [];
+  const ticketed = new Set(items.filter((i) => i.decision === 'debt' && i.ticket).map((i) => i.findingId));
+  const unexplained = r.findings.filter((x) => OPEN.includes(x.resolution) && !ticketed.has(x.id));
+  const debt = items.filter((i) => i.decision === 'debt');
+  return { unexplained, debt: { count: debt.length, ticketed: debt.filter((i) => i.ticket).length }, loopClosed: unexplained.length === 0 && r.openDecisions.length === 0 };
+}
+
 function derivedScorecard(r) {
   const f = r.findings;
   const count = (key, values) => Object.fromEntries(values.map((v) => [v, f.filter((x) => x[key] === v).length]));
   const open = f.filter((x) => OPEN.includes(x.resolution));
   const rows = r.stateMatrix;
   const bands = Object.values(r.scorecard.pixelDiff).map((p) => p.band);
+  const ts = triageScore(r), unexplainedIds = new Set(ts.unexplained.map((x) => x.id));
+  const failStates = Object.entries(r.scorecard.pixelDiff).filter(([, p]) => p.band === 'fail').map(([s]) => s);
+  const failBand = failStates.some((s) => f.some((x) => x.state === s && unexplainedIds.has(x.id)) || !f.some((x) => x.state === s));
+  const explainedFail = failStates.length > 0 && !failBand;
   let verdict = 'PASS';
-  if (open.some((x) => x.severity === 'BLOCKER') || rows.some((x) => x.result === 'MISSING_IN_CODE') || bands.includes('fail')) verdict = 'FAIL';
-  else if (open.length || f.some((x) => x.severity === 'CANNOT_VERIFY') || r.openDecisions.length || bands.includes('review')
+  if (open.some((x) => x.severity === 'BLOCKER') || rows.some((x) => x.result === 'MISSING_IN_CODE') || failBand) verdict = 'FAIL';
+  else if (ts.unexplained.length || explainedFail || f.some((x) => x.severity === 'CANNOT_VERIFY') || r.openDecisions.length || bands.includes('review')
     || rows.some((x) => ['CANNOT_VERIFY', 'MISSING_IN_DESIGN'].includes(x.result))) verdict = 'REVIEW';
   return {
-    parity: Math.round(100 * (1 - open.length / Math.max(1, f.length))),
+    parity: open.length ? Math.min(99, Math.round(100 * (1 - open.length / Math.max(1, f.length)))) : Math.round(100 * (1 - open.length / Math.max(1, f.length))),
     verdict,
     bySeverity: count('severity', ['BLOCKER', 'WARNING', 'PASS', 'CANNOT_VERIFY', 'DS_CANDIDATE']),
     byResolution: count('resolution', ['FIX_CODE', 'SYNC_FIGMA', 'INTENTIONAL', 'DATA', 'NONE', 'UNCLASSIFIED']),
@@ -630,13 +670,16 @@ function derivedScorecard(r) {
       implemented: rows.filter((x) => x.implemented).length,
       verified: rows.filter((x) => ['PASS', 'FAIL'].includes(x.result)).length,
     },
+    unexplained: ts.unexplained.length,
+    debt: ts.debt,
+    loopClosed: ts.loopClosed,
   };
 }
 
 function check(r) {
   const errors = [];
   const d = derivedScorecard(r);
-  for (const key of ['parity', 'verdict', 'bySeverity', 'byResolution', 'stateCoverage']) {
+  for (const key of ['parity', 'verdict', 'bySeverity', 'byResolution', 'stateCoverage', 'unexplained', 'debt', 'loopClosed']) {
     if (JSON.stringify(d[key]) !== JSON.stringify(r.scorecard[key])) {
       errors.push(`scorecard.${key}: written ${JSON.stringify(r.scorecard[key])}, derived ${JSON.stringify(d[key])}`);
     }
@@ -720,10 +763,14 @@ for (const it of report.fixLoop) {
   if (it.pixelDiffAfter) for (const s of Object.keys(it.pixelDiffAfter)) it.pixelDiffAfter[s] = diffs[s];
 }
 applyCrops(report);
+report.schemaVersion = '1.1';
 const order = rankAll(report.findings);
+report.triage = buildTriage(report);
+const ts = triageScore(report);
+Object.assign(report.scorecard, { unexplained: ts.unexplained.length, debt: ts.debt, loopClosed: ts.loopClosed });
 const derived = check(report);
 fs.writeFileSync(REPORT_FILE, `${JSON.stringify(report, null, 2)}\n`);
 
 console.log('pixel diff:', Object.entries(report.scorecard.pixelDiff).map(([s, p]) => `${s} ${p.percent}% (${p.band})`).join(' · '));
 console.log(`ranked: fix-now ${order.fixNow.join(', ')} · debt ${order.debt.join(', ')} · sync-figma ${order.syncFigma.join(', ')}`);
-console.log(`parity ${derived.parity}% · verdict ${derived.verdict} · states verified ${derived.stateCoverage.verified}/${derived.stateCoverage.total}`);
+console.log(`parity ${derived.parity}% · verdict ${derived.verdict} · states verified ${derived.stateCoverage.verified}/${derived.stateCoverage.total} · unexplained ${derived.unexplained} · debt ${derived.debt.ticketed}/${derived.debt.count} ticketed`);

@@ -3,7 +3,7 @@
    step frame by frame at any speed and the soundtrack (cues.json) lands on the same frames. */
 (async function () {
   'use strict';
-  const W = 1920, H = 1080, FPS = 60, DUR = 60;
+  const W = 1920, H = 1080, FPS = 60, DUR = 65.4;
   // Playback runs the 60 s timeline at 0.75× speed (80 s of video), so every caption and close-in can be read.
   const STRETCH = 4 / 3;
   const VP = document.getElementById('viewport');
@@ -819,11 +819,11 @@
   }
 
   /* =====================================================================
-     SCENE 11 · Two outputs, then Copy all (42–46.6 s)
+     SCENE 11 · Two outputs (42–44.4 s), then into the report
      ===================================================================== */
   const CURSOR = '<svg viewBox="0 0 28 36" width="34" height="44"><path d="M3 2 L3 29 L10 22.4 L15 33.5 L20 31.3 L15 20.5 L25 20.5 Z" fill="#0a0a0a" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/></svg>';
   function buildOutputs() {
-    const S = scene('outputs', 42, 46.6, 'light');
+    const S = scene('outputs', 42, 44.4, 'light');
     const world = el('div', 'world', null, S.root);
     const L = el('div', 'win', '<div class="wbar"><i></i><i></i><i></i><span class="t">qa-reports/ACME-482/report.html</span></div>', world);
     box(L, 96, 200, 846, 760);
@@ -854,24 +854,14 @@
       '4. <span class="id">DQ-004</span>  Card padding is 20px, not 24px',
       '5. <span class="id">DQ-006</span>  Title weight is 500, not 600',
       '',
-      '<span class="h2">### Paste to your coding agent</span>',
-      '<span class="mu">Fix these design-parity findings in order…</span>',
+      '<span class="h2">## Debt (3) — tickets</span>',
+      '<span class="mu">DQ-007 · DQ-008 · DQ-016</span>',
     ].join('\n'), R);
-    const btn = el('div', 'cta', `${UI.icon('copy', 20)}<span>Copy all</span>`, R);
-    btn.style.position = 'absolute'; btn.style.right = '36px'; btn.style.bottom = '36px';
-    const btnLbl = btn.querySelector('span');
-    const cursor = el('div', 'cursor', CURSOR, S.root);
-    const toast = el('div', 'toast', `<span class="ok">${UI.icon('circleCheck', 22)}</span>5 fix prompts copied`, S.root);
-    S.caps = [cap(S.root, { t0: 42.12, t1: 43.9, text: 'A report for people. A fix plan for agents.', x: 96, y: 60, size: 66 })];
+    S.caps = [cap(S.root, { t0: 42.12, t1: 43.52, text: 'A report for people. A fix plan for agents.', x: 96, y: 60, size: 66 })];
     const cam = track([
-      { t: 42, x: 960, y: 540, s: 1 }, { t: 44.0, x: 960, y: 540, s: 1 },
-      { t: 44.6, x: 1420, y: 610, s: 1.4, e: E.inOutQuint }, { t: 46.6, x: 1428, y: 612, s: 1.43, e: E.lin },
+      { t: 42, x: 960, y: 540, s: 1 }, { t: 43.6, x: 960, y: 540, s: 1 },
+      { t: 44.4, x: 519, y: 640, s: 2.6, e: E.inExpo },
     ]);
-    S.measure = () => {
-      const r = btn.getBoundingClientRect();
-      S.btn = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      const q = toast.getBoundingClientRect(); S.tw = q.width;
-    };
     S.render = (t) => {
       const c = cam(t);
       world.style.transform = camCSS(c);
@@ -879,65 +869,179 @@
       const ul = P(t, 42.0, 0.55), ur = P(t, 42.06, 0.55);
       L.style.transform = `translateX(${f2((1 - ul) * -1100)}px)`;
       R.style.transform = `translateX(${f2((1 - ur) * 1100)}px)`;
-      const [bx, by] = proj(c, S.btn.x, S.btn.y);
-      vis(cursor, t >= 45.15);
-      const mu = E.outCubic(clamp((t - 45.2) / 0.85));
-      const cx = lerp(1760, bx - 6, mu), cy = lerp(1030, by - 4, mu);
-      const press = t >= 46.2 && t < 46.32 ? 0.86 : 1;
-      box(cursor, cx, cy);
-      cursor.style.transform = `scale(${press})`;
-      const pressed = t >= 46.2 && t < 46.34;
-      btn.style.transform = pressed ? 'scale(0.96)' : '';
-      btnLbl.textContent = t >= 46.24 ? 'Copied' : 'Copy all';
-      vis(toast, t >= 46.3);
-      const tu = P(t, 46.3, 0.4);
-      box(toast, W / 2 - S.tw / 2, 960 + (1 - tu) * 40);
-      op(toast, clamp((t - 46.3) / 0.12));
+      op(R, 1 - P(t, 43.6, 0.35, E.inCubic));
     };
     return S;
   }
 
   /* =====================================================================
-     SCENE 12 · Paste, fix, re-check (46.6–51 s)
+     SCENE 12 · Choose what to fix; the rest becomes debt (44.4–50 s)
+     ===================================================================== */
+  const TRIAGE = [
+    ['DQ-001', 'BLOCKER', 'Empty state is not implemented', 'OrdersTable.tsx:64', 1],
+    ['DQ-002', 'BLOCKER', 'Table header is hand-styled, not Table.Header', 'OrdersTable.tsx:41', 1],
+    ['DQ-003', 'WARNING', 'Row hover uses a hardcoded hex', 'orders.css:29'],
+    ['DQ-004', 'WARNING', 'Card padding is 20px, not --ads-space-6', 'orders.css:12'],
+    ['DQ-006', 'WARNING', 'Page title weight is 500, not 600', 'PageHeader.module.css:8'],
+    ['DQ-007', 'WARNING', 'Skeleton bars use a 2px radius, not 6px', 'Skeleton.tsx:18'],
+    ['DQ-008', 'WARNING', 'Hover transition is 400ms, not 160ms', 'orders.css:31'],
+    ['DQ-016', 'WARNING', 'Skeleton shows at once, not after 300 ms', 'useOrders.ts:22'],
+  ];
+  function buildTriage() {
+    const S = scene('triage', 44.4, 50.0, 'light');
+    const world = el('div', 'world', null, S.root);
+    const COLY = 176, ROW0 = 118, STEP = 90;
+    const colL = el('div', 'tcol', '<div class="th"><div><span class="tt">Fix now</span><span class="cnt"></span></div><div class="ts">Your agents get these, in this order</div></div>', world);
+    const colR = el('div', 'tcol debt', '<div class="th"><div><span class="tt">Debt</span><span class="cnt"></span></div><div class="ts">Each one becomes a ticket and a debt-log entry</div></div>', world);
+    box(colL, 96, COLY, 852, 700); box(colR, 972, COLY, 852, 700);
+    const cntL = colL.querySelector('.cnt'), cntR = colR.querySelector('.cnt');
+    const lockSvg = UI.icon('frame', 1).replace(/<svg[^>]*>.*<\/svg>/, '') + '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    const rows = TRIAGE.map(([id, sev, title, where, locked]) => {
+      const r = el('div', `trow sev-${sev}`, `<span class="${locked ? 'lock' : 'cbx'}">${locked ? lockSvg : ''}</span><span class="d"></span><div class="tx"><div class="t1">${title}</div><div class="t2">${id} · ${where}</div></div><span class="tk"></span>`, world);
+      return { id, r, cb: r.querySelector('.cbx'), tk: r.querySelector('.tk'), locked: !!locked };
+    });
+    const bar = el('div', 'tbar', `<span class="sum"></span><span class="b gho">${UI.icon('download', 18)}Export tickets CSV</span><span class="b out fixp">${UI.icon('copy', 18)}<span></span></span><span class="b pri cc">${UI.icon('terminal', 18)}Copy for Claude Code</span>`, world);
+    box(bar, 96, 900, 1728);
+    const sum = bar.querySelector('.sum'), fixp = bar.querySelector('.fixp span'), cc = bar.querySelector('.cc');
+    const cursor = el('div', 'cursor', CURSOR, S.root);
+    const toast = el('div', 'toast', `<span class="ok">${UI.icon('circleCheck', 22)}</span>Copied <span style="font:500 18px/1 var(--mono);color:var(--muted-fg)">/design-qa triage ACME-482 --fix DQ-001,DQ-002,DQ-003</span>`, S.root);
+    S.caps = [
+      cap(S.root, { t0: 44.55, t1: 47.3, text: 'You choose what gets fixed now.', x: 96, y: 56, size: 66 }),
+      cap(S.root, { t0: 47.45, t1: 49.85, text: 'The rest becomes debt, with tickets.', x: 96, y: 56, size: 66 }),
+    ];
+    // membership over time: two findings move from Fix now to Debt
+    const initial = Object.fromEntries(TRIAGE.map((r, i) => [r[0], i < 5 ? 'fix' : 'debt']));
+    const TG = [{ id: 'DQ-006', t: 45.85 }, { id: 'DQ-004', t: 46.95 }];
+    const states = [{ t: -1, m: initial, mover: null }];
+    TG.forEach((g) => { const m = { ...states[states.length - 1].m, [g.id]: 'debt' }; states.push({ t: g.t, m, mover: g.id }); });
+    const slots = (m) => {
+      const pos = {}; let i = 0, j = 0;
+      TRIAGE.forEach(([id]) => { if (m[id] === 'fix') pos[id] = { x: 120, y: COLY + ROW0 + STEP * i++ }; else pos[id] = { x: 996, y: COLY + ROW0 + STEP * j++ }; });
+      return pos;
+    };
+    const SL = states.map((s) => slots(s.m));
+    const cbCenter = (id, k) => ({ x: SL[k][id].x + 20 + 12, y: SL[k][id].y + 39 });
+    const btnCC = { x: 1824 - 14 - 130, y: 900 + 38 };
+    const path = [
+      { t: 45.15, ...{ x: 1500, y: 1040 } },
+      { t: 45.75, ...cbCenter('DQ-006', 0) },
+      { t: 46.35, ...cbCenter('DQ-006', 0) },
+      { t: 46.85, ...cbCenter('DQ-004', 1) },
+      { t: 48.1, ...cbCenter('DQ-004', 1) },
+      { t: 48.75, ...btnCC },
+      { t: 50, ...btnCC },
+    ];
+    const clicks = [45.85, 46.95, 48.85];
+    S.render = (t) => {
+      const k = states.reduce((a, s, i) => (t >= s.t ? i : a), 0);
+      const cur = states[k];
+      const u = k > 0 ? P(t, cur.t, 0.55, E.inOutQuint) : 1;
+      rows.forEach((o, i) => {
+        const a = SL[Math.max(0, k - 1)][o.id], b = SL[k][o.id];
+        const x = lerp(a.x, b.x, u), y = lerp(a.y, b.y, u);
+        const mv = cur.mover === o.id && u < 1;
+        const lift = mv ? 1 + 0.035 * Math.sin(Math.PI * u) : 1;
+        tr(o.r, x, y, lift);
+        o.r.style.zIndex = mv ? '5' : '';
+        o.r.style.boxShadow = mv ? `0 ${f2(24 * Math.sin(Math.PI * u))}px 40px rgb(0 0 0 / ${(0.18 * Math.sin(Math.PI * u)).toFixed(3)})` : '';
+        const t0 = 44.5 + i * 0.06;
+        op(o.r, clamp((t - t0) / 0.15));
+        o.r.style.translate = `0 ${f2((1 - P(t, t0, 0.5)) * 24)}px`;
+        const fix = cur.m[o.id] === 'fix';
+        if (o.cb) { o.cb.className = 'cbx' + (fix ? ' on' : ''); o.cb.innerHTML = fix ? UI.icon('check', 16) : ''; }
+        o.tk.textContent = fix ? '' : 'Ticket on apply';
+      });
+      const nf = TRIAGE.filter(([id]) => cur.m[id] === 'fix').length, nd = TRIAGE.length - nf;
+      cntL.textContent = nf; cntR.textContent = nd;
+      const pulse = k > 0 ? 1 + 0.18 * Math.sin(Math.PI * clamp((t - cur.t) / 0.35)) : 1;
+      cntL.style.transform = cntR.style.transform = pulse > 1.001 ? `scale(${pulse.toFixed(3)})` : '';
+      sum.innerHTML = `<b>${nf}</b> to fix now · <b>${nd}</b> to debt`;
+      fixp.textContent = `Copy fix prompt (${nf})`;
+      [colL, colR, bar].forEach((e, i) => { const t0 = 44.4 + i * 0.05; e.style.translate = `0 ${f2((1 - P(t, t0, 0.55)) * 40)}px`; op(e, clamp((t - t0) / 0.15)); });
+      cc.style.transform = t >= 48.85 && t < 48.97 ? 'scale(0.96)' : '';
+      // cursor
+      vis(cursor, t >= 45.15);
+      let seg = 0; while (seg < path.length - 2 && t >= path[seg + 1].t) seg++;
+      const pa = path[seg], pb = path[seg + 1];
+      const mu = E.inOutCubic(clamp((t - pa.t) / (pb.t - pa.t)));
+      box(cursor, lerp(pa.x, pb.x, mu) - 4, lerp(pa.y, pb.y, mu) - 4);
+      const press = clicks.some((c) => t >= c && t < c + 0.1);
+      cursor.style.transform = press ? 'scale(0.86)' : '';
+      vis(toast, t >= 48.95);
+      const tu = P(t, 48.95, 0.4);
+      box(toast, W / 2 - S.tw / 2, 1000 - 60 + (1 - tu) * 40);
+      op(toast, clamp((t - 48.95) / 0.12));
+    };
+    S.measure = () => { const q = toast.getBoundingClientRect(); S.tw = q.width; };
+    return S;
+  }
+
+  /* =====================================================================
+     SCENE 13 · Tickets, the log, and only the chosen fixes (50–56.4 s)
      ===================================================================== */
   function buildFixloop() {
-    const S = scene('fixloop', 46.6, 51, 'dark');
+    const S = scene('fixloop', 50.0, 56.4, 'dark');
     const world = el('div', 'world', null, S.root);
-    const term = termShell(world, '~/acme-console — claude', '<span>Fix these design-parity findings in order.</span><span class="tag d" style="margin-left:auto">pasted · 5 findings</span>');
-    box(term, 300, 262);
+    const term = termShell(world, '~/acme-console — claude', '<span>/design-qa triage ACME-482 --fix DQ-001,DQ-002,DQ-003</span>');
+    box(term, 96, 206); term.style.width = '1040px'; term.style.height = '650px';
     const lines = term.querySelector('.lines');
-    const F = [['DQ-001', 'EmptyState for zero orders', 'OrdersTable.tsx:64'], ['DQ-002', '&lt;thead&gt; → Table.Header', 'OrdersTable.tsx:41'], ['DQ-003', 'hover → --ads-color-surface-hover', 'orders.css:29'], ['DQ-004', 'padding → --ads-space-6', 'orders.css:12'], ['DQ-006', 'title → --ads-font-weight-semibold', 'PageHeader.module.css:8']];
-    const LN = F.map(([id, what, where]) => termLine(lines, `<span style="color:var(--claude)">${id}</span>&nbsp; ${what}`, where));
-    const meter = el('div', 'meter', `<div class="lbl"><span>Parity</span><span class="verdict fail">FAIL</span></div><div class="big">45%</div><div class="bar"><i></i></div><div class="ft" style="margin-top:20px;font:400 21px/1.3 var(--sans);color:var(--muted-fg)">Re-checking 9 states…</div>`, S.root);
-    const vd = meter.querySelector('.verdict'), big = meter.querySelector('.big'), bar = meter.querySelector('.bar i'), ft = meter.querySelector('.ft');
+    const LN = [
+      ['Triage applied', '3 fix now · 5 to debt'],
+      ['Created 5 Jira tickets', 'ACME-511 – ACME-515'],
+      ['Logged the debt', 'qa-reports/design-debt.md'],
+      ['<span style="color:var(--claude)">DQ-001</span>&nbsp; EmptyState for zero orders', 'OrdersTable.tsx:64'],
+      ['<span style="color:var(--claude)">DQ-002</span>&nbsp; &lt;thead&gt; → Table.Header', 'OrdersTable.tsx:41'],
+      ['<span style="color:var(--claude)">DQ-003</span>&nbsp; hover → --ads-color-surface-hover', 'orders.css:29'],
+    ].map(([a, b]) => termLine(lines, a, b));
+    const TIMES = [[50.6, 51.0], [51.1, 51.6], [51.7, 52.1], [52.2, 52.6], [52.7, 53.1], [53.2, 53.6]];
+    const jira = el('div', 'pnl', `<div class="ph">${UI.icon('ticket', 22)}Jira · ACME-482<span class="m">5 new sub-tasks</span></div>` +
+      [['ACME-511', 'Card padding is 20px, not 24px'], ['ACME-512', 'Page title weight is 500, not 600'], ['ACME-513', 'Skeleton bars use a 2px radius'], ['ACME-514', 'Hover transition is 400ms, not 160ms'], ['ACME-515', 'Skeleton shows at once, not after 300 ms']]
+        .map(([k, ti]) => `<div class="jr"><span class="key">${k}</span><span class="ti">${ti}</span><span class="lb">design-debt</span></div>`).join(''), world);
+    box(jira, 1170, 206, 654);
+    const log = el('div', 'pnl', `<div class="ph">${UI.icon('fileText', 22)}design-debt.md<span class="m">5 open</span></div><div class="lg"><span class="h">Status  Finding  Owner        Ticket</span>
+open    DQ-004   engineering  ACME-511
+open    DQ-006   engineering  ACME-512
+open    DQ-007   engineering  ACME-513
+open    DQ-008   engineering  ACME-514
+open    DQ-016   engineering  ACME-515</div>`, world);
+    box(log, 1170, 574, 654);
+    const jrows = [...jira.querySelectorAll('.jr')];
+    const meter = el('div', 'meter', `<div class="lbl"><span>Unexplained diffs</span><span class="verdict fail">FAIL</span></div><div class="big">8</div><div class="stack"><i class="fx"></i><i class="tr"></i></div><div class="ft" style="margin-top:20px;font:400 21px/1.3 var(--sans);color:var(--muted-fg)">Re-checking 9 states…</div>`, S.root);
+    const vd = meter.querySelector('.verdict'), big = meter.querySelector('.big'), fx = meter.querySelector('.fx'), trk = meter.querySelector('.tr'), ft = meter.querySelector('.ft');
     S.caps = [
-      cap(S.root, { t0: 46.72, t1: 47.28, text: 'Paste.', x: 96, y: 72, size: 72, out: 0.12 }),
-      cap(S.root, { t0: 47.36, t1: 47.92, text: 'Fix.', x: 96, y: 72, size: 72, out: 0.12 }),
-      cap(S.root, { t0: 48.0, t1: 48.86, text: 'Re-check.', x: 96, y: 72, size: 72, out: 0.14 }),
-      cap(S.root, { t0: 49.06, t1: 50.9, text: 'Until nothing is open.', x: 96, y: 72, size: 72 }),
+      cap(S.root, { t0: 50.15, t1: 51.6, text: 'Your pick, applied.', x: 96, y: 60, size: 66 }),
+      cap(S.root, { t0: 51.75, t1: 53.7, text: 'Tickets and a debt log, ready.', x: 96, y: 60, size: 66 }),
+      cap(S.root, { t0: 54.05, t1: 56.3, text: 'Every diff fixed or tracked.', x: 96, y: 60, size: 66 }),
     ];
-    const cam = track([{ t: 46.6, x: 960, y: 540, s: 1 }, { t: 49, x: 960, y: 548, s: 1.04, e: E.lin }, { t: 51, x: 960, y: 548, s: 1.04 }]);
+    const cam = track([{ t: 50, x: 960, y: 540, s: 1 }, { t: 53.8, x: 960, y: 544, s: 1.03, e: E.lin }, { t: 56.4, x: 960, y: 544, s: 1.03 }]);
     S.measure = () => { const r = meter.getBoundingClientRect(); S.mh = r.height; };
     S.render = (t) => {
       world.style.transform = camCSS(cam(t));
-      const inU = P(t, 46.6, 0.4);
-      term.style.transform = `translateY(${f2((1 - inU) * 60)}px) scale(${lerp(1, 0.97, P(t, 49.0, 0.4)).toFixed(4)})`;
-      op(term, (1 - 0.7 * P(t, 49.0, 0.35)));
-      [47.0, 47.4, 47.8, 48.2, 48.6].forEach((ct, i) => drawTermLine(LN[i], t, ct - 0.34, ct, 'ok', '✓'));
-      vis(meter, t >= 49.0);
-      const mu = P(t, 49.0, 0.5);
-      box(meter, 580, 540 - S.mh / 2 + 40);
+      const inU = P(t, 50.0, 0.4);
+      term.style.transform = `translateY(${f2((1 - inU) * 60)}px)`;
+      op(term, clamp((t - 50) / 0.15));
+      LN.forEach((l, i) => drawTermLine(l, t, TIMES[i][0], TIMES[i][1], 'ok', '✓'));
+      const ju = P(t, 51.45, 0.5), lu = P(t, 52.0, 0.5);
+      vis(jira, t >= 51.45); vis(log, t >= 52.0);
+      jira.style.transform = `translateX(${f2((1 - ju) * 90)}px)`; op(jira, clamp((t - 51.45) / 0.15));
+      log.style.transform = `translateX(${f2((1 - lu) * 90)}px)`; op(log, clamp((t - 52.0) / 0.15));
+      jrows.forEach((r, i) => { const t0 = 51.6 + i * 0.12; op(r, clamp((t - t0) / 0.15)); r.style.transform = `translateY(${f2((1 - P(t, t0, 0.35)) * 10)}px)`; });
+      const dim = 1 - 0.72 * P(t, 53.8, 0.35);
+      op(world, dim);
+      vis(meter, t >= 53.8);
+      const mu = P(t, 53.8, 0.5);
+      box(meter, 580, 540 - S.mh / 2 + 30);
       meter.style.transform = `translateY(${f2((1 - mu) * 90)}px) scale(${lerp(0.94, 1, mu).toFixed(4)})`;
-      op(meter, clamp((t - 49.0) / 0.15));
-      const v = Math.round(lerp(45, 100, E.inOutCubic(clamp((t - 49.1) / 1.1))));
-      big.textContent = v + '%';
-      bar.style.width = v + '%';
-      const pass = t >= 50.2;
+      op(meter, clamp((t - 53.8) / 0.15));
+      const p = E.inOutCubic(clamp((t - 53.95) / 1.1));
+      big.textContent = String(Math.round(lerp(8, 0, p)));
+      fx.style.width = f2(p * 37.5) + '%';
+      trk.style.width = f2(p * 62.5) + '%';
+      const pass = t >= 55.1;
       vd.className = 'verdict ' + (pass ? 'pass' : 'fail');
       vd.textContent = pass ? 'PASS' : 'FAIL';
-      vd.style.transform = pass ? `scale(${lerp(1.25, 1, P(t, 50.2, 0.4, E.outBack)).toFixed(3)})` : '';
-      bar.style.background = pass ? 'var(--pass)' : '';
-      ft.textContent = pass ? 'Re-captured 9 states · 0 open findings' : 'Re-checking 9 states…';
+      vd.style.transform = pass ? `scale(${lerp(1.25, 1, P(t, 55.1, 0.4, E.outBack)).toFixed(3)})` : '';
+      ft.innerHTML = pass ? '<b style="color:var(--pass);font-weight:600">3 fixed</b> · <b style="color:var(--fg);font-weight:600">5 tracked in Jira</b> · 0 unexplained' : 'Re-checking 9 states…';
     };
     return S;
   }
@@ -947,6 +1051,7 @@
      ===================================================================== */
   function buildCI() {
     const S = scene('ci', 51, 55, 'light');
+    S.shift = 5.4;
     const world = el('div', 'world', null, S.root);
     const ok = `<span class="ok">${UI.icon('circleCheck', 26)}</span>`;
     const ci = el('div', 'ci', `
@@ -990,7 +1095,7 @@
       txt.innerHTML = {
         run: t < 51.4 ? 'Design QA <span class="m">· running against the preview…</span>' : 'Design QA <span class="m">· re-running after fixes…</span>',
         bad: 'Design QA <span class="m">· </span><span class="bad">2 blockers · 1 state missing in code</span>',
-        ok: 'Design QA <span class="m">· </span><span class="ok">parity 100% · 9 of 9 states verified</span>',
+        ok: 'Design QA <span class="m">· </span><span class="ok">0 unexplained · 5 tracked as debt</span>',
       }[state];
       ftxt.textContent = t >= 53.8 ? 'All checks have passed' : t >= 51.4 ? 'Merging is blocked: Design QA failed' : 'Checks are running';
       merge.classList.toggle('go', t >= 54.2);
@@ -1004,6 +1109,7 @@
      ===================================================================== */
   function buildClose() {
     const S = scene('close', 55, 60, 'dark');
+    S.shift = 5.4;
     const o = wordmark(S.root, 200);
     const chip = el('div', 'chip', '<span class="pr">$</span>claude plugin install design-qa@design-qa-skill', S.root);
     chip.style.position = 'absolute';
@@ -1037,22 +1143,24 @@
   await Promise.all(['600 100px Geist', '500 20px Geist', '400 20px Geist', '700 20px Geist', '400 20px "Geist Mono"', '500 20px "Geist Mono"', '600 20px "Geist Mono"'].map((f) => document.fonts.load(f)));
   await document.fonts.ready;
   measureAnchors(['app/hover', 'design/hover', 'app/empty', 'design/empty']);
-  [buildCanvas, buildReveal, buildTerminal, buildStates, buildReport, buildMatrix, buildOutputs, buildFixloop, buildCI, buildClose].forEach((f) => f());
+  [buildCanvas, buildReveal, buildTerminal, buildStates, buildReport, buildMatrix, buildOutputs, buildTriage, buildFixloop, buildCI, buildClose].forEach((f) => f());
+  SCENES.forEach((s) => { s.shift = s.shift || 0; s.t0 += s.shift; s.t1 += s.shift; });
   SCENES.forEach((s) => {
     s.root.classList.add('on');
     if (s.measure) s.measure();
     s.caps.forEach((c) => { vis(c.e, true); c.place(); });
     s.root.classList.remove('on');
   });
-  const PUNCH = new Set(['reveal', 'terminal', 'states', 'matrix', 'outputs', 'fixloop', 'ci', 'close']);
+  const PUNCH = new Set(['reveal', 'terminal', 'states', 'matrix', 'outputs', 'triage', 'fixloop', 'ci', 'close']);
   window.renderFrame = (T) => {
     const t = clamp(T / STRETCH, 0, DUR - 1e-6);
     SCENES.forEach((s) => {
       const on = t >= s.t0 && t < s.t1;
       s.root.classList.toggle('on', on);
       if (!on) return;
-      s.render(t);
-      s.caps.forEach((c) => drawCap(c, t));
+      const tl = t - s.shift;
+      s.render(tl);
+      s.caps.forEach((c) => drawCap(c, tl));
       if (PUNCH.has(s.id)) {
         const k = 1 + 0.03 * (1 - P(t, s.t0, 0.42));
         s.root.style.transform = k > 1.0001 ? `scale(${k.toFixed(4)})` : '';

@@ -1,11 +1,11 @@
 {
  "title": "design-qa showcase",
- "duration": 60,
+ "duration": 65.4,
  "playback": {
   "stretch": 1.3333333333333333,
-  "videoDuration": 80,
+  "videoDuration": 87.2,
   "videoBpm": 90,
-  "note": "Times in this file are timeline seconds. The rendered video plays the 60 s timeline at 0.75x speed: multiply by 4/3 for video time."
+  "note": "Times in this file are timeline seconds. The rendered video plays the 65.4 s timeline at 0.75x speed: multiply by 4/3 for video time."
  },
  "fps": 60,
  "width": 1920,
@@ -23,50 +23,47 @@
   {
    "name": "intro",
    "start": 0,
-   "end": 8,
-   "music": "pad + soft arp, closed hats from 4.0 s, no kick"
+   "end": 8
   },
   {
    "name": "build",
    "start": 8,
-   "end": 10,
-   "music": "noise riser, snare roll accelerating, filter opening, kick quarters from 9.0 s"
+   "end": 10
   },
   {
    "name": "dropA",
    "start": 10,
-   "end": 22,
-   "music": "full groove: kick 4-on-floor, clap 2 & 4, hats, sidechained sub bass, off-beat chord stabs"
+   "end": 22
   },
   {
    "name": "dropB",
    "start": 22,
-   "end": 37,
-   "music": "groove + short pluck motif for lift"
+   "end": 37
   },
   {
    "name": "dropC",
    "start": 37,
-   "end": 46,
-   "music": "groove + open hats / percussion variation"
+   "end": 44.4
+  },
+  {
+   "name": "triage",
+   "start": 44.4,
+   "end": 50
   },
   {
    "name": "dropD",
-   "start": 46,
-   "end": 55,
-   "music": "full energy: motif + 16th hats"
+   "start": 50,
+   "end": 60.4
   },
   {
    "name": "breakdown",
-   "start": 55,
-   "end": 57.5,
-   "music": "drums out, pad + sub swell under the tagline"
+   "start": 60.4,
+   "end": 62.9
   },
   {
    "name": "end",
-   "start": 57.5,
-   "end": 60,
-   "music": "final impact + held chord, decays to silence by 60.0 s"
+   "start": 62.9,
+   "end": 65.4
   }
  ],
  "scenes": [
@@ -103,22 +100,27 @@
   {
    "id": "outputs",
    "start": 42,
-   "end": 46.6
+   "end": 44.4
+  },
+  {
+   "id": "triage",
+   "start": 44.4,
+   "end": 50
   },
   {
    "id": "fixloop",
-   "start": 46.6,
-   "end": 51
+   "start": 50,
+   "end": 56.4
   },
   {
    "id": "ci",
-   "start": 51,
-   "end": 55
+   "start": 56.4,
+   "end": 60.4
   },
   {
    "id": "close",
-   "start": 55,
-   "end": 60
+   "start": 60.4,
+   "end": 65.4
   }
  ],
  "events": [
@@ -662,141 +664,224 @@
    "dur": 0.4
   },
   {
-   "t": 44,
+   "t": 43.6,
    "type": "whoosh",
    "dir": "in",
-   "dur": 0.5
+   "dur": 0.8
   },
   {
-   "t": 46.2,
-   "type": "click"
+   "t": 44.4,
+   "type": "hit"
   },
   {
-   "t": 46.3,
-   "type": "toast"
-  },
-  {
-   "t": 46.6,
-   "type": "whoosh",
-   "dir": "up",
-   "dur": 0.3
-  },
-  {
-   "t": 47,
-   "type": "success",
+   "t": 44.5,
+   "type": "tick",
    "index": 0
   },
   {
-   "t": 47.4,
-   "type": "success",
+   "t": 44.56,
+   "type": "tick",
    "index": 1
   },
   {
-   "t": 47.8,
-   "type": "success",
+   "t": 44.62,
+   "type": "tick",
    "index": 2
   },
   {
-   "t": 48.2,
-   "type": "success",
+   "t": 44.68,
+   "type": "tick",
    "index": 3
   },
   {
-   "t": 48.6,
-   "type": "success",
+   "t": 44.74,
+   "type": "tick",
    "index": 4
   },
   {
-   "t": 49,
-   "type": "riser",
-   "end": 50.2,
-   "short": true
+   "t": 44.8,
+   "type": "tick",
+   "index": 5
   },
   {
-   "t": 50.2,
-   "type": "chime"
+   "t": 44.86,
+   "type": "tick",
+   "index": 6
   },
   {
-   "t": 51,
+   "t": 44.92,
+   "type": "tick",
+   "index": 7
+  },
+  {
+   "t": 45.85,
+   "type": "click"
+  },
+  {
+   "t": 45.9,
+   "type": "swish",
+   "index": 0
+  },
+  {
+   "t": 46.95,
+   "type": "click"
+  },
+  {
+   "t": 47,
+   "type": "swish",
+   "index": 1
+  },
+  {
+   "t": 48.85,
+   "type": "click"
+  },
+  {
+   "t": 48.95,
+   "type": "toast"
+  },
+  {
+   "t": 50,
    "type": "whoosh",
    "dir": "up",
    "dur": 0.4
   },
   {
-   "t": 51.4,
-   "type": "fail"
+   "t": 50.2,
+   "type": "enter"
   },
   {
-   "t": 53,
-   "type": "click"
+   "t": 51,
+   "type": "success",
+   "index": 0
   },
   {
-   "t": 53.8,
+   "t": 51.45,
+   "type": "whoosh",
+   "dir": "right",
+   "dur": 0.35
+  },
+  {
+   "t": 51.6,
+   "type": "success",
+   "index": 1
+  },
+  {
+   "t": 52,
+   "type": "whoosh",
+   "dir": "right",
+   "dur": 0.35
+  },
+  {
+   "t": 52.1,
+   "type": "success",
+   "index": 2
+  },
+  {
+   "t": 52.6,
+   "type": "success",
+   "index": 3
+  },
+  {
+   "t": 53.1,
    "type": "success",
    "index": 4
   },
   {
-   "t": 54.2,
+   "t": 53.6,
+   "type": "success",
+   "index": 5
+  },
+  {
+   "t": 53.8,
+   "type": "riser",
+   "end": 55.1,
+   "short": true
+  },
+  {
+   "t": 55.1,
+   "type": "chime"
+  },
+  {
+   "t": 56.4,
+   "type": "whoosh",
+   "dir": "up",
+   "dur": 0.4
+  },
+  {
+   "t": 56.8,
+   "type": "fail"
+  },
+  {
+   "t": 58.4,
    "type": "click"
   },
   {
-   "t": 54.5,
+   "t": 59.2,
+   "type": "success",
+   "index": 4
+  },
+  {
+   "t": 59.6,
+   "type": "click"
+  },
+  {
+   "t": 59.9,
    "type": "reverse",
    "end": 55
   },
   {
-   "t": 55,
+   "t": 60.4,
    "type": "word"
   },
   {
-   "t": 55.12,
+   "t": 60.52,
    "type": "word"
   },
   {
-   "t": 55.24,
+   "t": 60.64,
    "type": "word"
   },
   {
-   "t": 55.36,
+   "t": 60.76,
    "type": "word"
   },
   {
-   "t": 55.48,
+   "t": 60.88,
    "type": "word"
   },
   {
-   "t": 56.2,
+   "t": 61.6,
    "type": "word"
   },
   {
-   "t": 56.32,
+   "t": 61.72,
    "type": "word"
   },
   {
-   "t": 56.44,
+   "t": 61.84,
    "type": "word"
   },
   {
-   "t": 56.56,
+   "t": 61.96,
    "type": "word"
   },
   {
-   "t": 56.68,
+   "t": 62.08,
    "type": "word"
   },
   {
-   "t": 57.5,
+   "t": 62.9,
    "type": "impact",
    "final": true
   },
   {
-   "t": 57.8,
+   "t": 63.2,
    "type": "pop",
    "severity": "BLOCKER",
    "big": true
   },
   {
-   "t": 58.1,
+   "t": 63.5,
    "type": "shimmer"
   }
  ]

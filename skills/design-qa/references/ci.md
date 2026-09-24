@@ -18,7 +18,7 @@ The reference workflow is `examples/github-actions/design-qa.yml` in the skill r
 
 5. **Validate and render**: `validate.mjs` on `report.json`, then `render-report.mjs --embed-images --fixplan …` so the HTML is a single file.
 6. **Upload** the output folder as a build artifact.
-7. **Comment** the fix plan on the PR. Update one marked comment instead of adding a new one on every push.
+7. **Comment** the fix plan on the PR. Update one marked comment instead of adding a new one on every push. Its Debt section lists the proposed debt, marked as having no ticket yet.
 8. **Gate** on the verdict:
 
    ```bash
@@ -27,7 +27,7 @@ The reference workflow is `examples/github-actions/design-qa.yml` in the skill r
    [ "$VERDICT" != "FAIL" ] || exit 1
    ```
 
-FAIL means an open 🔴 BLOCKER, a designed state `MISSING_IN_CODE`, or a pixel diff in the fail band. REVIEW passes the check; the PR comment carries the details. To make REVIEW block as well, test for it in the gate step.
+The gate is unchanged by triage. FAIL means an open 🔴 BLOCKER, a designed state `MISSING_IN_CODE`, or a pixel diff in the fail band in a state with an unexplained finding or no findings. REVIEW passes the check; the PR comment carries the details. To make REVIEW block as well, test for it in the gate step.
 
 ## What ci mode does differently
 
@@ -36,6 +36,7 @@ FAIL means an open 🔴 BLOCKER, a designed state `MISSING_IN_CODE`, or a pixel 
 - **Targets**: a URL passed in by the workflow is trusted. A preview URL found only in the ticket is used only when `ticket.trustPreviewUrl` is true.
 - **Sign-off**: `INTENTIONAL` only through a known drift or a sign-off recorded in an earlier report. Everything else that looks intentional is `UNCLASSIFIED` with an open decision, which makes the verdict REVIEW.
 - **Pixel diff** runs for every state that has both PNGs.
+- **Triage**: the run records the default split with `node scripts/triage.mjs --report <dir>/report.json --default --source ci-default` (fix now: the fix-now bucket, every blocker and every `SYNC_FIGMA` finding; debt: the debt bucket). It never creates tickets, so that debt stays unexplained and the verdict at best REVIEW. A person closes the loop later: the report's "Choose what to fix" board, or `/design-qa triage <slug> --fix <ids>` locally, then the tickets.
 - **Tools**: MCP servers are usually not available in CI, so the ladders start lower: Figma through `scripts/figma-fetch.mjs` (`FIGMA_TOKEN`), tickets through `scripts/jira-fetch.mjs`, capture through `scripts/capture.mjs`.
 - **Output**: the directory the workflow names (for example `qa-reports/ci`).
 

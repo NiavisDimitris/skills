@@ -86,15 +86,43 @@ A preview URL from a ticket can be stale (built from an older commit), belong to
 
 ## Writing back
 
-Off by default (`ticket.writeBack: false`). When enabled:
+Comments on the audited ticket are off by default (`ticket.writeBack: false`). When enabled:
 
 - Interactive modes only, and always after the user has seen the exact content and said yes.
-- Both write commands are dry runs until `--write` is added: run them once without it, show the user what would be sent, then repeat with `--write`.
-- A summary comment: `node scripts/jira-fetch.mjs --issue ABC-123 --comment <file> [--write]`. Keep it short: verdict, parity, the fix-now list, where the full report lives.
-- Debt as sub-tasks: `node scripts/jira-fetch.mjs --issue ABC-123 --subtasks <dir>/report-fixplan.md [--write] [--issuetype Sub-task]` creates one sub-task per "Debt" item and skips finding ids that already have one.
+- The command is a dry run until `--write` is added: run it once without, show the user what would be sent, then repeat with `--write`.
+- A summary comment: `node scripts/jira-fetch.mjs --issue ABC-123 --comment <file> [--write]`. Keep it short: verdict, parity, the fix-now list, the debt tickets, where the full report lives.
 - Never change status, assignee or other fields. Never post credentials or internal-only URLs.
 - ci mode never writes to tickets. The pull-request comment is the CI channel (ci.md).
 
+## Creating debt tickets
+
+After triage (report.md, "Triage and debt"), every finding triaged as debt gets its own ticket, so nothing the person chose to defer is lost. `ticket.writeBack` does not gate this; the person's yes does, every time.
+
+1. **Preview.** `node scripts/jira-fetch.mjs --tickets-from <dir>/report.json` is a dry run: it prints every ticket it would create. Show that list to the person.
+2. **Confirm.** Create nothing until they say yes. An item they do not want ticketed moves to fix now or is signed off as `INTENTIONAL` (re-run triage); it never stays untracked.
+3. **Create.** Add `--write`. The script creates one ticket per debt item that has no ticket yet and writes `{ provider, key, url, createdAt }` into `triage.items[].ticket` in `report.json`.
+4. **Record.** Re-render the report (Phase 9) and update the debt log with `scripts/debt-log.mjs`.
+
+```bash
+node scripts/jira-fetch.mjs --tickets-from <dir>/report.json [--parent ABC-123] [--project ABC] \
+  [--issuetype Sub-task|Task] [--labels design-qa,design-debt] [--write]
+```
+
+What each ticket gets:
+
+| Field | Source |
+|---|---|
+| Summary | The finding's id and title. |
+| Description | The finding's agent prompt block (element, Figma layer, expected and actual values, code location, fix, evidence) and the triage reason. |
+| Issue type | `--issuetype`, else `ticket.debt.issueType` (default `Sub-task`). |
+| Parent | `--parent`, else `ticket.debt.parent`: `"auto"` means the audited ticket (`meta.ticket.key`). A sub-task needs a parent; without an audited ticket, use `Task`. |
+| Project | `--project`, else `ticket.debt.project`. Needed for a `Task`; a sub-task takes its parent's project. |
+| Labels | `--labels`, else `ticket.debt.labels` (default `design-qa`, `design-debt`), so the debt stays findable. |
+
+In interactive sessions the Atlassian MCP can create the same tickets. Use the same fields, then write each key into `triage.items[].ticket` yourself before re-rendering.
+
+Never in ci mode: CI lists the proposed debt in the PR comment and leaves the tickets to a person.
+
 ## Other trackers
 
-Linear and GitHub Issues are planned as adapters that write the same `ticket.json` shape. Until then, read them through their MCP servers or paste the text, and set `meta.ticket.provider` to `linear` or `github`.
+Linear and GitHub Issues are planned as adapters that write the same `ticket.json` shape and create debt tickets the same way. Until then, read them through their MCP servers or paste the text, set `meta.ticket.provider` to `linear` or `github`, and record debt tickets created through those servers in `triage.items[].ticket` with the matching `provider`.

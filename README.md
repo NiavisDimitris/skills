@@ -35,13 +35,21 @@ figma-fetch.mjs      jira-fetch.mjs      (used directly)
           report.json      report.html
           report-fixplan.md (interactive, single file)
           (agent-readable)   (human-readable)
+                          |
+                          v
+            triage.mjs: you choose what to fix now
+                    /                  \
+                   v                    v
+          fix loop on the        debt tickets (jira-fetch.mjs)
+          fix-now set            + design-debt log (debt-log.mjs)
 ```
 
 ## What you get
 
 - **`report.json`** — the full, agent-readable result: every surface, every state, every finding with its severity, evidence and location. Schema: [`skills/design-qa/schemas/report.schema.json`](skills/design-qa/schemas/report.schema.json).
-- **`report-fixplan.md`** — the top N findings to fix now, the rest logged as debt, plus a paste-to-agent block for each fix-now item so you can hand it straight to a coding agent.
-- **`report.html`** — a single-file interactive report for humans. The annotated capture is the page: the Figma frame and the app screenshot side by side, overlaid, wiped or diffed, per state, with numbered pins on the capture coloured by severity that open each finding's detail with its Figma-versus-app crop. Below it: the fix-now list with copyable agent prompts, collapsed debt and Figma-sync lists, a findings table with facet filters, state coverage, decisions and sign-offs. Styled on shadcn/ui (Neutral theme, Geist embedded under its OFL licence), implemented in plain CSS so the file opens offline with no network calls.
+- **`report-fixplan.md`** — what you chose to fix now, the rest as ticketed debt, plus a paste-to-agent block for each fix-now item so you can hand it straight to a coding agent.
+- **Tickets and a debt log** — every diff you don't fix now becomes a ticket and an entry in `qa-reports/design-debt.md` (and `.json`), so nothing is left unexplained. See [Triage](#triage-fix-now-or-ticket-it).
+- **`report.html`** — a single-file interactive report for humans. The annotated capture is the page: the Figma frame and the app screenshot side by side, overlaid, wiped or diffed, per state, with numbered pins on the capture coloured by severity that open each finding's detail with its Figma-versus-app crop. Below it: a "Choose what to fix" board, the fix-now list with copyable agent prompts, collapsed debt and Figma-sync lists, a findings table with facet filters, state coverage, decisions and sign-offs. Styled on shadcn/ui (Neutral theme, Geist embedded under its OFL licence), implemented in plain CSS so the file opens offline with no network calls.
 
 See a rendered example at [`examples/sample/report.html`](examples/sample/report.html). *(Screenshot: `docs/report-preview.png` — TODO, not yet added.)*
 
@@ -89,9 +97,19 @@ A Jira ticket key alone (`ACME-482`) is often enough — the skill pulls Figma l
 **Modes:**
 
 - `audit` (default) — compare and report; no code changes.
-- `fix` — audit, then drive fixes for the top-N findings and re-verify.
+- `fix` — audit, let you choose what to fix now (triage), fix that set and re-verify; the rest becomes ticketed debt.
 - `sync` — reconcile drift the other way: states present in code but missing from Figma get flagged back for a design decision instead of silently failing.
 - `ci` — like audit, but non-interactive: fixed output paths, no questions, exits with a verdict.
+- `triage` — `/design-qa triage <slug> --fix DQ-001,DQ-004` applies your fix-now choice to an existing report (see below).
+
+## Triage: fix now or ticket it
+
+You decide which diffs get fixed now. Everything else becomes debt with a ticket and a log entry, so every diff ends up fixed, synced to Figma, signed off, or tracked.
+
+1. After an audit, choose in chat (the skill offers a recommended split) or on the report's "Choose what to fix" board, whose "Copy for Claude Code" button copies the command.
+2. `/design-qa triage <slug> --fix DQ-001,DQ-004` records the choice (`triage.mjs`), shows you the debt tickets it would create and creates them only after your yes (`jira-fetch.mjs --tickets-from`), updates the cumulative debt log (`debt-log.mjs`), then fixes the fix-now set. Add `--no-fix` to stop after the tickets.
+3. Blockers can't become debt: fix them or sign them off.
+4. The pass is closed when nothing is left unexplained (`scorecard.loopClosed`). In CI, the default split is recorded, no tickets are created, and the proposed debt is listed in the PR comment.
 
 ## States
 
@@ -116,9 +134,11 @@ All under `skills/design-qa/scripts/`.
 | `capture.mjs` | Drives the target app with Playwright and screenshots every designed state for a surface | `node skills/design-qa/scripts/capture.mjs --url http://localhost:3000/orders --width 1440 --height 900 --states states.json --grab grab.json --out qa-reports/orders/evidence`<br>short form via config: `--config design-qa.config.json --surface orders --width 1440 --height 900 --out qa-reports/orders/evidence` |
 | `diff.mjs` | Pixel-diffs a capture against its Figma reference | `node skills/design-qa/scripts/diff.mjs qa-reports/orders/evidence/figma/with-data.png qa-reports/orders/evidence/app/with-data.png --out qa-reports/orders/evidence/diff/with-data.png`<br>batch: `--pairs pairs.json --out-dir qa-reports/orders/evidence/diff` |
 | `figma-fetch.mjs` | Resolves a Figma link to reference images and a per-state design spec | `FIGMA_TOKEN=... node skills/design-qa/scripts/figma-fetch.mjs --url "https://www.figma.com/design/AbCdEfGhIjKlMnOp/Orders?node-id=12-345" --states auto --out qa-reports/orders/evidence` |
-| `jira-fetch.mjs` | Resolves a ticket key to its Figma links, acceptance criteria and preview URL | `JIRA_BASE_URL=... JIRA_EMAIL=... JIRA_API_TOKEN=... node skills/design-qa/scripts/jira-fetch.mjs --issue ACME-482 --out qa-reports/orders/evidence` |
+| `jira-fetch.mjs` | Resolves a ticket key to its Figma links, acceptance criteria and preview URL; creates debt tickets from a triaged report | `JIRA_BASE_URL=... JIRA_EMAIL=... JIRA_API_TOKEN=... node skills/design-qa/scripts/jira-fetch.mjs --issue ACME-482 --out qa-reports/orders/evidence`<br>debt tickets (dry run until `--write`): `node skills/design-qa/scripts/jira-fetch.mjs --tickets-from qa-reports/ACME-482/report.json --parent ACME-482 --write` |
 | `render-report.mjs` | Renders `report.json` into `report.html` and `report-fixplan.md` | `node skills/design-qa/scripts/render-report.mjs --in qa-reports/report.json --out qa-reports/report.html --embed-images --fixplan qa-reports/report-fixplan.md` |
 | `validate.mjs` | Validates a `report.json`, `design-qa.config.json`, or a `state-matrix.json` (type inferred from shape, or set with `--type`) | `node skills/design-qa/scripts/validate.mjs qa-reports/report.json` |
+| `triage.mjs` | Records which findings are fixed now and which become debt (blockers can't be debt) | `node skills/design-qa/scripts/triage.mjs --report qa-reports/ACME-482/report.json --fix DQ-001,DQ-004 --by "A. Lee" --source chat`<br>default split: `--default` · from a file: `--selection selection.json` · preview: `--dry-run` |
+| `debt-log.mjs` | Updates the cumulative design-debt log from a triaged report; entries are marked resolved when a later pass shows them fixed | `node skills/design-qa/scripts/debt-log.mjs --report qa-reports/ACME-482/report.json --log qa-reports/design-debt.json --md qa-reports/design-debt.md` |
 
 App auth, when the target app needs it, is env-only: `DESIGN_QA_APP_USER` / `DESIGN_QA_APP_PASS` / `DESIGN_QA_APP_COOKIE` / `DESIGN_QA_APP_STORAGE_STATE`. Never put credentials in `design-qa.config.json` — it's meant to be committed.
 
@@ -130,7 +150,9 @@ It runs the skill headlessly against a PR's preview URL and gates the PR on:
 
 - any open **BLOCKER** finding,
 - a designed state **missing in the implementation**,
-- a pixel diff **above the review band** (`tolerances.pixelDiff.review` in the config).
+- a pixel diff **above the review band** (`tolerances.pixelDiff.review` in the config) in a state with an unexplained finding or no findings.
+
+In CI the skill records the default triage, never creates tickets, and lists the proposed debt in the PR comment for a person to confirm.
 
 Secrets the adopter sets: `ANTHROPIC_API_KEY`, `FIGMA_TOKEN`, `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and any `DESIGN_QA_APP_*` the target app needs. `GITHUB_TOKEN` is provided by Actions automatically.
 

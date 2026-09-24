@@ -3,7 +3,10 @@
 // agentPrompt(), codingAgentIntro and designAgentIntro exactly, so keep the format
 // stable: null values render as "–" (tokens as "none"), the snippet line is
 // omitted when there is no snippet.
-import { compareRanked, findingsInBucket, rankFindings, resolveOptions } from './ranking.mjs';
+import { compareRanked, isTriageable, rankFindings, resolveOptions, triageIndex } from './ranking.mjs';
+import { ownerOf, recommendedFixIds, triageCommand, triageLists } from './triage.mjs';
+
+export { triageCommand };
 
 export const DASH = '–';
 /** First line of the "Paste to your coding agent" block (fix-now findings). */
@@ -73,11 +76,26 @@ function fence(content) {
 
 const stateOf = (f) => orDash(f.state);
 
+/** The "Triage: …" line under the fix plan header. */
+export function triageLine(report, opts = {}) {
+  const o = resolveOptions(opts);
+  const triage = report?.triage;
+  if (triage && Array.isArray(triage.items)) {
+    const items = triage.items.filter(Boolean);
+    const debt = items.filter((i) => i.decision === 'debt');
+    const date = /^\d{4}-\d{2}-\d{2}/.test(String(triage.decidedAt ?? '')) ? String(triage.decidedAt).slice(0, 10) : DASH;
+    return `Triage: ${items.length - debt.length} fix now · ${debt.length} debt (${debt.filter((i) => i.ticket).length} ticketed) · ${orDash(triage.decidedBy)}, ${date}`;
+  }
+  const findings = Array.isArray(report?.findings) ? report.findings : [];
+  if (!findings.some((f) => f && isTriageable(f))) return 'Triage: nothing to triage';
+  return `Triage: recommended (top ${o.topN} by rank). Choose in report.html, or run ${triageCommand(report, recommendedFixIds(report, o))}`;
+}
+
 /**
- * Render report-fixplan.md: header · Fix now (+ coding-agent paste block) · Debt ·
- * Sync to Figma (+ design-agent paste block) · Missing states / needs decision ·
- * Cannot verify. Uses finding.rank when every finding has one, otherwise ranks
- * with rankFindings(opts) first.
+ * Render report-fixplan.md: header (+ Triage line) · Fix now (+ coding-agent paste
+ * block) · Sync to Figma (+ design-agent paste block) · Debt — tickets · Missing
+ * states / needs decision · Cannot verify. With a triage block the person's
+ * decisions fill Fix now / Sync to Figma / Debt; without one the rank buckets do.
  */
 export function renderFixplan(report, opts = {}) {
   const o = resolveOptions(opts);
@@ -86,9 +104,9 @@ export function renderFixplan(report, opts = {}) {
   const cov = sc.stateCoverage || {};
   const raw = Array.isArray(report.findings) ? report.findings : [];
   const findings = raw.every((f) => f && f.rank) ? raw : rankFindings(raw, o);
-  const fixNow = findingsInBucket(findings, 'fix-now');
-  const debt = findingsInBucket(findings, 'debt');
-  const syncFigma = findingsInBucket(findings, 'sync-figma');
+  const ranked = { ...report, findings };
+  const { fixNow, syncFigma, debt } = triageLists(ranked, o);
+  const tickets = triageIndex(report);
   const matrix = Array.isArray(report.stateMatrix) ? report.stateMatrix : [];
   const decisions = Array.isArray(report.openDecisions) ? report.openDecisions : [];
 
@@ -100,6 +118,7 @@ export function renderFixplan(report, opts = {}) {
   out.push(
     `Figma: ${orDash(meta.figma?.url)} · App: ${orDash(meta.app?.url)} (${orDash(meta.app?.kind)}) · Ticket: ${orDash(meta.ticket?.key)} · Generated: ${orDash(meta.generatedAt)}`,
   );
+  out.push(triageLine(ranked, o));
   out.push('');
 
   out.push(`## Fix now (${fixNow.length})`);
@@ -123,14 +142,6 @@ export function renderFixplan(report, opts = {}) {
   }
   out.push('');
 
-  out.push(`## Debt (${debt.length}) — log as tickets`);
-  if (!debt.length) out.push('- None');
-  for (const f of debt) {
-    const firstEvidence = Array.isArray(f.evidence) && f.evidence[0]?.path ? f.evidence[0].path : DASH;
-    out.push(`- ${f.id} — ${f.title} (${f.severity}, ${f.ledger}, state ${stateOf(f)}) — ${orDash(f.fix?.summary)} — evidence: ${firstEvidence}`);
-  }
-  out.push('');
-
   out.push(`## Sync to Figma (${syncFigma.length})`);
   if (!syncFigma.length) {
     out.push('- None');
@@ -144,6 +155,14 @@ export function renderFixplan(report, opts = {}) {
     const block = designPromptBlock(syncFigma);
     const marks = fence(block);
     out.push(`${marks}text`, block, marks);
+  }
+  out.push('');
+
+  out.push(`## Debt (${debt.length}) — tickets`);
+  if (!debt.length) out.push('- None');
+  for (const f of debt) {
+    const ticket = tickets.get(f.id)?.ticket?.key || 'no ticket yet';
+    out.push(`- ${f.id} — ${f.title} (${f.severity}, owner ${ownerOf(f)}) — ${ticket} — ${orDash(f.fix?.summary)}`);
   }
   out.push('');
 
@@ -171,37 +190,49 @@ export function renderFixplan(report, opts = {}) {
 
 /**
  * Parse the "## Debt" bullets of a fix plan back into items
- * [{ id, title, meta, summary, evidence, line }] (used to create tickets).
+ * [{ id, title, meta, severity, owner, ticket, summary, evidence, line }]. Reads both
+ * "- DQ-004 — Title (WARNING, owner engineering) — ACME-511 — Fix" and the older
+ * "- DQ-004 — Title (WARNING, style, state x) — Fix — evidence: path".
  */
 export function parseDebtItems(markdown) {
   const lines = String(markdown).split(/\r?\n/);
   const start = lines.findIndex((l) => /^##\s+Debt\b/.test(l));
   if (start === -1) return [];
   const items = [];
+  const metaRe = / \(((?:BLOCKER|WARNING|PASS|CANNOT_VERIFY|DS_CANDIDATE), [^()]*)\)/g;
   for (let i = start + 1; i < lines.length; i++) {
     const line = lines[i];
     if (/^#{1,2}\s/.test(line)) break;
     const m = /^-\s+(DQ-\d{3,})\s+—\s+(.*)$/.exec(line.trim());
     if (!m) continue;
-    const parts = m[2].split(' — ');
+    const rest = m[2];
+    const metas = [...rest.matchAll(metaRe)];
+    const last = metas[metas.length - 1];
+    const title = last ? rest.slice(0, last.index) : rest;
+    const meta = last ? last[1] : null;
+    const tail = last ? rest.slice(last.index + last[0].length).replace(/^ — /, '') : '';
+    const parts = tail ? tail.split(' — ') : [];
+    const owner = meta && /(?:^|, )owner (\w+)/.exec(meta);
+    let ticket = null;
     let evidence = null;
-    if (parts.length > 1 && /^evidence:\s*/.test(parts[parts.length - 1])) {
-      evidence = parts.pop().replace(/^evidence:\s*/, '');
-      if (evidence === DASH) evidence = null;
-    }
     let summary = null;
-    if (parts.length > 1) {
-      summary = parts.pop();
-      if (summary === DASH) summary = null;
+    if (owner) {
+      ticket = parts.shift() ?? null;
+      if (ticket === 'no ticket yet' || ticket === DASH) ticket = null;
+      summary = parts.join(' — ') || null;
+    } else {
+      if (parts.length && /^evidence:\s*/.test(parts[parts.length - 1])) evidence = parts.pop().replace(/^evidence:\s*/, '');
+      summary = parts.join(' — ') || null;
     }
-    const head = parts.join(' — ');
-    const hm = /^(.*)\s\(([^()]*)\)$/.exec(head);
     items.push({
       id: m[1],
-      title: hm ? hm[1] : head,
-      meta: hm ? hm[2] : null,
-      summary,
-      evidence,
+      title: title.trim(),
+      meta,
+      severity: meta ? meta.split(',')[0].trim() : null,
+      owner: owner ? owner[1] : null,
+      ticket,
+      summary: summary === DASH ? null : summary,
+      evidence: evidence === DASH ? null : evidence,
       line: line.trim().replace(/^-\s+/, ''),
     });
   }

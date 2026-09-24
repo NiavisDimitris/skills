@@ -101,6 +101,25 @@ Worked example with N = 2:
 
 Fix-now items are what the engineer (or their coding agent) fixes in this PR. Debt items are logged as tickets. The Sync to Figma list goes to whoever owns the Figma file, or to sync mode (figma-sync.md).
 
+The buckets are a recommendation. The person's triage decides what is fixed now and what becomes debt (next section).
+
+## Triage, debt and closing the loop
+
+The person chooses which diffs get fixed now; everything else becomes ticketed debt (report.md, "Triage and debt").
+
+- **Triageable**: resolution `FIX_CODE` or `SYNC_FIGMA` and severity 🔴, 🟡 or 🔵, the same set as rankable.
+- **Blockers can never be debt.** A 🔴 BLOCKER is fixed now or signed off as `INTENTIONAL`.
+- **Default split** when no triage is recorded: the fix-now bucket, every blocker and every `SYNC_FIGMA` finding are fix now; the debt bucket is debt.
+- **Debt is still a mismatch.** It stays open, and parity still counts it.
+
+Three derived scorecard fields track how explained the result is:
+
+| Field | Meaning |
+|---|---|
+| `unexplained` | Open findings that are not ticketed debt. Ticketed debt is a finding triaged as debt whose ticket exists. |
+| `debt` | `{ count, ticketed }`: findings triaged as debt, and how many of them have a ticket. |
+| `loopClosed` | `unexplained` is 0 and no decision is open: every diff is fixed, synced, signed off or tracked as ticketed debt. |
+
 ## Parity
 
 ```text
@@ -108,15 +127,17 @@ open   = findings with resolution FIX_CODE, SYNC_FIGMA or UNCLASSIFIED
 parity = round(100 × (1 − open / max(1, findings.length)))
 ```
 
-The value is capped at 99 while any finding is open, so 100 always means nothing is left to do. PASS rows count in the denominator; that is why they are recorded. Parity is a trend number. Gate on the verdict.
+The value is capped at 99 while any finding is open, so 100 always means nothing is left to do. PASS rows count in the denominator; that is why they are recorded. Ticketed debt is still open and still counts. Parity is a trend number. Gate on the verdict.
 
 ## Verdict
 
 Evaluated in order; the first match wins.
 
-1. **FAIL** if any 🔴 BLOCKER is open, or any state result is `MISSING_IN_CODE`, or any pixel-diff band is `fail`.
-2. **REVIEW** if any finding is open, or any finding is ℹ️ CANNOT_VERIFY, or any open decision exists, or any pixel-diff band is `review`, or any state result is `CANNOT_VERIFY` or `MISSING_IN_DESIGN`.
+1. **FAIL** if any 🔴 BLOCKER is open, or any state result is `MISSING_IN_CODE`, or a pixel-diff band is `fail` in a state that has an unexplained finding or no findings.
+2. **REVIEW** if any finding is unexplained, or any finding is ℹ️ CANNOT_VERIFY, or any open decision exists, or any pixel-diff band is `review`, or a `fail` band's state has only explained findings, or any state result is `CANNOT_VERIFY` or `MISSING_IN_DESIGN`.
 3. **PASS** otherwise.
+
+Ticketed debt does not hold the verdict at REVIEW: a pass whose only open findings are ticketed debt can PASS with parity below 100. A `fail` band is explained when every finding in its state is fixed, synced, signed off, data or ticketed debt; then it counts as REVIEW, not FAIL. A `fail` band with no findings at all is unexplained and FAILs.
 
 ## State results
 
@@ -149,6 +170,6 @@ Per state, from `scripts/diff.mjs` and the `tolerances.pixelDiff` config (defaul
 |---|---|---|
 | below `pass` (1%) | pass | none |
 | up to `review` (5%) | review | explain the difference in a finding or mask it as data; verdict at best REVIEW |
-| above `review` | fail | verdict FAIL |
+| above `review` | fail | verdict FAIL when the state has an unexplained finding or no findings; otherwise REVIEW |
 
 A band never replaces the ledgers. A 0.4% diff can hide a wrong token on a small element, and a 7% diff can be entirely data. Mask data regions (browser-capture.md) so the band measures design, not content. The ledgers say what is wrong; the band says how much changed.
