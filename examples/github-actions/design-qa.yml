@@ -1,9 +1,8 @@
 # Adopter workflow: drop this file into YOUR repo at
-# .github/workflows/design-qa.yml and fill in every <owner> and secret
-# marked below. It checks out the design-qa-skill repo at a pinned ref,
-# runs the design-qa skill headlessly against your PR's preview URL (or
-# starts the app itself if there isn't one), and gates the PR on the
-# result.
+# .github/workflows/design-qa.yml and set the secrets listed below. It
+# checks out the design-qa skill from NiavisDimitris/skills at a pinned
+# ref, runs it headlessly against your PR's preview URL (or starts the
+# app itself if there isn't one), and gates the PR on the result.
 #
 # Required repo secrets (Settings -> Secrets and variables -> Actions):
 #   ANTHROPIC_API_KEY            - Claude Code auth for the headless run
@@ -21,9 +20,6 @@
 #                                       skill's scripts, which expect a path, not raw JSON.
 #
 # GITHUB_TOKEN is provided by Actions automatically - you don't set it.
-#
-# Replace every <owner> below with the GitHub org/user that owns the
-# design-qa-skill repo you installed this from.
 
 name: Design QA
 
@@ -61,18 +57,18 @@ jobs:
       - name: Checkout this repo
         uses: actions/checkout@v4
 
-      - name: Checkout design-qa-skill
+      - name: Checkout the design-qa skill
         uses: actions/checkout@v4
         with:
-          # <owner>: set this to the org/user that owns design-qa-skill.
-          repository: <owner>/design-qa-skill
+          repository: NiavisDimitris/skills
           # Pin to a released tag (not a moving branch) so this workflow's
           # behavior doesn't change out from under you between runs. Bump
           # deliberately when you want the newer skill/scripts.
           ref: v0.1.0
           path: .design-qa-skill
-          # If design-qa-skill is a private repo, uncomment and set a PAT
-          # (classic, repo scope) or a fine-grained token with read access:
+          # If the repo you check out here is private to you (e.g. a
+          # private fork), uncomment and set a PAT (classic, repo scope) or
+          # a fine-grained token with read access:
           # token: ${{ secrets.DESIGN_QA_SKILL_TOKEN }}
 
       - name: Set up Node

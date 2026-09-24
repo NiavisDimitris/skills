@@ -58,15 +58,16 @@ See a rendered example at [`examples/sample/report.html`](examples/sample/report
 **As a plugin:**
 
 ```bash
-claude plugin marketplace add <owner>/design-qa-skill
-claude plugin install design-qa@design-qa-skill
+claude plugin marketplace add NiavisDimitris/skills
+claude plugin install design-qa@niavis-skills
 ```
 
-`<owner>` is the GitHub org or user this repo ends up published under. `design-qa-skill` is this repo's marketplace name (see [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)); `design-qa` is the plugin inside it.
+`niavis-skills` is this repo's marketplace name (see [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)); `design-qa` is the plugin inside it.
 
 **As a plain skill copy**, no plugin system involved:
 
 ```bash
+git clone https://github.com/NiavisDimitris/skills.git && cd skills
 cp -r skills/design-qa ~/.claude/skills/design-qa
 # or, project-scoped:
 cp -r skills/design-qa /path/to/your-project/.claude/skills/design-qa
@@ -168,7 +169,7 @@ Secrets the adopter sets: `ANTHROPIC_API_KEY`, `FIGMA_TOKEN`, `JIRA_BASE_URL`, `
 ## Project layout
 
 ```
-design-qa-skill/
+.
 ├── .claude-plugin/
 │   ├── plugin.json
 │   └── marketplace.json

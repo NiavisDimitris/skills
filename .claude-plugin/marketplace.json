@@ -1,9 +1,9 @@
 {
-  "name": "design-qa-skill",
+  "name": "niavis-skills",
   "owner": {
     "name": "Dimitris Niavis"
   },
-  "description": "Marketplace for the design-qa plugin: Figma vs. code design-parity QA.",
+  "description": "Skills to help make your life easier as you work with agents.",
   "plugins": [
     {
       "name": "design-qa",

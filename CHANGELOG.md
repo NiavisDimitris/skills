@@ -23,4 +23,4 @@ Initial public release.
 - Distributable as a Claude Code plugin (`.claude-plugin/plugin.json` + `marketplace.json`) or as a plain skill folder copy.
 - Example config (`examples/design-qa.config.example.json`) and a rendered sample report under `examples/sample/`.
 
-[0.1.0]: https://github.com/<owner>/design-qa-skill/releases/tag/v0.1.0
+[0.1.0]: https://github.com/NiavisDimitris/skills/releases/tag/v0.1.0
