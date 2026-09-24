@@ -47,6 +47,17 @@
     ['#1042', 'Elena Petrova', 'Shipped', '$76.20', 'Sep 18, 2026', '2 days ago'],
     ['#1041', 'Noah Williams', 'Pending', '$658.00', 'Sep 18, 2026', '2 days ago'],
   ];
+  // What shipped renders live data, so names, amounts and dates differ from the Figma sample on purpose.
+  const APP_ROWS = [
+    ['#2291', 'Lena Ortiz', 'Paid', '$312.40', 'Sep 24, 2026', 'just now'],
+    ['#2290', 'Tomás Rivera', 'Shipped', '$1,907.15', 'Sep 24, 2026', '6 min ago'],
+    ['#2289', 'Priya Nair', 'Pending', '$58.00', 'Sep 23, 2026', '1 h ago'],
+    ['#2288', 'Oskar Lind', 'Paid', '$740.90', 'Sep 23, 2026', '2 h ago'],
+    ['#2287', 'Chloé Martin', 'Refunded', '$215.00', 'Sep 23, 2026', 'Yesterday'],
+    ['#2286', 'Kenji Watanabe', 'Paid', '$3,480.00', 'Sep 22, 2026', 'Yesterday'],
+    ['#2285', 'Amara Okafor', 'Shipped', '$96.75', 'Sep 22, 2026', '2 days ago'],
+    ['#2284', 'Jakub Nowak', 'Pending', '$1,120.00', 'Sep 21, 2026', '2 days ago'],
+  ];
   const LONG = ['Maximilian Alexander von Hohenberg-Castellane', 'Anna-Katharina Schmidt-Oberländer'];
 
   const badge = (s) => `<span class="st st-${s.toLowerCase()}">${s}</span>`;
@@ -78,7 +89,7 @@
     } else if (st === 'error') {
       body = `<tr><td colspan="${colspan}" class="err-cell" data-a="error"><div class="alert">${icon('alert', 18)}<div><div class="alert-t">Orders could not be loaded</div><div class="alert-s">The server returned 500 for /api/orders. Your filters are kept.</div></div><span class="btn outline sm">${icon('retry', 14)}Retry</span></div></td></tr>`;
     } else {
-      ROWS.forEach((row, r) => {
+      (app ? APP_ROWS : ROWS).forEach((row, r) => {
         const cls = [];
         if (st === 'hover' && r === 2) cls.push('hover');
         if (st === 'focus' && r === 1) cls.push('focus');

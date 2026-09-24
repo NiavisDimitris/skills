@@ -25,14 +25,14 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; text-rende
 .ic { display: inline-block; flex: none; vertical-align: middle; }
 
 /* ---------- captions (kinetic type) ---------- */
-.cap { position: absolute; font-family: var(--sans); font-weight: 600; letter-spacing: -0.045em; line-height: 1.04; white-space: nowrap; z-index: 50; }
+.cap { position: absolute; font-family: "Space Grotesk", "Inter", var(--sans); font-weight: 600; letter-spacing: -0.035em; line-height: 1.06; white-space: nowrap; z-index: 50; }
 .cap .w { display: inline-block; margin-right: 0.24em; }
 .cap .w:last-child { margin-right: 0; }
 .cap .acc-red { color: var(--blocker); } .cap .acc-green { color: var(--pass); } .cap .acc-violet { color: var(--ds); }
 .cap .mut { color: var(--muted-fg); }
 .dark .cap .mut, .cap.on-dark .mut { color: var(--d-muted); }
 .dark .cap .acc-red { color: var(--blocker-l); } .dark .cap .acc-green { color: var(--pass-l); }
-.cap.sub { font-weight: 500; letter-spacing: -0.02em; }
+.cap.sub { font-family: "Inter", var(--sans); font-weight: 400; letter-spacing: -0.01em; }
 
 /* ---------- Figma canvas ---------- */
 .canvas { background-color: #f5f5f5; }
@@ -252,3 +252,23 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; text-rende
 .meter .stack { height: 14px; border-radius: 999px; background: var(--muted); overflow: hidden; display: flex; }
 .meter .stack i { display: block; height: 100%; }
 .meter .stack .fx { background: var(--pass); } .meter .stack .tr { background: #737373; }
+
+/* ---------- closing credit, in the niavis.design brand (Ledger theme, dark) ---------- */
+@font-face { font-family: "Inter"; src: url(fonts/inter-latin-opsz-wght.woff2) format("woff2"); font-weight: 100 900; font-style: normal; font-display: block; }
+@font-face { font-family: "Space Grotesk"; src: url(fonts/space-grotesk-latin-wght.woff2) format("woff2"); font-weight: 300 700; font-style: normal; font-display: block; }
+.scene.niavis { background: #14130f; color: #d6d3ca; }
+.nv-lock { position: absolute; }
+.nv-mark { width: 28px; height: 28px; flex: none; overflow: visible; }
+.nv-mark path { fill: #ff6a1a; }
+.nv-eyebrow { font: 500 16px/1 "Inter", sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #9c978b; }
+.nv-name { margin-top: 16px; font: 600 60px/1.05 "Space Grotesk", "Inter", sans-serif; letter-spacing: -0.035em; color: #d6d3ca; white-space: nowrap; }
+.nv-row { margin-top: 20px; display: flex; align-items: center; gap: 12px; }
+.nv-name span { display: inline-block; margin-right: 0.24em; }
+.nv-name span:last-child { margin-right: 0; }
+.nv-site { font: 500 22px/1 "Inter", sans-serif; letter-spacing: -0.01em; color: #9c978b; }
+.chip.gh { font: 500 24px/1 var(--sans); gap: 14px; }
+.chip.gh .soon { color: var(--d-muted); font-weight: 400; padding-left: 14px; border-left: 1px solid var(--d-border); }
+
+/* small brand mark, top-right, above every scene */
+.bug { position: absolute; right: 40px; top: 36px; z-index: 200; line-height: 0; pointer-events: none; }
+.bug path { fill: currentColor; }

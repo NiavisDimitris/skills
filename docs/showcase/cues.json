@@ -1,11 +1,11 @@
 {
  "title": "design-qa showcase",
- "duration": 71.6,
+ "duration": 77.8,
  "playback": {
   "stretch": 1.3333333333333333,
-  "videoDuration": 95.47,
+  "videoDuration": 103.73,
   "videoBpm": 90,
-  "note": "Times in this file are timeline seconds. The rendered video plays the 71.6 s timeline at 0.75x speed: multiply by 4/3 for video time."
+  "note": "Times in this file are timeline seconds. The rendered video plays the 77.8 s timeline at 0.75x speed: multiply by 4/3 for video time."
  },
  "fps": 60,
  "width": 1920,
@@ -38,32 +38,37 @@
   {
    "name": "dropB",
    "start": 28.2,
-   "end": 43.2
+   "end": 46
   },
   {
    "name": "dropC",
-   "start": 43.2,
-   "end": 50.6
+   "start": 46,
+   "end": 53.4
   },
   {
    "name": "triage",
-   "start": 50.6,
-   "end": 56.2
+   "start": 53.4,
+   "end": 59
   },
   {
    "name": "dropD",
-   "start": 56.2,
-   "end": 66.6
+   "start": 59,
+   "end": 69.4
   },
   {
    "name": "breakdown",
-   "start": 66.6,
-   "end": 69.1
+   "start": 69.4,
+   "end": 71.9
   },
   {
    "name": "end",
-   "start": 69.1,
-   "end": 71.6
+   "start": 71.9,
+   "end": 74.4
+  },
+  {
+   "name": "credit",
+   "start": 74.4,
+   "end": 77.8
   }
  ],
  "scenes": [
@@ -90,37 +95,42 @@
   {
    "id": "report",
    "start": 28.2,
-   "end": 43.2
+   "end": 46
   },
   {
    "id": "matrix",
-   "start": 43.2,
-   "end": 48.2
+   "start": 46,
+   "end": 51
   },
   {
    "id": "outputs",
-   "start": 48.2,
-   "end": 50.6
+   "start": 51,
+   "end": 53.4
   },
   {
    "id": "triage",
-   "start": 50.6,
-   "end": 56.2
+   "start": 53.4,
+   "end": 59
   },
   {
    "id": "fixloop",
-   "start": 56.2,
-   "end": 62.6
+   "start": 59,
+   "end": 65.4
   },
   {
    "id": "ci",
-   "start": 62.6,
-   "end": 66.6
+   "start": 65.4,
+   "end": 69.4
   },
   {
    "id": "close",
-   "start": 66.6,
-   "end": 71.6
+   "start": 69.4,
+   "end": 74.4
+  },
+  {
+   "id": "credit",
+   "start": 74.4,
+   "end": 77.8
   }
  ],
  "events": [
@@ -605,285 +615,320 @@
    "dur": 0.5
   },
   {
-   "t": 43.2,
+   "t": 42.7,
+   "type": "whoosh",
+   "dir": "right",
+   "dur": 0.38
+  },
+  {
+   "t": 43.55,
+   "type": "marker"
+  },
+  {
+   "t": 46,
    "type": "hit"
   },
   {
-   "t": 43.2,
+   "t": 46,
    "type": "tick",
    "index": 0
   },
   {
-   "t": 43.3,
+   "t": 46.1,
    "type": "tick",
    "index": 1
   },
   {
-   "t": 43.4,
+   "t": 46.2,
    "type": "tick",
    "index": 2
   },
   {
-   "t": 43.5,
+   "t": 46.3,
    "type": "tick",
    "index": 3
   },
   {
-   "t": 43.6,
+   "t": 46.4,
    "type": "tick",
    "index": 4
   },
   {
-   "t": 43.7,
+   "t": 46.5,
    "type": "tick",
    "index": 5
   },
   {
-   "t": 43.8,
+   "t": 46.6,
    "type": "tick",
    "index": 6
   },
   {
-   "t": 44.5,
+   "t": 47.3,
    "type": "stamp",
    "severity": "BLOCKER"
   },
   {
-   "t": 46.2,
+   "t": 49,
    "type": "stamp",
    "severity": "DS_CANDIDATE"
   },
   {
-   "t": 48.2,
+   "t": 51,
    "type": "whoosh",
    "dir": "left",
    "dur": 0.4
   },
   {
-   "t": 48.25,
+   "t": 51.05,
    "type": "whoosh",
    "dir": "right",
    "dur": 0.4
   },
   {
-   "t": 49.8,
+   "t": 52.6,
    "type": "whoosh",
    "dir": "in",
    "dur": 0.8
   },
   {
-   "t": 50.6,
+   "t": 53.4,
    "type": "hit"
   },
   {
-   "t": 50.7,
+   "t": 53.5,
    "type": "tick",
    "index": 0
   },
   {
-   "t": 50.76,
+   "t": 53.56,
    "type": "tick",
    "index": 1
   },
   {
-   "t": 50.82,
+   "t": 53.62,
    "type": "tick",
    "index": 2
   },
   {
-   "t": 50.88,
+   "t": 53.68,
    "type": "tick",
    "index": 3
   },
   {
-   "t": 50.94,
+   "t": 53.74,
    "type": "tick",
    "index": 4
   },
   {
-   "t": 51,
+   "t": 53.8,
    "type": "tick",
    "index": 5
   },
   {
-   "t": 51.06,
+   "t": 53.86,
    "type": "tick",
    "index": 6
   },
   {
-   "t": 51.12,
+   "t": 53.92,
    "type": "tick",
    "index": 7
   },
   {
-   "t": 52.05,
+   "t": 54.85,
    "type": "click"
   },
   {
-   "t": 52.1,
+   "t": 54.9,
    "type": "swish",
    "index": 0
   },
   {
-   "t": 53.15,
+   "t": 55.95,
    "type": "click"
   },
   {
-   "t": 53.2,
+   "t": 56,
    "type": "swish",
    "index": 1
   },
   {
-   "t": 55.05,
+   "t": 57.85,
    "type": "click"
   },
   {
-   "t": 55.15,
+   "t": 57.95,
    "type": "toast"
   },
   {
-   "t": 56.2,
+   "t": 59,
    "type": "whoosh",
    "dir": "up",
    "dur": 0.4
   },
   {
-   "t": 56.4,
+   "t": 59.2,
    "type": "enter"
   },
   {
-   "t": 57.2,
+   "t": 60,
    "type": "success",
    "index": 0
   },
   {
-   "t": 57.65,
+   "t": 60.45,
    "type": "whoosh",
    "dir": "right",
    "dur": 0.35
   },
   {
-   "t": 57.8,
+   "t": 60.6,
    "type": "success",
    "index": 1
   },
   {
-   "t": 58.2,
+   "t": 61,
    "type": "whoosh",
    "dir": "right",
    "dur": 0.35
   },
   {
-   "t": 58.3,
+   "t": 61.1,
    "type": "success",
    "index": 2
   },
   {
-   "t": 58.8,
+   "t": 61.6,
    "type": "success",
    "index": 3
   },
   {
-   "t": 59.3,
+   "t": 62.1,
    "type": "success",
    "index": 4
   },
   {
-   "t": 59.8,
+   "t": 62.6,
    "type": "success",
    "index": 5
   },
   {
-   "t": 60,
+   "t": 62.8,
    "type": "riser",
-   "end": 61.3,
+   "end": 64.1,
    "short": true
   },
   {
-   "t": 61.3,
+   "t": 64.1,
    "type": "chime"
   },
   {
-   "t": 62.6,
+   "t": 65.4,
    "type": "whoosh",
    "dir": "up",
    "dur": 0.4
   },
   {
-   "t": 63,
+   "t": 65.8,
    "type": "fail"
   },
   {
-   "t": 64.6,
+   "t": 67.4,
    "type": "click"
   },
   {
-   "t": 65.4,
+   "t": 68.2,
    "type": "success",
    "index": 4
   },
   {
-   "t": 65.8,
+   "t": 68.6,
    "type": "click"
   },
   {
-   "t": 66.1,
+   "t": 68.9,
    "type": "reverse",
-   "end": 61.2
+   "end": 64
   },
   {
-   "t": 66.6,
+   "t": 69.4,
    "type": "word"
   },
   {
-   "t": 66.72,
+   "t": 69.52,
    "type": "word"
   },
   {
-   "t": 66.84,
+   "t": 69.64,
    "type": "word"
   },
   {
-   "t": 66.96,
+   "t": 69.76,
    "type": "word"
   },
   {
-   "t": 67.08,
+   "t": 69.88,
    "type": "word"
   },
   {
-   "t": 67.8,
+   "t": 70.6,
    "type": "word"
   },
   {
-   "t": 67.92,
+   "t": 70.72,
    "type": "word"
   },
   {
-   "t": 68.04,
+   "t": 70.84,
    "type": "word"
   },
   {
-   "t": 68.16,
+   "t": 70.96,
    "type": "word"
   },
   {
-   "t": 68.28,
+   "t": 71.08,
    "type": "word"
   },
   {
-   "t": 69.1,
+   "t": 71.9,
    "type": "impact",
    "final": true
   },
   {
-   "t": 69.4,
+   "t": 72.2,
    "type": "pop",
    "severity": "BLOCKER",
    "big": true
   },
   {
-   "t": 69.7,
+   "t": 72.5,
+   "type": "shimmer"
+  },
+  {
+   "t": 74.4,
+   "type": "whoosh",
+   "dir": "in",
+   "dur": 0.4
+  },
+  {
+   "t": 74.52,
+   "type": "tick",
+   "index": 0
+  },
+  {
+   "t": 74.62,
+   "type": "tick",
+   "index": 1
+  },
+  {
+   "t": 74.72,
+   "type": "tick",
+   "index": 2
+  },
+  {
+   "t": 74.88,
    "type": "shimmer"
   }
  ]

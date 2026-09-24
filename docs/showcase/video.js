@@ -3,7 +3,7 @@
    step frame by frame at any speed and the soundtrack (cues.json) lands on the same frames. */
 (async function () {
   'use strict';
-  const W = 1920, H = 1080, FPS = 60, DUR = 71.6;
+  const W = 1920, H = 1080, FPS = 60, DUR = 77.8;
   // Playback runs the 60 s timeline at 0.75× speed (80 s of video), so every caption and close-in can be read.
   const STRETCH = 4 / 3;
   const VP = document.getElementById('viewport');
@@ -262,7 +262,7 @@
     const hlWords = 'Your design is exact.'.split(' ').map((w) => { const s = el('span', 'w', null, hl); s.textContent = w; return s; });
     const HL_OUT = 3.0;
     S.caps = [
-      cap(S.root, { t0: 3.16, t1: 6.86, text: 'Then it ships. And it isn’t.', x: 96, y: 56, size: 58, stagger: 0.07 }),
+      cap(S.root, { t0: 3.16, t1: 6.86, text: 'Then it ships. And it isn’t.', x: 96, y: 64, size: 64, stagger: 0.07 }),
       cap(S.root, { t0: 7.16, t1: 9.06, text: '!20px. The design says 24.', x: 96, y: 918, size: 76 }),
       cap(S.root, { t0: 9.36, t1: 11.26, text: 'A hardcoded hex. Not the token.', x: 96, y: 918, size: 76 }),
       cap(S.root, { t0: 11.56, t1: 13.46, text: 'Empty state? Designed. !Never !built.', x: 96, y: 918, size: 76 }),
@@ -275,10 +275,10 @@
     const card = A.card, table = A.table, row = A['row-2'], thead = A.thead;
     const yh = thead.y + thead.h / 2;
     const cam = track([
-      { t: 0, x: 720, y: 470, s: 0.84 },
-      { t: 3.0, x: 720, y: 470, s: 0.84 },
-      { t: 6.2, x: 720, y: 468, s: 0.865, e: E.lin },
-      { t: 7.0, x: 720, y: 468, s: 0.865 },
+      { t: 0, x: 720, y: 405, s: 0.78 },
+      { t: 3.0, x: 720, y: 405, s: 0.78 },
+      { t: 6.2, x: 720, y: 403, s: 0.8, e: E.lin },
+      { t: 7.0, x: 720, y: 403, s: 0.8 },
       { t: 7.46, x: card.x + 30, y: yh + 30, s: 5.2, e: E.inOutExpo },
       { t: 9.2, x: card.x + 30, y: yh + 30, s: 5.6, e: E.lin },
       { t: 9.58, x: row.x + 360, y: row.y + row.h / 2 + 92, s: 2.1, e: E.inOutExpo },
@@ -414,8 +414,8 @@
       vis(hl, hlOn);
       if (hlOn) {
         const m = P(t, 0.86, 0.6);
-        const sc = lerp(1, 0.44, m);
-        const x = lerp(W / 2 - S.hlW / 2, 96, m), y = lerp(H / 2 - S.hlH / 2, 56, m);
+        const sc = lerp(1, 0.485, m);
+        const x = lerp(W / 2 - S.hlW / 2, 96, m), y = lerp(H / 2 - S.hlH / 2, 64, m);
         hl.style.left = '0px'; hl.style.top = '0px'; hl.style.transformOrigin = '0 0';
         hl.style.transform = `translate(${f2(x)}px,${f2(y)}px) scale(${sc.toFixed(4)})`;
         const q = clamp((t - HL_OUT) / 0.12);
@@ -462,7 +462,7 @@
     const o = wordmark(S.root, 230);
     S.caps = [
       cap(S.root, { t0: 11.0, t1: 12.72, text: 'Figma ↔ code parity. Every state. Every token.', x: 960, y: 610, size: 48, align: 'center', cls: 'sub', stagger: 0.05 }),
-      cap(S.root, { t0: 11.85, t1: 12.72, text: '~An ~open-source ~skill ~for ~Claude ~Code', x: 960, y: 694, size: 32, align: 'center', cls: 'sub', stagger: 0.03 }),
+      cap(S.root, { t0: 11.7, t1: 12.72, text: '~A ~Claude ~Code ~skill ~by ~Dimitris ~Niavis', x: 960, y: 694, size: 32, align: 'center', cls: 'sub', stagger: 0.028 }),
     ];
     S.measure = () => { const r = o.wm.getBoundingClientRect(); o.w = r.width; o.h = r.height; };
     S.render = (t) => drawWordmark(o, t, 10.0, 10.55, W / 2, 420, P(t, 12.72, 0.28, E.inCubic));
@@ -558,13 +558,13 @@
       { t: 18, x: 1006, y: 232, s: 0.9 },
       { t: 21.2, x: 1006, y: 236, s: 0.93, e: E.lin },
       { t: 21.55, x: 190, y: 123, s: 1.25, e: E.inOutQuint },
-      { t: 22.0, x: 190, y: 123, s: 5.6, e: E.inExpo },
+      { t: 22.0, x: 190, y: 123, s: 5.6, e: E.inOutCubic },
     ]);
     const src = { x: 650 - 190, y: 259 - 145 };
     S.render = (t) => {
       const c = cam(t);
       world.style.transform = camCSS(c);
-      blur(world, motionBlur(cam, t, 0.7));
+      blur(world, motionBlur(cam, t, 0.45));
       cards.forEach((k, i) => {
         const t0 = 18 + i * 0.07;
         const u = P(t, t0, 0.62);
@@ -590,7 +590,7 @@
      SCENES 8–9 · Compare modes, then pins (22–37 s) — one continuous report
      ===================================================================== */
   function buildReport() {
-    const S = scene('report', 22, 37, 'light');
+    const S = scene('report', 22, 39.8, 'light');
     const A = ANCH['app/hover'], D = ANCH['design/hover'];
     const stage = el('div', 'stage', null, S.root);
     const pD = paneEl(stage, 'design', 'hover');
@@ -654,16 +654,29 @@
       <div class="src"><b>src/features/orders/orders.css:12</b><br>.orders-card { padding: 20px }</div>`, S.root);
     const rlA = redline(S.root, ''), rlB = redline(S.root, 'ok');
     S.caps = [
-      cap(S.root, { t0: 22.12, t1: 23.4, text: 'Side by side.', x: 96, y: 60, size: 66 }),
-      cap(S.root, { t0: 23.56, t1: 24.9, text: 'Overlay.', x: 96, y: 60, size: 66 }),
-      cap(S.root, { t0: 25.06, t1: 26.4, text: 'Wipe.', x: 96, y: 60, size: 66 }),
-      cap(S.root, { t0: 26.56, t1: 28.2, text: 'Diff.', x: 96, y: 60, size: 66 }),
-      cap(S.root, { t0: 29.86, t1: 31.9, text: 'Every mismatch, pinned.', x: 96, y: 60, size: 66 }),
-      cap(S.root, { t0: 32.46, t1: 34.5, text: 'Traced to the token,', x: 96, y: 60, size: 66 }),
-      cap(S.root, { t0: 35.08, t1: 36.4, text: 'and to the line of code.', x: 96, y: 60, size: 66 }),
+      cap(S.root, { t0: 22.12, t1: 23.4, text: 'Side by side.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 23.56, t1: 24.9, text: 'Overlay.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 25.06, t1: 26.4, text: 'Wipe.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 26.56, t1: 28.2, text: 'Diff.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 29.86, t1: 31.9, text: 'Every mismatch, pinned.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 32.46, t1: 34.5, text: 'Traced to the token,', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 35.08, t1: 36.4, text: 'and to the line of code.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 36.66, t1: 39.46, text: 'Different names and numbers? Just data.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 36.95, t1: 39.46, text: '~Real ~content ~is ~expected ~to ~differ ~from ~the ~Figma ~sample, ~so ~it ~is ~never ~flagged.', x: 98, y: 150, size: 30, cls: 'sub', stagger: 0.022 }),
     ];
-    const FULL = { x: 96, y: 170, w: 1728, h: 840 }, NARROW = { x: 96, y: 170, w: 1270, h: 840 };
-    const SBS_L = { x: 120, y: 351, w: 828, h: 517.5 }, SBS_R = { x: 972, y: 351, w: 828, h: 517.5 };
+    // side by side: Figma sample data vs the captured app's real data
+    const dsplit = el('div', 'abs', null, S.root);
+    dsplit.style.cssText += ';left:0;top:0;width:1920px;height:1080px;background:#fff;z-index:40';
+    const dL = paneEl(dsplit, 'design', 'with-data'), dR = paneEl(dsplit, 'app', 'with-data');
+    [dL, dR].forEach((p) => p.p.classList.add('framed'));
+    const dTagL = el('div', 'pane-tag', '<span class="dot"></span>Figma · sample data', dsplit);
+    const dTagR = el('div', 'pane-tag', '<span class="dot" style="background:#737373"></span>Captured app · real data', dsplit);
+    const dBoxes = [0, 1, 2, 3].map(() => { const b = el('div', 'abs', null, dsplit); b.style.cssText += ';border:2px dashed #a3a3a3;border-radius:10px'; return b; });
+    const dWhite = el('div', 'layer', null, dsplit);
+    dWhite.style.background = '#fff'; dWhite.style.zIndex = '5';
+    const dChip = el('div', 'diffbadge', '<span style="color:var(--pass)">' + UI.icon('circleCheck', 20) + '</span><span>Data · not a finding</span>', dsplit);
+    const FULL = { x: 96, y: 240, w: 1728, h: 780 }, NARROW = { x: 96, y: 240, w: 1270, h: 780 };
+    const SBS_L = { x: 120, y: 386, w: 828, h: 517.5 }, SBS_R = { x: 972, y: 386, w: 828, h: 517.5 };
     const zoomSBS = { x: 600, y: 240, s: 1.2 }, ovPush = { x: 470, y: 300, s: 2.0 }, wipeCam = { x: 700, y: 330, s: 1.3 };
     const stageAt = (t) => lerpRect(FULL, NARROW, P(t, 28.3, 0.6, E.inOutQuint));
     // close-ins on pins 2 and 3, framed so the detail card has room on the right
@@ -700,7 +713,7 @@
         if (t >= 32.46) c = lerpCam(c1, { ...c1, s: 2.4 }, E.lin(clamp((t - 32.46) / 2.14)));
         if (t >= 34.6) c = lerpCam({ ...c1, s: 2.4 }, c2, P(t, 34.6, 0.42, E.inOutExpo));
         if (t >= 35.02) c = lerpCam(c2, { ...c2, s: 3.12 }, clamp((t - 35.02) / 1.48));
-        if (t >= 36.5) c = lerpCam({ ...c2, s: 3.12 }, fitCam(NARROW), P(t, 36.5, 0.45, E.inOutQuint));
+        if (t >= 36.92) c = lerpCam({ ...c2, s: 3.12 }, fitCam(NARROW), P(t, 36.92, 0.4, E.inOutQuint));
         cd = ca = c;
         od = 0;
         diff = clamp((t - 26.55) / 0.22) * (1 - clamp((t - 28.25) / 0.55));
@@ -711,8 +724,8 @@
     S.measure = () => {
       S.it = items.map((e) => ({ x: e.offsetLeft, w: e.offsetWidth }));
       const r = tg.getBoundingClientRect();
-      box(tg, 1824 - r.width, 62);
-      [tagWl, tagWr, tagOv, dbadge].forEach((e) => { const b = e.getBoundingClientRect(); e._w = b.width; });
+      box(tg, 1824 - r.width, 66);
+      [tagWl, tagWr, tagOv, dbadge, dChip].forEach((e) => { const b = e.getBoundingClientRect(); e._w = b.width; });
     };
     const SW = [[22.0, 2], [23.5, 3], [25.0, 4], [26.5, 5], [28.3, 0]];
     S.render = (t) => {
@@ -754,7 +767,7 @@
       // rail + pins
       const rIn = P(t, 28.55, 0.55);
       vis(rail, t >= 28.5);
-      box(rail, 1400 + (1 - rIn) * 60, 176, 424);
+      box(rail, 1400 + (1 - rIn) * 60, 246, 424);
       op(rail, rIn);
       PINS.forEach((pp, i) => {
         const [x, y] = projPane(L.a, L.ca, pp.lx, pp.ly);
@@ -787,6 +800,37 @@
         drawRedline(rlA, x1, x2, y1 - 70, t, 35.12, '20px', -38);
         drawRedline(rlB, x1, x3, y1 - 150, t, 35.4, '24px', -38);
       } else { [rlA, rlB].forEach((g) => Object.values(g).forEach((e) => vis(e, false))); }
+      // data beat
+      const dOn = t >= 36.5 && t < 39.8;
+      vis(dsplit, dOn);
+      if (dOn) {
+        const inU = E.inOutQuint(clamp((t - 36.5) / 0.38));
+        tr(dsplit, (1 - inU) * W, 0);
+        op(dWhite, P(t, 39.46, 0.3, E.inOutCubic)); vis(dWhite, t >= 39.46);
+        const LR = { x: 96, y: 240, w: 852, h: 780 }, RR = { x: 972, y: 240, w: 852, h: 780 };
+        const AD = ANCH['design/with-data'], AA = ANCH['app/with-data'];
+        // each pane frames its own customer-to-total span, so neither side is cropped
+        const zs = lerp(1.3, 1.36, clamp((t - 36.9) / 2.5));
+        const span = (A) => A['total-0'].x + A['total-0'].w - A['cust-0'].x + 80;
+        const sFit = Math.min(zs, (LR.w - 48) / span(AD), (RR.w - 48) / span(AA)); // one zoom for both, so they compare like for like
+        const camFor = (A) => ({ x: (A['cust-0'].x - 40 + A['total-0'].x + A['total-0'].w + 40) / 2, y: A['row-3'].y + A['row-3'].h / 2 + 40, s: sFit });
+        const cL = camFor(AD), cR = camFor(AA);
+        drawPane(dL, LR, cL); drawPane(dR, RR, cR);
+        box(dTagL, LR.x + 24, LR.y + LR.h - 24 - 46); box(dTagR, RR.x + 24, RR.y + RR.h - 24 - 46);
+        const colBox = (P0, A, key, i) => {
+          const dc = P0 === LR ? cL : cR;
+          const a = A[key + '-0'], last = A['row-4'];
+          const [bx, by] = projPane(P0, dc, a.x - 6, A['row-0'].y + 4), [bx2, by2] = projPane(P0, dc, a.x + a.w + 6, last.y + last.h - 4);
+          box(dBoxes[i], bx, by, bx2 - bx, by2 - by);
+          op(dBoxes[i], P(t, 37.0 + (i % 2) * 0.12, 0.35));
+        };
+        colBox(LR, AD, 'cust', 0); colBox(LR, AD, 'total', 1); colBox(RR, AA, 'cust', 2); colBox(RR, AA, 'total', 3);
+        vis(dChip, t >= 37.35);
+        box(dChip, RR.x + RR.w - 24 - dChip._w, RR.y + RR.h - 24 - 44);
+        op(dChip, clamp((t - 37.35) / 0.2));
+        dChip.style.transform = `scale(${lerp(0.9, 1, P(t, 37.35, 0.45, E.outBack)).toFixed(3)})`;
+        blur(dsplit, t < 36.88 ? clamp(Math.sin(Math.PI * clamp((t - 36.5) / 0.38)) * 6, 0, 6) : 0);
+      }
     };
     return S;
   }
@@ -799,7 +843,7 @@
     const S = scene('matrix', 37, 42, 'light');
     const world = el('div', 'world', null, S.root);
     const mx = el('div', 'mx', null, world);
-    box(mx, 285, 236);
+    box(mx, 285, 262);
     el('div', 'hr', '<span>State</span><span>Designed</span><span>Specified</span><span>Built</span><span>Result</span>', mx);
     const yes = `<span class="ok">${UI.icon('check', 30)}</span>`, no = '<span class="c">—</span>';
     const rows = [
@@ -808,9 +852,9 @@
       ['Bulk selected', no, '—', yes, 'MISSING_IN_DESIGN'],
     ].map(([n, d, s, b, r], i) => el('div', 'r', `<span class="bgh"></span><span>${n}</span><span>${d}</span><span class="c">${s}</span><span>${b}</span><span><span class="res ${r}">${RES[r]}</span></span>`, mx));
     S.caps = [
-      cap(S.root, { t0: 37.06, t1: 38.16, text: 'Every state gets a verdict.', x: 96, y: 60, size: 66 }),
-      cap(S.root, { t0: 38.36, t1: 39.86, text: 'Designed, never built: !a !blocker.', x: 96, y: 60, size: 66 }),
-      cap(S.root, { t0: 40.06, t1: 41.8, text: 'Built, never designed: ^back ^to ^Figma.', x: 96, y: 60, size: 66 }),
+      cap(S.root, { t0: 37.06, t1: 38.16, text: 'Every state gets a verdict.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 38.36, t1: 39.86, text: 'Designed, never built: !a !blocker.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 40.06, t1: 41.8, text: 'Built, never designed: ^back ^to ^Figma.', x: 96, y: 64, size: 64 }),
     ];
     const rowY = (i) => 236 + 60 + 80 * i + 40;
     const cam = track([
@@ -843,7 +887,7 @@
     const S = scene('outputs', 42, 44.4, 'light');
     const world = el('div', 'world', null, S.root);
     const L = el('div', 'win', '<div class="wbar"><i></i><i></i><i></i><span class="t">qa-reports/ACME-482/report.html</span></div>', world);
-    box(L, 96, 200, 846, 760);
+    box(L, 96, 244, 846, 740);
     const wb = el('div', null, `<div style="display:flex;align-items:center;gap:12px;font:600 30px/1 var(--sans);letter-spacing:-0.03em">Orders list <span class="verdict fail" style="height:30px;font-size:15px;padding:0 10px">FAIL</span></div>
       <div style="margin-top:10px;font:400 17px/1 var(--sans);color:var(--muted-fg)">Parity 45% · 11 of 20 findings open · 5/9 states verified</div>`, L);
     wb.style.cssText = 'position:relative;padding:26px 28px';
@@ -859,7 +903,7 @@
       .forEach(([sev, x, y], i) => { const p = el('div', `pinv sm sev-${sev}`, String(i + 1), st); box(p, x * 0.54861, y * 0.54861); p.style.width = p.style.height = '24px'; p.style.margin = '-12px 0 0 -12px'; p.style.fontSize = '12px'; });
     el('div', null, '<span style="color:var(--blocker)">●</span> 1 blocker &nbsp; <span style="color:var(--warning)">●</span> 6 warnings &nbsp; <span style="color:var(--pass)">●</span> 2 pass', wb).style.cssText = 'margin-top:16px;font:400 17px/1 var(--sans);color:var(--muted-fg)';
     const R = el('div', 'win dk', '<div class="wbar"><i></i><i></i><i></i><span class="t">qa-reports/ACME-482/report-fixplan.md</span></div>', world);
-    box(R, 978, 200, 846, 760);
+    box(R, 978, 244, 846, 740);
     el('div', 'md', [
       '<span class="h1"># Design QA fix plan — ACME-482</span>',
       '<span class="mu">Verdict</span> <span class="fail">FAIL</span> <span class="mu">· Parity 45% · States 5/9</span>',
@@ -874,10 +918,12 @@
       '<span class="h2">## Debt (3) — tickets</span>',
       '<span class="mu">DQ-007 · DQ-008 · DQ-016</span>',
     ].join('\n'), R);
-    S.caps = [cap(S.root, { t0: 42.12, t1: 43.52, text: 'A report for people. A fix plan for agents.', x: 96, y: 60, size: 66 })];
+    const toWhite = el('div', 'layer', null, S.root);
+    toWhite.style.background = '#fff'; toWhite.style.zIndex = '95';
+    S.caps = [cap(S.root, { t0: 42.12, t1: 43.52, text: 'A report for people. A fix plan for agents.', x: 96, y: 64, size: 64 })];
     const cam = track([
       { t: 42, x: 960, y: 540, s: 1 }, { t: 43.6, x: 960, y: 540, s: 1 },
-      { t: 44.4, x: 519, y: 640, s: 2.6, e: E.inExpo },
+      { t: 44.4, x: 519, y: 684, s: 2.2, e: E.inOutCubic },
     ]);
     S.render = (t) => {
       const c = cam(t);
@@ -886,7 +932,7 @@
       const ul = P(t, 42.0, 0.55), ur = P(t, 42.06, 0.55);
       L.style.transform = `translateX(${f2((1 - ul) * -1100)}px)`;
       R.style.transform = `translateX(${f2((1 - ur) * 1100)}px)`;
-      op(R, 1 - P(t, 43.6, 0.35, E.inCubic));
+      op(toWhite, P(t, 44.12, 0.28, E.inOutCubic)); vis(toWhite, t >= 44.12);
     };
     return S;
   }
@@ -907,10 +953,10 @@
   function buildTriage() {
     const S = scene('triage', 44.4, 50.0, 'light');
     const world = el('div', 'world', null, S.root);
-    const COLY = 176, ROW0 = 118, STEP = 90;
+    const COLY = 240, ROW0 = 118, STEP = 90;
     const colL = el('div', 'tcol', '<div class="th"><div><span class="tt">Fix now</span><span class="cnt"></span></div><div class="ts">Your agents get these, in this order</div></div>', world);
     const colR = el('div', 'tcol debt', '<div class="th"><div><span class="tt">Debt</span><span class="cnt"></span></div><div class="ts">Each one becomes a ticket and a debt-log entry</div></div>', world);
-    box(colL, 96, COLY, 852, 700); box(colR, 972, COLY, 852, 700);
+    box(colL, 96, COLY, 852, 636); box(colR, 972, COLY, 852, 636);
     const cntL = colL.querySelector('.cnt'), cntR = colR.querySelector('.cnt');
     const lockSvg = UI.icon('frame', 1).replace(/<svg[^>]*>.*<\/svg>/, '') + '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
     const rows = TRIAGE.map(([id, sev, title, where, locked]) => {
@@ -923,8 +969,8 @@
     const cursor = el('div', 'cursor', CURSOR, S.root);
     const toast = el('div', 'toast', `<span class="ok">${UI.icon('circleCheck', 22)}</span>Copied <span style="font:500 18px/1 var(--mono);color:var(--muted-fg)">/design-qa triage ACME-482 --fix DQ-001,DQ-002,DQ-003</span>`, S.root);
     S.caps = [
-      cap(S.root, { t0: 44.55, t1: 47.3, text: 'You choose what gets fixed now.', x: 96, y: 56, size: 66 }),
-      cap(S.root, { t0: 47.45, t1: 49.85, text: 'The rest becomes debt, with tickets.', x: 96, y: 56, size: 66 }),
+      cap(S.root, { t0: 44.55, t1: 47.3, text: 'You choose what gets fixed now.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 47.45, t1: 49.85, text: 'The rest becomes debt, with tickets.', x: 96, y: 64, size: 64 }),
     ];
     // membership over time: two findings move from Fix now to Debt
     const initial = Object.fromEntries(TRIAGE.map((r, i) => [r[0], i < 5 ? 'fix' : 'debt']));
@@ -990,6 +1036,10 @@
       op(toast, clamp((t - 48.95) / 0.12));
     };
     S.measure = () => { const q = toast.getBoundingClientRect(); S.tw = q.width; };
+    const toDark = el('div', 'layer', null, S.root);
+    toDark.style.background = '#0a0a0a'; toDark.style.zIndex = '95';
+    const baseRender = S.render;
+    S.render = (t) => { baseRender(t); op(toDark, P(t, 49.7, 0.3, E.inOutCubic)); vis(toDark, t >= 49.7); };
     return S;
   }
 
@@ -1000,7 +1050,7 @@
     const S = scene('fixloop', 50.0, 56.4, 'dark');
     const world = el('div', 'world', null, S.root);
     const term = termShell(world, '~/acme-console — claude', '<span>/design-qa triage ACME-482 --fix DQ-001,DQ-002,DQ-003</span>');
-    box(term, 96, 206); term.style.width = '1040px'; term.style.height = '650px';
+    box(term, 96, 244); term.style.width = '1040px'; term.style.height = '640px';
     const lines = term.querySelector('.lines');
     const LN = [
       ['Triage applied', '3 fix now · 5 to debt'],
@@ -1014,25 +1064,28 @@
     const jira = el('div', 'pnl', `<div class="ph">${UI.icon('ticket', 22)}Jira · ACME-482<span class="m">5 new sub-tasks</span></div>` +
       [['ACME-511', 'Card padding is 20px, not 24px'], ['ACME-512', 'Page title weight is 500, not 600'], ['ACME-513', 'Skeleton bars use a 2px radius'], ['ACME-514', 'Hover transition is 400ms, not 160ms'], ['ACME-515', 'Skeleton shows at once, not after 300 ms']]
         .map(([k, ti]) => `<div class="jr"><span class="key">${k}</span><span class="ti">${ti}</span><span class="lb">design-debt</span></div>`).join(''), world);
-    box(jira, 1170, 206, 654);
+    box(jira, 1170, 244, 654);
     const log = el('div', 'pnl', `<div class="ph">${UI.icon('fileText', 22)}design-debt.md<span class="m">5 open</span></div><div class="lg"><span class="h">Status  Finding  Owner        Ticket</span>
 open    DQ-004   engineering  ACME-511
 open    DQ-006   engineering  ACME-512
 open    DQ-007   engineering  ACME-513
 open    DQ-008   engineering  ACME-514
 open    DQ-016   engineering  ACME-515</div>`, world);
-    box(log, 1170, 574, 654);
+    box(log, 1170, 612, 654);
     const jrows = [...jira.querySelectorAll('.jr')];
     const meter = el('div', 'meter', `<div class="lbl"><span>Unexplained diffs</span><span class="verdict fail">FAIL</span></div><div class="big">8</div><div class="stack"><i class="fx"></i><i class="tr"></i></div><div class="ft" style="margin-top:20px;font:400 21px/1.3 var(--sans);color:var(--muted-fg)">Re-checking 9 states…</div>`, S.root);
     const vd = meter.querySelector('.verdict'), big = meter.querySelector('.big'), fx = meter.querySelector('.fx'), trk = meter.querySelector('.tr'), ft = meter.querySelector('.ft');
     S.caps = [
-      cap(S.root, { t0: 50.15, t1: 51.6, text: 'Your pick, applied.', x: 96, y: 60, size: 66 }),
-      cap(S.root, { t0: 51.75, t1: 53.7, text: 'Tickets and a debt log, ready.', x: 96, y: 60, size: 66 }),
-      cap(S.root, { t0: 54.05, t1: 56.3, text: 'Every diff fixed or tracked.', x: 96, y: 60, size: 66 }),
+      cap(S.root, { t0: 50.15, t1: 51.6, text: 'Your pick, applied.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 51.75, t1: 53.7, text: 'Tickets and a debt log, ready.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 54.05, t1: 56.3, text: 'Every diff fixed or tracked.', x: 96, y: 64, size: 64 }),
     ];
     const cam = track([{ t: 50, x: 960, y: 540, s: 1 }, { t: 53.8, x: 960, y: 544, s: 1.03, e: E.lin }, { t: 56.4, x: 960, y: 544, s: 1.03 }]);
     S.measure = () => { const r = meter.getBoundingClientRect(); S.mh = r.height; };
+    const toLight = el('div', 'layer', null, S.root);
+    toLight.style.background = '#fff'; toLight.style.zIndex = '95';
     S.render = (t) => {
+      op(toLight, P(t, 56.1, 0.3, E.inOutCubic)); vis(toLight, t >= 56.1);
       world.style.transform = camCSS(cam(t));
       const inU = P(t, 50.0, 0.4);
       term.style.transform = `translateY(${f2((1 - inU) * 60)}px)`;
@@ -1081,12 +1134,14 @@ open    DQ-016   engineering  ACME-515</div>`, world);
         <div class="cr dq"><span class="ico"></span><span class="txt"></span><span class="m">Required</span></div>
       </div>
       <div class="foot"><span class="ftxt"></span><span class="merge">${UI.icon('merge', 20)}Merge pull request</span></div>`, world);
-    box(ci, 380, 236);
+    box(ci, 380, 272);
+    const toDarkCI = el('div', 'layer', null, S.root);
+    toDarkCI.style.background = '#0a0a0a'; toDarkCI.style.zIndex = '95';
     const ico = ci.querySelector('.dq .ico'), txt = ci.querySelector('.dq .txt'), ftxt = ci.querySelector('.ftxt'), merge = ci.querySelector('.merge');
     S.caps = [
-      cap(S.root, { t0: 51.14, t1: 52.3, text: 'On every pull request.', x: 96, y: 56, size: 66 }),
+      cap(S.root, { t0: 51.14, t1: 52.3, text: 'On every pull request.', x: 96, y: 64, size: 64 }),
       cap(S.root, { t0: 51.46, t1: 52.3, text: '~Against ~the ~preview ~URL, ~before ~anyone ~merges.', x: 98, y: 140, size: 30, cls: 'sub', stagger: 0.03 }),
-      cap(S.root, { t0: 53.96, t1: 54.84, text: 'Green means ship.', x: 96, y: 56, size: 66 }),
+      cap(S.root, { t0: 53.96, t1: 54.84, text: 'Green means ship.', x: 96, y: 64, size: 64 }),
     ];
     let cam = null;
     S.measure = () => {
@@ -1116,6 +1171,7 @@ open    DQ-016   engineering  ACME-515</div>`, world);
       }[state];
       ftxt.textContent = t >= 53.8 ? 'All checks have passed' : t >= 51.4 ? 'Merging is blocked: Design QA failed' : 'Checks are running';
       merge.classList.toggle('go', t >= 54.2);
+      op(toDarkCI, P(t, 54.7, 0.3, E.inOutCubic)); vis(toDarkCI, t >= 54.7);
       merge.style.transform = t >= 54.2 ? `scale(${lerp(1.08, 1, P(t, 54.2, 0.35, E.outBack)).toFixed(3)})` : '';
     };
     return S;
@@ -1128,14 +1184,15 @@ open    DQ-016   engineering  ACME-515</div>`, world);
     const S = scene('close', 55, 60, 'dark');
     S.shift = 5.4;
     const o = wordmark(S.root, 200);
-    const chip = el('div', 'chip', '<span class="pr">$</span>claude plugin install design-qa@design-qa-skill', S.root);
+    const GH = '<svg width="26" height="26" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>';
+    const chip = el('div', 'chip gh', GH + '<span>Open source on GitHub</span><span class="soon">Coming soon</span>', S.root);
     chip.style.position = 'absolute';
     const black = el('div', 'layer', null, S.root);
-    black.style.background = '#000';
+    black.style.background = '#14130f';
     S.caps = [
       cap(S.root, { t0: 55.0, t1: 57.36, text: 'The design must be exact.', x: 960, y: 360, size: 116, align: 'center', stagger: 0.12 }),
       cap(S.root, { t0: 56.2, t1: 57.36, text: '~Only ~the ~data ~may ~differ.', x: 960, y: 500, size: 116, align: 'center', stagger: 0.12 }),
-      cap(S.root, { t0: 58.0, t1: 70, text: '~Open-source ~skill ~for ~Claude ~Code', x: 960, y: 572, size: 38, align: 'center', cls: 'sub', stagger: 0.03 }),
+      cap(S.root, { t0: 58.0, t1: 70, text: '~A ~Claude ~Code ~skill ~for ~design ~QA', x: 960, y: 572, size: 38, align: 'center', cls: 'sub', stagger: 0.03 }),
     ];
     S.measure = () => {
       const r = o.wm.getBoundingClientRect(); o.w = r.width; o.h = r.height;
@@ -1154,21 +1211,62 @@ open    DQ-016   engineering  ACME-515</div>`, world);
     return S;
   }
 
+
+  /* =====================================================================
+     SCENE 15 · Made by Dimitris Niavis, in the niavis.design brand
+     ===================================================================== */
+  function buildCredit() {
+    const S = scene('credit', 71.6, 75.0, 'niavis');
+    S.shift = -6.2; // authored on the final timeline; cancels the opening offset applied at boot
+    const MARK = ['M44.7139 60H0V37.0967L44.7139 60Z', 'M60 30.8291V59.9639L0 29.2324V0.0966797L60 30.8291Z', 'M60 22.9639L15.165 0H60V22.9639Z'];
+    const lock = el('div', 'nv-lock', `<div class="nv-eyebrow">Made by</div><div class="nv-name"><span>Dimitris</span><span>Niavis</span></div><div class="nv-row"><svg class="nv-mark" viewBox="0 0 60 60" aria-label="Niavis">${MARK.map((d) => `<path d="${d}"/>`).join('')}</svg><span class="nv-site">niavis.design</span></div>`, S.root);
+    const paths = [...lock.querySelectorAll('path')];
+    const eyebrow = lock.querySelector('.nv-eyebrow'), words = [...lock.querySelectorAll('.nv-name span')], site = lock.querySelector('.nv-site');
+    const fade = el('div', 'layer', null, S.root);
+    fade.style.background = '#000';
+    // each band of the N slides in along its own diagonal
+    const FROM = [[-10, 10], [0, 0], [10, -10]];
+    S.measure = () => { const r = lock.getBoundingClientRect(); S.w = r.width; S.h = r.height; };
+    S.render = (t) => {
+      box(lock, W / 2 - S.w / 2, H / 2 - S.h / 2 - 10);
+      paths.forEach((p, i) => {
+        const t0 = 72.3 + i * 0.08;
+        const u = P(t, t0, 0.6);
+        const [dx, dy] = FROM[i];
+        p.style.transform = `translate(${f2((1 - u) * dx)}px,${f2((1 - u) * dy)}px)`;
+        p.style.opacity = clamp((t - t0) / 0.2).toFixed(3);
+        if (i === 1) { p.style.transformOrigin = '30px 30px'; p.style.transform += ` scale(${lerp(0.82, 1, u).toFixed(3)})`; }
+      });
+      const rise = (e, t0, d = 0.65, dist = 26) => { const u = P(t, t0, d); e.style.transform = `translateY(${f2((1 - u) * dist)}px)`; e.style.opacity = clamp((t - t0) / 0.22).toFixed(3); const b = (1 - u) * 8; e.style.filter = b > 0.3 ? `blur(${b.toFixed(2)}px)` : ''; };
+      rise(eyebrow, 71.82, 0.6, 18);
+      words.forEach((w, i) => rise(w, 71.94 + i * 0.09, 0.7, 22));
+      rise(site, 72.42, 0.6, 14);
+      op(fade, P(t, 74.62, 0.38, E.inCubic));
+      vis(fade, t >= 74.62);
+    };
+    return S;
+  }
+
   /* =====================================================================
      Boot
      ===================================================================== */
-  await Promise.all(['600 100px Geist', '500 20px Geist', '400 20px Geist', '700 20px Geist', '400 20px "Geist Mono"', '500 20px "Geist Mono"', '600 20px "Geist Mono"'].map((f) => document.fonts.load(f)));
+  await Promise.all(['600 100px Geist', '500 20px Geist', '400 20px Geist', '700 20px Geist', '500 20px Inter', '600 20px Inter', '500 100px "Space Grotesk"', '400 20px "Geist Mono"', '500 20px "Geist Mono"', '600 20px "Geist Mono"'].map((f) => document.fonts.load(f)));
   await document.fonts.ready;
-  measureAnchors(['app/hover', 'design/hover', 'app/empty', 'design/empty']);
-  [buildCanvas, buildReveal, buildTerminal, buildStates, buildReport, buildMatrix, buildOutputs, buildTriage, buildFixloop, buildCI, buildClose].forEach((f) => f());
+  measureAnchors(['app/hover', 'design/hover', 'app/empty', 'design/empty', 'app/with-data', 'design/with-data']);
+  [buildCanvas, buildReveal, buildTerminal, buildStates, buildReport, buildMatrix, buildOutputs, buildTriage, buildFixloop, buildCI, buildClose, buildCredit].forEach((f) => f());
   const OPENING_ADD = 6.2; // the opening grew from 10 s to 16.2 s of timeline
-  SCENES.forEach((s) => { s.shift = (s.shift || 0) + (s.id === 'canvas' ? 0 : OPENING_ADD); s.t0 += s.shift; s.t1 += s.shift; });
+  const DATA_ADD = 2.8; // the "just data" beat inside the report scene
+  const AFTER_DATA = new Set(['matrix', 'outputs', 'triage', 'fixloop', 'ci', 'close', 'credit']);
+  SCENES.forEach((s) => { s.shift = (s.shift || 0) + (s.id === 'canvas' ? 0 : OPENING_ADD) + (AFTER_DATA.has(s.id) ? DATA_ADD : 0); s.t0 += s.shift; s.t1 += s.shift; });
   SCENES.forEach((s) => {
     s.root.classList.add('on');
     if (s.measure) s.measure();
     s.caps.forEach((c) => { vis(c.e, true); c.place(); });
     s.root.classList.remove('on');
   });
+  const BUG_PATHS = ['M44.7139 60H0V37.0967L44.7139 60Z', 'M60 30.8291V59.9639L0 29.2324V0.0966797L60 30.8291Z', 'M60 22.9639L15.165 0H60V22.9639Z'];
+  const bug = el('div', 'bug', '<svg viewBox="0 0 60 60" width="26" height="26" aria-label="Niavis">' + BUG_PATHS.map((d) => '<path d="' + d + '"/>').join('') + '</svg>', VP);
+  const CREDIT_AT = SCENES.find((s) => s.id === 'credit').t0;
   const PUNCH = new Set(['reveal', 'terminal', 'states', 'matrix', 'outputs', 'triage', 'fixloop', 'ci', 'close']);
   window.renderFrame = (T) => {
     const t = clamp(T / STRETCH, 0, DUR - 1e-6);
@@ -1179,11 +1277,18 @@ open    DQ-016   engineering  ACME-515</div>`, world);
       const tl = t - s.shift;
       s.render(tl);
       s.caps.forEach((c) => drawCap(c, tl));
+      bug.style.color = s.root.classList.contains('dark') || s.root.classList.contains('niavis') ? '#ff6a1a' : '#8a3200';
       if (PUNCH.has(s.id)) {
         const k = 1 + 0.03 * (1 - P(t, s.t0, 0.42));
         s.root.style.transform = k > 1.0001 ? `scale(${k.toFixed(4)})` : '';
       }
     });
+  };
+  const renderScenes = window.renderFrame;
+  window.renderFrame = (T) => {
+    renderScenes(T);
+    const t = clamp(T / STRETCH, 0, DUR - 1e-6);
+    op(bug, clamp((t - 0.3) / 0.5) * (1 - P(t, CREDIT_AT - 0.3, 0.3, E.inOutCubic)));
   };
   window.__meta = { duration: DUR * STRETCH, fps: FPS, width: W, height: H, stretch: STRETCH };
   const q = new URLSearchParams(location.search);
