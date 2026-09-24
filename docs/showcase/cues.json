@@ -1,6 +1,12 @@
 {
  "title": "design-qa showcase",
  "duration": 60,
+ "playback": {
+  "stretch": 1.3333333333333333,
+  "videoDuration": 80,
+  "videoBpm": 90,
+  "note": "Times in this file are timeline seconds. The rendered video plays the 60 s timeline at 0.75x speed: multiply by 4/3 for video time."
+ },
  "fps": 60,
  "width": 1920,
  "height": 1080,
@@ -65,23 +71,8 @@
  ],
  "scenes": [
   {
-   "id": "exact",
+   "id": "canvas",
    "start": 0,
-   "end": 2
-  },
-  {
-   "id": "isnt",
-   "start": 2,
-   "end": 3.2
-  },
-  {
-   "id": "closeins",
-   "start": 3.2,
-   "end": 8
-  },
-  {
-   "id": "scale",
-   "start": 8,
    "end": 10
   },
   {
@@ -100,13 +91,8 @@
    "end": 22
   },
   {
-   "id": "compare",
+   "id": "report",
    "start": 22,
-   "end": 30
-  },
-  {
-   "id": "pins",
-   "start": 30,
    "end": 37
   },
   {
@@ -117,11 +103,11 @@
   {
    "id": "outputs",
    "start": 42,
-   "end": 46
+   "end": 46.6
   },
   {
    "id": "fixloop",
-   "start": 46,
+   "start": 46.6,
    "end": 51
   },
   {

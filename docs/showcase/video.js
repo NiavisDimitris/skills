@@ -4,6 +4,8 @@
 (async function () {
   'use strict';
   const W = 1920, H = 1080, FPS = 60, DUR = 60;
+  // Playback runs the 60 s timeline at 0.75× speed (80 s of video), so every caption and close-in can be read.
+  const STRETCH = 4 / 3;
   const VP = document.getElementById('viewport');
 
   /* ---------- math & easing ---------- */
@@ -54,7 +56,7 @@
   const camCSS = (c, vw = W, vh = H) => `translate(${f2(vw / 2 - c.x * c.s)}px,${f2(vh / 2 - c.y * c.s)}px) scale(${c.s.toFixed(5)})`;
   const proj = (c, x, y, vw = W, vh = H, ox = 0, oy = 0) => [ox + vw / 2 + (x - c.x) * c.s, oy + vh / 2 + (y - c.y) * c.s];
   function motionBlur(cam, t, k = 1, vw = W) {
-    const a = cam(t - 1 / FPS), b = cam(t);
+    const a = cam(t - 1 / (FPS * STRETCH)), b = cam(t);
     const v = Math.hypot((b.x - a.x) * b.s, (b.y - a.y) * b.s) + Math.abs(Math.log(b.s / a.s)) * vw * 0.45;
     return clamp((v - 12) * 0.06 * k, 0, 8);
   }
@@ -1043,8 +1045,8 @@
     s.root.classList.remove('on');
   });
   const PUNCH = new Set(['reveal', 'terminal', 'states', 'matrix', 'outputs', 'fixloop', 'ci', 'close']);
-  window.renderFrame = (t) => {
-    t = clamp(t, 0, DUR - 1e-6);
+  window.renderFrame = (T) => {
+    const t = clamp(T / STRETCH, 0, DUR - 1e-6);
     SCENES.forEach((s) => {
       const on = t >= s.t0 && t < s.t1;
       s.root.classList.toggle('on', on);
@@ -1057,11 +1059,11 @@
       }
     });
   };
-  window.__meta = { duration: DUR, fps: FPS, width: W, height: H };
+  window.__meta = { duration: DUR * STRETCH, fps: FPS, width: W, height: H, stretch: STRETCH };
   const q = new URLSearchParams(location.search);
   if (q.has('play')) {
     const start = performance.now() - (parseFloat(q.get('play')) || 0) * 1000;
-    const loop = () => { window.renderFrame(((performance.now() - start) / 1000) % DUR); requestAnimationFrame(loop); };
+    const loop = () => { window.renderFrame(((performance.now() - start) / 1000) % (DUR * STRETCH)); requestAnimationFrame(loop); };
     loop();
   } else {
     window.renderFrame(q.has('t') ? parseFloat(q.get('t')) : 0);
