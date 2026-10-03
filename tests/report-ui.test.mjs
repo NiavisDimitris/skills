@@ -1,13 +1,17 @@
 // Browser tests for templates/report.html with report 2.0 data: no Figma sync, Dismiss (panel,
-// pending bar, copy/download, Undo), the Design system tab, multi-screen state picking and the
-// Design backfill tab (step 2: decisions, pending bar, design-agent prompts).
+// Undo), the Design system tab, multi-screen state picking, the Design backfill tab (step 2:
+// decisions, design-agent prompts) and Review and send (one review bar, one Send panel, one
+// decisions document: copied for any agent, downloaded, or sent to scripts/review.mjs).
 // Skipped when Chromium cannot launch.
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { ROOT, SKILL, loadFixture, tmpDir } from './_helpers.mjs';
+import { decisionsMessage, normalizeDecisions, parseDecisions } from '../skills/design-qa/scripts/lib/decisions.mjs';
+import { applyTriage, buildTriage } from '../skills/design-qa/scripts/lib/triage.mjs';
+import { ROOT, SKILL, loadFixture, run, script, tmpDir } from './_helpers.mjs';
 
 const TEMPLATE = path.join(SKILL, 'templates', 'report.html');
 const SAMPLE_EVIDENCE = path.join(ROOT, 'examples', 'sample', 'evidence');
@@ -30,8 +34,9 @@ const CHROMIUM = await chromiumLaunches();
 function serializeForScript(value) {
   return JSON.stringify(value).replace(/<\//g, '<\\/').replace(/<!--/g, '\\u003c!--').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 }
-function fill(template, report, assets) {
+function fill(template, report, assets, context = {}) {
   return template
+    .replace('/*__DESIGN_QA_CONTEXT__*/', () => serializeForScript(context))
     .replace('/*__DESIGN_QA_DATA__*/', () => serializeForScript(report))
     .replace('/*__DESIGN_QA_ASSETS__*/', () => serializeForScript(assets))
     .split('__DESIGN_QA_TITLE__')
@@ -53,11 +58,11 @@ function assetsFor(report) {
   }
   return out;
 }
-function renderFixture(name, dir = tmpDir('design-qa-ui-'), mutate = null) {
+function renderFixture(name, dir = tmpDir('design-qa-ui-'), mutate = null, context = {}) {
   const report = loadFixture(name);
   if (mutate) mutate(report);
   const file = path.join(dir, name.replace(/\.json$/, '.html'));
-  writeFileSync(file, fill(readFileSync(TEMPLATE, 'utf8'), report, assetsFor(report)));
+  writeFileSync(file, fill(readFileSync(TEMPLATE, 'utf8'), report, assetsFor(report), context));
   return { file, url: pathToFileURL(file).href, report };
 }
 
@@ -73,26 +78,44 @@ const STUB = () => {
 };
 
 let browser;
-async function open(t, name, { hash = '', width = 1440, height = 1000, mutate = null } = {}) {
+async function launch() {
   if (!browser) {
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   }
-  const { url, report } = renderFixture(name, undefined, mutate);
-  const context = await browser.newContext({ viewport: { width, height }, acceptDownloads: true });
-  await context.addInitScript(STUB);
+  return browser;
+}
+// A page on `url` with the clipboard stub; `requests` records every http(s) request the page makes.
+async function openUrl(t, url, { width = 1440, height = 1000, stub = STUB, colorScheme = 'light' } = {}) {
+  const context = await (await launch()).newContext({ viewport: { width, height }, acceptDownloads: true, colorScheme });
+  await context.addInitScript(stub);
   const page = await context.newPage();
   const errors = [];
+  const requests = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.goto(url + hash);
-  await page.waitForSelector('#page-title');
+  page.on('request', (r) => { if (/^https?:/.test(r.url())) requests.push(r); });
   t.after(() => context.close());
-  return { page, errors, report, url, context };
+  await page.goto(url);
+  await page.waitForSelector('#page-title');
+  return { page, errors, requests, context };
+}
+async function open(t, name, { hash = '', width = 1440, height = 1000, mutate = null, context: ctx = {}, stub = STUB } = {}) {
+  const dir = tmpDir('design-qa-ui-');
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const { url, report } = renderFixture(name, dir, mutate, ctx);
+  const opened = await openUrl(t, url + hash, { width, height, stub });
+  return { ...opened, report, url };
 }
 test.after(async () => { if (browser) await browser.close(); });
 
 const ids = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.getAttribute('data-fid')));
+async function copied(page, sel) {
+  await page.evaluate(() => { window.__copied = null; });
+  await page.click(sel);
+  await page.waitForFunction(() => window.__copied !== null);
+  return page.evaluate(() => window.__copied);
+}
 
 test('template carries no Figma-sync remnants', () => {
   const src = readFileSync(TEMPLATE, 'utf8');
@@ -124,7 +147,14 @@ test('report 2.0 renders: source label, no sync UI, pre-dismissed findings, no p
   assert.match(await page.textContent('#dismissed-list li[data-fid="DQ-015"]'), /Removed from QA.*by J\. Park/s);
   assert.match(await page.textContent('#dismissed-list li[data-fid="DQ-009"]'), /Accepted as intentional.*M\. Ortiz/s);
   assert.equal(await page.locator('#dismissed-list [data-undo]').count(), 0, 'recorded dismissals have no local Undo');
-  assert.equal(await page.isHidden('#dismiss-bar'), true);
+  // One review bar: nothing recorded yet (no triage block), nothing pending
+  assert.equal(await page.isVisible('#review-bar'), true);
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3');
+  assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet');
+  assert.equal(await page.isEnabled('#review-send'), true);
+  for (const id of ['#copy-triage', '#export-selection', '#copy-dismiss', '#download-dismissals', '#copy-backfill', '#download-backfill', '#dismiss-bar', '#backfill-bar']) {
+    assert.equal(await page.locator(id).count(), 0, `${id} is gone`);
+  }
 
   // Summary: dismissed findings leave the denominator; design-system counts from the scorecard
   const summary = await page.textContent('#summary');
@@ -140,9 +170,9 @@ test('report 2.0 renders: source label, no sync UI, pre-dismissed findings, no p
   assert.deepEqual(errors, []);
 });
 
-test('Dismiss: panel, required reason, save, pending bar, copy for Claude Code, download, Undo', { timeout: 90000 }, async (t) => {
+test('Dismiss: panel, required reason, save, review bar, sent with the decisions (copy, download), Undo', { timeout: 90000 }, async (t) => {
   if (!CHROMIUM) return t.skip(SKIP_REASON);
-  const { page, errors, url } = await open(t, 'ui-report.json');
+  const { page, errors, url, report } = await open(t, 'ui-report.json');
 
   // 1. Board card → inline panel, focus inside, Save disabled until a reason is typed, Esc closes
   const trigger = page.locator('.tri-card[data-fid="DQ-004"] [data-dismiss]');
@@ -167,8 +197,8 @@ test('Dismiss: panel, required reason, save, pending bar, copy for Claude Code, 
   await save.click();
 
   assert.equal(await page.locator('.tri-card[data-fid="DQ-004"]').count(), 0, 'leaves the board');
-  assert.equal(await page.textContent('#dismiss-bar-msg'), '1 dismissal not recorded yet');
-  assert.equal(await page.isVisible('#dismiss-bar'), true);
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 4 · Later 3 · Dismissed 1');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'review-bar-msg', 'focus lands on the review bar when the card leaves');
   assert.equal(await page.textContent('#count-dismissed'), '4');
   assert.match(await page.textContent('#summary'), /8 of 12 findings open.*3 dismissed.*2 token/s);
   assert.match(await page.textContent('#dismissed-list li[data-fid="DQ-004"]'), /Not an issue.*by Dana.*Not recorded yet.*Matches the design within tolerance/s);
@@ -199,44 +229,43 @@ test('Dismiss: panel, required reason, save, pending bar, copy for Claude Code, 
   await page.keyboard.press('Escape');
   assert.equal(await page.isHidden('#sheet-root'), true);
 
-  assert.equal(await page.textContent('#dismiss-bar-msg'), '3 dismissals not recorded yet');
-  await page.click('#copy-dismiss');
-  await page.waitForFunction(() => window.__copied);
-  assert.equal(await page.evaluate(() => window.__copied), [
-    '/design-qa dismiss ACME-482',
-    'DQ-004 not-an-issue — Matches the design within tolerance after zoom.',
-    'DQ-007 remove — Duplicate of DQ-006: same skeleton',
-    'DQ-012 intentional — Copy approved by content design.',
-    'by: Dana',
-  ].join('\n'));
-
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#download-dismissals')]);
-  assert.equal(dl.suggestedFilename(), 'dismissals.json');
-  const json = JSON.parse(readFileSync(await dl.path(), 'utf8'));
-  for (const it of json.items) {
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 4 · Later 2 · Dismissed 3');
+  await page.click('#review-send');
+  assert.match(await page.textContent('#send-summary'), /Dismissed \(3\).*DQ-004Not an issue.*DQ-007Removed from QA.*DQ-012Accepted as intentional/s);
+  const message = await copied(page, '#copy-for-agent');
+  const doc = parseDecisions(message);
+  for (const it of doc.dismissals) {
     assert.match(it.date, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z$/);
-    delete it.date;
   }
-  assert.deepEqual(json, {
-    feature: 'Orders list', slug: 'ACME-482', reportGeneratedAt: '2026-10-01T12:00:00Z', decidedBy: 'Dana',
-    items: [
-      { findingId: 'DQ-004', kind: 'not-an-issue', reason: 'Matches the design within tolerance after zoom.', by: 'Dana' },
-      { findingId: 'DQ-007', kind: 'remove', reason: 'Duplicate of DQ-006:\n  same skeleton', by: 'Dana' },
-      { findingId: 'DQ-012', kind: 'intentional', reason: 'Copy approved by content design.', by: 'Dana' },
-    ],
-  });
+  assert.deepEqual(doc.dismissals.map(({ date, ...rest }) => rest), [
+    { findingId: 'DQ-004', kind: 'not-an-issue', reason: 'Matches the design within tolerance after zoom.', by: 'Dana' },
+    { findingId: 'DQ-007', kind: 'remove', reason: 'Duplicate of DQ-006:\n  same skeleton', by: 'Dana' },
+    { findingId: 'DQ-012', kind: 'intentional', reason: 'Copy approved by content design.', by: 'Dana' },
+  ]);
+  assert.deepEqual(doc.triage, { fixNow: ['DQ-001', 'DQ-002', 'DQ-003', 'DQ-006'], debt: ['DQ-014', 'DQ-013'] }, 'dismissed findings leave the triage');
+  assert.equal(doc.decidedBy, 'Dana');
+  assert.equal(message, decisionsMessage(report, doc), 'the message the library writes, with the default report path');
+  assert.match(message, /\nDismissed \(3\)\n- DQ-004 not-an-issue — Matches the design within tolerance after zoom\.\n- DQ-007 remove — Duplicate of DQ-006: same skeleton\n- DQ-012 intentional — Copy approved by content design\.$/);
+
+  await page.click('#review-send');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#download-decisions')]);
+  assert.equal(dl.suggestedFilename(), 'decisions.json');
+  const fromFile = parseDecisions(readFileSync(await dl.path(), 'utf8'));
+  assert.deepEqual(fromFile.dismissals, doc.dismissals);
+  await page.keyboard.press('Escape');
 
   // 4. Undo from the Dismissed list: back on the board, bar count drops
   await page.click('#tab-overview');
   if ((await page.getAttribute('#h-dismissed', 'aria-expanded')) !== 'true') await page.click('#h-dismissed');
   await page.click('#dismissed-list li[data-fid="DQ-007"] [data-undo]');
   assert.deepEqual(await ids(page, '#lane-debt .tri-card[data-fid="DQ-007"]'), ['DQ-007']);
-  assert.equal(await page.textContent('#dismiss-bar-msg'), '2 dismissals not recorded yet');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 4 · Later 3 · Dismissed 2');
+  assert.equal(await page.textContent('#review-bar-status'), 'Changed since you sent');
 
   // 5. Dismissals survive a reload (localStorage keyed by feature + generatedAt)
   await page.goto(url);
   await page.waitForSelector('#page-title');
-  assert.equal(await page.textContent('#dismiss-bar-msg'), '2 dismissals not recorded yet');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 4 · Later 3 · Dismissed 2');
   assert.equal(await page.locator('.tri-card[data-fid="DQ-004"]').count(), 0);
   assert.deepEqual(errors, []);
 });
@@ -272,7 +301,7 @@ test('Design system tab: token, component and motion mismatches; Missing motion;
   await page.locator('.dismiss-panel').getByRole('button', { name: 'Save' }).click();
   assert.deepEqual(await ids(page, '#ds-motion tbody tr[data-fid]'), ['DQ-007']);
   assert.equal(await page.textContent('#ds-stats'), '3 tokens1 component1 motion');
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'dismiss-bar-msg');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'review-bar-msg');
 
   // Findings: the ledger filter offers Motion
   await page.click('#tab-findings');
@@ -354,12 +383,6 @@ const BF_004 = [
   'DS gaps: –',
 ].join('\n');
 const block = (...items) => [BF_INTRO, ...items].join('\n\n');
-async function copied(page, sel) {
-  await page.evaluate(() => { window.__copied = null; });
-  await page.click(sel);
-  await page.waitForFunction(() => window.__copied !== null);
-  return page.evaluate(() => window.__copied);
-}
 // Everything step 1 shows: the backfill tab must never change any of it.
 async function step1Snapshot(page) {
   return page.evaluate(() => {
@@ -368,7 +391,7 @@ async function step1Snapshot(page) {
     return {
       summary: txt('#summary'), verdict: txt('#verdict'), dismissed: txt('#count-dismissed'), dsStats: txt('#ds-stats'),
       tabFindings: txt('#tab-findings'), tabDs: txt('#tab-design-system'), pins: fids('.pin'), board: fids('.tri-card'),
-      table: fids('#findings-table tbody tr[data-id]'), dsRows: fids('#panel-design-system tr[data-fid]'), dismissBar: document.querySelector('#dismiss-bar').hidden,
+      table: fids('#findings-table tbody tr[data-id]'), dsRows: fids('#panel-design-system tr[data-fid]'), triageBar: (txt('#review-bar-msg') || '').replace(/ · Backfill \d+$/, ''),
     };
   });
 }
@@ -435,9 +458,9 @@ test('Design backfill tab: last tab, not-ready notice, cards, thumbnail, design-
   assert.deepEqual(errors, []);
 });
 
-test('Design backfill decisions: Not needed needs a reason, Build in Figma, pending bar, copy, download, Undo, reload', { timeout: 90000 }, async (t) => {
+test('Design backfill decisions: Not needed needs a reason, Build in Figma, review bar, sent with the decisions, Undo, reload', { timeout: 90000 }, async (t) => {
   if (!CHROMIUM) return t.skip(SKIP_REASON);
-  const { page, errors, url } = await open(t, 'ui-report-backfill.json', { hash: '#tab=backfill' });
+  const { page, errors, url, report } = await open(t, 'ui-report-backfill.json', { hash: '#tab=backfill' });
   const before = await step1Snapshot(page);
 
   // 1. Not needed → inline panel (dismiss style), focus in the reason, Save disabled until a reason, Esc closes
@@ -462,69 +485,49 @@ test('Design backfill decisions: Not needed needs a reason, Build in Figma, pend
   assert.equal(await page.getAttribute('#bf-BF-003', 'data-decision'), 'not-needed');
   assert.match(await page.textContent('#bf-BF-003'), /Not needed.*Not recorded yet.*by Dana.*\(this browser\)/s);
   assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-bf-undo')), 'BF-003', 'focus lands on Undo');
-  assert.equal(await page.isVisible('#backfill-bar'), true);
-  assert.equal(await page.isHidden('#dismiss-bar'), true, 'the dismiss bar is separate');
-  assert.equal(await page.textContent('#backfill-bar-msg'), '1 backfill decision not recorded yet');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3 · Backfill 1', 'one bar: the backfill decision joins the triage');
 
   // 2. Build in Figma: one click (the remembered name signs it); a recorded not-needed can be switched to build
   await page.click('[data-bf-build="BF-001"]');
   await page.click('[data-bf-build="BF-004"]');
   assert.equal(await page.getAttribute('#bf-BF-001', 'data-decision'), 'build');
   assert.equal(await page.getAttribute('#bf-BF-004', 'data-decision'), 'build');
-  assert.equal(await page.textContent('#backfill-bar-msg'), '3 backfill decisions not recorded yet');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3 · Backfill 3');
   assert.equal(await page.textContent('#bf-stats'), '4 candidates3 to build0 built1 not needed0 pending');
   assert.equal(await copied(page, '#copy-backfill-all'), block(BF_001, BF_002, BF_004));
 
-  const message = await copied(page, '#copy-backfill');
-  assert.equal(message, [
-    '/design-qa backfill ACME-482',
-    'BF-001 build',
-    'BF-003 not-needed — Covered by the Empty frame: same layout. Search copy only.',
-    'BF-004 build',
-    'by: Dana',
-  ].join('\n'));
-
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#download-backfill')]);
-  assert.equal(dl.suggestedFilename(), 'backfill.json');
-  const json = JSON.parse(readFileSync(await dl.path(), 'utf8'));
-  for (const it of json.items) {
-    assert.match(it.date, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z$/);
-    delete it.date;
-  }
-  assert.deepEqual(json, {
-    feature: 'Orders list', slug: 'ACME-482', reportGeneratedAt: '2026-10-01T12:00:00Z', decidedBy: 'Dana',
-    items: [
-      { id: 'BF-001', decision: 'build', reason: null, by: 'Dana' },
-      { id: 'BF-003', decision: 'not-needed', reason: 'Covered by the Empty frame: same layout.\n  Search copy only.', by: 'Dana' },
-      { id: 'BF-004', decision: 'build', reason: null, by: 'Dana' },
-    ],
-  });
-  // scripts/lib/backfill.mjs reads both and formats the same message
-  const lib = path.join(SKILL, 'scripts', 'lib', 'backfill.mjs');
-  if (existsSync(lib)) {
-    const { formatBackfillMessage, parseBackfillFile } = await import(pathToFileURL(lib).href);
-    const fromJson = parseBackfillFile(readFileSync(await dl.path(), 'utf8'));
-    assert.equal(formatBackfillMessage({ slug: fromJson.slug, items: fromJson.items, decidedBy: fromJson.decidedBy }), message);
-    const fromChat = parseBackfillFile(message);
-    assert.deepEqual(fromChat.items.map((i) => [i.id, i.decision, i.reason || null]), fromJson.items.map((i) => [i.id, i.decision, i.reason ? i.reason.replace(/\s*\n\s*/g, ' ') : null]));
-  }
+  await page.click('#review-send');
+  assert.match(await page.textContent('#send-summary'), /Backfill \(3\).*BF-001Build in Figma · Bulk selected.*BF-003Not needed · Filter – no results.*BF-004Build in Figma · Refreshing/s);
+  const message = await copied(page, '#copy-for-agent');
+  const doc = parseDecisions(message);
+  for (const it of doc.backfill) assert.match(it.date, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z$/);
+  assert.deepEqual(doc.backfill.map(({ date, ...rest }) => rest), [
+    { id: 'BF-001', decision: 'build', reason: null, by: 'Dana' },
+    { id: 'BF-003', decision: 'not-needed', reason: 'Covered by the Empty frame: same layout.\n  Search copy only.', by: 'Dana' },
+    { id: 'BF-004', decision: 'build', reason: null, by: 'Dana' },
+  ]);
+  assert.deepEqual(doc.dismissals, []);
+  assert.equal(message, decisionsMessage(report, doc));
+  assert.match(message, /\nDesign backfill \(3\)\n- BF-001 build\n- BF-003 not-needed — Covered by the Empty frame: same layout\. Search copy only\.\n- BF-004 build$/);
 
   // 3. Undo puts the recorded decision back
   await page.click('[data-bf-undo="BF-004"]');
   assert.equal(await page.getAttribute('#bf-BF-004', 'data-decision'), 'not-needed');
   assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-bf-build')), 'BF-004');
-  assert.equal(await page.textContent('#backfill-bar-msg'), '2 backfill decisions not recorded yet');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3 · Backfill 2');
+  assert.equal(await page.textContent('#review-bar-status'), 'Changed since you sent');
 
   // 4. Step 1 is untouched: summary, verdict, pins, board, findings table, Design system
   assert.deepEqual(await step1Snapshot(page), before);
 
-  // 5. Decisions survive a reload (own localStorage key); dismissals and backfill bars stay apart
-  await page.goto(url + '#tab=backfill');
+  // 5. Decisions survive a reload (own localStorage key); the Send panel's Review link goes back to the tab
+  await page.goto(url + '#tab=overview');
   await page.waitForSelector('#page-title');
-  assert.equal(await page.textContent('#backfill-bar-msg'), '2 backfill decisions not recorded yet');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3 · Backfill 2');
   assert.equal(await page.getAttribute('#bf-BF-003', 'data-decision'), 'not-needed');
-  assert.equal(await page.isHidden('#dismiss-bar'), true);
-  await page.click('#review-backfill');
+  await page.click('#review-send');
+  await page.click('#send-summary .sp-review');
+  assert.equal(await page.isHidden('#send-panel'), true, 'Review closes the panel');
   assert.equal(await page.getAttribute('#tab-backfill', 'aria-selected'), 'true');
   assert.deepEqual(errors, []);
 });
@@ -591,7 +594,7 @@ test('backfill leaves step 1 alone: same Overview, pins, parity, findings and De
   assert.deepEqual([...plain.errors, ...withBf.errors], []);
 });
 
-test('390px dark: both pending bars stack without overlap; the Not needed panel fits', { timeout: 60000 }, async (t) => {
+test('390px dark: one review bar above the annotation sheet; the Not needed and Send panels fit', { timeout: 60000 }, async (t) => {
   if (!CHROMIUM) return t.skip(SKIP_REASON);
   const { page, errors } = await open(t, 'ui-report-backfill.json', { width: 390, height: 844 });
   await page.click('[data-theme-btn="dark"]');
@@ -604,14 +607,43 @@ test('390px dark: both pending bars stack without overlap; the Not needed panel 
   const pbox = await page.locator('.dismiss-panel[data-panel-for="BF-003"]').boundingBox();
   assert.ok(pbox.x >= 0 && pbox.x + pbox.width <= 390, `panel fits the viewport (${pbox.x}, ${pbox.width})`);
   await page.keyboard.press('Escape');
-  const a = await page.locator('#dismiss-bar').boundingBox();
-  const b = await page.locator('#backfill-bar').boundingBox();
-  assert.ok(a && b, 'both bars are visible');
-  assert.ok(a.y + a.height <= b.y || b.y + b.height <= a.y, `bars do not overlap (${a.y}+${a.height} / ${b.y}+${b.height})`);
-  for (const r of [a, b]) assert.ok(r.x >= 0 && r.x + r.width <= 390 && r.y + r.height <= 844, `bar fits the viewport ${JSON.stringify(r)}`);
+  assert.equal(await page.locator('.dismiss-bar').count(), 1, 'one bar');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 4 · Later 3 · Dismissed 1 · Backfill 1');
+  const bar = await page.locator('#review-bar').boundingBox();
+  assert.ok(bar.x >= 0 && bar.x + bar.width <= 390 && bar.y + bar.height <= 844, `bar fits the viewport ${JSON.stringify(bar)}`);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= 390), true, 'no horizontal page scroll');
   const pad = await page.evaluate(() => parseFloat(getComputedStyle(document.getElementById('main')).paddingBottom));
-  assert.ok(pad >= a.height + b.height, `the page keeps room for both bars (${pad})`);
+  assert.ok(pad >= bar.height, `the page keeps room for the bar (${pad})`);
+
+  // The annotation bottom sheet: the bar sits above it, clear of its controls
+  await page.click('#tab-overview');
+  await page.locator('.pin-row[data-fid]').first().click();
+  await page.waitForSelector('#ann-panel');
+  const ann = await page.locator('#ann-panel').boundingBox();
+  const bar2 = await page.locator('#review-bar').boundingBox();
+  assert.ok(bar2.y + bar2.height <= ann.y + 1, `the bar is above the sheet (${bar2.y}+${bar2.height} / ${ann.y})`);
+  for (const sel of ['#ann-panel .ann-foot .btn', '#ann-panel .tseg-btn']) {
+    const c = await page.locator(sel).first().boundingBox();
+    const hit = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('#review-bar'), [c.x + c.width / 2, c.y + c.height / 2]);
+    assert.equal(hit, false, `${sel} is not covered by the bar`);
+  }
+  // Opening the Send panel closes the sheet (one bottom sheet at a time); the panel fits above the bar
+  await page.click('#review-send');
+  assert.equal(await page.locator('#ann-panel').count(), 0);
+  const sp = await page.locator('#send-panel').boundingBox();
+  const bar3 = await page.locator('#review-bar').boundingBox();
+  assert.ok(sp.x >= 0 && sp.x + sp.width <= 390 && sp.y >= 0, `Send panel fits ${JSON.stringify(sp)}`);
+  assert.ok(sp.y + sp.height <= bar3.y, 'the panel sits above the bar');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= 390), true, 'no horizontal page scroll with the panel open');
+  const primary = await page.locator('#copy-for-agent').boundingBox();
+  assert.ok(primary.y + primary.height <= bar3.y, 'the primary action is in view');
+  // The finding detail sheet covers the bar, never the other way round
+  await page.keyboard.press('Escape');
+  await page.click('#tab-findings');
+  await page.click('#f-DQ-001');
+  const sheetBtn = await page.locator('#finding-sheet button').last().boundingBox();
+  const hit = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('#review-bar'), [sheetBtn.x + sheetBtn.width / 2, sheetBtn.y + sheetBtn.height / 2]);
+  assert.equal(hit, false, 'sheet controls are on top of the bar');
   assert.deepEqual(errors, []);
 });
 
@@ -758,4 +790,363 @@ test('Design system: one Motion row per open motion finding, so rows equal the b
   assert.deepEqual(await ids(page, '#ds-motion tbody tr[data-fid]'), ['DQ-006']);
   assert.equal(await page.textContent('#ds-stats [data-ds="motion"] b'), '1');
   assert.deepEqual(errors, []);
+});
+
+/* ===== Review and send: one bar, one Send panel, one decisions document ===== */
+const ISO = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z$/;
+const fenceJson = (message) => /```design-qa-decisions\n([\s\S]*?)\n```/.exec(message)[1];
+async function move(page, id, decision) {
+  await page.click(`.tri-card[data-fid="${id}"] [data-decision="${decision}"]`);
+}
+async function dismiss(page, id, reason, name) {
+  await page.click(`.tri-card[data-fid="${id}"] [data-dismiss]`);
+  const panel = page.locator(`.dismiss-panel[data-panel-for="${id}"]`);
+  await panel.getByLabel('Reason (required)').fill(reason);
+  if (name !== undefined) await panel.getByLabel('Your name').fill(name);
+  await panel.locator('.dp-save').click();
+}
+
+test('Review and send (file mode): one document for triage, dismissals and backfill; the message equals decisionsMessage()', { timeout: 90000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const reportPath = 'qa-reports/ACME-482/report.json';
+  const configPath = 'config/review settings.json';
+  const { page, errors, report, url, requests } = await open(t, 'ui-report-backfill.json', { context: { reportPath, configPath } });
+  await move(page, 'DQ-003', 'debt');
+  await move(page, 'DQ-007', 'fix-now');
+  await dismiss(page, 'DQ-004', 'Matches the design within tolerance after zoom.', 'Dana');
+  await page.click('#tab-backfill');
+  await page.click('[data-bf-build="BF-001"]');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 4 · Later 3 · Dismissed 1 · Backfill 1');
+  assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet');
+
+  // The panel: heading, focus inside, summary in rank order, name prefilled, tickets checkbox
+  await page.click('#review-send');
+  assert.equal(await page.getAttribute('#review-send', 'aria-expanded'), 'true');
+  assert.equal(await page.textContent('#send-title'), 'Send your decisions');
+  assert.equal(await page.evaluate(() => !!document.activeElement.closest('#send-panel')), true, 'focus moves into the panel');
+  const groups = await page.$$eval('#send-summary .sp-group', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
+  assert.equal(groups.length, 4);
+  assert.match(groups[0], /^Fix now \(4\) DQ-001 .* DQ-002 .* DQ-006 .* DQ-007 /);
+  assert.equal(groups[1], 'Later (3) DQ-003, DQ-014, DQ-013');
+  assert.match(groups[2], /^Dismissed \(1\) Review DQ-004 Not an issue$/);
+  assert.match(groups[3], /^Backfill \(1\) Review BF-001 Build in Figma · Bulk selected$/);
+  assert.equal(await page.inputValue('#send-name'), 'Dana');
+  assert.equal(await page.textContent('#send-tickets'), 'Create tickets for the 3 later items');
+  assert.equal(await page.getAttribute('#send-tickets-box', 'aria-checked'), 'true', 'checked by default: the report has a ticket');
+  assert.match(await page.textContent('#send-panel'), /Sending approves this: your agent records the decisions, creates the tickets if ticked, and starts on the Fix now items\./);
+  assert.equal(await page.locator('#send-to-agent, #copy-instead').count(), 0, 'no Send to agent in file mode');
+  assert.equal(await page.textContent('#copy-for-agent'), 'Copy for your agent');
+  await page.click('#send-tickets-box');
+  assert.equal(await page.getAttribute('#send-tickets-box', 'aria-checked'), 'false');
+  await page.fill('#send-name', '  Dana Reviewer ');
+  // Esc closes and returns focus to the bar button; the choices are kept
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#send-panel').count(), 0);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'review-send');
+  await page.click('#review-send');
+  assert.equal(await page.inputValue('#send-name'), 'Dana Reviewer', 'the name is kept, trimmed');
+  assert.equal(await page.getAttribute('#send-tickets-box', 'aria-checked'), 'false');
+
+  const message = await copied(page, '#copy-for-agent');
+  const doc = parseDecisions(message);
+  assert.equal(message, decisionsMessage(report, doc, { reportPath, configPath }), 'character for character');
+  assert.match(message, /--config 'config\/review settings.json'/);
+  assert.match(message, /^Apply my design QA review for Orders list \(ACME-482\)\.\n\nReport: qa-reports\/ACME-482\/report\.json\nDecided by Dana Reviewer: fix now 4 · later 3 · dismissed 1 · backfill 1 · tickets: no\n/);
+  assert.equal(doc.decidedBy, 'Dana Reviewer');
+  assert.equal(doc.tickets, false);
+  assert.match(doc.decidedAt, ISO);
+  assert.deepEqual(doc.triage, { fixNow: ['DQ-001', 'DQ-002', 'DQ-006', 'DQ-007'], debt: ['DQ-003', 'DQ-014', 'DQ-013'] });
+  assert.deepEqual(doc.dismissals.map(({ date, ...rest }) => rest), [{ findingId: 'DQ-004', kind: 'not-an-issue', reason: 'Matches the design within tolerance after zoom.', by: 'Dana' }]);
+  assert.deepEqual(doc.backfill.map(({ date, ...rest }) => rest), [{ id: 'BF-001', decision: 'build', reason: null, by: 'Dana' }]);
+  assert.equal(JSON.stringify(JSON.parse(fenceJson(message))), JSON.stringify(normalizeDecisions(JSON.parse(fenceJson(message)))), 'canonical key order');
+
+  // Copied: the bar says so; the panel closed
+  assert.equal(await page.locator('#send-panel').count(), 0);
+  assert.match(await page.textContent('#review-bar-status'), /^Copied at \d\d:\d\d: paste it into your agent's chat$/);
+  const copiedStatus = await page.textContent('#review-bar-status');
+
+  // Download: the same document, pretty-printed, trailing newline
+  await page.click('#review-send');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#download-decisions')]);
+  assert.equal(dl.suggestedFilename(), 'decisions.json');
+  const body = readFileSync(await dl.path(), 'utf8');
+  const fileDoc = parseDecisions(body);
+  assert.equal(body, `${JSON.stringify(JSON.parse(body), null, 2)}\n`);
+  assert.equal(JSON.stringify(JSON.parse(body)), JSON.stringify(normalizeDecisions(JSON.parse(body))), 'canonical key order');
+  assert.deepEqual({ ...fileDoc, decidedAt: null }, { ...doc, decidedAt: null });
+  await page.keyboard.press('Escape');
+
+  // Any change returns the bar to unsent; undoing it matches the copied document again
+  await page.click('#tab-overview');
+  await move(page, 'DQ-003', 'fix-now');
+  assert.equal(await page.textContent('#review-bar-status'), 'Changed since you sent');
+  await move(page, 'DQ-003', 'debt');
+  assert.equal(await page.textContent('#review-bar-status'), copiedStatus);
+
+  // The state survives a reload
+  await page.goto(url);
+  await page.waitForSelector('#page-title');
+  assert.equal(await page.textContent('#review-bar-status'), copiedStatus);
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 4 · Later 3 · Dismissed 1 · Backfill 1');
+
+  assert.deepEqual(requests.map((r) => r.url()), [], 'no network request in file mode');
+  assert.deepEqual(errors, []);
+});
+
+test('Review and send: a recorded triage can be sent unchanged and ticket approval can change independently', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const recorded = (r) => {
+    const split = { 'DQ-001': 'fix-now', 'DQ-002': 'fix-now', 'DQ-003': 'fix-now', 'DQ-004': 'fix-now', 'DQ-006': 'fix-now', 'DQ-007': 'debt', 'DQ-013': 'debt', 'DQ-014': 'debt' };
+    r.triage = { decidedBy: 'M. Ortiz', decidedAt: '2026-10-02T09:30:00Z', source: 'report-ui', ticketsAuthorized: false,
+      items: Object.entries(split).map(([findingId, decision]) => ({ findingId, decision, reason: null, ticket: null })) };
+  };
+  const { page, errors } = await open(t, 'ui-report.json', { mutate: recorded });
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3');
+  assert.equal(await page.textContent('#review-bar-status'), 'All decisions are recorded · by M. Ortiz, 2026-10-02');
+  assert.equal(await page.getAttribute('#review-bar', 'data-state'), 'recorded');
+  assert.equal(await page.isEnabled('#review-send'), true);
+  await page.click('#review-send');
+  assert.equal(await page.getAttribute('#send-tickets-box', 'aria-checked'), 'false', 'preserve the recorded refusal');
+  await page.click('#send-tickets-box');
+  assert.equal(await page.getAttribute('#send-tickets-box', 'aria-checked'), 'true');
+  assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet', 'ticket approval is a pending decision');
+  await page.keyboard.press('Escape');
+
+  await move(page, 'DQ-006', 'debt');
+  assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet');
+  assert.equal(await page.isEnabled('#review-send'), true);
+  await page.reload();
+  await page.waitForSelector('#page-title');
+  assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet', 'the change survives a reload');
+  await move(page, 'DQ-006', 'fix-now');
+  assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet', 'the split matches but ticket approval changed');
+  assert.equal(await page.isEnabled('#review-send'), true);
+  await page.click('#review-send');
+  assert.equal(parseDecisions(await copied(page, '#copy-for-agent')).tickets, true);
+
+  // No report ticket: the tickets box starts unchecked; no later items: no tickets box at all
+  const plain = await open(t, 'ui-report-multiscreen.json');
+  await plain.page.click('#review-send');
+  assert.equal(await plain.page.locator('#send-tickets-box').count(), 0, 'nothing is later');
+  await plain.page.keyboard.press('Escape');
+  await move(plain.page, 'DQ-001', 'debt');
+  await plain.page.click('#review-send');
+  assert.equal(await plain.page.textContent('#send-tickets'), 'Create tickets for the 1 later item');
+  assert.equal(await plain.page.getAttribute('#send-tickets-box', 'aria-checked'), 'false');
+  assert.equal(parseDecisions(await copied(plain.page, '#copy-for-agent')).tickets, false);
+  assert.deepEqual([...errors, ...plain.errors], []);
+});
+
+test('Review and send: when the clipboard is blocked the message is shown selected, with Select all and copy', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const BLOCKED = () => {
+    window.__copied = null;
+    window.__allowExec = false;
+    Object.defineProperty(Navigator.prototype, 'clipboard', { configurable: true, get: () => ({ writeText: () => Promise.reject(new Error('denied')) }) });
+    Document.prototype.execCommand = function (cmd) {
+      if (cmd !== 'copy' || !window.__allowExec) return false;
+      const a = document.activeElement; window.__copied = a && 'value' in a ? a.value : null; return true;
+    };
+  };
+  const { page, errors, report } = await open(t, 'ui-report.json', { stub: BLOCKED });
+  await page.click('#review-send');
+  await page.click('#copy-for-agent');
+  await page.waitForSelector('#send-message');
+  const shown = await page.inputValue('#send-message');
+  assert.equal(shown, decisionsMessage(report, parseDecisions(shown)));
+  assert.equal(await page.evaluate(() => { const ta = document.getElementById('send-message'); return document.activeElement === ta && ta.selectionStart === 0 && ta.selectionEnd === ta.value.length && ta.readOnly; }), true, 'read-only, focused and selected');
+  assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet');
+  await page.evaluate(() => { window.__allowExec = true; });
+  await page.click('#send-select-all');
+  assert.equal(await page.evaluate(() => window.__copied), shown);
+  assert.match(await page.textContent('#review-bar-status'), /^Copied at \d\d:\d\d/);
+  assert.deepEqual(errors, []);
+});
+
+test('no element in the rendered UI names a specific agent product', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const { page, errors } = await open(t, 'ui-report-backfill.json');
+  await dismiss(page, 'DQ-004', 'Not real.', 'Dana');
+  await page.click('#tab-backfill');
+  await page.click('[data-bf-build="BF-001"]');
+  await page.click('#review-send');
+  const leaks = await page.evaluate(() => {
+    const out = [];
+    for (const el of document.querySelectorAll('body *')) {
+      if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue;
+      for (const a of el.getAttributeNames()) if (/claude code/i.test(el.getAttribute(a))) out.push(`${el.tagName}[${a}]`);
+    }
+    if (/claude code/i.test(document.body.innerText)) out.push('text');
+    return out;
+  });
+  assert.deepEqual(leaks, []);
+  for (const tab of ['findings', 'design-system', 'states', 'decisions', 'evidence', 'backfill']) {
+    await page.click(`#tab-${tab}`);
+    assert.equal(/claude code/i.test(await page.evaluate(() => document.body.innerText)), false, tab);
+  }
+  assert.deepEqual(errors, []);
+});
+
+/* ===== Live mode: the page served by scripts/review.mjs ===== */
+// <tmp>/qa-reports/ACME-482/report.json rendered with render-report.mjs, then review.mjs started from <tmp>.
+async function liveReview(t, name = 'ui-report.json', mutate = null) {
+  const root = tmpDir('design-qa-live-');
+  const dir = path.join(root, 'qa-reports', 'ACME-482');
+  mkdirSync(dir, { recursive: true });
+  const reportFile = path.join(dir, 'report.json');
+  const input = loadFixture(name);
+  if (mutate) mutate(input);
+  writeFileSync(reportFile, `${JSON.stringify(input, null, 2)}\n`);
+  const children = [];
+  t.after(() => {
+    for (const c of children) if (c.exitCode === null && c.signalCode === null) c.kill('SIGKILL');
+    rmSync(root, { recursive: true, force: true });
+  });
+  const rendered = await run(script('render-report.mjs'), ['--in', path.join('qa-reports', 'ACME-482', 'report.json'), '--recompute', '--write-back'], { cwd: root });
+  assert.equal(rendered.code, 0, rendered.stderr);
+  assert.match(readFileSync(path.join(dir, 'report.html'), 'utf8'), /<script id="design-qa-context" type="application\/json">\{"reportPath":"qa-reports\/ACME-482\/report\.json"\}<\/script>/);
+  const child = spawn(process.execPath, [script('review.mjs'), '--report', path.join('qa-reports', 'ACME-482', 'report.json'), '--no-open'], {
+    cwd: root, env: { ...process.env, NO_COLOR: '1' }, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  children.push(child);
+  let stdout = '';
+  let stderr = '';
+  child.stderr.on('data', (d) => (stderr += d));
+  const exited = new Promise((done) => child.on('close', (code) => done({ code, stdout, stderr })));
+  const url = await new Promise((resolve, reject) => {
+    child.stdout.on('data', (d) => {
+      stdout += d;
+      const m = /Review open: (http:\/\/127\.0\.0\.1:\d+\/\?t=[0-9a-f]+)/.exec(stdout);
+      if (m) resolve(m[1]);
+    });
+    exited.then((r) => reject(new Error(`review.mjs exited ${r.code} before starting:\n${r.stdout}\n${r.stderr}`)));
+  });
+  return { root, dir, reportFile, child, url, exited, output: () => stdout };
+}
+// Requests after the page loaded, minus images (the unembedded evidence paths).
+const afterLoad = (requests, from) => requests.slice(from).filter((r) => r.resourceType() !== 'image');
+const liveErrors = (errors) => errors.filter((e) => !/Failed to load resource/.test(e));
+
+test('live mode: accept unchanged CI triage and complete a review with no findings', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  for (const empty of [false, true]) {
+    const live = await liveReview(t, 'ui-report.json', (r) => {
+      if (empty) {
+        r.findings = [];
+        for (const ledger of Object.values(r.ledgers)) for (const row of ledger) row.findingIds = [];
+        for (const row of r.stateMatrix) row.findings = [];
+      } else {
+        Object.assign(r, applyTriage(r, buildTriage(r, { fixIds: ['DQ-001', 'DQ-002'], source: 'ci-default' }).triage));
+      }
+    });
+    const { page } = await openUrl(t, live.url);
+    assert.equal(await page.locator('#review-send').isVisible(), true);
+    assert.equal(await page.locator('#review-send').isEnabled(), true);
+    if (!empty) assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet');
+    await page.click('#review-send');
+    await page.click('#send-to-agent');
+    const received = await live.exited;
+    assert.equal(received.code, 0, received.stderr);
+    const applied = await run(script('apply-decisions.mjs'), ['--report', live.reportFile], { cwd: live.root });
+    assert.equal(applied.code, 0, applied.stderr);
+    const result = JSON.parse(readFileSync(live.reportFile, 'utf8'));
+    if (!empty) assert.equal(result.triage.source, 'report-ui');
+    else assert.deepEqual(result.findings, []);
+  }
+});
+
+test('live mode: Send to agent posts the one document; review.mjs saves it and exits 0; apply-decisions records it', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const live = await liveReview(t);
+  const { page, errors, requests } = await openUrl(t, live.url);
+  await page.waitForLoadState('networkidle');
+  const from = requests.length;
+  await move(page, 'DQ-003', 'debt');
+  await dismiss(page, 'DQ-007', 'The 400ms fade is the Acme platform default.', 'Dana');
+  await page.click('#review-send');
+  assert.equal(await page.textContent('#send-to-agent'), 'Send to agent');
+  assert.equal(await page.textContent('#copy-instead'), 'Copy instead');
+  assert.equal(await page.locator('#copy-for-agent').count(), 0);
+  await page.click('#send-to-agent');
+  await page.waitForFunction(() => /^Sent to your agent at \d\d:\d\d$/.test(document.getElementById('review-bar-status').textContent));
+  assert.equal(await page.locator('#send-panel').count(), 0, 'the panel closes');
+  assert.match(await page.textContent('.toaster'), /Sent to your agent/);
+
+  const sent = afterLoad(requests, from);
+  assert.deepEqual(sent.map((r) => `${r.method()} ${new URL(r.url()).pathname}`), ['POST /decisions'], 'exactly one request');
+  const posted = JSON.parse(sent[0].postData());
+  assert.equal(sent[0].headers()['content-type'], 'application/json');
+  assert.match(sent[0].headers()['x-design-qa-token'], /^[0-9a-f]{32}$/);
+  assert.equal(JSON.stringify(posted), JSON.stringify(normalizeDecisions(posted)), 'canonical document');
+  assert.deepEqual(posted.triage, { fixNow: ['DQ-001', 'DQ-002', 'DQ-004', 'DQ-006'], debt: ['DQ-003', 'DQ-014', 'DQ-013'] });
+  assert.deepEqual(posted.dismissals.map((d) => [d.findingId, d.kind, d.by]), [['DQ-007', 'not-an-issue', 'Dana']]);
+
+  const result = await live.exited;
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /Decisions received from Dana: fix now 4 · later 3 · dismissed 1 · tickets: yes/);
+  assert.match(result.stdout, /\nNext: node \S*apply-decisions\.mjs --report qa-reports\/ACME-482\/report\.json/);
+  const saved = readFileSync(path.join(live.dir, 'decisions.json'), 'utf8');
+  assert.equal(saved, `${JSON.stringify(posted, null, 2)}\n`, 'decisions.json is the page document');
+
+  const apply = await run(script('apply-decisions.mjs'), ['--report', live.reportFile], { cwd: live.root });
+  assert.equal(apply.code, 0, apply.stderr);
+  const after = JSON.parse(readFileSync(live.reportFile, 'utf8'));
+  const decision = Object.fromEntries(after.triage.items.map((i) => [i.findingId, i.decision]));
+  assert.deepEqual(decision, { 'DQ-001': 'fix-now', 'DQ-002': 'fix-now', 'DQ-004': 'fix-now', 'DQ-006': 'fix-now', 'DQ-003': 'debt', 'DQ-013': 'debt', 'DQ-014': 'debt' });
+  assert.equal(after.triage.decidedBy, 'Dana');
+  const d7 = after.findings.find((f) => f.id === 'DQ-007');
+  assert.equal(d7.resolution, 'DISMISSED');
+  assert.equal(d7.dismissal.reason, 'The 400ms fade is the Acme platform default.');
+
+  // After a send the panel offers Copy (the agent stopped waiting)
+  await page.click('#review-send');
+  assert.equal(await page.locator('#send-to-agent').count(), 0);
+  assert.equal(await page.locator('#copy-for-agent').count(), 1);
+  assert.equal(afterLoad(requests, from).length, 1, 'never a second request');
+  assert.deepEqual(liveErrors(errors), []);
+});
+
+test('live mode: the server is gone → the panel says so and Copy for your agent becomes the primary action', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const live = await liveReview(t);
+  const { page, errors } = await openUrl(t, live.url);
+  await move(page, 'DQ-003', 'debt');
+  live.child.kill('SIGTERM');
+  assert.equal((await live.exited).code, 3);
+  await page.click('#review-send');
+  await page.click('#send-to-agent');
+  await page.waitForSelector('#send-error');
+  assert.match(await page.textContent('#send-error'), /Your agent is no longer waiting\. Copy the decisions and paste them into its chat\./);
+  assert.equal(await page.locator('#send-to-agent').count(), 0);
+  assert.equal(await page.getAttribute('#copy-for-agent', 'class'), 'btn btn-default btn-sm', 'Copy is the primary action');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'copy-for-agent');
+  const message = await copied(page, '#copy-for-agent');
+  const doc = parseDecisions(message);
+  assert.deepEqual(doc.triage.debt, ['DQ-003', 'DQ-007', 'DQ-014', 'DQ-013']);
+  assert.match(message, /\nReport: qa-reports\/ACME-482\/report\.json\n/);
+  assert.match(await page.textContent('#review-bar-status'), /^Copied at \d\d:\d\d: paste it into your agent's chat$/);
+  assert.deepEqual(liveErrors(errors).filter((e) => !/ERR_CONNECTION_REFUSED|Failed to fetch/.test(e)), []);
+});
+
+test('live mode: a stale report is rejected with the server\'s reason; the server keeps waiting', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const live = await liveReview(t);
+  const { page, errors, requests } = await openUrl(t, live.url);
+  await page.waitForLoadState('networkidle');
+  const from = requests.length;
+  const onDisk = JSON.parse(readFileSync(live.reportFile, 'utf8'));
+  onDisk.meta.generatedAt = '2026-10-04T08:00:00Z';
+  writeFileSync(live.reportFile, JSON.stringify(onDisk, null, 2));
+  await page.click('#review-send');
+  await page.click('#send-to-agent');
+  await page.waitForSelector('#send-error');
+  const error = await page.textContent('#send-error .alert-description');
+  assert.match(error, /^these decisions were made on the report generated 2026-10-01T12:00:00Z, but report\.json was generated 2026-10-04T08:00:00Z\..*Reopen the current report\.html, review again and send the new decisions\.$/s);
+  assert.equal(await page.isVisible('#send-panel'), true, 'the panel stays open');
+  assert.equal(await page.isEnabled('#send-to-agent'), true, 'Send is available again');
+  assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet');
+  assert.equal(live.child.exitCode, null, 'the server keeps running');
+  assert.match(live.output(), /Waiting for the reviewer/);
+  assert.deepEqual(afterLoad(requests, from).map((r) => r.method()), ['POST']);
+  assert.deepEqual(liveErrors(errors).filter((e) => !/409/.test(e)), []);
 });

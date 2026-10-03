@@ -101,7 +101,7 @@ Comments on the audited ticket are off by default (`ticket.writeBack: false`). W
 After triage (report.md, "Triage and debt"), every finding triaged as debt gets its own ticket, so nothing the person chose to defer is lost. `ticket.writeBack` does not gate this; the person's yes does, every time.
 
 1. **Preview.** `node scripts/jira-fetch.mjs --tickets-from <dir>/report.json` is a dry run: it prints every ticket it would create. Show that list to the person.
-2. **Confirm.** Create nothing until they say yes. An item they do not want ticketed moves to fix now or is signed off as `INTENTIONAL` (re-run triage); it never stays untracked.
+2. **Confirm.** Create nothing until they say yes. A review sent with "Create tickets for the n later items" ticked (`tickets: true`, recorded as `triage.ticketsAuthorized`) is that yes: show the list in the reply and go on. Sent without it: create none and do not ask. An item they do not want ticketed moves to fix now or is signed off as `INTENTIONAL` (re-run triage); it never stays untracked.
 3. **Create.** Add `--write`. The script creates one ticket per debt item that has no ticket yet and writes `{ provider, key, url, createdAt }` into `triage.items[].ticket` in `report.json`.
 4. **Record.** Re-render the report (Phase 8) and update the debt log with `scripts/debt-log.mjs`.
 

@@ -1,10 +1,11 @@
 # Fix loop
 
-Fix mode runs the audit, lets the person choose what to fix now (triage), then drives that fix-now set to zero. The rest becomes ticketed debt. The report is the starting point, not the deliverable.
+Fix mode runs the audit, lets the person choose what to fix now (the review in `report.html`, or triage in chat), then drives that fix-now set to zero. The rest becomes debt. The report is the starting point, not the deliverable. A Send from the review starts this loop in audit mode too.
 
 ## Scope
 
-- **The fix-now set only**: `FIX_CODE` findings triaged fix now (`triage.items[].decision == "fix-now"`). Without a recorded triage, offer the split first (SKILL.md Phase 9); if the person does not choose, use the default split (the fix-now bucket plus every blocker).
+- **The fix-now set only**: `FIX_CODE` findings triaged fix now (`triage.items[].decision == "fix-now"`). The triage comes from the reviewer's Send, recorded by `apply-decisions.mjs` (SKILL.md "Apply review decisions"), which also prints the set in order; or from `/design-qa triage` typed by hand. Without a recorded triage, open the review or offer the split in chat first (SKILL.md Phase 9); if the person does not choose, use the default split (the fix-now bucket plus every blocker).
+- Send approves starting this loop on that set. It does not approve wider changes: the rules below still apply.
 - Debt is not touched. It is ticketed and logged instead (report.md, "Triage and debt").
 - Never touch data (`DATA`), accepted drift (`INTENTIONAL`) or dismissed findings (`DISMISSED`).
 - The design is the target. When a fix feels wrong because the code seems better than the design, stop and ask: the person can sign the finding off or dismiss it with a reason. Never change the design.

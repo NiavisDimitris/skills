@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "design-qa review decisions",
+  "description": "Everything a reviewer decided in report.html, in one document: fix now / debt, dismissals with a written reason, design-backfill decisions, and whether tickets may be created. report.html sends it to scripts/review.mjs (saved as <report dir>/decisions.json) or embeds it in the \"Copy for your agent\" message inside a ```design-qa-decisions fence; scripts/apply-decisions.mjs applies it to report.json. Finding ids are renumbered on every pass, so reportGeneratedAt must equal the report's meta.generatedAt. Rules JSON Schema cannot express (no id in both triage.fixNow and triage.debt, no dismissed id also in triage, unique ids) are checked by scripts/lib/decisions.mjs.",
+  "type": "object",
+  "required": ["kind", "version", "slug", "reportGeneratedAt", "decidedAt"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "kind": { "const": "design-qa-decisions" },
+    "version": { "const": 1, "description": "Format version. A higher version is a newer format: update the design-qa skill." },
+    "slug": { "type": "string", "minLength": 1, "description": "The report folder name (meta.ticket.key, else the kebab-cased feature)." },
+    "feature": { "type": ["string", "null"] },
+    "reportGeneratedAt": { "type": "string", "format": "date-time", "description": "meta.generatedAt of the report the decisions were made on." },
+    "decidedBy": { "type": ["string", "null"] },
+    "decidedAt": { "type": "string", "format": "date-time" },
+    "tickets": { "type": "boolean", "description": "The reviewer authorised creating tickets for the debt items (default false)." },
+    "triage": {
+      "type": ["object", "null"],
+      "description": "Every triageable finding that is not dismissed in this document, split into fix now (in the order to fix) and debt. Absent: the triage is left as it is.",
+      "additionalProperties": false,
+      "properties": {
+        "fixNow": { "type": "array", "items": { "$ref": "#/definitions/findingId" } },
+        "debt": { "type": "array", "items": { "$ref": "#/definitions/findingId" } }
+      }
+    },
+    "dismissals": {
+      "type": "array",
+      "description": "Dismissals not yet recorded in report.json.",
+      "items": {
+        "type": "object",
+        "required": ["findingId", "kind", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "findingId": { "$ref": "#/definitions/findingId" },
+          "kind": { "enum": ["not-an-issue", "remove", "intentional"] },
+          "reason": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "by": { "type": ["string", "null"] },
+          "date": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    },
+    "backfill": {
+      "type": "array",
+      "description": "Design-backfill decisions not yet recorded in report.json.",
+      "items": {
+        "type": "object",
+        "required": ["id", "decision"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^BF-\\d{3,}$" },
+          "decision": { "enum": ["build", "not-needed"] },
+          "reason": { "type": ["string", "null"], "description": "Required (non-empty) for not-needed; an optional note for build." },
+          "by": { "type": ["string", "null"] },
+          "date": { "type": ["string", "null"], "format": "date-time" }
+        },
+        "if": { "properties": { "decision": { "const": "not-needed" } } },
+        "then": { "required": ["reason"], "properties": { "reason": { "type": "string", "pattern": "\\S" } } }
+      }
+    }
+  },
+  "definitions": {
+    "findingId": { "type": "string", "pattern": "^DQ-\\d{3,}$" }
+  }
+}

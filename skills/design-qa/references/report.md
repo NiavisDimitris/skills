@@ -10,11 +10,13 @@ One pass produces one folder, `qa-reports/<feature>/` (or the directory the call
 | `report-backfill.md` | `scripts/render-report.mjs --backfill-plan` | step 2: the undesigned states to build in Figma, with a design-agent prompt. Only when `backfill` has items. |
 | `state-matrix.json` | `scripts/lib/state-discovery.mjs`, finalised by the agent | Phase 3 onward |
 | `backfill-candidates.json` | `scripts/lib/state-discovery.mjs --backfill-out`, extended by the agent | Phase 3; merged into `report.json` `backfill` in Phase 8 |
+| `decisions.json` | `scripts/review.mjs` when the reviewer clicks Send, or saved by the reviewer | the reviewer's pending decisions ("Review decisions") |
+| `decisions.applied.json` | `scripts/apply-decisions.mjs`, by renaming `decisions.json` | the decisions last applied |
 | `evidence/` | the scripts and the agent | screenshots, specs, grabs, DOM outlines, motion, compare rows, diffs; `evidence/backfill/` for step 2 |
 
 The agent writes `report.json` and nothing else by hand. The HTML, the fix plan and the backfill plan are always rendered from it, so they never disagree.
 
-Across passes and features, two cumulative logs sit next to the feature folders: the design-debt log (`qa-reports/design-debt.json` and `.md`, written by `scripts/debt-log.mjs`, see "Triage and debt") and the dismissals log (`qa-reports/dismissed.json` and `.md`, written by `scripts/dismiss.mjs`, see "Dismissals").
+Across passes and features, two cumulative logs sit next to the feature folders: the design-debt log (`qa-reports/design-debt.json` and `.md`, written by `scripts/debt-log.mjs`, see "Triage and debt") and the dismissals log (`qa-reports/dismissed.json` and `.md`, written by `scripts/dismiss.mjs`, see "Dismissals"). `scripts/apply-decisions.mjs` updates both when it applies a review.
 
 ## Producing the files
 
@@ -42,7 +44,7 @@ node scripts/validate.mjs <dir>/report.json --config design-qa.config.json
 | `--write-back` | Save the ranks (and, with `--recompute`, the scorecard) back into the `--in` file. |
 | `--template <file>` | Alternative HTML template. |
 
-The renderer validates first and refuses to render an invalid report. `validate.mjs` exits 0 when valid, 1 when invalid (with readable errors), 2 on bad arguments; `--type report|config|state-matrix` forces the file type when it cannot be inferred.
+The renderer validates first and refuses to render an invalid report. `validate.mjs` exits 0 when valid, 1 when invalid (with readable errors), 2 on bad arguments; `--type report|config|state-matrix|decisions` forces the file type when it cannot be inferred (a decisions document is recognised by its `kind`).
 
 All paths inside `report.json` are relative to the folder that contains it.
 
@@ -143,6 +145,7 @@ All paths inside `report.json` are relative to the folder that contains it.
   "triage": null | {
     "decidedBy", "decidedAt",                                   ISO-8601
     "source": "report-ui | chat | cli | ci-default",
+    "ticketsAuthorized": true | false,                          optional; from a decisions document
     "items": [ { "findingId", "decision": "fix-now | debt", "reason",
                  "ticket": null | { "provider", "key", "url", "createdAt" } } ]
   },
@@ -187,7 +190,7 @@ The JSON Schema is `schemas/report.schema.json`. Keys whose value may be null ca
 - `fixLoop[].pixelDiffAfter`: `{ "<state>": percent }` after the iteration, or null.
 - `stateMatrix[].captured.design` and `evidence.states.<state>.design`: the design-side PNG, `evidence/figma/<state>.png` or `evidence/design/<state>.png`.
 - `evidence`: paths to `evidence/figma-spec.json`, `evidence/ticket.json`, `evidence/capture.json`, `evidence/design-capture.json` (`prototypeCapture`), `evidence/compare.json` (`compare`), and per state its evidence files (`designComputed` is `evidence/design-computed/<state>.json`).
-- `triage`: the person's choice of what to fix now; absent until someone triages. `decidedBy` is the person, `decidedAt` when, `source` how: `report-ui` (the board in `report.html`), `chat`, `cli` (`triage.mjs` run by hand) or `ci-default` (the default split recorded by CI).
+- `triage`: the person's choice of what to fix now; absent until someone triages. `decidedBy` is the person, `decidedAt` when, `source` how: `report-ui` (decided in `report.html` and applied by `apply-decisions.mjs`, or a `selection.json`), `chat`, `cli` (`triage.mjs` run by hand) or `ci-default` (the default split recorded by CI). `ticketsAuthorized`: written by `apply-decisions.mjs` from the document's `tickets`; true when the reviewer authorised tickets for the debt items, false when they did not; absent when the triage did not come from a decisions document.
 - `triage.items[]`: one per triageable finding, `decision` `fix-now` or `debt`, an optional `reason` (why it can wait), and `ticket` once a debt ticket exists: `{ provider, key, url, createdAt }`. `jira-fetch.mjs --tickets-from --write` fills it; after creating tickets through the Atlassian MCP, the agent fills it.
 - `scorecard.unexplained`, `debt`, `loopClosed`, `dismissed`, `designSystem`, `backfill`: derived; see "Derived rules" and "Design backfill".
 - `backfill`: step 2, the states the app has and the design lacks. Never in `stateMatrix`, `findings`, the ledgers or `triage`; see "Design backfill".
@@ -242,17 +245,139 @@ Rankable findings, sorted by score descending (ties by id): the first N (default
 
 **Pixel-diff bands**: percent below `pass` (default 1) is `pass`; up to and including `review` (default 5) is `review`; above is `fail`. A `pass` becomes `review` when the entry's `structuralBand` is `review`: `diff.mjs` found a large contiguous area that differs too faintly for pixelmatch's threshold (a light panel missing on a white page scores well under 1%; browser-capture.md, "Pixel diff"). A structural difference never makes `fail` on its own.
 
+## Review decisions (decisions.json)
+
+The reviewer makes every decision in `report.html` (fix now or later, dismissals with a reason, design-backfill decisions, and whether tickets may be created) and sends them to the agent in one document. Sending is the approval: the agent records the decisions, creates tickets for the debt items when `tickets` is true, and starts the fix loop on the fix-now set (SKILL.md "Apply review decisions"). It still asks before risky or wide edits (fix-loop.md, "Scope").
+
+**Two ways back.**
+
+- Opened through `review.mjs`: "Send to agent" posts the document to the local server, which saves `<dir>/decisions.json` and exits 0. An agent that is notified when a background command exits continues by itself; otherwise the person tells the agent they are done.
+- Opened as a plain file (a CI artifact, an attachment, a remote session): "Copy for your agent" copies one plain-language message to paste into any agent's chat. "Download decisions.json" saves the bare document; pass it to `apply-decisions.mjs --from`, or put it in the report folder as `decisions.json`.
+
+**The document** (`schemas/decisions.schema.json`):
+
+```json
+{
+  "kind": "design-qa-decisions",
+  "version": 1,
+  "slug": "ACME-482",
+  "feature": "Orders list",
+  "reportGeneratedAt": "2026-10-01T12:00:00Z",
+  "decidedBy": "Dana",
+  "decidedAt": "2026-10-03T10:00:00.000Z",
+  "tickets": true,
+  "triage": { "fixNow": ["DQ-001", "DQ-002", "DQ-003", "DQ-004"], "debt": ["DQ-006", "DQ-013", "DQ-014"] },
+  "dismissals": [
+    { "findingId": "DQ-007", "kind": "not-an-issue", "reason": "The 400ms fade is the Acme platform default;\nthe design file predates it.", "by": "Dana", "date": "2026-10-03T09:58:00.000Z" },
+    { "findingId": "DQ-012", "kind": "remove", "reason": "Copy is owned by the content team, out of this QA.", "by": "Dana", "date": "2026-10-03T09:58:30.000Z" }
+  ],
+  "backfill": []
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `kind` | Always `"design-qa-decisions"`. |
+| `version` | `1`. A higher version is a newer format: update the skill. |
+| `slug` | The report folder name (`meta.ticket.key`, else the kebab-cased feature). Must match the report. |
+| `feature` | `meta.feature`, for people. Optional. |
+| `reportGeneratedAt` | `meta.generatedAt` of the report the decisions were made on. Finding ids are renumbered on every pass, so a report with another value refuses the document as stale. |
+| `decidedBy` | The reviewer's name ("Your name"), or null. |
+| `decidedAt` | When they sent it, ISO 8601. |
+| `tickets` | true when "Create tickets for the n later items" was ticked. Default false. Recorded as `triage.ticketsAuthorized`. |
+| `triage` | `{ fixNow: [ids], debt: [ids] }`: every triageable finding not dismissed in this document, fix now in the order to fix. Absent or null: the recorded triage is left as it is. |
+| `dismissals` | `[{ findingId, kind, reason, by, date }]`, the dismissals not yet in `report.json`. `kind` is `not-an-issue`, `remove` or `intentional`; `reason` is required and never blank. |
+| `backfill` | `[{ id, decision, reason, by, date }]`, the backfill decisions not yet in `report.json`. `decision` is `build` or `not-needed`; `reason` is required for `not-needed`. |
+
+Required: `kind`, `version`, `slug`, `reportGeneratedAt`, `decidedAt`. Unknown keys are refused. An item's `by` and `date` fall back to `decidedBy` and `decidedAt`. `scripts/lib/decisions.mjs` also checks what the schema cannot: no id in both `fixNow` and `debt`, no dismissed id in `triage`, no id listed twice. `node scripts/validate.mjs <dir>/decisions.json` checks a file (the type is inferred from `kind`).
+
+**The pasted message.** "Copy for your agent" copies this (`decisionsMessage` in `scripts/lib/decisions.mjs`; shortened here):
+
+````text
+Apply my design QA review for Orders list (ACME-482).
+
+Report: qa-reports/ACME-482/report.json
+Decided by Dana: fix now 4 · later 3 · dismissed 2 · tickets: yes
+
+What to do:
+1. Use the design-qa skill, section "Apply review decisions". Save this whole message to a file and run its script:
+   node scripts/apply-decisions.mjs --report qa-reports/ACME-482/report.json --from <that file>
+   (the script path is relative to the design-qa skill folder). No design-qa skill available? Skip step 1 and do steps 2 and 3 from the text below.
+2. Fix the "Fix now" findings below, in the order given. …
+3. Do not fix the "Fix later" items; they are tracked as debt. Leave dismissed items alone.
+
+```design-qa-decisions
+{ …the document… }
+```
+
+Fix now (4)
+
+[DQ-001] Empty state is not implemented
+… one agent prompt block per fix-now finding …
+
+Fix later (3)
+- DQ-006 [WARNING] Row hover has no background transition
+…
+
+Dismissed (2)
+- DQ-007 not-an-issue — The 400ms fade is the Acme platform default; the design file predates it.
+- DQ-012 remove — Copy is owned by the content team, out of this QA.
+````
+
+The script reads only the `` ```design-qa-decisions `` block and ignores the rest, so the message is saved to a file as it is, never retyped. A chat app that turns quotes into curly quotes breaks the JSON; the error says so. An agent without the skill can still follow steps 2 and 3 from the text.
+
+**Applying** (`scripts/apply-decisions.mjs`):
+
+```bash
+node scripts/apply-decisions.mjs --report <dir>/report.json [--from <file> | --from -] \
+  [--allow-stale] [--by "<name>"] [--log <file>] [--md <file>] [--config design-qa.config.json] [--dry-run] [--quiet]
+```
+
+- `--from`: the document, or a text file holding the whole message; `-` reads stdin. Omitted: `<dir>/decisions.json`. When that does not exist, it prints "No pending decisions" and exits 0.
+- Order: dismissals (as `dismiss.mjs`), then the triage (as `triage.mjs --selection`, source `report-ui`; a blocker listed as debt stays fix now, with a warning), then the backfill decisions (as `backfill.mjs --from`). The scorecard is recomputed and the result validated before `report.json` is written. New dismissals go into the dismissed log; the debt log (`design-debt.json` and `.md` next to the feature folder, or `report.debtLog` with `--config`) follows the triage.
+- Re-applying the same decisions reconciles all logs even if an earlier attempt already saved the report. Logs are read and validated before writing; each changed output is replaced atomically. Retrying a partial write restores missing outputs without duplicating entries. After every output is saved, a successful apply from `<dir>/decisions.json`, the file is renamed `decisions.applied.json`; a `--from` file elsewhere is left where it is.
+- `--config` overrides configuration discovery. Otherwise the script uses the config path recorded by the renderer for this report generation, then the nearest `design-qa.config.json` in a report ancestor. A missing referenced config is an error, never a silent fallback to defaults. Send and Copy preserve custom config paths, including paths with spaces. Keep `--config` on the printed render and debt-log commands.
+- `--allow-stale`: apply although `reportGeneratedAt` differs from `meta.generatedAt`. Only when a person confirms the ids still point at the same findings; the agent never passes it on its own.
+- `--by` overrides `decidedBy`. `--log` and `--md`: the dismissed log, as for `dismiss.mjs`. `--dry-run` prints the result and writes nothing; `--quiet` prints only warnings and errors.
+
+Stdout, in order: `Review decisions for <feature> (<slug>): <summary>`; `Decided by <name> on <date> (from <file>)`; the fix-now list in order (`  DQ-001 [BLOCKER] <title> — <file>:<line>`); the fix-later list; the dismissed and backfill lines when there are any; `Tickets: authorised by the reviewer` or `Tickets: not authorised (create none; list the debt in your reply)`; any `Warning:` lines; `Wrote …` and `Marked as applied: …`; then `Next:` lines: the render command, the ticket commands (only when tickets are authorised and debt items have none yet), and the fix-now ids to fix in order, or "nothing to fix now". Not authorised means no tickets: the agent does not create them and does not ask.
+
+Exit codes: 0 applied, nothing new, or nothing pending · 1 invalid report, write failure, or the result does not validate · 2 bad arguments, unreadable or stale decisions, slug mismatch, unknown ids.
+
+**The review server** (`scripts/review.mjs`):
+
+```bash
+node scripts/review.mjs --report <dir>/report.json [--html <file>] [--config <file>] [--port <n>] [--no-open] [--timeout-min <n>] [--quiet]
+```
+
+- Serves the rendered `report.html` (render it first; `--html` for another file) and opens it in the browser. `--no-open`, or the `CI` environment variable, only prints the URL. `--port` defaults to 0 (any free port). `--timeout-min` defaults to 240; 0 waits until Ctrl+C.
+- Configuration follows the same discovery rules as apply; `--config` overrides them. The page context and printed apply command carry the resolved configuration.
+- Prints `Review open: http://127.0.0.1:<port>/?t=<token>`. The page gets `{ live: true, token, reportPath }` in its `design-qa-context` element, which is why it offers "Send to agent".
+- On Send the document is checked against `report.json` on disk (slug, `reportGeneratedAt`, known ids). A rejected one is answered with the reason and the server keeps waiting. An accepted one is saved atomically as `<dir>/decisions.json`; the server prints three lines and exits 0:
+
+  ```text
+  Decisions received from Dana: fix now 4 · later 3 · dismissed 2 · tickets: yes
+  Saved: qa-reports/ACME-482/decisions.json
+  Next: node <skill>/scripts/apply-decisions.mjs --report qa-reports/ACME-482/report.json
+  ```
+
+- Exit codes: 0 decisions received and saved · 1 server error (for example the port is taken) · 2 bad arguments, or no `report.html` · 3 timed out or interrupted with nothing received (it prints `No decisions were sent. The reviewer can still use "Copy for your agent" in the report.`).
+
+Security: the server listens on 127.0.0.1 only and needs a random 128-bit token, in the URL for the page and in the `X-Design-QA-Token` header for `POST /decisions`; requests with another Host header and posts from another origin are refused, and it sends no CORS headers. It serves only images and `.json` files inside the report folder, and never executes anything from the payload: reasons and names are data.
+
+**Still accepted.** The typed `/design-qa triage`, `dismiss` and `backfill` commands, and the files earlier versions of the report exported (`selection.json` for `triage.mjs --selection`, `dismissals.json` for `dismiss.mjs --from`, `backfill.json` for `backfill.mjs --from`). The report no longer copies those commands or exports those files.
+
 ## Triage and debt
 
 The person decides which diffs get fixed now. Everything else becomes debt with a ticket and a log entry, so every diff is either fixed or tracked, and the team gets the tickets and the log ready-made.
 
 **Choosing.** Three ways, all ending in the same `triage` record:
 
-- In chat: the agent offers the recommended split (Phase 9) as a multi-select the person can change. Use the question tool when the list is short; otherwise list the triageable ids and ask for the fix-now ones.
-- In `report.html`: the "Choose what to fix" board copies `/design-qa triage <slug> --fix DQ-001,DQ-002,DQ-003`.
+- In `report.html`: the person keeps or changes the split, then sends it with everything else they decided ("Review decisions"). `apply-decisions.mjs` records it.
+- In chat: the agent offers the recommended split (Phase 9) as a multi-select the person can change, when the report cannot be opened. Use the question tool when the list is short; otherwise list the triageable ids and ask for the fix-now ones. Or the person types `/design-qa triage <slug> --fix DQ-001,DQ-002,DQ-003`.
 - In CI: the default split, recorded with source `ci-default`. No tickets.
 
-**Recording.**
+**Recording** a choice made in chat (a review is recorded by `apply-decisions.mjs`):
 
 ```bash
 node scripts/triage.mjs --report <dir>/report.json (--fix DQ-001,DQ-004 | --selection selection.json | --default) \
@@ -260,7 +385,7 @@ node scripts/triage.mjs --report <dir>/report.json (--fix DQ-001,DQ-004 | --sele
 ```
 
 - `--fix <ids>`: these findings are fix now; every other triageable finding is debt.
-- `--selection <file>`: the `selection.json` that the report's board exports:
+- `--selection <file>`: a `selection.json` exported by an earlier version of the report (still accepted):
 
   ```json
   {
@@ -281,7 +406,7 @@ node scripts/triage.mjs --report <dir>/report.json (--fix DQ-001,DQ-004 | --sele
 
 Re-render afterwards (Phase 8) so the scorecard, the fix plan and the HTML follow the triage.
 
-**Ticketing.** One ticket per debt item, created only after the person has seen the list and said yes: the Atlassian MCP in interactive sessions, or `jira-fetch.mjs --tickets-from <dir>/report.json`, a dry run until `--write`, which writes the keys back into `triage.items[].ticket`. Fields, labels and parent rules are in ticket-ingest.md. ci mode never creates tickets.
+**Ticketing.** One ticket per debt item, created only after the person has seen the list and said yes. A Send with "Create tickets for the n later items" ticked (`tickets: true`, recorded as `triage.ticketsAuthorized`) is that yes; without it, no tickets are created and the agent does not ask. Create them with the Atlassian MCP in interactive sessions, or `jira-fetch.mjs --tickets-from <dir>/report.json`, a dry run until `--write`, which writes the keys back into `triage.items[].ticket`. Fields, labels and parent rules are in ticket-ingest.md. ci mode never creates tickets.
 
 **Logging.**
 
@@ -309,8 +434,8 @@ The reason is mandatory, always. A dismissed finding keeps its severity, gets `r
 
 **Choosing.** Two ways:
 
-- In `report.html`: every open or unclassified finding has a Dismiss button (finding detail, findings table, the "Choose what to fix" board, the Design system tables). One click opens a panel with the three kinds (Not an issue · Remove from QA · Accept as intentional), a required reason and a name. Dismissals are kept in the browser until recorded; a bar ("n dismissals not recorded yet") offers **Copy dismissals for Claude Code** (the message below), **Download dismissals.json** and Review. The page never writes the report itself. The triage board's own button stays **Copy for Claude Code** (the triage command).
-- In chat: the person types the same message, or asks in their own words. The agent turns it into lines with an id, a kind and the person's reason, and asks for any reason that is missing.
+- In `report.html`: every open or unclassified finding has a Dismiss button (finding detail, findings table, the "Choose what to fix" board, the Design system tables). One click opens a panel with the three kinds (Not an issue · Remove from QA · Accept as intentional) and a required reason. Dismissals are kept in the browser and counted in the review bar; they go back to the agent with the rest of the review ("Review decisions"), and `apply-decisions.mjs` records them as `dismiss.mjs` does. The page never writes the report itself.
+- In chat: the person types the message below, or asks in their own words. The agent turns it into lines with an id, a kind and the person's reason, and asks for any reason that is missing.
 
 ```text
 /design-qa dismiss <slug>
@@ -325,7 +450,7 @@ by: <name>
 ```bash
 node scripts/dismiss.mjs --report <dir>/report.json \
   ( --id DQ-004 --kind not-an-issue|remove|intentional --reason "<why>"
-  | --from dismissals.json
+  | --from <file>
   | --undo DQ-004
   | --apply-log ) \
   [--by "<name>"] [--source report-ui|chat|cli] [--log qa-reports/dismissed.json] [--md qa-reports/dismissed.md] [--dry-run] [--quiet]
@@ -334,7 +459,7 @@ node scripts/dismiss.mjs --report <dir>/report.json \
 Exactly one of `--id`, `--from`, `--undo`, `--apply-log`. Exit codes: 0 ok · 1 unreadable report or log (a `schemaVersion` other than `"2.0"` is rejected too) · 2 bad arguments (missing reason, unknown id, a finding that cannot be dismissed).
 
 - `--id`, `--kind`, `--reason`: dismiss one finding, or several comma-separated ids with the same kind and reason. An empty reason exits 2. Only 🔴 🟡 🔵 findings can be dismissed. `--kind` and `--reason` are only valid with `--id`.
-- `--from <file>`: always a file: the `dismissals.json` the report exports, or a text file holding the `/design-qa dismiss` message (save the chat message first). The script warns when `slug` or `reportGeneratedAt` do not match the report. Who decided: an item's own `by`, else `--by`, else the file's `decidedBy` (or the message's `by:` line). A blank reason exits 2.
+- `--from <file>`: always a file: a text file holding the `/design-qa dismiss` message (save the chat message first), or a `dismissals.json` exported by an earlier version of the report. The script warns when `slug` or `reportGeneratedAt` do not match the report. Who decided: an item's own `by`, else `--by`, else the file's `decidedBy` (or the message's `by:` line). A blank reason exits 2.
 
   ```json
   {
@@ -446,7 +571,7 @@ Exactly one action. Exit codes: 0 ok · 1 unreadable report, or `--record` while
 - `--build`, `--not-needed`: record decisions (comma-separated ids); `--not-needed` requires `--reason`, on `--build` it is an optional note.
 - `--record`: the frame is built. Refuses (exit 1) while not ready: no `loopClosed` and no override. The node id comes from the link unless `--node-id` is given; `--name` defaults to `<Screen> – <State>`; `--round-trip` is stored with its band (`--config` supplies `tolerances.pixelDiff`). A pending item becomes `build`; a `not-needed` one is refused.
 - `--override --reason`: allow building before step 1 is closed. Only on the person's explicit request.
-- `--from <file>`: the message below saved to a file, or the `backfill.json` the report downloads:
+- `--from <file>`: the message below saved to a file, or a `backfill.json` exported by an earlier version of the report. Decisions made in the Design backfill tab now arrive with the review ("Review decisions"):
 
   ```json
   { "feature": "Orders list", "slug": "ACME-482", "reportGeneratedAt": "2026-10-03T09:12:00Z", "decidedBy": "A. Lee",
@@ -456,7 +581,7 @@ Exactly one action. Exit codes: 0 ok · 1 unreadable report, or `--record` while
   `decision` is `build` or `not-needed`; a blank reason on `not-needed` is rejected.
 - `--dry-run` prints the result and writes nothing; `--quiet` prints only warnings and errors. The last line is the render command to run next ("Next: render-report …").
 
-The message the report copies (or typed in chat):
+The message typed in chat:
 
 ```text
 /design-qa backfill <slug>
@@ -597,8 +722,9 @@ Missing values print as "–" (tokens as "none"); the snippet lines are omitted 
 
 ## The HTML report (report.html)
 
-A single self-contained file (with `--embed-images`) that opens from disk or a CI artifact. The Overview leads with the annotated design-versus-app compare: the selected state's capture with a severity-coloured, numbered pin at the centre of each finding's `evidence[].crop`, and the list of pins beside it. The scorecard is a single summary line above the compare; below it come the "Choose what to fix" board (Fix now and Debt lanes), then the collapsed Dismissed and Run details sections. Only findings that carry a crop get a pin, which is why the agent positions every finding it can (see `crop` under "Field notes"). The design pane is labelled from `meta.source`: "Design (Figma)", "Design (Figma prototype)" or "Design (prototype)".
+A single self-contained file (with `--embed-images`) that opens from disk or a CI artifact. The Overview leads with the annotated design-versus-app compare: the selected state's capture with a severity-coloured, numbered pin at the centre of each finding's `evidence[].crop`, and the list of pins beside it. The scorecard is a single summary line above the compare; below it come the "Choose what to fix" board (Fix now and Debt lanes), then the collapsed Dismissed and Run details sections. The review bar is fixed at the bottom of the page. Only findings that carry a crop get a pin, which is why the agent positions every finding it can (see `crop` under "Field notes"). The design pane is labelled from `meta.source`: "Design (Figma)", "Design (Figma prototype)" or "Design (prototype)".
 
+- **Review bar**: one bar for every decision on the page. A summary (`Fix now 5 · Later 3 · Dismissed 2 · Backfill 1`), a status ("Not sent yet", "Sent to your agent at HH:MM", "Copied at HH:MM: paste it into your agent's chat", "Changed since you sent", "All decisions are recorded") and "Review and send". That button opens "Send your decisions": the summary, an optional "Your name", a checkbox "Create tickets for the n later items" and the line "Sending approves this: your agent records the decisions, creates the tickets if ticked, and starts on the Fix now items." The primary action is "Send to agent" when the page was opened through `review.mjs`, and "Copy for your agent" when it was opened as a plain file; "Download decisions.json" is the secondary action. The page never writes the report itself. See "Review decisions".
 - **Tabs**: Overview · Findings · Design system · States · Decisions · Evidence · Design backfill (only when `backfill` has items). The ledgers, Motion included, are a filter inside Findings.
 - **Compare**: modes App · Design · Side by side · Overlay · Wipe · Diff, one state at a time; zoom Fit, 100% or 200%; fullscreen. The capture sets the height of the row; the Annotations rail beside it scrolls. Multi-screen: a screen picker beside the state picker, and finding badges show the screen name. Picking a screen or state (or a `#state=` link) only changes the capture: it never filters the Findings tab.
 - **Pins never overlap**: collision avoidance runs in on-screen pixels at the current scale (Fit, 100%, 200%, fullscreen, each side-by-side pane) and re-runs on every resize or zoom. A pin keeps its crop centre when it is free; otherwise it moves to the nearest free spot and draws a 1px leader to a dot on its true centre, so it still points at its element.
@@ -606,20 +732,20 @@ A single self-contained file (with `--embed-images`) that opens from disk or a C
 - **Findings filters**: any active filter or search is spelled out above the table: one removable chip per value ("State · Cart / With data ×"), then "Showing n of N · Clear".
 - **Finding detail**: expected and actual values, code location, the copyable agent prompt, a crop pair (the design crop beside the app crop at 2×), the Fix now / Debt control and the Dismiss button.
 - **Design system**: three tables from the findings and the style, component and motion ledgers. Token mismatches (element, property, expected token or value, actual token or value), component mismatches (expected component or variant against what renders), motion (one row per open motion finding, listing each of its ledger checks inside the row: trigger, property, expected → observed, "Missing" when nothing animates; failing checks no finding names are listed under the table, uncounted). Each table has one row per open finding of its group, so its length always equals the summary chip (`scorecard.designSystem`).
-- **Choose what to fix**: a board with two lanes, Fix now and Debt, with a live count ("6 fix now · 4 debt") in its header; each card carries the Fix now / Debt control, Dismiss, "Open" and "Show on capture"; blockers are locked in Fix now. Its primary button, "Copy for Claude Code", copies `/design-qa triage <slug> --fix DQ-001,DQ-002,DQ-003`, where the slug is the ticket key, else the feature name in kebab-case. Beside it: "Copy fix prompt (n)", "Export selection.json", "Export tickets CSV" and "Reset to recommended".
-- **One triage model**: the pins, the Annotations rail, the board, the Findings table and the finding detail read and write the same Fix now / Debt split (saved in this browser), so a move in one place updates the others at once. Only triageable findings (open `FIX_CODE` findings) have a bucket: dismissed, intentional, data and passing findings never count in the split. Clicking a pin or a rail row opens the annotation panel (docked beside the capture over the rail at 1280px and wider, a bottom sheet on narrow screens, a right column in fullscreen). Its main action, at the top, is the Fix now / Debt toggle (one click moves the finding) with Dismiss beside it; below it: expected vs actual, source, element, design layer, ticket, evidence, a Details link to the Findings tab and prev/next through the annotations the severity chips show. Esc or the close button closes it and returns focus to the pin or row. **One control everywhere**: every rail row, board card, Findings table row, finding detail and the panel carry the same compact "Fix now | Debt" segmented control (a radiogroup: the current bucket is checked; arrow keys or one click move the finding; using it never opens the row, card or panel it sits in), and Dismiss next to it. There is no undecided state: the recommended split is the default, and a small dot marks the recommended bucket when the current choice differs from it. "Show on capture" opens the right state and highlights the pin and the row; "Open" also opens the panel. Locked items (blockers) keep Fix now checked with a lock icon, Debt disabled, and the reason in the tooltip and the accessible name, on every surface. "Copy for Claude Code" always copies the current split.
-- **Dismiss**: on every open or unclassified finding (annotation panel, rail row, finding detail, findings table, board, Design system tables). Not an issue · Remove from QA · Accept as intentional, a required reason and a name (remembered in the browser). In the annotation panel the Dismiss panel opens inside it; Dismiss on a rail row opens the annotation panel with it. A dismissed finding leaves the board, the rail, the pins and the split at once, moves to the Dismissed section, and the counts update; Undo puts it back in the bucket it had. Until recorded, a bar says how many dismissals are pending and offers "Copy dismissals for Claude Code", "Download dismissals.json" and Review ("Dismissals"); the triage board's button stays "Copy for Claude Code". On narrow screens the pending bars sit above the annotation panel's bottom sheet. Findings already `DISMISSED` in `report.json` (and accepted-as-intentional ones) show in the Dismissed section with kind, reason, by and date ("from an earlier pass" when re-applied); dismissed ones get no pin.
-- **Lists**: the board's Fix now lane (copy the fix prompt) and Debt lane (export selection or a tickets CSV for your tracker); the Dismissed section.
+- **Choose what to fix**: a board with two lanes, Fix now and Debt, with a live count ("6 fix now · 4 debt") in its header; each card carries the Fix now / Debt control, Dismiss, "Open" and "Show on capture"; blockers are locked in Fix now. Its buttons: "Copy fix prompt (n)", "Export tickets CSV" and "Reset to recommended". The split goes to the agent through the review bar.
+- **One triage model**: the pins, the Annotations rail, the board, the Findings table and the finding detail read and write the same Fix now / Debt split (saved in this browser), so a move in one place updates the others at once. Only triageable findings (open `FIX_CODE` findings) have a bucket: dismissed, intentional, data and passing findings never count in the split. Clicking a pin or a rail row opens the annotation panel (docked beside the capture over the rail at 1280px and wider, a bottom sheet on narrow screens, a right column in fullscreen). Its main action, at the top, is the Fix now / Debt toggle (one click moves the finding) with Dismiss beside it; below it: expected vs actual, source, element, design layer, ticket, evidence, a Details link to the Findings tab and prev/next through the annotations the severity chips show. Esc or the close button closes it and returns focus to the pin or row. **One control everywhere**: every rail row, board card, Findings table row, finding detail and the panel carry the same compact "Fix now | Debt" segmented control (a radiogroup: the current bucket is checked; arrow keys or one click move the finding; using it never opens the row, card or panel it sits in), and Dismiss next to it. There is no undecided state: the recommended split is the default, and a small dot marks the recommended bucket when the current choice differs from it. "Show on capture" opens the right state and highlights the pin and the row; "Open" also opens the panel. Locked items (blockers) keep Fix now checked with a lock icon, Debt disabled, and the reason in the tooltip and the accessible name, on every surface. The review bar always sends the current split. CI defaults require human approval even when unchanged. Review and send remains available for recorded and empty reports, so the reviewer can complete the handoff or change ticket approval without changing the split. Recorded ticket approval is preserved when reopening the panel.
+- **Dismiss**: on every open or unclassified finding (annotation panel, rail row, finding detail, findings table, board, Design system tables). Not an issue · Remove from QA · Accept as intentional, a required reason and a name (remembered in the browser). In the annotation panel the Dismiss panel opens inside it; Dismiss on a rail row opens the annotation panel with it. A dismissed finding leaves the board, the rail, the pins and the split at once, moves to the Dismissed section, and the counts update; Undo puts it back in the bucket it had. Until sent, dismissals are kept in the browser and counted in the review bar. Findings already `DISMISSED` in `report.json` (and accepted-as-intentional ones) show in the Dismissed section with kind, reason, by and date ("from an earlier pass" when re-applied); dismissed ones get no pin.
+- **Lists**: the board's Fix now lane (copy the fix prompt) and Debt lane (export a tickets CSV for your tracker); the Dismissed section.
 - **States**: the coverage grid, one row per state with designed, specified, implemented and verified marks and the result.
-- **Design backfill** (last tab; hidden when there are no items): "Step 2 · Build undesigned states in Figma". Not ready: a neutral notice, "Production does not match the design yet (n open). Finish step 1 first; the list below is for planning." Ready: "Production matches the design. Build these frames with the design-system library." One card per item: label, screen, found by and detail, the app capture (opens larger), components ("not in library" badge when `inLibrary` is false), tokens, decision, the Figma link once built. Per card: Build in Figma · Not needed (an inline, required reason, same panel style as Dismiss) · Undo; "Copy design-agent prompt", plus "Copy all". Decisions are kept in the browser (separate from dismissals) until recorded; a bar ("n backfill decisions not recorded yet") offers "Copy backfill for Claude Code" (the `/design-qa backfill` message) and "Download backfill.json". The tab never feeds the Overview counts, pins, the findings table, the Design system tab or parity.
+- **Design backfill** (last tab; hidden when there are no items): "Step 2 · Build undesigned states in Figma". Not ready: a neutral notice, "Production does not match the design yet (n open). Finish step 1 first; the list below is for planning." Ready: "Production matches the design. Build these frames with the design-system library." One card per item: label, screen, found by and detail, the app capture (opens larger), components ("not in library" badge when `inLibrary` is false), tokens, decision, the Figma link once built. Per card: Build in Figma · Not needed (an inline, required reason, same panel style as Dismiss) · Undo; "Copy design-agent prompt", plus "Copy all". Decisions are kept in the browser and sent with the rest of the review (the review bar's Backfill count). The tab never feeds the Overview counts, pins, the findings table, the Design system tab or parity.
 
 ## How agents consume the report
 
 - **Engineer, quick path**: paste the "Paste to your coding agent" block from `report-fixplan.md`. Each item is self-contained.
 - **Engineer, full path**: read `report.json`, take the findings with `rank.bucket == "fix-now"` in score order, fix each at `actual.source`, then re-run this skill in fix or audit mode to verify. Use `evidence` paths for context and `expected.token` for the value to use.
 - **Design-system team**: the "Design-system mismatches" section, or the Design system tab: token, component and motion mismatches, each with the expected and actual token, component or motion.
-- **Debt**: after triage, every debt finding gets a ticket and a debt-log entry ("Triage and debt"). Tickets are created only after a yes; ci mode only proposes them in the PR comment.
-- **Reviewer**: dismiss what is not an issue, with a reason ("Dismissals"). The dismissal outlives this report through `qa-reports/dismissed.json`.
+- **Reviewer**: decide in `report.html` (fix now or later, dismiss with a reason, backfill), then "Review and send". "Send to agent" or the copied message hands every decision to the agent in one go ("Review decisions"), and the agent applies it with `apply-decisions.mjs`. Dismissals outlive this report through `qa-reports/dismissed.json`.
+- **Debt**: after triage, every debt finding gets a debt-log entry, and a ticket once a person says yes: a Send with "Create tickets" ticked ("Triage and debt"). ci mode only proposes tickets in the PR comment.
 - **Designer, step 2**: the Design backfill tab or `report-backfill.md`: which undesigned states to build, and a "Paste to your design agent" block that builds them from the library ("Design backfill").
 - **CI**: gate on `scorecard.verdict` (ci.md).
 

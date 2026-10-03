@@ -1,0 +1,22 @@
+{
+  "kind": "design-qa-decisions",
+  "version": 1,
+  "slug": "ACME-482",
+  "feature": "Orders list",
+  "reportGeneratedAt": "2026-10-01T12:00:00Z",
+  "decidedBy": "Dana",
+  "decidedAt": "2026-10-03T10:00:00.000Z",
+  "tickets": true,
+  "triage": { "fixNow": ["DQ-001", "DQ-002", "DQ-003", "DQ-004"], "debt": ["DQ-006", "DQ-013", "DQ-014"] },
+  "dismissals": [
+    {
+      "findingId": "DQ-007",
+      "kind": "not-an-issue",
+      "reason": "The 400ms fade is the Acme platform default;\nthe design file predates it.",
+      "by": "Dana",
+      "date": "2026-10-03T09:58:00.000Z"
+    },
+    { "findingId": "DQ-012", "kind": "remove", "reason": "Copy is owned by the content team, out of this QA.", "by": "Dana", "date": "2026-10-03T09:58:30.000Z" }
+  ],
+  "backfill": []
+}

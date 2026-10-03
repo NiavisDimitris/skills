@@ -687,7 +687,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
 .run-grid dt { color: var(--muted-foreground); }
 .dialog.full { width: calc(100vw - 2rem); height: calc(100vh - 2rem); max-width: none !important; max-height: none; }
 .dialog.full .dialog-body { padding: 0; }
-/* Dismiss: inline panel, segmented choice, pending bar, dismissed list */
+/* Dismiss: inline panel, segmented choice, dismissed list */
 .btn-xs { height: 1.75rem; gap: 0.25rem; padding-inline: 0.5rem; font-size: 0.75rem; }
 .btn-xs:has(> svg) { padding-inline: 0.5rem; }
 .btn-xs svg { width: 0.875rem; height: 0.875rem; }
@@ -709,13 +709,36 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
 .table tbody tr.dismiss-tr > td { padding-top: 0; padding-bottom: 0.75rem; white-space: normal; }
 .table td.col-act { width: 1%; text-align: right; }
 .tri-foot .badge { text-decoration: none; }
-/* Pending bars (dismissals, backfill decisions) stack bottom-centre without overlapping */
+/* The review bar (Review and send) and its Send panel stack bottom-centre */
 .bar-stack { position: fixed; z-index: 40; left: 50%; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; }
 .dismiss-bar { pointer-events: auto; width: max-content; max-width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--popover); color: var(--popover-foreground); padding: 0.5rem 0.5rem 0.5rem 1rem; box-shadow: var(--shadow-lg); font-size: 0.875rem; line-height: 1.25rem; animation: toast-in .2s ease-out; }
 .dismiss-bar[hidden] { display: none; }
 .dismiss-bar .db-msg { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 500; font-variant-numeric: tabular-nums; outline: none; }
 .dismiss-bar .db-msg:focus-visible { box-shadow: var(--ring-shadow); border-radius: var(--radius-sm); }
 .dismiss-bar .row { gap: 0.375rem; }
+.review-bar { flex-wrap: nowrap; gap: 0.5rem 1rem; }
+.rb-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.75rem; min-width: 0; }
+.rb-status { color: var(--muted-foreground); }
+.send-host { pointer-events: auto; width: 30rem; max-width: 100%; }
+.send-host:empty { display: none; }
+.send-panel { margin-top: 0; max-height: calc(100vh - var(--bar-h, 3.5rem) - 2.5rem); overflow-y: auto; overscroll-behavior: contain; background: var(--popover); color: var(--popover-foreground); box-shadow: var(--shadow-lg); }
+.sp-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: -0.375rem -0.375rem 0 0; }
+.sp-head .dp-title { font-size: 1rem; line-height: 1.375rem; outline: none; }
+.sp-head .dp-title:focus-visible { box-shadow: var(--ring-shadow); border-radius: var(--radius-sm); }
+.sp-groups { display: grid; gap: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border); padding: 0.75rem; }
+.sp-label { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
+.sp-review { font-size: 0.75rem; font-weight: 400; }
+.sp-list { display: grid; gap: 0.25rem; }
+.sp-list > li { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+.sp-list .fid, .sp-ids .fid { flex-shrink: 0; font-size: 0.75rem; color: var(--muted-foreground); }
+.sp-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-more { margin-top: 0.125rem; font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); }
+.sp-check { display: inline-flex; align-items: center; gap: 0.5rem; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 500; text-align: left; }
+.sp-note { display: grid; gap: 0.5rem; }
+.sp-note:empty, .sp-tickets:empty { display: none; }
+.sp-error .alert-title { color: var(--destructive); }
+.sp-manual { field-sizing: fixed; height: 9rem; font-family: var(--font-mono); font-size: 0.75rem; line-height: 1rem; }
+.link-btn:disabled { opacity: 0.5; pointer-events: none; }
 body.has-bar #main { padding-bottom: calc(var(--bar-h, 3.5rem) + 3rem) !important; }
 body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
 @media (max-width: 1279.98px) {
@@ -723,9 +746,10 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   body.ann-sheet .toaster { bottom: calc(var(--ann-h, 0px) + 0.5rem); }
   body.ann-sheet.has-bar .toaster { bottom: calc(var(--ann-h, 0px) + var(--bar-h, 3.5rem) + 1rem); }
   body.has-bar .ann-panel { max-height: min(calc(100vh - var(--bar-h, 3.5rem) - 5rem), 72vh, 38rem); }
+  body.send-open .toaster { top: 1rem; bottom: auto !important; } /* the open Send panel fills the bottom of the screen */
 }
-@media (max-width: 639px) { .bar-stack { left: 1rem; right: 1rem; width: auto; transform: none; align-items: stretch; } .dismiss-bar { width: auto; padding: 0.625rem; }
-  .dismiss-bar .row { flex-wrap: nowrap; } .dismiss-bar .bar-long, .dismiss-bar .bar-review { display: none; } }
+@media (max-width: 639px) { .bar-stack { left: 1rem; right: 1rem; width: auto; transform: none; align-items: stretch; } .dismiss-bar { width: auto; padding: 0.625rem 0.625rem 0.625rem 0.875rem; }
+  .send-host { width: auto; } .rb-text { flex-direction: column; gap: 0; } }
 .toast .btn { pointer-events: auto; margin-left: auto; }
 .dis-list > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem 1rem; align-items: start; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
 .dis-list > li:last-child { border-bottom: 0; }
@@ -795,9 +819,11 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
 <div id="sheet-root" hidden></div>
 <div id="lightbox" hidden></div>
 
-<!-- Filled by scripts/render-report.mjs: report.json ("</" escaped) and { "<evidence path>": "data:…" }. -->
+<!-- Filled by scripts/render-report.mjs: report.json ("</" escaped), { "<evidence path>": "data:…" } and the page
+     context { "reportPath" } (scripts/review.mjs adds { "live": true, "token" } when it serves the page). -->
 <script id="design-qa-data" type="application/json">/*__DESIGN_QA_DATA__*/</script>
 <script id="design-qa-assets" type="application/json">/*__DESIGN_QA_ASSETS__*/</script>
+<script id="design-qa-context" type="application/json">/*__DESIGN_QA_CONTEXT__*/</script>
 
 <script>
 (function () {
@@ -814,6 +840,12 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   }
   var R = readJson('design-qa-data', 'DATA');
   var ASSETS = readJson('design-qa-assets', 'ASSETS') || {};
+  // Page context: { reportPath } from the renderer; review.mjs adds { live: true, token } when it serves the page on
+  // 127.0.0.1. Live mode is the only case in which the page makes a network request (POST /decisions, on Send).
+  var CTX = (function (c) { return c && typeof c === 'object' && !Array.isArray(c) ? c : {}; })(readJson('design-qa-context', 'CONTEXT'));
+  var LIVE = CTX.live === true && typeof CTX.token === 'string' && /^https?:$/.test(location.protocol);
+  var REPORT_PATH = typeof CTX.reportPath === 'string' && CTX.reportPath ? CTX.reportPath : null;
+  var CONFIG_PATH = typeof CTX.configPath === 'string' && CTX.configPath ? CTX.configPath : null;
 
   /* ===== 2. DOM helpers, icons, badges, buttons ===== */
   // Icons: Lucide (https://lucide.dev), ISC License. Only the glyphs this report uses.
@@ -1135,7 +1167,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       b.tabIndex = b.getAttribute('data-theme-btn') === t ? 0 : -1;
     });
   }
-  /* Dismissals made in this browser (one click + a reason), kept per report until the agent records them.
+  /* Dismissals made in this browser (one click + a reason), kept per report until the agent records them
+     (Review and send hands them over in the one decisions document, section 10c).
      "Accept as intentional" is the old sign-off: it becomes INTENTIONAL + signoff; the other two DISMISSED + dismissal. */
   var DIS_KEY = 'design-qa:dismissals:' + (meta.feature || '') + ':' + (meta.generatedAt || '');
   var NAME_KEY = 'design-qa:name';
@@ -1172,22 +1205,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   findings.forEach(applyLocal);
   function pendingIds() { return Object.keys(DIS).sort(function (a, b) { return tieBreak({ id: a }, { id: b }); }); }
   function savedName() { var n = store.get(NAME_KEY); return n ? String(n).trim() : ''; }
-  function decidedBy() {
-    var n = savedName(); if (n) return n;
-    var ids = pendingIds(); for (var i = ids.length - 1; i >= 0; i--) if (DIS[ids[i]].by) return DIS[ids[i]].by;
-    return '';
-  }
   function oneLine(s) { return String(s).replace(/\s*\r?\n\s*/g, ' ').trim(); } // same folding as chatDismissMessage() in scripts/lib/dismissals.mjs
-  // The chat message Claude Code turns into scripts/dismiss.mjs calls (same slug as the triage command).
-  function dismissCommand() {
-    var lines = ['/design-qa dismiss ' + slug].concat(pendingIds().map(function (id) { return id + ' ' + DIS[id].kind + ' — ' + oneLine(DIS[id].reason); }));
-    if (decidedBy()) lines.push('by: ' + decidedBy());
-    return lines.join('\n');
-  }
-  function dismissalsJson() {
-    return JSON.stringify({ feature: meta.feature || null, slug: slug, reportGeneratedAt: meta.generatedAt || null, decidedBy: decidedBy() || null,
-      items: pendingIds().map(function (id) { var d = DIS[id]; return { findingId: id, kind: d.kind, reason: d.reason, by: d.by, date: d.date }; }) }, null, 2) + '\n';
-  }
   function dismissalOf(f) { // { kind, reason, by, date, local, source } for a DISMISSED or INTENTIONAL finding
     if (f.resolution === 'DISMISSED') { var d = f.dismissal || {}; return { kind: d.kind, reason: d.reason, by: d.by, date: d.date, source: d.source, local: !!f.__local }; }
     if (f.resolution === 'INTENTIONAL') { var s = f.signoff || {}; return { kind: 'intentional', reason: s.reason, by: s.by, date: s.date, source: null, local: !!f.__local }; }
@@ -1729,6 +1747,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     markRail(fid); markPanel(); placeDock(); revealRow(fid);
     fillPanel(o.focus === undefined ? 'title' : o.focus);
     layoutBars();
+    if (document.body.classList.contains('ann-sheet')) closeSend(false); // one bottom sheet at a time on narrow screens
   }
   function closePanel(refocus) {
     if (!PANEL.fid) return;
@@ -1774,7 +1793,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var hint = !d ? (dd ? [h('b', null, (DKIND_DONE[dd.kind] || 'Dismissed') + ' · by ' + orDash(dd.by) + (dd.local ? ' (not recorded yet)' : '') + '. '), orDash(dd.reason)]
       : isOpen(f) ? ['Needs a decision: fix it in code, or dismiss it with a reason.'] : ['Not triaged: ' + orDash(f.resolution) + ' findings stay out of Fix now and Debt.'])
       : lock ? [icon('lock', 'icon-3-5'), h('span', null, h('b', null, 'Locked in Fix now. '), lock)]
-        : d === 'fix-now' ? [h('span', null, 'Your agents get this when you copy the command.')]
+        : d === 'fix-now' ? [h('span', null, 'Your agent gets this when you review and send.')]
           : [h('span', null, 'Becomes a ticket and a debt-log entry. '), t ? h('a', { class: 'badge badge-outline', href: safeHref(t.url), target: '_blank', rel: 'noopener noreferrer' }, t.key, icon('external-link')) : h('span', { class: 'badge badge-outline' }, 'Ticket on apply')];
     function row(k, v) { return blank(v) || v === DASH ? null : [h('dt', null, k), h('dd', null, v)]; }
     var evImgs = arr(f.evidence).filter(function (e) { return e && e.path && isImage(e.path) && ['screenshot', 'design', 'figma', 'diff'].indexOf(e.type) !== -1; });
@@ -1989,8 +2008,6 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function ticketOf(f) { var it = triItem[f.id]; return it && it.ticket && it.ticket.key ? it.ticket : null; }
   function selected(d) { return triageable.filter(function (f) { return SEL[f.id] === d; }); }
   function idList(list) { return list.map(function (f) { return f.id; }); }
-  // Mirrors triageCommand() in scripts/lib/triage.mjs: the fix-now ids in rank order; 'none' when empty.
-  function triageCommand() { var ids = idList(selected('fix-now')); return '/design-qa triage ' + SLUG + ' --fix ' + (ids.length ? ids.join(',') : 'none'); }
   function fixPromptText() { return [PREAMBLE].concat(selected('fix-now').map(agentPrompt)).join('\n\n'); }
   var PRIORITY = { BLOCKER: 'Highest', WARNING: 'Medium', DS_CANDIDATE: 'Low' };
   function ticketsCsv() { // Jira CSV import columns
@@ -1999,10 +2016,6 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       rows.push([f.id + ': ' + f.title, 'Task', agentPrompt(f), 'design-debt', PRIORITY[f.severity] || 'Medium', (meta.ticket && meta.ticket.key) || '']);
     });
     return rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n';
-  }
-  function selectionJson() {
-    return JSON.stringify({ feature: meta.feature || null, slug: SLUG, reportGeneratedAt: meta.generatedAt || null, fixNow: idList(selected('fix-now')),
-      debt: idList(selected('debt')), decidedBy: null, decidedAt: new Date().toISOString() }, null, 2) + '\n';
   }
   var laneFix = h('ol', { class: 'lane-list', id: 'lane-fix', tabindex: '-1', 'aria-labelledby': 'lane-fix-title' }), laneDebt = h('ol', { class: 'lane-list', id: 'lane-debt', tabindex: '-1', 'aria-labelledby': 'lane-debt-title' });
   var countFix = h('span', { class: 'num-muted', id: 'count-fix' }), countDebt = h('span', { class: 'num-muted', id: 'count-debt' });
@@ -2047,14 +2060,12 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function renderTriButtons() {
     clear(triButtons);
     append(triButtons, [
-      copyBtn('Copy for Claude Code', triageCommand, 'triage command', { variant: 'default', id: 'copy-triage', tip: 'The command that applies this split' }),
       copyBtn('Copy fix prompt (' + selected('fix-now').length + ')', fixPromptText, 'fix prompt', { id: 'copy-fix-prompt' }),
-      btn('Export selection.json', { variant: 'ghost', size: 'sm', icon: 'download', id: 'export-selection', onclick: function () { download('selection.json', selectionJson(), 'application/json'); } }),
       btn('Export tickets CSV', { variant: 'ghost', size: 'sm', icon: 'download', id: 'export-tickets', onclick: function () { download('design-qa-tickets-' + SLUG + '.csv', ticketsCsv(), 'text/csv'); } }),
       btn('Reset to recommended', { variant: 'ghost', size: 'sm', id: 'reset-triage', onclick: resetTriage })]);
   }
   function snapshot() { var m = {}; Array.prototype.forEach.call(document.querySelectorAll('.tri-card'), function (c) { m[c.getAttribute('data-fid')] = c.getBoundingClientRect(); }); return m; }
-  function persist() { if (store.set(SEL_KEY, JSON.stringify(SEL))) selEdited = true; paintTriNote(); syncTriage(); renderFindings(); }
+  function persist() { if (store.set(SEL_KEY, JSON.stringify(SEL))) selEdited = true; paintTriNote(); syncTriage(); renderFindings(); paintReview(); }
   // The single write path for the shared triage state: every triageSeg() control (rail, board, Findings, panel).
   function setTriage(id, decision, o) {
     o = o || {};
@@ -2069,7 +2080,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function resetTriage() { var first = snapshot(); SEL = recommended(); renderBoard(first); persist(); paintTriageViews(); toast('Selection reset to the recommended split'); }
   function paintTriNote() {
     triNote.textContent = (TRI ? 'Decided by ' + orDash(TRI.decidedBy) + ' on ' + fmtDate(TRI.decidedAt) + '. ' : 'Recommended from the ranking. ') +
-      (selEdited ? 'Changed in this browser: copy the command to apply it.' : 'Choose Fix now or Debt on each card; the rest of the app follows. Dismiss what is not an issue.');
+      (selEdited ? 'Changed in this browser: use Review and send to pass it to your agent.' : 'Choose Fix now or Debt on each card; the rest of the app follows. Dismiss what is not an issue.');
   }
   var triLanes = h('div', { class: 'lanes' },
     h('div', { class: 'lane', role: 'group', 'aria-labelledby': 'lane-fix-title' }, h('div', { class: 'lane-head' }, h('h3', { class: 'lane-title', id: 'lane-fix-title' }, 'Fix now', countFix), h('p', { class: 'lane-sub' }, 'Your agents get these')), laneFix),
@@ -2083,7 +2094,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       triEmpty, triLanes, triActions);
   }
 
-  /* ===== 10a. Dismiss: inline panel, pending bar, Dismissed list ===== */
+  /* ===== 10a. Dismiss: inline panel, Dismissed list ===== */
   var DP = null; // the open panel: { fid, trigger, node }
   function closeDismiss(refocus) {
     if (!DP) return;
@@ -2172,7 +2183,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     toast((d.kind === 'intentional' ? id + ' accepted as intentional' : id + ' dismissed') + (ok ? '' : ' for this session only: browser storage is unavailable'), false,
       { label: 'Undo', onclick: function () { undoDismissal(id); } });
     var target = where === 'sheet' ? document.getElementById('sheet-undo') : where === 'table' ? fBody.querySelector('[data-undo="' + cls(id) + '"]') : null;
-    (target || barMsg).focus();
+    (target || reviewMsg).focus();
   }
   function undoDismissal(id, focusEl) {
     if (!DIS[id]) return;
@@ -2190,33 +2201,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     b.addEventListener('click', function (e) { e.stopPropagation(); undoDismissal(f.id, o.focusAfter); });
     return b;
   }
-  // The pending bar: what this browser dismissed and the agent has not recorded yet.
-  var barMsg = h('span', { class: 'db-msg', id: 'dismiss-bar-msg', tabindex: '-1', role: 'status' });
-  var dismissBar = h('div', { class: 'dismiss-bar', id: 'dismiss-bar', role: 'region', 'aria-label': 'Dismissals not recorded yet', hidden: true },
-    barMsg, h('div', { class: 'row' },
-      copyBtn(h('span', null, 'Copy ', barLong('dismissals '), 'for Claude Code'), dismissCommand, 'dismiss command', { variant: 'default', id: 'copy-dismiss', aria: 'Copy dismissals for Claude Code', tip: 'Paste into Claude Code: it records these in report.json and the dismissed log' }),
-      btn(h('span', null, barLong('Download '), 'dismissals.json'), { variant: 'outline', size: 'sm', icon: 'download', id: 'download-dismissals', aria: 'Download dismissals.json', onclick: function () { download('dismissals.json', dismissalsJson(), 'application/json'); } }),
-      btn('Review', { variant: 'ghost', size: 'sm', id: 'review-dismissals', cls: 'bar-review', onclick: function () { openDismissedSection(); } })));
-  function barLong(t) { return h('span', { class: 'bar-long' }, t); } // dropped on phones so each bar keeps its buttons on one line
-  function paintBar() {
-    var n = pendingIds().length;
-    clear(barMsg); append(barMsg, [icon('info'), plural(n, 'dismissal') + ' not recorded yet']);
-    dismissBar.hidden = !n;
-    layoutBars();
-  }
-  // Both pending bars (dismissals, backfill decisions) live in one fixed stack; the page keeps room for it.
-  var barStack = h('div', { class: 'bar-stack', id: 'bar-stack' });
-  function layoutBars() {
-    var any = !dismissBar.hidden || !!(backfillBar && !backfillBar.hidden);
-    // Below 1280px the annotation panel is a bottom sheet: the bars (and toasts) sit just above it instead of under it.
-    var sheet = !annDock.hidden && (!lb || lb.hidden) && !!(window.matchMedia && window.matchMedia('(max-width: 1279.98px)').matches);
-    document.body.classList.toggle('ann-sheet', sheet);
-    document.body.style.setProperty('--ann-h', sheet ? annDock.offsetHeight + 'px' : '0px');
-    document.body.classList.toggle('has-bar', any);
-    if (any) document.body.style.setProperty('--bar-h', barStack.offsetHeight + 'px');
-    document.documentElement.style.scrollPaddingBottom = any ? (barStack.offsetHeight + 24) + 'px' : ''; // scrollIntoView keeps panels above the bars
-  }
-  window.addEventListener('resize', layoutBars);
+  // Pending dismissals leave the page with the triage and the backfill decisions: the review bar (section 10c).
   if (window.ResizeObserver) new ResizeObserver(function () { layoutBars(); }).observe(annDock); // the sheet grows when its Dismiss panel opens
   // The Dismissed section (Overview): recorded dismissals and sign-offs, plus this browser's pending ones.
   var disCount = h('span', { class: 'num-muted', id: 'count-dismissed' }), disBody = h('div', { id: 'dismissed-list' });
@@ -2252,7 +2237,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     closeDismiss(false);
     refreshTriageable(); syncTriage(); REC = null; CAP_AT = null;
     renderBoard(); paintTriNote();
-    renderFindings(); renderHero(); paintSummary(); renderDS(); paintDismissed(); paintBar();
+    renderFindings(); renderHero(); paintSummary(); renderDS(); paintDismissed(); paintReview();
     var fsBody = lb.hidden ? null : lb.querySelector('.dialog.full > .dialog-body'); // fullscreen capture: drop dismissed pins there too
     if (fsBody) { renderStage(fsBody, true); applySevFilter(); }
     paintTriageViews();
@@ -2454,7 +2439,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     if (key === 'ledger') return h('td', { class: 'muted' }, LEDGER_LABEL[f.ledger] || orDash(f.ledger));
     if (key === 'state') return h('td', { class: 'muted' }, f.state ? stateLabel(f.state) : DASH);
     if (key === 'region') return h('td', { class: 'muted' }, orDash(f.region));
-    if (key === 'resolution') return h('td', null, orDash(f.resolution), f.__local ? h('span', { class: 'badge badge-secondary', style: 'margin-left:0.375rem', 'data-tip': 'Dismissed in this browser; copy it for Claude Code to record it' }, 'not recorded') : null);
+    if (key === 'resolution') return h('td', null, orDash(f.resolution), f.__local ? h('span', { class: 'badge badge-secondary', style: 'margin-left:0.375rem', 'data-tip': 'Dismissed in this browser; Review and send passes it to your agent' }, 'not recorded') : null);
     if (key === 'actions') return h('td', { class: 'col-act' }, undoBtn(f, null, { size: 'xs' }));
     if (key === 'triage') { var tk = f.__triage === 'debt' ? ticketOf(f) : null; return h('td', null, f.__triage === 'none' ? h('span', { class: 'muted' }, DASH) : h('span', { class: 'tri-decide', style: 'flex-wrap:nowrap' }, triageSeg(f, 'table'), tk ? h('span', { class: 'fid' }, tk.key) : null)); }
     return h('td', { class: 'num' }, f.rank && f.rank.bucket !== 'none' ? h('span', { class: 'row', style: 'justify-content:flex-end;flex-wrap:nowrap' }, h('span', { class: 'muted', style: 'font-size:0.75rem' }, f.rank.bucket), String(score(f))) : h('span', { class: 'muted' }, DASH));
@@ -2865,8 +2850,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   }
 
   /* ===== 15b. Design backfill (step 2): states the app has and the design does not, built back in Figma
-     once production matches the design. Own data (report.backfill), own store and own pending bar:
-     it never feeds findings, pins, parity, the Overview or the Design system tab. ===== */
+     once production matches the design. Own data (report.backfill) and own store; its pending decisions are
+     sent with the rest (section 10c). It never feeds findings, pins, parity, the Overview or the Design system tab. ===== */
   var BF = R.backfill && typeof R.backfill === 'object' && !Array.isArray(R.backfill) ? R.backfill : null;
   var BF_ITEMS = arr(BF && BF.items).filter(function (it) { return it && typeof it === 'object' && !blank(it.id); }).sort(tieBreak);
   var bfById = {}; BF_ITEMS.forEach(function (it) { bfById[it.id] = it; });
@@ -2892,23 +2877,6 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   })();
   function bfState(it) { if (bfBuilt(it)) return 'built'; var l = BFL[it.id]; return l ? l.decision : bfRecorded(it); }
   function bfPendingIds() { return Object.keys(BFL).sort(function (a, b) { return tieBreak({ id: a }, { id: b }); }); }
-  function bfDecidedBy() {
-    var n = savedName(); if (n) return n;
-    var ids = bfPendingIds(); for (var i = ids.length - 1; i >= 0; i--) if (BFL[ids[i]].by) return BFL[ids[i]].by;
-    return '';
-  }
-  // The chat message Claude Code turns into scripts/backfill.mjs calls (same format as lib/backfill.mjs).
-  function backfillCommand() {
-    var lines = ['/design-qa backfill ' + slug].concat(bfPendingIds().map(function (id) {
-      var d = BFL[id]; return id + ' ' + d.decision + (d.decision === 'not-needed' ? ' — ' + oneLine(d.reason) : '');
-    }));
-    if (bfDecidedBy()) lines.push('by: ' + bfDecidedBy());
-    return lines.join('\n');
-  }
-  function backfillJson() {
-    return JSON.stringify({ feature: meta.feature || null, slug: slug, reportGeneratedAt: meta.generatedAt || null, decidedBy: bfDecidedBy() || null,
-      items: bfPendingIds().map(function (id) { var d = BFL[id]; return { id: id, decision: d.decision, reason: d.reason, by: d.by, date: d.date }; }) }, null, 2) + '\n';
-  }
   // Gate: frames are built once production matches the design (scorecard.loopClosed), or with a recorded override.
   function bfOverride() { var o = BF && BF.gate && BF.gate.override; return o && typeof o === 'object' ? o : null; }
   function bfStep1Open() { // open step-1 items in report.json: unexplained findings + open decisions (this browser's dismissals are not recorded yet)
@@ -2989,7 +2957,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       h('div', { class: 'card-header' },
         h('div', { class: 'row bf-meta' }, h('span', { class: 'fid' }, it.id), sc ? h('span', { class: 'badge badge-outline', 'data-screen': it.screen }, sc) : null,
           h('span', { class: 'badge badge-outline bf-decision' }, icon(BF_ICON[st]), BF_LABEL[st]),
-          local ? h('span', { class: 'badge badge-secondary', 'data-tip': 'Decided in this browser; copy it for Claude Code to record it' }, 'Not recorded yet') : null),
+          local ? h('span', { class: 'badge badge-secondary', 'data-tip': 'Decided in this browser; Review and send passes it to your agent' }, 'Not recorded yet') : null),
         h('h3', { class: 'card-title', id: uid + '-title', style: 'line-height:1.4' }, bfLabel(it))),
       h('div', { class: 'card-content bf-body' }, thumbEl,
         h('dl', { class: 'dl' },
@@ -3069,7 +3037,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     toast((d.decision === 'build' ? id + ' marked to build in Figma' : id + ' marked not needed') + (ok ? '' : ' for this session only: browser storage is unavailable'), false,
       { label: 'Undo', onclick: function () { undoBackfill(id); } });
     var u = bfList.querySelector('[data-bf-undo="' + cls(id) + '"]');
-    (u || bfBarMsg).focus();
+    (u || reviewMsg).focus();
   }
   function undoBackfill(id) {
     if (!BFL[id]) return;
@@ -3090,20 +3058,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       bfStats.appendChild(h('span', { class: 'badge badge-outline', 'data-bf-count': x[3] }, h('b', { class: 'tabular' }, String(x[0])), ' ' + (x[2] && x[0] !== 1 ? x[2] : x[1])));
     });
     bfAllBtn.disabled = !c.build;
-    paintBfBar();
-  }
-  // The backfill pending bar, stacked with the dismissals bar.
-  var bfBarMsg = h('span', { class: 'db-msg', id: 'backfill-bar-msg', tabindex: '-1', role: 'status' });
-  var backfillBar = h('div', { class: 'dismiss-bar', id: 'backfill-bar', role: 'region', 'aria-label': 'Backfill decisions not recorded yet', hidden: true },
-    bfBarMsg, h('div', { class: 'row' },
-      copyBtn(h('span', null, 'Copy ', barLong('backfill '), 'for Claude Code'), backfillCommand, 'backfill command', { variant: 'default', id: 'copy-backfill', aria: 'Copy backfill for Claude Code', tip: 'Paste into Claude Code: it records these decisions in report.json' }),
-      btn(h('span', null, barLong('Download '), 'backfill.json'), { variant: 'outline', size: 'sm', icon: 'download', id: 'download-backfill', aria: 'Download backfill.json', onclick: function () { download('backfill.json', backfillJson(), 'application/json'); } }),
-      btn('Review', { variant: 'ghost', size: 'sm', id: 'review-backfill', cls: 'bar-review', onclick: function () { setTab('backfill'); var t = document.getElementById('h-backfill'); if (t) t.scrollIntoView({ block: 'start' }); } })));
-  function paintBfBar() {
-    var n = bfPendingIds().length;
-    clear(bfBarMsg); append(bfBarMsg, [icon('info'), plural(n, 'backfill decision') + ' not recorded yet']);
-    backfillBar.hidden = !n;
-    layoutBars();
+    paintReview();
   }
   function sectionBackfill() {
     var ready = bfReady(), ov = bfOverride(), open = bfStep1Open(), closed = bfLoopClosed();
@@ -3121,6 +3076,295 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
           h('div', { class: 'alert-title' }, title), h('div', { class: 'alert-description' }, desc)),
         h('div', { class: 'row bf-toolbar' }, bfStats, bfAllBtn)),
       bfList);
+  }
+
+  /* ===== 10c. Review and send: one review bar, one Send panel, one decisions document =====
+     The triage, this browser's pending dismissals and its pending backfill decisions leave the page together as
+     ONE decisions document (kind "design-qa-decisions", scripts/lib/decisions.mjs). In file mode it is copied as
+     a plain-language message any coding agent can act on, or downloaded as decisions.json. When scripts/review.mjs
+     serves the page (LIVE), "Send to agent" POSTs it to the waiting agent: the only network request this page
+     ever makes. The bar has three states: unsent (the choices differ from report.json), sent (the last sent or
+     copied document equals the current one) and recorded (report.json already has it all, nothing pending). */
+  var HAS_TRIAGE = findings.some(function (f) { var o = ORIG[f.id]; return !!o && o.resolution === 'FIX_CODE' && !!SEV_W[f.severity]; });
+  var SENT_KEY = 'design-qa:sent:' + SLUG + ':' + (meta.generatedAt || '');
+  var TICKETS_KEY = 'design-qa:tickets:' + SLUG + ':' + (meta.generatedAt || '');
+  var GONE_MSG = 'Your agent is no longer waiting. Copy the decisions and paste them into its chat.';
+  var RV = { name: null, tickets: null }; // this page's values when browser storage is unavailable
+  var SP = { open: false, sending: false, gone: false, done: false, error: null, node: null }; // the Send panel
+  function nameOrNull(v) { return typeof v === 'string' && v.trim() ? v.trim() : null; }
+  function reviewerName() { return RV.name !== null ? RV.name : savedName(); }
+  function ticketsWanted() {
+    if (RV.tickets !== null) return RV.tickets;
+    var v = store.get(TICKETS_KEY);
+    return v === 'true' ? true : v === 'false' ? false : TRI && typeof TRI.ticketsAuthorized === 'boolean' ? TRI.ticketsAuthorized : !!meta.ticket;
+  }
+  // The decisions document exactly as normalizeDecisions() in scripts/lib/decisions.mjs returns it (same keys, same
+  // order): fix now / debt in rank order without this browser's dismissals; only the pending (not recorded)
+  // dismissals and backfill decisions, by id; a blank item "by" falls back to the reviewer's name.
+  function decisionsDoc(at) {
+    var name = nameOrNull(reviewerName()), debt = idList(selected('debt'));
+    var doc = { kind: 'design-qa-decisions', version: 1, slug: SLUG, feature: typeof meta.feature === 'string' ? meta.feature : null,
+      reportGeneratedAt: meta.generatedAt || null, decidedBy: name, decidedAt: at || new Date().toISOString(), tickets: debt.length ? ticketsWanted() : false };
+    if (HAS_TRIAGE) doc.triage = { fixNow: idList(selected('fix-now')), debt: debt };
+    doc.dismissals = pendingIds().map(function (id) { var d = DIS[id]; return { findingId: id, kind: d.kind, reason: d.reason, by: nameOrNull(d.by) || name, date: d.date || null }; });
+    doc.backfill = bfPendingIds().map(function (id) {
+      var d = BFL[id]; return { id: id, decision: d.decision, reason: d.decision === 'not-needed' ? d.reason : null, by: nameOrNull(d.by) || name, date: d.date || null };
+    });
+    return doc;
+  }
+  /* The message "Copy for your agent" copies. Mirrors decisionsMessage() in scripts/lib/decisions.mjs character for
+     character (as agentPrompt() above mirrors lib/fixplan.mjs): keep both in step. It reads the report's own values,
+     and the findings it names are never dismissed in this browser, so agentPrompt() sees what the library sees. */
+  function msgLine(v) { return String(v === null || v === undefined ? '' : v).replace(/\s+/g, ' ').trim(); }
+  function shellArg(value) { return /^[A-Za-z0-9_./:@=-]+$/.test(String(value)) ? String(value) : "'" + String(value).replace(/'/g, "'\\''") + "'"; }
+  function decisionsSummaryLine(d) {
+    var bf = d.backfill.length, parts = ['fix now ' + (d.triage ? d.triage.fixNow.length : 0), 'later ' + (d.triage ? d.triage.debt.length : 0), 'dismissed ' + d.dismissals.length];
+    if (bf) parts.push('backfill ' + bf);
+    parts.push('tickets: ' + (d.tickets === true ? 'yes' : 'no'));
+    return parts.join(' · ');
+  }
+  function decisionsMessage(d) {
+    var file = REPORT_PATH || 'qa-reports/' + d.slug + '/report.json';
+    var feature = d.feature !== null && d.feature !== undefined ? d.feature : meta.feature !== null && meta.feature !== undefined ? meta.feature : d.slug;
+    function finding(id) { return byId[id] || { id: id, title: '(not in this report)' }; }
+    var fixNow = d.triage ? d.triage.fixNow : [], debt = d.triage ? d.triage.debt : [];
+    var lines = [
+      'Apply my design QA review for ' + feature + ' (' + d.slug + ').',
+      '',
+      'Report: ' + file,
+      'Decided by ' + (d.decidedBy !== null && d.decidedBy !== undefined ? d.decidedBy : 'the reviewer') + ': ' + decisionsSummaryLine(d),
+      '',
+      'What to do:',
+      '1. Use the design-qa skill, section "Apply review decisions". Save this whole message to a file and run its script:',
+      '   node scripts/apply-decisions.mjs --report ' + shellArg(file) + ' --from <that file>' + (CONFIG_PATH ? ' --config ' + shellArg(CONFIG_PATH) : ''),
+      '   (the script path is relative to the design-qa skill folder). No design-qa skill available? Skip step 1 and do steps 2 and 3 from the text below.',
+      '2. Fix the "Fix now" findings below, in the order given. Do not change data or copy beyond what each item says. Run the project\'s tests after each item.',
+      '3. Do not fix the "Fix later" items; they are tracked as debt. Leave dismissed items alone.',
+      '',
+      '```design-qa-decisions',
+      JSON.stringify(d, null, 2),
+      '```',
+      '',
+      'Fix now (' + fixNow.length + ')',
+      '',
+      fixNow.length ? fixNow.map(function (id) { return agentPrompt(finding(id)); }).join('\n\n') : 'None.',
+      '',
+      'Fix later (' + debt.length + ')'
+    ].concat(debt.length ? debt.map(function (id) { var f = finding(id); return '- ' + id + ' [' + (f.severity !== null && f.severity !== undefined ? f.severity : DASH) + '] ' + f.title; }) : ['None.']);
+    if (d.dismissals.length) {
+      lines.push('', 'Dismissed (' + d.dismissals.length + ')');
+      d.dismissals.forEach(function (x) { lines.push('- ' + x.findingId + ' ' + x.kind + ' — ' + msgLine(x.reason)); });
+    }
+    if (d.backfill.length) {
+      lines.push('', 'Design backfill (' + d.backfill.length + ')');
+      d.backfill.forEach(function (b) { lines.push(b.decision === 'not-needed' ? '- ' + b.id + ' not-needed — ' + msgLine(b.reason) : '- ' + b.id + ' build'); });
+    }
+    return lines.join('\n');
+  }
+  // Last sent or copied document, per report: { doc, at, via: "agent" | "copy" }.
+  var SENT = (function () {
+    var v = null;
+    try { v = JSON.parse(store.get(SENT_KEY) || 'null'); } catch (e) { v = null; }
+    return v && typeof v === 'object' && v.doc && typeof v.doc === 'object' && typeof v.at === 'string' ? v : null;
+  })();
+  function docKey(d) { var c = {}; Object.keys(d).forEach(function (k) { if (k !== 'decidedAt') c[k] = d[k]; }); return JSON.stringify(c); }
+  function markSent(doc, via) { SENT = { doc: doc, at: new Date().toISOString(), via: via }; store.set(SENT_KEY, JSON.stringify(SENT)); paintReview(); }
+  function triageRecorded() { // report.json's triage block holds exactly the current split
+    if (!HAS_TRIAGE) return true;
+    if (TRI && selected('debt').length && TRI.ticketsAuthorized !== ticketsWanted()) return false;
+    return !!TRI && TRI.source !== 'ci-default' && triageable.every(function (f) { var it = triItem[f.id]; return !!it && it.decision === SEL[f.id]; });
+  }
+  function reviewState() {
+    if (SENT && docKey(SENT.doc) === docKey(decisionsDoc(SENT.doc.decidedAt))) return 'sent';
+    if (!pendingIds().length && !bfPendingIds().length && triageRecorded()) return 'recorded';
+    return 'unsent';
+  }
+  function hhmm(iso) { var d = new Date(iso); return isNaN(d.getTime()) ? DASH : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  // The review bar: a live summary in plain words, a short status and one primary button.
+  var reviewMsg = h('span', { class: 'db-msg', id: 'review-bar-msg', tabindex: '-1' });
+  var reviewStatus = h('span', { class: 'rb-status', id: 'review-bar-status', role: 'status' });
+  var reviewBtn = btn('Review and send', { variant: 'default', size: 'sm', id: 'review-send' });
+  reviewBtn.setAttribute('aria-expanded', 'false'); reviewBtn.setAttribute('aria-controls', 'send-panel'); reviewBtn.setAttribute('aria-haspopup', 'dialog');
+  reviewBtn.addEventListener('click', function () { if (SP.open) closeSend(true); else openSend(); });
+  var reviewBar = h('div', { class: 'dismiss-bar review-bar', id: 'review-bar', role: 'region', 'aria-label': 'Review and send your decisions', hidden: true },
+    h('div', { class: 'rb-text' }, reviewMsg, reviewStatus), reviewBtn);
+  var sendHost = h('div', { class: 'send-host' });
+  var barStack = h('div', { class: 'bar-stack', id: 'bar-stack' }, sendHost, reviewBar);
+  function summaryParts(doc) {
+    var p = [];
+    if (doc.triage) p.push('Fix now ' + doc.triage.fixNow.length, 'Later ' + doc.triage.debt.length);
+    if (doc.dismissals.length) p.push('Dismissed ' + doc.dismissals.length);
+    if (doc.backfill.length) p.push('Backfill ' + doc.backfill.length);
+    return p.join(' · ');
+  }
+  function setText(el, text) { if (el.textContent !== text) el.textContent = text; }
+  function paintReview() {
+    var doc = decisionsDoc(), st = reviewState();
+    reviewBar.hidden = false; // Even an empty or unchanged review must be able to complete the handoff.
+    reviewBar.setAttribute('data-state', st);
+    setText(reviewMsg, summaryParts(doc));
+    var by = TRI ? bfByLine(TRI.decidedBy, TRI.decidedAt) : null;
+    setText(reviewStatus, st === 'recorded' ? 'All decisions are recorded' + (by ? ' · ' + by : '')
+      : st === 'sent' ? (SENT.via === 'agent' ? 'Sent to your agent at ' + hhmm(SENT.at) : 'Copied at ' + hhmm(SENT.at) + ': paste it into your agent\'s chat')
+        : SENT ? 'Changed since you sent' : 'Not sent yet');
+    reviewBtn.disabled = SP.sending;
+    if (reviewBar.hidden && SP.open) closeSend(false);
+    if (SP.open) fillSendLive();
+    layoutBars();
+  }
+  // Both the bar and the Send panel live in one fixed stack; the page keeps room for the bar.
+  function layoutBars() {
+    var any = !reviewBar.hidden;
+    // Below 1280px the annotation panel is a bottom sheet: the bar (and toasts) sit just above it instead of under it.
+    var sheet = !annDock.hidden && (!lb || lb.hidden) && !!(window.matchMedia && window.matchMedia('(max-width: 1279.98px)').matches);
+    document.body.classList.toggle('ann-sheet', sheet);
+    document.body.style.setProperty('--ann-h', sheet ? annDock.offsetHeight + 'px' : '0px');
+    document.body.classList.toggle('has-bar', any);
+    if (any) document.body.style.setProperty('--bar-h', reviewBar.offsetHeight + 'px');
+    document.documentElement.style.scrollPaddingBottom = any ? (reviewBar.offsetHeight + 24) + 'px' : ''; // scrollIntoView keeps panels above the bar
+  }
+  window.addEventListener('resize', layoutBars);
+  // The Send panel: opens above the bar, in the same visual language as the inline Dismiss panel.
+  function closeSend(refocus) {
+    if (!SP.open) return;
+    SP.open = false; SP.error = null; SP.node = null; clear(sendHost); document.body.classList.remove('send-open');
+    reviewBtn.setAttribute('aria-expanded', 'false');
+    layoutBars();
+    if (refocus && !reviewBar.hidden) reviewBtn.focus();
+  }
+  function openSend() {
+    if (reviewBtn.disabled) return;
+    hideTip();
+    if (PANEL.fid && document.body.classList.contains('ann-sheet')) closePanel(false); // one bottom sheet at a time on narrow screens
+    SP.open = true; SP.error = null;
+    var name = h('input', { type: 'text', class: 'input', id: 'send-name', name: 'by', autocomplete: 'name', placeholder: 'Name or role' });
+    name.value = reviewerName();
+    name.addEventListener('input', function () { var v = name.value.trim(); RV.name = v; if (store.set(NAME_KEY, v)) RV.name = null; paintReview(); });
+    var panel = h('div', { class: 'dismiss-panel send-panel', id: 'send-panel', role: 'dialog', 'aria-labelledby': 'send-title' },
+      h('div', { class: 'sp-head' }, h('h2', { class: 'dp-title', id: 'send-title', tabindex: '-1' }, 'Send your decisions'),
+        h('button', { type: 'button', class: 'btn btn-ghost btn-icon-sm', id: 'send-close', 'aria-label': 'Close', onclick: function () { closeSend(true); } }, icon('x'))),
+      h('div', { class: 'sp-groups', id: 'send-summary' }),
+      h('div', { class: 'dp-field' }, h('label', { class: 'label', for: 'send-name' }, 'Your name'), name, h('span', { class: 'dp-help' }, 'Optional · remembered in this browser')),
+      h('div', { class: 'sp-tickets', id: 'send-tickets' }),
+      h('p', { class: 'dp-help sp-explain' }, 'Sending approves this: your agent records the decisions, creates the tickets if ticked, and starts on the Fix now items.'),
+      h('div', { class: 'sp-note', id: 'send-note' }),
+      h('div', { class: 'dp-actions', id: 'send-actions' }));
+    panel.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSend(true); } });
+    clear(sendHost); sendHost.appendChild(panel); SP.node = panel; document.body.classList.add('send-open');
+    reviewBtn.setAttribute('aria-expanded', 'true');
+    fillSendLive(); paintSendNote(); paintSendActions();
+    layoutBars();
+    panel.querySelector('#send-title').focus({ preventScroll: true });
+  }
+  function more(n) { return n > 0 ? h('p', { class: 'sp-more' }, 'and ' + n + ' more') : null; }
+  function sendGroup(label, count, body, review) {
+    return h('section', { class: 'sp-group', 'aria-label': label + ' (' + count + ')' },
+      h('h3', { class: 'section-label sp-label' }, h('span', null, label + ' (' + count + ')'), review || null), body);
+  }
+  function reviewLink(label, go) { return h('button', { type: 'button', class: 'link-btn sp-review', onclick: function () { closeSend(false); go(); } }, label); }
+  // The parts that follow the choices made while the panel is open: the summary and the tickets checkbox.
+  function fillSendLive() {
+    var panel = SP.node; if (!panel) return;
+    var doc = decisionsDoc(), sum = panel.querySelector('#send-summary'), tk = panel.querySelector('#send-tickets');
+    var fix = doc.triage ? doc.triage.fixNow : [], debt = doc.triage ? doc.triage.debt : [], LIM = 5;
+    clear(sum);
+    if (doc.triage) {
+      sum.appendChild(sendGroup('Fix now', fix.length, fix.length ? [h('ol', { class: 'sp-list' }, fix.slice(0, LIM).map(function (id) {
+        var f = byId[id]; return h('li', null, h('span', { class: 'fid' }, id), h('span', { class: 'sp-t' }, f ? f.title : ''));
+      })), more(fix.length - LIM)] : h('p', { class: 'sp-more' }, 'None')));
+      sum.appendChild(sendGroup('Later', debt.length, debt.length ? h('p', { class: 'sp-ids' }, h('span', { class: 'fid' }, debt.slice(0, LIM).join(', ')),
+        debt.length > LIM ? h('span', { class: 'sp-more' }, ' and ' + (debt.length - LIM) + ' more') : null) : h('p', { class: 'sp-more' }, 'None')));
+    }
+    if (doc.dismissals.length) sum.appendChild(sendGroup('Dismissed', doc.dismissals.length, [h('ul', { class: 'sp-list' }, doc.dismissals.slice(0, LIM).map(function (x) {
+      return h('li', null, h('span', { class: 'fid' }, x.findingId), h('span', { class: 'sp-t' }, DKIND_DONE[x.kind] || x.kind));
+    })), more(doc.dismissals.length - LIM)], reviewLink('Review', openDismissedSection)));
+    if (doc.backfill.length) sum.appendChild(sendGroup('Backfill', doc.backfill.length, [h('ul', { class: 'sp-list' }, doc.backfill.slice(0, LIM).map(function (b) {
+      return h('li', null, h('span', { class: 'fid' }, b.id), h('span', { class: 'sp-t' }, (b.decision === 'build' ? 'Build in Figma' : 'Not needed') + (bfById[b.id] ? ' · ' + bfLabel(bfById[b.id]) : '')));
+    })), more(doc.backfill.length - LIM)], reviewLink('Review', function () { setTab('backfill'); var t = document.getElementById('h-backfill'); if (t) { t.scrollIntoView({ block: 'start' }); } })));
+    // "Create tickets for the n later items": only with later items; checked by default only when the report has a ticket.
+    var text = debt.length ? 'Create tickets for the ' + plural(debt.length, 'later item') : '';
+    var cur = tk.querySelector('[role="checkbox"]');
+    if (!debt.length) { clear(tk); tk.hidden = true; return; }
+    tk.hidden = false;
+    if (cur && cur.querySelector('.sp-check-label').textContent === text) { cur.setAttribute('aria-checked', String(ticketsWanted())); return; }
+    var box = h('button', { type: 'button', role: 'checkbox', class: 'sp-check', id: 'send-tickets-box', 'aria-checked': String(ticketsWanted()) },
+      h('span', { class: 'checkbox', 'aria-hidden': 'true' }, icon('check')), h('span', { class: 'sp-check-label' }, text));
+    box.addEventListener('click', function () {
+      var on = box.getAttribute('aria-checked') !== 'true';
+      box.setAttribute('aria-checked', String(on));
+      RV.tickets = on; if (store.set(TICKETS_KEY, String(on))) RV.tickets = null;
+      paintReview();
+    });
+    clear(tk); tk.appendChild(box);
+  }
+  function paintSendNote() {
+    var note = SP.node && SP.node.querySelector('#send-note'); if (!note) return;
+    clear(note);
+    if (SP.error) note.appendChild(h('div', { class: 'alert sp-error', id: 'send-error', role: 'alert' }, icon('circle-alert'),
+      h('div', { class: 'alert-title' }, SP.gone ? 'Not sent' : 'Your agent did not accept the decisions'), h('div', { class: 'alert-description' }, SP.error)));
+  }
+  function canSend() { return LIVE && !SP.gone && !SP.done; }
+  function paintSendActions() {
+    var act = SP.node && SP.node.querySelector('#send-actions'); if (!act) return;
+    clear(act);
+    var dl = btn('Download decisions.json', { variant: 'outline', size: 'sm', icon: 'download', id: 'download-decisions', onclick: function () {
+      download('decisions.json', JSON.stringify(decisionsDoc(), null, 2) + '\n', 'application/json');
+    } });
+    if (canSend()) {
+      var send = btn(SP.sending ? 'Sending…' : 'Send to agent', { variant: 'default', size: 'sm', id: 'send-to-agent', onclick: sendToAgent });
+      send.disabled = SP.sending; dl.disabled = SP.sending;
+      var instead = h('button', { type: 'button', class: 'link-btn dp-hint sp-instead', id: 'copy-instead', disabled: SP.sending || null, onclick: copyForAgent }, 'Copy instead');
+      append(act, [instead, dl, send]);
+    } else append(act, [dl, btn('Copy for your agent', { variant: 'default', size: 'sm', icon: 'copy', id: 'copy-for-agent', onclick: copyForAgent })]);
+  }
+  function clipboardWrite(text) { // resolves true when the text reached the clipboard
+    function viaCommand() {
+      var back = document.activeElement, ta = h('textarea', { readonly: true, style: 'position:fixed;left:-9999px;top:0' });
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove(); if (back && back.focus && document.contains(back)) back.focus({ preventScroll: true });
+      return ok;
+    }
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return viaCommand(); });
+    return Promise.resolve(viaCommand());
+  }
+  function copied(doc) { markSent(doc, 'copy'); closeSend(true); toast('Copied: paste it into your agent\'s chat'); }
+  function copyForAgent() {
+    var doc = decisionsDoc(), text = decisionsMessage(doc);
+    clipboardWrite(text).then(function (ok) { if (ok) copied(doc); else manualCopy(text, doc); });
+  }
+  // Clipboard blocked: the message in a read-only field, selected, with one more try.
+  function manualCopy(text, doc) {
+    var note = SP.node && SP.node.querySelector('#send-note'); if (!note) return;
+    SP.error = null; clear(note);
+    var ta = h('textarea', { class: 'textarea sp-manual', id: 'send-message', readonly: true, rows: '8', 'aria-label': 'The message for your agent' });
+    ta.value = text;
+    ta.addEventListener('copy', function () { setTimeout(function () { copied(doc); }, 0); });
+    var again = btn('Select all and copy', { variant: 'outline', size: 'sm', icon: 'copy', id: 'send-select-all', onclick: function () {
+      ta.focus(); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      if (ok) copied(doc); else toast('Copy failed: select the text and press ⌘/Ctrl+C.', true);
+    } });
+    append(note, [h('p', { class: 'dp-help' }, 'Your browser blocked the clipboard. Copy the message below and paste it into your agent\'s chat.'), ta, h('div', { class: 'row' }, again)]);
+    ta.focus({ preventScroll: true }); ta.select();
+  }
+  function sendToAgent() {
+    if (!canSend() || SP.sending) return; // never double-send
+    var doc = decisionsDoc();
+    SP.sending = true; SP.error = null; paintSendNote(); paintSendActions();
+    function fail(msg, gone) {
+      SP.sending = false; SP.error = msg; if (gone) SP.gone = true;
+      paintSendNote(); paintSendActions();
+      var next = SP.node && SP.node.querySelector(gone ? '#copy-for-agent' : '#send-to-agent'); if (next) next.focus({ preventScroll: true });
+    }
+    fetch('/decisions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Design-QA-Token': CTX.token }, body: JSON.stringify(doc) })
+      .then(function (res) {
+        return res.json().then(function (j) { return { status: res.status, json: j }; }, function () { return { status: res.status, json: null }; });
+      })
+      .then(function (r) {
+        if (r.status === 200 && r.json && r.json.ok === true) { SP.sending = false; SP.done = true; markSent(doc, 'agent'); closeSend(true); toast('Sent to your agent'); return; }
+        fail(r.json && typeof r.json.error === 'string' && r.json.error ? r.json.error : 'The review server answered HTTP ' + r.status + '.', false);
+      }, function () { fail(GONE_MSG, true); });
   }
 
   /* ===== 16. Tabs, deep links (#finding=DQ-003, #state=empty, #tab=findings), keyboard, print ===== */
@@ -3202,8 +3446,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   root.appendChild(renderHeader());
   root.appendChild(h('main', { class: 'container stack', id: 'main', tabindex: '-1', style: 'padding-bottom:3rem' }, renderPageHead(),
     h('div', { class: 'stack', style: 'gap:0.75rem' }, tablist, TABS.map(function (t) { return panels[t[0]]; }))));
-  append(barStack, [dismissBar, backfillBar]);
-  document.body.appendChild(barStack); paintBar();
+  document.body.appendChild(barStack); paintReview();
   document.body.appendChild(toaster);
   renderHero();
   setTab('overview', { hash: false });

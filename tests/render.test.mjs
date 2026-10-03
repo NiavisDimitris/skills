@@ -195,7 +195,7 @@ test('fix plan: section order, fix-now ordering, paste block, design-system mism
   );
   assert.equal(
     lines[3],
-    'Triage: recommended (top 2 by rank). Choose in report.html, or run /design-qa triage ABC-12 --fix DQ-001,DQ-003',
+    'Triage: recommended (top 2 by rank). Choose in report.html and click "Review and send", or type /design-qa triage ABC-12 --fix DQ-001,DQ-003',
   );
   assert.equal(lines[4], 'Dismissed: 1 · accepted as intentional: 1');
   assert.equal(lines[5], '');

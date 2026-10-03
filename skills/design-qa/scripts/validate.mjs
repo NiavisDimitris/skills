@@ -1,19 +1,44 @@
 #!/usr/bin/env node
-// Validate a design-qa report.json, design-qa.config.json or state-matrix.json.
+// Validate a design-qa report.json, design-qa.config.json, state-matrix.json or decisions.json.
 // Zero dependencies; the structural rules come from ../schemas/*.schema.json.
 import path from 'node:path';
 import { CliError, displayPath, parseCli, readJsonFile, runMain, usageError } from './lib/args.mjs';
-import { TYPES, inferType, validate, validateConfig } from './lib/schema-check.mjs';
+import { DECISIONS_KIND, DecisionsError, normalizeDecisions } from './lib/decisions.mjs';
+import { TYPES as SCHEMA_TYPES, inferType as inferSchemaType, loadSchema, validate, validateAgainstSchema, validateConfig } from './lib/schema-check.mjs';
+
+const TYPES = [...SCHEMA_TYPES, 'decisions'];
+
+/** report | config | state-matrix as schema-check infers them; kind "design-qa-decisions" → decisions. */
+function inferType(data) {
+  if (data && typeof data === 'object' && !Array.isArray(data) && data.kind === DECISIONS_KIND) return 'decisions';
+  return inferSchemaType(data);
+}
+
+/** The decisions schema, then the rules it cannot express (scripts/lib/decisions.mjs). */
+function validateDecisionsFile(data) {
+  const { errors, warnings } = validateAgainstSchema(data, loadSchema('decisions'));
+  if (!errors.length) {
+    try {
+      normalizeDecisions(data);
+    } catch (err) {
+      if (!(err instanceof DecisionsError)) throw err;
+      errors.push({ path: '(root)', message: err.message });
+    }
+  }
+  return { valid: errors.length === 0, errors, warnings };
+}
 
 const HELP = `Validate a design-qa file.
 
 Usage:
-  node scripts/validate.mjs <file> [--type report|config|state-matrix] [--config design-qa.config.json] [--quiet] [--json]
+  node scripts/validate.mjs <file> [--type report|config|state-matrix|decisions] [--config design-qa.config.json] [--quiet] [--json]
 
 Options:
-  --type <type>      report | config | state-matrix. Inferred when omitted:
+  --type <type>      report | config | state-matrix | decisions. Inferred when omitted:
                      schemaVersion + findings → report; app + surfaces → config;
-                     an array of { state, result } rows → state-matrix
+                     an array of { state, result } rows → state-matrix;
+                     kind "design-qa-decisions" → decisions (the review decisions
+                     document, schemas/decisions.schema.json)
   --config <file>    for reports: take tolerances.pixelDiff, report.topN and
                      report.ranking from this design-qa.config.json
                      (defaults: pass < 1%, review <= 5%, top 5)
@@ -87,7 +112,7 @@ async function main(argv) {
     if (!cv.valid) throw usageError(`--config is invalid:\n${cv.errors.map((e) => `  ${e.path}: ${e.message}`).join('\n')}`);
   }
 
-  const result = validate(data, type, { config });
+  const result = type === 'decisions' ? validateDecisionsFile(data) : validate(data, type, { config });
   if (values.json) {
     console.log(JSON.stringify({ file: displayPath(file), type, ...result }, null, 2));
     return result.valid ? 0 : 1;

@@ -240,6 +240,10 @@
         "decidedBy": { "$ref": "#/definitions/nullableString" },
         "decidedAt": { "type": "string", "format": "date-time" },
         "source": { "enum": ["report-ui", "chat", "cli", "ci-default"] },
+        "ticketsAuthorized": {
+          "type": "boolean",
+          "description": "Optional. Recorded by apply-decisions.mjs from the decisions document's \"tickets\": true when the reviewer authorised creating tickets for the debt items, false when they did not. Absent when the triage did not come from a decisions document."
+        },
         "items": {
           "type": "array",
           "items": {

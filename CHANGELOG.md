@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+The review goes back to the agent in one step, and works with any coding agent, not only Claude Code.
+
+### Added
+
+- **Review bar and Send.** `report.html` has one fixed review bar: a summary (`Fix now 5 · Later 3 · Dismissed 2 · Backfill 1`), a status, and "Review and send". The panel "Send your decisions" takes an optional name and a "Create tickets for the n later items" checkbox. Sending is the approval: the agent records the decisions, creates tickets only when the box is ticked, and starts the fix loop on the fix-now set. It still asks before risky or wide edits.
+- **Decisions document.** One `design-qa-decisions` document (version 1, `schemas/decisions.schema.json`) carries the triage, dismissals with their reasons, design-backfill decisions and `tickets`. `report.html` sends it, copies it inside a message, or downloads it as `decisions.json`.
+- `scripts/review.mjs`: serves `report.html` on 127.0.0.1 with a one-time token, waits for "Send to agent", saves `<dir>/decisions.json` and exits 0 with the next command (3 when nothing was sent).
+- `scripts/apply-decisions.mjs`: applies a decisions file, or a pasted message, to `report.json` in one go, updates the dismissed and debt logs, renames `decisions.json` to `decisions.applied.json`, and prints the fix-now list and `Next:` commands.
+- SKILL.md "Apply review decisions" and `/design-qa apply <slug>`. After an interactive audit or fix run the agent opens the review itself (Phase 8).
+- `triage.ticketsAuthorized` in the report schema, recorded from the decisions document's `tickets`.
+- `validate.mjs --type decisions` (also inferred from `kind`).
+- README: install for OpenAI Codex and Cursor next to Claude Code.
+
+### Changed
+
+- Agent-neutral copy. "Copy for your agent" copies one plain-language message any agent can act on: where the report is, what to do, the decisions block and every fix-now finding in full. Agents that are not notified when a background command exits continue when you tell them you are done.
+- The fix plan's triage line points at "Review and send"; the typed `/design-qa triage` command stays as the by-hand alternative.
+
+### Removed
+
+- From `report.html`: the three "Copy for Claude Code" buttons (triage, dismissals, backfill) and the `selection.json`, `dismissals.json` and `backfill.json` downloads. The typed `/design-qa triage`, `dismiss` and `backfill` commands and those files are still accepted.
+
 ## [0.2.1] - 2026-10-03
 
 ### Changed
@@ -55,5 +79,6 @@ Initial public release.
 - Distributable as a Claude Code plugin (`.claude-plugin/plugin.json` + `marketplace.json`) or as a plain skill folder copy.
 - Example config (`examples/design-qa.config.example.json`) and a rendered sample report under `examples/sample/`.
 
+[Unreleased]: https://github.com/NiavisDimitris/skills/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/NiavisDimitris/skills/releases/tag/v0.2.0
 [0.1.0]: https://github.com/NiavisDimitris/skills/releases/tag/v0.1.0

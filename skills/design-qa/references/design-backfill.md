@@ -104,7 +104,8 @@ Never override on your own judgement. `--record` exits 1 while not ready. The ga
 ## Deciding
 
 - In chat: show the candidates as a multi-select (build · not needed). Every not-needed needs the person's reason; ask for a missing one, never invent it.
-- In `report.html`: the Design backfill tab. "Copy backfill for Claude Code" copies the message below; "Download backfill.json" saves the same decisions as a file.
+- In `report.html`: the Design backfill tab. Build in Figma or Not needed (with a reason) on each card; the decisions travel with the rest of the review when the reviewer clicks "Review and send" (the `backfill` array of the decisions document, report.md "Review decisions"). `apply-decisions.mjs` records them as `backfill.mjs --from` does. Deciding is not building: the gate and "Before writing" still apply.
+- Typed in chat: the message below.
 
 ```text
 /design-qa backfill <slug>
@@ -117,12 +118,12 @@ by: <name>
 Record:
 
 ```bash
-node scripts/backfill.mjs --report <dir>/report.json --from <message.txt | backfill.json> [--by "<name>"]
+node scripts/backfill.mjs --report <dir>/report.json --from <message.txt> [--by "<name>"]
 node scripts/backfill.mjs --report <dir>/report.json --build BF-001,BF-002 --by "<name>"
 node scripts/backfill.mjs --report <dir>/report.json --not-needed BF-003 --reason "<why>" --by "<name>"
 ```
 
-`--from` reads a file: save the chat message first. A not-needed line without a reason exits 2. Who decided: an item's own `by`, else `--by`, else the file's `decidedBy` (or the message's `by:` line).
+`--from` reads a file: save the chat message first (a `backfill.json` from an older report works too). A not-needed line without a reason exits 2. Who decided: an item's own `by`, else `--by`, else the file's `decidedBy` (or the message's `by:` line).
 
 ## Before writing
 

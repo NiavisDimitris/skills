@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Render report.json into the self-contained interactive HTML report (and,
 // optionally, the Markdown fix plan). See --help.
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CliError, displayPath, parseCli, readJsonFile, runMain, toNumber, usageError, writeJson, writeText } from './lib/args.mjs';
@@ -15,6 +15,7 @@ export const DEFAULT_TEMPLATE = path.resolve(HERE, '../templates/report.html');
 export const PLACEHOLDERS = Object.freeze({
   data: '/*__DESIGN_QA_DATA__*/',
   assets: '/*__DESIGN_QA_ASSETS__*/',
+  context: '/*__DESIGN_QA_CONTEXT__*/',
   title: '__DESIGN_QA_TITLE__',
 });
 const MAX_EMBED_BYTES = 15 * 1024 * 1024;
@@ -75,7 +76,13 @@ Without --recompute the stored scorecard must equal the derived one.
 Template contract: the template must contain
   <script id="design-qa-data" type="application/json">${PLACEHOLDERS.data}</script>
   <script id="design-qa-assets" type="application/json">${PLACEHOLDERS.assets}</script>
+and should contain (a warning, not an error, when missing)
+  <script id="design-qa-context" type="application/json">${PLACEHOLDERS.context}</script>
   <title>${PLACEHOLDERS.title}</title>
+The context element gets { "reportPath": "<--in relative to the working directory>" }
+when the --in file is inside the working directory, else {} (never an absolute path:
+the HTML is shared). The page names that path in the message it copies for an agent;
+review.mjs adds { live, token } to it when it serves the page.
 
 Exit codes: 0 rendered · 1 invalid report, template or IO error · 2 bad arguments`;
 
@@ -141,8 +148,29 @@ export function buildAssets(report, baseDir, { warn = () => {} } = {}) {
   return assets;
 }
 
-/** Inject data, assets and title into the template (throws when a placeholder is missing). */
-export function fillTemplate(template, report, assets = {}) {
+/**
+ * The page context for the design-qa-context element: { reportPath } with the report
+ * file relative to cwd (forward slashes) when it is inside cwd, else {}. Never an
+ * absolute path: report.html is shared.
+ */
+export function reportContext(reportFile, cwd = process.cwd()) {
+  const real = (p) => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return path.resolve(p);
+    }
+  };
+  const rel = path.relative(real(cwd), real(path.resolve(cwd, reportFile)));
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return {};
+  return { reportPath: rel.split(path.sep).join('/') };
+}
+
+/**
+ * Inject data, assets, the page context and title into the template (throws when the
+ * data or assets placeholder is missing; the context and title placeholders are optional).
+ */
+export function fillTemplate(template, report, assets = {}, context = {}) {
   for (const key of ['data', 'assets']) {
     if (!template.includes(PLACEHOLDERS[key])) {
       throw new CliError(`template is missing the ${PLACEHOLDERS[key]} placeholder (see --help for the template contract)`, 1);
@@ -151,8 +179,12 @@ export function fillTemplate(template, report, assets = {}) {
   const title = escapeHtml(`Design QA — ${report?.meta?.feature ?? 'report'}`);
   const data = serializeForScript(report);
   const assetJson = serializeForScript(assets);
-  // Function replacers: the payload must never be interpreted as a $-pattern.
+  const contextJson = serializeForScript(context && typeof context === 'object' ? context : {});
+  // Function replacers: the payload must never be interpreted as a $-pattern. The
+  // context goes in first: the data and assets JSON may legitimately contain its
+  // placeholder text (e.g. a finding title), which must never be rewritten.
   return template
+    .replace(PLACEHOLDERS.context, () => contextJson)
     .replace(PLACEHOLDERS.data, () => data)
     .replace(PLACEHOLDERS.assets, () => assetJson)
     .split(PLACEHOLDERS.title)
@@ -253,10 +285,18 @@ async function main(argv) {
     throw new CliError(`cannot read template ${displayPath(templateFile)}: ${err.code === 'ENOENT' ? 'file not found' : err.message}`, 1);
   }
   if (!template.includes(PLACEHOLDERS.title)) warn(`template has no ${PLACEHOLDERS.title} placeholder; the page title is left as is`);
+  if (!template.includes(PLACEHOLDERS.context)) warn(`template has no ${PLACEHOLDERS.context} placeholder; the page gets no report path`);
 
   const embed = values['embed-images'] ?? config?.report?.embedImages === true;
   const assets = embed ? buildAssets(report, path.dirname(inFile), { warn }) : {};
-  const html = fillTemplate(template, report, assets);
+  const context = reportContext(inFile);
+  if (values.config) {
+    const configFile = path.resolve(values.config);
+    context.configPath = path.relative(process.cwd(), configFile).split(path.sep).join('/');
+    context.configFromReport = path.relative(path.dirname(inFile), configFile).split(path.sep).join('/');
+    context.reportGeneratedAt = report.meta.generatedAt;
+  }
+  const html = fillTemplate(template, report, assets, context);
 
   const outFile = path.resolve(values.out || path.join(path.dirname(inFile), 'report.html'));
   writeText(outFile, html);

@@ -140,7 +140,7 @@ export function triageLine(report, opts = {}) {
   }
   const findings = Array.isArray(report?.findings) ? report.findings : [];
   if (!findings.some((f) => f && isTriageable(f))) return 'Triage: nothing to triage';
-  return `Triage: recommended (top ${o.topN} by rank). Choose in report.html, or run ${triageCommand(report, recommendedFixIds(report, o))}`;
+  return `Triage: recommended (top ${o.topN} by rank). Choose in report.html and click "Review and send", or type ${triageCommand(report, recommendedFixIds(report, o))}`;
 }
 
 /**
