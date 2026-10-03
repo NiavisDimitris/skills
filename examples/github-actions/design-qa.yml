@@ -236,7 +236,7 @@ jobs:
             --jq "[.[] | select(.body | startswith(\"$MARKER\"))][0].id // empty")
 
           if [ -n "$EXISTING_ID" ]; then
-            gh api "repos/$REPO/issues/comments/$EXISTING_ID" -X PATCH -f body=@"$BODY_FILE"
+            gh api "repos/$REPO/issues/comments/$EXISTING_ID" -X PATCH -F body=@"$BODY_FILE"
           else
             gh pr comment "$PR_NUMBER" --body-file "$BODY_FILE"
           fi

@@ -1,6 +1,6 @@
 # CI for this repo (design-qa-skill itself): runs the test suite, validates
 # the sample report and template rendering, and blocks accidental
-# proprietary content from landing under skills/.
+# proprietary content from landing under skills/, examples/ or docs/.
 
 name: CI
 
@@ -63,7 +63,7 @@ jobs:
             --embed-images \
             --fixplan /tmp/fixplan.md
 
-      - name: No proprietary content under skills/
+      - name: No proprietary content under skills/, examples/ or docs/
         # Denylist of internal codenames, paths and identifiers that must
         # never appear in this public repo. The pattern (a grep -E regex)
         # lives in the DENYLIST repository secret, not in this file, so the
@@ -78,11 +78,18 @@ jobs:
             echo "DENYLIST secret not set - skipping."
             exit 0
           fi
-          if grep -rEIil "$DENYLIST" skills/; then
+          # grep exits 0 on a match, 1 on no match, 2 on an error (e.g. a bad regex).
+          status=0
+          grep -rEIil "$DENYLIST" skills/ examples/ docs/ || status=$?
+          if [ "$status" -eq 0 ]; then
             echo "::error::The files above match the DENYLIST secret, likely proprietary content. Remove it before merging."
             exit 1
           fi
-          echo "Clean - no denylisted strings under skills/."
+          if [ "$status" -ne 1 ]; then
+            echo "::error::The denylist check failed (grep exit $status). Check the DENYLIST secret is a valid grep -E regex."
+            exit 1
+          fi
+          echo "Clean - no denylisted strings under skills/, examples/ or docs/."
 
       - name: Upload rendered sample report
         if: matrix.node-version == 20

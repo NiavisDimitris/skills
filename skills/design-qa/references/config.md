@@ -163,7 +163,7 @@ Paths are relative to the repository root. The files are the project's private o
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `ticket.provider` | `jira` · `linear` · `github` · `none` | `none` | Where ticket keys point. |
+| `ticket.provider` | `jira` · `linear` · `github` · `none` | `none` | Where ticket keys point. Only `jira` has a script (`jira-fetch.mjs`); for `linear` and `github`, read the ticket through its MCP server or paste the text (see [ticket-ingest.md](ticket-ingest.md)). |
 | `ticket.baseUrl` | URL or null | null | For example `https://your-org.atlassian.net`. |
 | `ticket.writeBack` | boolean | false | Allow comments on the audited ticket, always after confirmation, never in ci mode. Debt tickets do not depend on it. |
 | `ticket.trustPreviewUrl` | boolean | false | Let ci mode use a preview URL found only in the ticket. |

@@ -13,11 +13,7 @@ export const VERDICTS = Object.freeze(['PASS', 'REVIEW', 'FAIL']);
 export const BANDS = Object.freeze(['pass', 'review', 'fail']);
 
 export const SCHEMA_VERSION = '2.0';
-export const SCHEMA_VERSIONS = Object.freeze([SCHEMA_VERSION]);
-export const TRIAGE_DECISIONS = Object.freeze(['fix-now', 'debt']);
 export const TRIAGE_SOURCES = Object.freeze(['report-ui', 'chat', 'cli', 'ci-default']);
-export const SOURCE_KINDS = Object.freeze(['figma', 'figma-prototype', 'prototype']);
-export const DISMISSAL_KINDS = Object.freeze(['not-an-issue', 'remove']);
 export const DISMISSAL_SOURCES = Object.freeze(['report-ui', 'chat', 'cli', 'prior-pass']);
 /** Design backfill (step 2): what a person decided about an undesigned state. */
 export const BACKFILL_DECISIONS = Object.freeze(['pending', 'build', 'not-needed']);
@@ -32,8 +28,6 @@ export const OPEN_RESOLUTIONS = Object.freeze(['FIX_CODE', 'UNCLASSIFIED']);
 /** Only FIX_CODE findings are scored: they fill fix-now / debt. */
 export const RANKABLE_RESOLUTIONS = Object.freeze(['FIX_CODE']);
 export const RANKABLE_SEVERITIES = Object.freeze(['BLOCKER', 'WARNING', 'DS_CANDIDATE']);
-/** Severities a finding may be dismissed with (PASS / CANNOT_VERIFY stay NONE). */
-export const DISMISSABLE_SEVERITIES = RANKABLE_SEVERITIES;
 
 export const DEFAULT_TOLERANCES = Object.freeze({ pass: 1, review: 5 });
 export const DEFAULT_SEVERITY_WEIGHTS = Object.freeze({ BLOCKER: 3, WARNING: 2, DS_CANDIDATE: 1 });

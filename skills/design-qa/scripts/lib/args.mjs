@@ -1,6 +1,6 @@
 // Shared CLI plumbing for the design-qa scripts: argument parsing, typed errors
 // with exit codes, JSON file IO and the "run main when executed directly" guard.
-// Zero dependencies; Node >= 18.
+// Zero dependencies; Node >= 20.
 import { parseArgs } from 'node:util';
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

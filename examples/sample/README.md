@@ -4,6 +4,8 @@ A complete, fictional design-qa pass (report schema 2.0) in `fix` mode: the Orde
 
 Open `report.html` (self-contained, images embedded; styled with shadcn/ui tokens and the Geist font, which falls back to the system font offline) or read `report-fixplan.md`. `sample-report.json` is the agent-readable source; `evidence/` holds the synthetic design/app/diff PNGs (the design side lives in `evidence/figma/`) and the JSON they cite, including the captured motion in `evidence/motion/`.
 
+`report-multipage-preview.html` is an early, hand-made design exploration of a multi-page report view. The scripts do not generate it.
+
 Regenerate with `npm run sample:fixtures` (redraws the evidence, writes pixel diffs and ranks into `sample-report.json`, and fails if counts, parity or verdict drift), then `npm run sample:render`.
 
 What to look at in the report:

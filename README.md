@@ -111,7 +111,7 @@ claude plugin marketplace add NiavisDimitris/skills
 claude plugin install design-qa@niavis-skills
 ```
 
-This repo is its own plugin marketplace: the first command registers it under the name `niavis-skills` (see [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)); it is not listed in Anthropic's marketplace. The second installs the `design-qa` plugin, which is just the [`skills/design-qa`](skills/design-qa) folder (about 1 MB; the examples, tests and docs stay out). Claude Code runs `npm install` for it automatically, from the folder's own `package.json` and lockfile.
+This repo is its own plugin marketplace: the first command registers it under the name `niavis-skills` (see [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)); it is not listed in Anthropic's marketplace. The second installs the `design-qa` plugin, which is just the [`skills/design-qa`](skills/design-qa) folder (about 1 MB; the examples, tests and docs stay out). Claude Code normally runs `npm install` for it, from the folder's own `package.json` and lockfile; if the packages are missing, the doctor below says so and prints the fix.
 
 Capture needs Playwright's Chromium, a one-time download of about 100 MB that the plugin install does not do. On first use the skill runs `node scripts/doctor.mjs`, which checks Node, the packages and Chromium and prints the exact command for anything missing; it asks you before downloading the browser. To do it up front, run the doctor yourself from the installed skill folder (Claude Code keeps it under `~/.claude/plugins/cache/niavis-skills/design-qa/<version>/`):
 
@@ -223,7 +223,7 @@ Transitions and animations are part of the contract. The expected motion comes f
 
 ## Scripts
 
-All under `skills/design-qa/scripts/`.
+All under `skills/design-qa/scripts/`. The example paths are relative to a clone of this repo; when installed as a plugin the skill folder is elsewhere, and `node scripts/doctor.mjs` prints where.
 
 | Script | Purpose | Example |
 |---|---|---|
@@ -239,6 +239,7 @@ All under `skills/design-qa/scripts/`.
 | `triage.mjs` | Records which findings are fixed now and which become debt (blockers can't be debt) | `node skills/design-qa/scripts/triage.mjs --report qa-reports/ACME-482/report.json --fix DQ-001,DQ-004 --by "A. Lee" --source chat`<br>default split: `--default` · preview: `--dry-run` |
 | `dismiss.mjs` | Records dismissals with a reason in `report.json` and the cumulative `qa-reports/dismissed.json` / `.md`; `--apply-log` re-applies earlier ones | `node skills/design-qa/scripts/dismiss.mjs --report qa-reports/ACME-482/report.json --id DQ-004 --kind not-an-issue --reason "Anti-aliasing only" --by "A. Lee" --source chat`<br>a saved `/design-qa dismiss` message: `--from message.txt` · undo: `--undo DQ-004` · each pass: `--apply-log` |
 | `backfill.mjs` | Step 2: records undesigned-state candidates, build / not-needed decisions, the gate override and built Figma frames in `report.json` `backfill` | `node skills/design-qa/scripts/backfill.mjs --report qa-reports/ACME-482/report.json --candidates qa-reports/ACME-482/backfill-candidates.json`<br>decide: `--build BF-001,BF-002` · `--not-needed BF-003 --reason "Transient"` · a saved `/design-qa backfill` message: `--from message.txt` · built: `--record BF-001 --figma-url <url> --round-trip 0.4` |
+| `doctor.mjs` | Checks Node, the script packages and Playwright's Chromium, prints the skill folder and the command for anything missing | `node skills/design-qa/scripts/doctor.mjs` |
 | `debt-log.mjs` | Updates the cumulative design-debt log from a triaged report; entries are marked resolved when a later pass shows them fixed | `node skills/design-qa/scripts/debt-log.mjs --report qa-reports/ACME-482/report.json --log qa-reports/design-debt.json --md qa-reports/design-debt.md` |
 
 App auth, when the target app needs it, is env-only: `DESIGN_QA_APP_USER` / `DESIGN_QA_APP_PASS` / `DESIGN_QA_APP_COOKIE` / `DESIGN_QA_APP_STORAGE_STATE`. Never put credentials in `design-qa.config.json` — it's meant to be committed.
@@ -255,7 +256,7 @@ It runs the skill headlessly against a PR's preview URL and gates the PR on:
 
 In CI the skill records the default triage, never creates tickets, and lists the proposed debt in the PR comment for a person to confirm.
 
-Secrets the adopter sets: `ANTHROPIC_API_KEY`, `FIGMA_TOKEN`, `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and any `DESIGN_QA_APP_*` the target app needs. `GITHUB_TOKEN` is provided by Actions automatically.
+Secrets the adopter sets: `ANTHROPIC_API_KEY`, `FIGMA_TOKEN`, `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and any of `DESIGN_QA_APP_USER`, `DESIGN_QA_APP_PASS`, `DESIGN_QA_APP_COOKIE` and `DESIGN_QA_APP_STORAGE_STATE_JSON` (a Playwright storageState JSON blob; the workflow writes it to a file) the target app needs. `GITHUB_TOKEN` is provided by Actions automatically.
 
 ## How it stays honest
 
@@ -272,11 +273,13 @@ Secrets the adopter sets: `ANTHROPIC_API_KEY`, `FIGMA_TOKEN`, `JIRA_BASE_URL`, `
 ```
 .
 ├── .claude-plugin/
-│   ├── plugin.json
 │   └── marketplace.json
 ├── skills/
 │   └── design-qa/
+│       ├── .claude-plugin/
+│       │   └── plugin.json
 │       ├── SKILL.md
+│       ├── package.json
 │       ├── references/
 │       ├── scripts/
 │       ├── templates/
@@ -285,10 +288,16 @@ Secrets the adopter sets: `ANTHROPIC_API_KEY`, `FIGMA_TOKEN`, `JIRA_BASE_URL`, `
 │   ├── design-qa.config.example.json
 │   ├── github-actions/
 │   │   └── design-qa.yml
+│   ├── mock-five-frames/
 │   └── sample/
+├── docs/
+│   └── report-preview.png
 ├── tests/
 ├── .github/workflows/ci.yml
 ├── package.json
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── LICENSE
 └── README.md
 ```
 

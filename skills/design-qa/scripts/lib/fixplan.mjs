@@ -23,8 +23,6 @@ export const DASH = '–';
 /** First line of the "Paste to your coding agent" block (fix-now findings). */
 export const codingAgentIntro =
   "Fix these design-parity findings in order. Do not change data or copy beyond what each item says. Run the project's tests after each item.";
-/** @deprecated use codingAgentIntro */
-export const AGENT_PREAMBLE = codingAgentIntro;
 
 const blank = (v) => v === null || v === undefined || v === '';
 const orDash = (v) => (blank(v) ? DASH : String(v));

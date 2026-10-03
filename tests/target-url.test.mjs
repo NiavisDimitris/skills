@@ -85,7 +85,7 @@ test('prototype links: Figma prototypes, coded prototypes and --prototype URLs',
   assert.equal(classifyInput('https://shop-demo.figma.site').tool, 'figma-make');
   assert.equal(classifyInput('https://v0.dev/chat/abc').tool, 'v0');
   assert.equal(classifyInput('https://kzx.lovable.app/').tool, 'lovable');
-  assert.deepEqual(classifyInput('file:///Users/me/proto/index.html'), { kind: 'prototype', url: 'file:///Users/me/proto/index.html', tool: 'html', appKind: 'local' });
+  assert.deepEqual(classifyInput('file:///home/me/proto/index.html'), { kind: 'prototype', url: 'file:///home/me/proto/index.html', tool: 'html', appKind: 'local' });
   // Any URL handed over with --prototype is the design source, not the app.
   assert.equal(classifyInput('http://localhost:5173/', { prototype: true }).kind, 'prototype');
   assert.equal(classifyInput('http://localhost:5173/', { prototype: true }).tool, 'other');

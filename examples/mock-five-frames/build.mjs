@@ -118,8 +118,11 @@ async function capture() {
     }
     writeFileSync(path.join(out, 'pairs.json'), JSON.stringify(pairs, null, 2) + '\n');
     const res = await node('diff.mjs', ['--pairs', path.join(out, 'pairs.json'), '--out-dir', path.join(out, 'diff'), '--json'], { allow: [0, 1] });
-    writeFileSync(path.join(out, 'diff.json'), res.stdout);
-    log(`diff ${s.id}: ${Object.entries(JSON.parse(res.stdout).results).map(([k, v]) => `${k} ${v.percent}% ${v.band}`).join(' · ')}`);
+    // diff.mjs records absolute image paths; store them repo-relative so the committed evidence is portable.
+    const diff = JSON.parse(res.stdout);
+    for (const r of Object.values(diff.results)) if (r.out) r.out = rel(r.out);
+    writeFileSync(path.join(out, 'diff.json'), JSON.stringify(diff, null, 2) + '\n');
+    log(`diff ${s.id}: ${Object.entries(diff.results).map(([k, v]) => `${k} ${v.percent}% ${v.band}`).join(' · ')}`);
   }
 }
 
