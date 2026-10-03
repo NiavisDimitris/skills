@@ -359,3 +359,37 @@ test('renders with the shipped template when it exists', async (t) => {
   const html = readFileSync(out, 'utf8');
   assert.equal(JSON.parse(scriptContent(html, 'design-qa-data')).meta.feature, 'Items list');
 });
+
+test('shipped template: pins, the Annotations rail and the triage board share one triage store', (t) => {
+  const shipped = path.join(SKILL, 'templates', 'report.html');
+  if (!existsSync(shipped)) {
+    t.skip('templates/report.html not written yet');
+    return;
+  }
+  const src = readFileSync(shipped, 'utf8');
+  // One write path; every surface uses the same triageSeg() control (rail, board, Findings table and sheet, panel).
+  assert.equal((src.match(/function setTriage\(/g) || []).length, 1);
+  assert.equal((src.match(/function triageSeg\(/g) || []).length, 1, 'one reusable Fix now / Debt control');
+  assert.match(src, /setTriage\(f\.id, dec, \{ announce: true \}\)/, 'the control moves through the shared store');
+  for (const surface of ["triageSeg(f, 'rail')", "triageSeg(f, 'board')", "triageSeg(f, 'table')", "triageSeg(f, 'sheet')", "triageSeg(f, 'panel', { large: true })"]) {
+    assert.ok(src.includes(surface), `missing ${surface}`);
+  }
+  assert.ok(!src.includes("role: 'checkbox', class: 'checkbox tri-check'"), 'the board checkbox is replaced by the control');
+  assert.ok(!src.includes("'data-bucket-ctl'"), 'the rail bucket button is replaced by the control');
+  assert.ok(!src.includes('function toggleTriage('), 'no toggle path outside setTriage');
+  // Radiogroup semantics, a locked Debt segment for blockers, and clicks that never reach the row or card.
+  for (const hook of ["role: 'radiogroup'", "role: 'radio'", "b.setAttribute('aria-checked', String(on))", "if (off) b.setAttribute('aria-disabled', 'true')", "e.stopPropagation(); var b = e.target.closest('.tseg-btn')", "'ArrowLeft', 'ArrowRight'"]) {
+    assert.ok(src.includes(hook), `missing ${hook}`);
+  }
+  // Live review summary in the rail head and the board header.
+  for (const id of ["id: 'rail-tri-summary'", "id: 'board-tri-summary'", 'function triSummary(']) assert.ok(src.includes(id), `missing ${id}`);
+  // Pins and rail rows open one side panel (no anchored popover).
+  assert.ok(!src.includes("id: 'pin-pop'"), 'the pin popover is gone');
+  assert.match(src, /openPanel\(p\.f\.id, \{ kind: 'pin'/);
+  assert.match(src, /openPanel\(f\.id, \{ kind: 'row'/);
+  // Every surface repaints from the store after a move or a reset.
+  assert.ok((src.match(/paintTriageViews\(\);/g) || []).length >= 2);
+  for (const hook of ["id: 'ann-panel'", "role: 'dialog'", "'data-open-fid'", "'aria-haspopup': 'dialog'", "'data-show-fid'", 'function showOnCapture(', 'function lockReason(']) {
+    assert.ok(src.includes(hook), `missing ${hook}`);
+  }
+});

@@ -436,7 +436,8 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 .section-title { font-size: 1rem; line-height: 1.5rem; font-weight: 600; }
 .section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin-bottom: 0.75rem; }
 .hero { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr); }
-@media (min-width: 1280px) { .hero { grid-template-columns: minmax(0, 1fr) 17rem; } }
+/* The capture column sets the row height; the rail is size-contained so it never stretches the row, then fills it and scrolls. */
+@media (min-width: 1280px) { .hero { grid-template-columns: minmax(0, 1fr) 17rem; } .hero > .rail { contain: size; align-self: stretch; min-height: 20rem; } }
 .hero-main { min-width: 0; display: flex; flex-direction: column; gap: 0.75rem; }
 .state-tabs { width: 100%; }
 .state-tabs .tabs-trigger { flex: 0 0 auto; }
@@ -455,8 +456,79 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 .pins[hidden] { display: none; }
 .pin { position: absolute; z-index: 1; width: 24px; height: 24px; margin: -12px 0 0 -12px; display: grid; place-items: center; border-radius: 9999px; background: var(--c); color: #fff; font-size: 12px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--background), var(--shadow-md); pointer-events: auto; transition: transform .15s; }
 .pin.hollow { background: var(--background); color: var(--c); box-shadow: inset 0 0 0 2px var(--c), 0 0 0 2px var(--background), var(--shadow-md); }
-.pin:hover, .pin:focus-visible, .pin.hot { transform: scale(1.15); z-index: 3; }
+.pin:hover, .pin:focus-visible, .pin.hot, .pin[aria-expanded="true"] { transform: scale(1.15); z-index: 3; }
 .pin:focus-visible { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+/* Bucket on the pin: Fix now stays solid; Debt adds a dashed ring in the severity colour (the fill keeps the severity code). */
+.pin[data-bucket="debt"]::after { content: ""; position: absolute; inset: -5px; border-radius: 9999px; border: 1.5px dashed var(--c); pointer-events: none; }
+@keyframes pin-flash { from { box-shadow: 0 0 0 2px var(--background), 0 0 0 3px var(--c); } to { box-shadow: 0 0 0 2px var(--background), 0 0 0 16px transparent; } }
+.pin.flash { transform: scale(1.15); z-index: 4; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--c); animation: pin-flash .9s ease-out 3; }
+/* Annotation panel: opened by a pin or a rail row; Fix now / Debt is its main action.
+   >=1280px: docked over the rail column under the rail head (the column widens; the capture keeps its place).
+   Narrower: a bottom sheet. Fullscreen: a right column inside the dialog. */
+@keyframes ann-in-right { from { opacity: 0; transform: translateX(1.5rem); } }
+@keyframes ann-in-up { from { transform: translateY(100%); } }
+.ann-dock[hidden] { display: none; }
+.ann-dock { z-index: 30; min-width: 0; }
+.ann-panel { display: flex; flex-direction: column; min-height: 0; max-height: 100%; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--popover); color: var(--popover-foreground); box-shadow: var(--shadow-lg); font-size: 0.875rem; line-height: 1.25rem; animation: ann-in-right .22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.ann-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.5rem 0 0.875rem; }
+.ann-kicker { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; min-width: 0; color: var(--muted-foreground); font-size: 0.75rem; }
+.ann-kicker .badge { gap: 0.375rem; }
+.ann-nav { display: flex; align-items: center; gap: 0.125rem; flex-shrink: 0; }
+.ann-count { font-size: 0.75rem; margin-right: 0.25rem; }
+.ann-nav .btn:disabled { opacity: 0.4; pointer-events: none; }
+.ann-title { padding: 0.25rem 0.875rem 0; font-size: 1rem; line-height: 1.375rem; font-weight: 600; overflow-wrap: anywhere; outline: none; }
+.ann-title:focus-visible { box-shadow: var(--ring-shadow); border-radius: var(--radius-sm); }
+.ann-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.75rem 0.875rem; display: grid; gap: 1rem; align-content: start; scrollbar-width: thin; }
+.ann-bucket { display: grid; gap: 0.5rem; }
+/* Triage control: ONE segmented "Fix now | Debt" radiogroup, built by triageSeg(), on every surface
+   (rail row, board card, Findings table and sheet, annotation panel). .tseg-lg is the panel size. */
+.tseg { display: inline-grid; grid-template-columns: repeat(2, auto); gap: 0.125rem; padding: 0.125rem; max-width: 100%; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--muted); vertical-align: middle; }
+.tseg-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; min-width: 0; height: 1.375rem; padding: 0 0.5rem; border-radius: calc(var(--radius-md) - 2px); border: 1px solid transparent; color: var(--muted-foreground); font-size: 0.75rem; line-height: 1rem; font-weight: 500; white-space: nowrap; transition: background-color .15s, color .15s, box-shadow .15s, border-color .15s; }
+.tseg-btn::after { content: ""; position: absolute; inset: -0.25rem 0; }
+.tseg-btn svg { width: 0.75rem; height: 0.75rem; flex-shrink: 0; }
+.tseg-btn:hover:not([aria-disabled="true"]):not([aria-checked="true"]) { background: var(--background); color: var(--foreground); }
+.tseg-btn[aria-checked="true"] { background: var(--primary); color: var(--primary-foreground); box-shadow: var(--shadow-xs); }
+.tseg-btn[data-decision="debt"][aria-checked="true"] { background: var(--background); color: var(--foreground); border: 1px dashed var(--foreground); }
+.tseg-btn[aria-disabled="true"] { cursor: not-allowed; }
+.tseg-btn[aria-disabled="true"]:not([aria-checked="true"]) { opacity: 0.5; }
+.tseg-btn:focus-visible { outline: none; z-index: 1; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+/* the recommended bucket, shown only when the current choice differs from it */
+.tseg-btn[data-rec="true"]::before { content: ""; order: 1; width: 0.3125rem; height: 0.3125rem; border-radius: 9999px; background: currentColor; opacity: 0.7; }
+.tseg-lg { display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 0.25rem; padding: 0.25rem; border: 0; border-radius: var(--radius-lg); }
+.tseg-lg .tseg-btn { height: 2.5rem; gap: 0.5rem; border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 600; }
+.tseg-lg .tseg-btn svg { width: 1rem; height: 1rem; }
+.tseg-lg .tseg-btn[data-decision="debt"][aria-checked="true"] { border-width: 1.5px; }
+@media (prefers-reduced-motion: reduce) { .tseg-btn { transition: none; } }
+.tri-summary { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.tri-summary b { color: var(--foreground); font-weight: 600; }
+.rail-head .tri-summary { margin-top: 0.25rem; }
+.sheet-triage { margin-top: 0.75rem; }
+.ann-hint { font-size: 0.8125rem; color: var(--muted-foreground); }
+.ann-hint > svg { display: inline-block; vertical-align: -0.125rem; margin-right: 0.25rem; }
+.ann-hint .badge { vertical-align: middle; }
+.ann-hint b { color: var(--foreground); font-weight: 500; }
+.ann-hint a.badge { text-decoration: none; }
+.ann-ea { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.ann-ea .ea-box { padding: 0.5rem 0.625rem; }
+.ann-dl { grid-template-columns: max-content minmax(0, 1fr); font-size: 0.8125rem; }
+.ann-foot { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.625rem 0.875rem; border-top: 1px solid var(--border); }
+.pin[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--foreground), var(--shadow-md); }
+.pin-item:has(> .pin-row[aria-expanded="true"]) { background: var(--accent); box-shadow: inset 0 0 0 1px var(--ring); }
+@media (min-width: 1280px) {
+  .hero.ann-open { grid-template-columns: minmax(0, 1fr) 22rem; }
+  .hero > .ann-dock { grid-column: 2; grid-row: 1; align-self: stretch; contain: size; position: relative; margin-top: var(--ann-top, 0); }
+  .hero > .ann-dock > .ann-panel { position: sticky; top: 0.5rem; height: 100%; max-height: calc(100vh - 1rem); }
+  /* the panel covers the rail list; hide it (and take it out of the tab order), keep the head and its chips */
+  .hero.ann-open > .rail > section > :not(.rail-head), .hero.ann-open > .rail > section ~ section { visibility: hidden; }
+  .dialog > .ann-dock { position: absolute; top: var(--ann-top, 0); right: 0; bottom: 0; width: min(22rem, 100%); }
+  .dialog > .ann-dock > .ann-panel { height: 100%; border-radius: 0; border-width: 0 0 0 1px; }
+}
+@media (max-width: 1279.98px) {
+  .ann-dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; }
+  .ann-panel { max-height: min(72vh, 38rem); border-radius: var(--radius-xl) var(--radius-xl) 0 0; border-width: 1px 0 0; animation-name: ann-in-up; }
+  .ann-foot { padding-bottom: max(0.625rem, env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) { .ann-panel { animation: none; } }
 .crop-outline { position: absolute; border: 2px dashed var(--c); border-radius: 4px; pointer-events: none; display: none; }
 .crop-outline.show { display: block; }
 .side { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -471,9 +543,32 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 #hero-stage, .dialog-body { position: relative; }
 .stage-note { position: absolute; z-index: 7; top: 0.375rem; left: 0.375rem; }
 .rail { display: flex; flex-direction: column; gap: 1.5rem; font-size: 0.875rem; line-height: 1.25rem; min-width: 0; }
+.hero > .rail { overflow-y: auto; overscroll-behavior: contain; padding: 0 0.25rem 0.25rem; scrollbar-width: thin; }
+@media (max-width: 1279.98px) { .hero > .rail { max-height: 32rem; } }
 .rail-title { font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; display: flex; justify-content: space-between; }
+.rail-head { position: sticky; top: 0; z-index: 2; background: var(--background); padding: 0.25rem 0 0.5rem; margin-bottom: 0.25rem; box-shadow: 0 1px 0 var(--border); }
+.rail-head .rail-title { margin-bottom: 0.375rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.125rem; }
+.chip { display: inline-flex; align-items: center; gap: 0.375rem; height: 1.5rem; padding: 0 0.5rem; border-radius: 9999px; border: 1px solid var(--border); background: var(--background); color: var(--muted-foreground); font-size: 0.75rem; line-height: 1rem; font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color .15s, color .15s, border-color .15s, box-shadow .15s; }
+.chip:hover { background: var(--muted); color: var(--foreground); }
+.chip[aria-pressed="true"] { background: var(--secondary); color: var(--secondary-foreground); border-color: color-mix(in oklab, var(--foreground) 15%, transparent); }
+.chip[aria-pressed="false"] { border-style: dashed; }
+.chip[aria-pressed="false"] .dot { background: transparent; }
+.chip[aria-pressed="false"] .chip-label { text-decoration: line-through; text-decoration-color: color-mix(in oklab, var(--muted-foreground) 60%, transparent); }
+.chip:focus-visible { border-color: var(--ring); box-shadow: var(--ring-shadow); }
+.chip .chip-n { font-variant-numeric: tabular-nums; font-weight: 400; opacity: 0.8; }
+.rail-empty { padding: 0.5rem; font-size: 0.75rem; color: var(--muted-foreground); }
+.pin-list > li[hidden], .pin[hidden], .crop-outline[hidden], .rail [hidden] { display: none !important; }
 .pin-row { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); gap: 0.5rem; width: 100%; padding: 0.5rem; border-radius: var(--radius-md); text-align: left; }
-.pin-row:hover, .pin-row.hot, .pin-row[aria-current="true"] { background: var(--muted); }
+.pin-item { border-radius: var(--radius-md); transition: background-color .15s, box-shadow .15s; }
+.pin-item:hover, .pin-item:has(> .pin-row.hot), .pin-item:has(> .pin-row[aria-current="true"]) { background: var(--muted); }
+.pin-item.flash { background: var(--accent); box-shadow: inset 0 0 0 1px var(--ring); }
+.pin-item > .pin-row:not(:last-child) { padding-bottom: 0.25rem; }
+.pin-meta { display: flex; align-items: center; gap: 0.375rem; padding: 0 0.5rem 0.5rem 2.25rem; }
+.bucket-key { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; margin-top: 0.375rem; font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); }
+.bucket-key > span { display: inline-flex; align-items: center; gap: 0.375rem; }
+.key-pin { width: 0.625rem; height: 0.625rem; border-radius: 9999px; background: var(--muted-foreground); }
+.key-pin.debt { outline: 1px dashed var(--muted-foreground); outline-offset: 2px; }
 .pin-row .n { font-size: 0.75rem; font-weight: 600; color: var(--muted-foreground); font-variant-numeric: tabular-nums; padding-top: 0.0625rem; }
 .pin-row .t { display: flex; gap: 0.375rem; align-items: baseline; min-width: 0; }
 .pin-row .t .dot { transform: translateY(-0.0625rem); }
@@ -491,21 +586,19 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 .lane-sub { font-size: 0.75rem; color: var(--muted-foreground); }
 .lane-list { display: grid; gap: 0.5rem; }
 .lane-empty { border: 1px dashed var(--border); border-radius: var(--radius-lg); padding: 1rem; text-align: center; font-size: 0.875rem; color: var(--muted-foreground); }
-.tri-card { display: grid; grid-template-columns: 1rem minmax(0, 1fr); gap: 0.75rem; align-items: start; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--card); padding: 0.75rem; box-shadow: var(--shadow-xs); font-size: 0.875rem; will-change: transform; }
+.tri-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; align-items: start; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--card); padding: 0.75rem; box-shadow: var(--shadow-xs); font-size: 0.875rem; will-change: transform; }
 .tri-title { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
 .tri-title .dot { flex-shrink: 0; transform: translateY(-0.0625rem); }
 .tri-open { flex: 1; min-width: 0; text-align: left; font-weight: 500; }
 .tri-open:hover { text-decoration: underline; text-underline-offset: 3px; }
 .tri-where { margin-top: 0.25rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted-foreground); overflow-wrap: anywhere; }
-.tri-ticket { margin-top: 0.5rem; font-size: 0.75rem; }
+.tri-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.375rem 0.75rem; margin-top: 0.5rem; font-size: 0.75rem; }
+.tri-links { display: inline-flex; align-items: center; gap: 0.75rem; margin-left: auto; }
+.tri-show { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--muted-foreground); }
+.tri-show:hover { color: var(--foreground); }
+.tri-ticket { font-size: 0.75rem; }
+.tri-decide { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem 0.5rem; }
 .tri-ticket .badge { text-decoration: none; }
-.tri-check { position: relative; margin-top: 0.125rem; cursor: pointer; transition: background-color .15s, border-color .15s, box-shadow .15s; }
-.tri-check::after { content: ""; position: absolute; inset: -0.5rem; }
-.checkbox[aria-checked="true"] { background: var(--primary); border-color: var(--primary); }
-.checkbox[aria-checked="true"] > svg { visibility: visible; }
-.tri-check:focus-visible { border-color: var(--ring); box-shadow: var(--ring-shadow); }
-.tri-lock { display: grid; place-items: center; width: 1rem; height: 1.25rem; color: var(--muted-foreground); }
-.tri-lock svg { width: 0.875rem; height: 0.875rem; }
 .tri-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1rem; margin-top: 1rem; }
 .triage-status { font-size: 0.875rem; font-weight: 500; font-variant-numeric: tabular-nums; }
 .fix-list > li { border-bottom: 1px solid var(--border); }
@@ -586,11 +679,13 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
 }
 @media print {
   body { background: #fff; }
-  .no-print, .site-header, .tabs-list, .toolbar, .hero-bar, .card-action, .x-close, #lightbox, #sheet-root, .toaster, .thumb-view, .acc-head button:not(.acc-trigger) { display: none !important; }
+  .no-print, .site-header, .tabs-list, .toolbar, .hero-bar, .card-action, .x-close, #lightbox, #sheet-root, .toaster, .thumb-view, .acc-head button:not(.acc-trigger), .ann-dock, .tri-show { display: none !important; }
   [role="tabpanel"][hidden], .acc-body[hidden], .fix-body[hidden] { display: block !important; }
   .card { box-shadow: none; break-inside: avoid; }
   .stage.zoomed, .pane.zoomed { max-height: none; overflow: visible; }
   .table-container { overflow: visible; }
+  .hero > .rail { contain: none; max-height: none; overflow: visible; }
+  .rail-head { position: static; box-shadow: none; }
 }
 </style>
 </head>
@@ -624,9 +719,11 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   // Icons: Lucide (https://lucide.dev), ISC License. Only the glyphs this report uses.
   var ICONS = {
     "arrow-down": "<path d=\"M12 5v14\" /><path d=\"m19 12-7 7-7-7\" />",
+    "arrow-left-right": "<path d=\"M8 3 4 7l4 4\" /><path d=\"M4 7h16\" /><path d=\"m16 21 4-4-4-4\" /><path d=\"M20 17H4\" />",
     "arrow-up": "<path d=\"m5 12 7-7 7 7\" /><path d=\"M12 19V5\" />",
     "check": "<path d=\"M20 6 9 17l-5-5\" />",
     "chevron-down": "<path d=\"m6 9 6 6 6-6\" />",
+    "chevron-left": "<path d=\"m15 18-6-6 6-6\" />",
     "chevron-right": "<path d=\"m9 18 6-6-6-6\" />",
     "chevrons-up-down": "<path d=\"m7 15 5 5 5-5\" /><path d=\"m7 9 5-5 5 5\" />",
     "circle-alert": "<circle cx=\"12\" cy=\"12\" r=\"10\" /><line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\" /><line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\" />",
@@ -645,7 +742,8 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     "info": "<circle cx=\"12\" cy=\"12\" r=\"10\" /><path d=\"M12 16v-4\" /><path d=\"M12 8h.01\" />",
     "layers": "<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\" /><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\" /><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\" />",
     "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\" /><path d=\"M7 11V7a5 5 0 0 1 10 0v4\" />",
-    "maximize": "<path d=\"M8 3H5a2 2 0 0 0-2 2v3\" /><path d=\"M21 8V5a2 2 0 0 0-2-2h-3\" /><path d=\"M3 16v3a2 2 0 0 0 2 2h3\" /><path d=\"M16 21h3a2 2 0 0 0 2-2v-3\" />",
+    "map-pin": "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\" /><circle cx=\"12\" cy=\"10\" r=\"3\" />",
+    "maximize":"<path d=\"M8 3H5a2 2 0 0 0-2 2v3\" /><path d=\"M21 8V5a2 2 0 0 0-2-2h-3\" /><path d=\"M3 16v3a2 2 0 0 0 2 2h3\" /><path d=\"M16 21h3a2 2 0 0 0 2-2v-3\" />",
     "minimize-2": "<path d=\"m14 10 7-7\" /><path d=\"M20 10h-6V4\" /><path d=\"m3 21 7-7\" /><path d=\"M4 14h6v6\" />",
     "monitor": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\" /><line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\" /><line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\" />",
     "moon": "<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />",
@@ -902,7 +1000,8 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     mode: 'side', zoom: 'fit', opacity: 50, wipe: 50,
     filters: { severity: {}, resolution: {}, ledger: {}, state: {}, region: {} },
     q: '', sort: { key: 'score', dir: 'desc' }, ledger: 'structure',
-    hidden: {} // hidden findings-table columns
+    hidden: {}, // hidden findings-table columns
+    sevOff: {} // severities toggled off in the Annotations rail (hides rows and pins; numbering is unchanged)
   };
   var THEME_KEY = 'design-qa:theme';
   function applyTheme(t) {
@@ -1083,6 +1182,8 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     ib.appendChild(layer);
     function place() {
       var W = img.naturalWidth || FRAME.w, H = img.naturalHeight || FRAME.h, taken = [];
+      // Re-placing (image load) rebuilds the pins: keep keyboard focus on the same finding.
+      var ae = document.activeElement, focusFid = ae && layer.contains(ae) ? ae.getAttribute('data-fid') : null;
       clear(layer);
       P.placed.forEach(function (p) {
         var crop = kind === 'app' ? p.app : p.fig, hollow = false;
@@ -1091,18 +1192,23 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
         var cx = crop.x + crop.w / 2, cy = crop.y + crop.h / 2;
         taken.forEach(function (t) { if (Math.abs(t[0] - cx) < 26 && Math.abs(t[1] - cy) < 26) cx = t[0] + 28; });
         taken.push([cx, cy]);
-        layer.appendChild(h('span', { class: 'crop-outline', 'data-sev': p.f.severity, 'data-fid': p.f.id,
+        var off = !!S.sevOff[p.f.severity];
+        layer.appendChild(h('span', { class: 'crop-outline', 'data-sev': p.f.severity, 'data-fid': p.f.id, hidden: off,
           style: 'left:' + (crop.x / W * 100) + '%;top:' + (crop.y / H * 100) + '%;width:' + (crop.w / W * 100) + '%;height:' + (crop.h / H * 100) + '%' }));
-        var pin = h('button', { type: 'button', class: 'pin' + (hollow ? ' hollow' : ''), 'data-sev': p.f.severity, 'data-fid': p.f.id, 'data-n': String(p.n),
-          'aria-label': 'Pin ' + p.n + ': ' + p.f.id + ', ' + p.f.severity + ', ' + p.f.title, 'data-tip': p.f.id + ' · ' + p.f.title,
+        var pin = h('button', { type: 'button', class: 'pin' + (hollow ? ' hollow' : '') + (FLASH.fid === p.f.id ? ' flash' : ''), 'data-sev': p.f.severity, 'data-fid': p.f.id, 'data-n': String(p.n), hidden: off,
+          'aria-haspopup': 'dialog', 'aria-expanded': 'false', 'data-tip': p.f.id + ' · ' + p.f.title,
           style: 'left:' + (cx / W * 100) + '%;top:' + (cy / H * 100) + '%' }, String(p.n));
+        paintPin(pin);
         pin.addEventListener('mouseenter', function () { hot(p.f.id, true); });
         pin.addEventListener('mouseleave', function () { hot(p.f.id, false); });
         pin.addEventListener('focus', function () { hot(p.f.id, true); });
         pin.addEventListener('blur', function () { hot(p.f.id, false); });
-        pin.addEventListener('click', function () { markRail(p.f.id); openFinding(p.f.id); });
+        pin.addEventListener('click', function () { openPanel(p.f.id, { kind: 'pin', trigger: pin, host: pin.closest('.dialog') || heroSection, toggle: true }); });
         layer.appendChild(pin);
       });
+      var sel = function (fid) { return layer.querySelector('.pin[data-fid="' + String(fid).replace(/"/g, '') + '"]'); };
+      if (focusFid && sel(focusFid)) sel(focusFid).focus({ preventScroll: true });
+      markPanel();
     }
     place();
     if (!(img.complete && img.naturalWidth)) img.addEventListener('load', place);
@@ -1163,6 +1269,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   var heroStage = h('div', { id: 'hero-stage', role: 'tabpanel', 'aria-label': 'Capture' });
   var heroRail = h('aside', { class: 'rail', 'aria-label': 'Annotations' });
   var heroSection = h('section', { class: 'hero', id: 'hero', 'aria-label': 'Annotated capture' }, h('div', { class: 'hero-main' }, heroTabs, heroBar, heroStage), heroRail);
+  // annDock (section 9b) is appended to the hero, or to the fullscreen dialog, when the panel opens.
   var VIEWS = [{ v: 'app', label: 'App' }, { v: 'figma', label: 'Figma' }, { v: 'side', label: 'Side by side' }, { v: 'overlay', label: 'Overlay' }, { v: 'wipe', label: 'Wipe' }, { v: 'diff', label: 'Diff' }];
   var ZOOMS = [{ v: 'fit', label: 'Fit' }, { v: '100', label: '100%' }, { v: '200', label: '200%' }];
   function renderHero() { renderHeroTabs(); renderHeroBar(); renderStage(heroStage, false); renderRail(); }
@@ -1209,29 +1316,325 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     return 'No ' + (S.mode === 'app' ? 'app capture' : S.mode === 'figma' ? 'Figma frame' : S.mode === 'diff' ? 'diff image' : 'second image') + ' for this state: showing the ' + (m === 'app' ? 'app capture' : 'Figma frame');
   }
   function railRow(f, n) {
-    var b = h('button', { type: 'button', class: 'pin-row', 'data-fid': f.id, onclick: function () { markRail(f.id); openFinding(f.id); } },
+    var b = h('button', { type: 'button', class: 'pin-row', 'data-fid': f.id, 'aria-haspopup': 'dialog', 'aria-expanded': 'false', onclick: function () { openPanel(f.id, { kind: 'row', trigger: b, toggle: true }); } },
       h('span', { class: 'n' }, n), h('span', { style: 'min-width:0' }, h('span', { class: 't' }, dot(f.severity), h('span', null, f.title)), h('span', { class: 'w' }, whereText(f))));
     ['mouseenter', 'focus'].forEach(function (ev) { b.addEventListener(ev, function () { hot(f.id, true); }); });
     ['mouseleave', 'blur'].forEach(function (ev) { b.addEventListener(ev, function () { hot(f.id, false); }); });
-    return b;
+    var ctl = triageSeg(f, 'rail');
+    return [b, ctl ? h('div', { class: 'pin-meta' }, ctl) : null];
+  }
+
+  /* ===== 9b. One triage model, three surfaces: pins, the Annotations rail and the triage board =====
+     SEL (section 10) is the only store. Every move goes through setTriage(), which persists it and
+     repaints all three surfaces, so the pin popover, the rail and the board never disagree. */
+  function lockReason(f) { return f && f.severity === 'BLOCKER' ? "Blockers can't be deferred. Sign it off as intentional instead." : null; }
+  function bucketName(d) { return d === 'debt' ? 'Debt' : 'Fix now'; }
+  function pinLabel(n, f) {
+    var d = SEL[f.id];
+    return 'Pin ' + n + ': ' + f.id + ', ' + f.severity + ', ' + f.title + (d ? ', ' + bucketName(d) + (lockReason(f) ? ' (locked)' : '') : '');
+  }
+  function paintPin(pin) {
+    var f = byId[pin.getAttribute('data-fid')]; if (!f) return;
+    pin.setAttribute('data-bucket', SEL[f.id] || 'none');
+    pin.setAttribute('aria-label', pinLabel(pin.getAttribute('data-n'), f));
+  }
+  /* The triage control: ONE segmented "Fix now | Debt" radiogroup for every surface (rail row, board card,
+     Findings table row and sheet, annotation panel), so styling and behaviour are identical everywhere.
+     The checked segment is the current bucket; every move goes through setTriage(). Blockers: Fix now stays
+     checked (lock icon), Debt is disabled, and the reason is in the tooltip and the accessible name.
+     There is no undecided state (the recommended split is the default), so a small dot marks the
+     recommended bucket only when the current choice differs from it. Clicks and keys stop here, so
+     using the control never opens the panel, sheet or row it sits in. */
+  var REC = null;
+  function recFor(id) { if (!REC) REC = recommended(); return REC[id]; }
+  function triageSeg(f, surface, o) {
+    if (!SEL[f.id]) return null; // not triageable: no control
+    o = o || {};
+    var g = h('div', { class: 'tseg' + (o.large ? ' tseg-lg' : ''), role: 'radiogroup', 'data-tseg': f.id, 'data-surface': surface },
+      ['fix-now', 'debt'].map(function (dec) { return h('button', { type: 'button', role: 'radio', class: 'tseg-btn', 'data-decision': dec, 'data-focus-key': o.large ? dec : null }); }));
+    paintSeg(g, f);
+    function pick(dec) {
+      if (dec === SEL[f.id]) return false;
+      var lock = lockReason(f); if (lock) { toast(f.id + ': ' + lock); return false; }
+      if (!setTriage(f.id, dec, { announce: true })) return false;
+      var again = document.querySelector('[data-tseg="' + String(f.id).replace(/"/g, '') + '"][data-surface="' + surface + '"] [data-decision="' + dec + '"]');
+      if (again && again.offsetParent && document.activeElement !== again) again.focus({ preventScroll: true });
+      return true;
+    }
+    g.addEventListener('click', function (e) { e.stopPropagation(); var b = e.target.closest('.tseg-btn'); if (b) pick(b.getAttribute('data-decision')); });
+    g.addEventListener('keydown', function (e) {
+      var k = e.key, cur = e.target.closest && e.target.closest('.tseg-btn');
+      if (!cur) return;
+      if (k === 'Enter' || k === ' ') { e.stopPropagation(); return; } // native click selects; the row's own key handler must not fire
+      var other = cur.getAttribute('data-decision') === 'fix-now' ? 'debt' : 'fix-now';
+      var dec = k === 'Home' ? 'fix-now' : k === 'End' ? 'debt' : ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(k) !== -1 ? other : null;
+      if (!dec) return;
+      e.preventDefault(); e.stopPropagation();
+      if (!pick(dec)) { var t = g.querySelector('[data-decision="' + dec + '"]'); if (t && t.getAttribute('aria-disabled') !== 'true') t.focus(); }
+    });
+    return g;
+  }
+  function paintSeg(g, f) {
+    var d = SEL[f.id], lock = lockReason(f), rec = recFor(f.id);
+    g.setAttribute('aria-label', 'Triage ' + f.id + (lock ? ': locked in Fix now. ' + lock : ''));
+    if (lock) { g.setAttribute('data-tip', 'Locked in Fix now. ' + lock); g.setAttribute('data-locked', 'true'); }
+    else { g.removeAttribute('data-tip'); g.removeAttribute('data-locked'); }
+    Array.prototype.forEach.call(g.querySelectorAll('.tseg-btn'), function (b) {
+      var dec = b.getAttribute('data-decision'), on = d === dec, hint = !on && rec === dec, off = !!lock && dec === 'debt';
+      b.setAttribute('aria-checked', String(on));
+      b.tabIndex = on ? 0 : -1;
+      if (off) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
+      if (hint) { b.setAttribute('data-rec', 'true'); b.setAttribute('data-tip', 'Recommended: ' + bucketName(dec)); }
+      else { b.removeAttribute('data-rec'); b.removeAttribute('data-tip'); }
+      b.setAttribute('aria-label', bucketName(dec) + (lock && dec === 'fix-now' ? ', locked' : '') + (hint ? ', recommended' : ''));
+      clear(b); append(b, [icon(lock && dec === 'fix-now' ? 'lock' : on ? 'check' : dec === 'debt' ? 'circle-dashed' : 'circle-check'), h('span', null, bucketName(dec))]);
+    });
+  }
+  // "6 fix now · 4 debt" over a list of findings (only the triageable ones count).
+  function triSummary(list) {
+    var fix = 0, debt = 0, locked = 0;
+    list.forEach(function (f) { if (SEL[f.id] === 'fix-now') { fix++; if (lockReason(f)) locked++; } else if (SEL[f.id] === 'debt') debt++; });
+    return [h('b', null, String(fix)), ' fix now' + (locked ? ' (' + locked + ' locked)' : '') + ' · ', h('b', null, String(debt)), ' debt'];
+  }
+  function paintRailSummary() {
+    var el = heroRail.querySelector('#rail-tri-summary'); if (!el) return;
+    var list = Array.prototype.map.call(heroRail.querySelectorAll('.pin-item[data-tri-row]'), function (li) { return byId[li.getAttribute('data-tri-row')]; }).filter(Boolean);
+    clear(el); append(el, triSummary(list));
+  }
+  function paintTriageViews() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tseg]'), function (g) { var f = byId[g.getAttribute('data-tseg')]; if (f) paintSeg(g, f); });
+    Array.prototype.forEach.call(document.querySelectorAll('.pin-item[data-tri-row]'), function (li) { li.setAttribute('data-bucket', SEL[li.getAttribute('data-tri-row')]); });
+    Array.prototype.forEach.call(document.querySelectorAll('.pins .pin[data-fid]'), paintPin);
+    paintRailSummary();
+    syncPanel();
+  }
+  /* Annotation panel (non-modal side panel). A pin or a rail row opens it; Fix now / Debt is its main action.
+     Docked over the rail column at >=1280px (the severity chips stay visible above it), a bottom sheet below
+     that, and inside the dialog in fullscreen. Esc closes it and focus returns to the pin or row. */
+  var annDock = h('div', { class: 'ann-dock', hidden: true });
+  var PANEL = { fid: null, kind: null, trigger: null, origin: null, host: null };
+  function fq(fid) { return '[data-fid="' + String(fid).replace(/"/g, '') + '"]'; }
+  function panelScope() { return PANEL.host && PANEL.host !== heroSection ? PANEL.host : heroStage; }
+  // The annotations of the current state in rail order, minus the severities switched off by the chips.
+  function panelList(all) {
+    var r = stateRow[S.state]; if (!r) return [];
+    var P = statePins(r.state);
+    return P.placed.map(function (p) { return { f: p.f, n: p.n }; }).concat(P.loose.map(function (f) { return { f: f, n: null }; }))
+      .filter(function (x) { return all || !S.sevOff[x.f.severity]; });
+  }
+  function markPanel() {
+    Array.prototype.forEach.call(document.querySelectorAll('.pins .pin[data-fid], .pin-row[data-fid]'), function (el) {
+      var on = !!PANEL.fid && el.getAttribute('data-fid') === PANEL.fid;
+      el.setAttribute('aria-expanded', String(on));
+      if (on) el.setAttribute('aria-controls', 'ann-panel'); else el.removeAttribute('aria-controls');
+    });
+  }
+  function placeDock() { // top offset: under the rail head (hero) or the dialog header (fullscreen)
+    if (!PANEL.fid) return;
+    var off = 0;
+    if (PANEL.host === heroSection) { var head = heroRail.querySelector('.rail-head'); off = head ? head.offsetHeight + 8 : 0; }
+    else if (PANEL.host) { var dh = PANEL.host.querySelector('.dialog-header'); off = dh ? dh.offsetHeight : 0; }
+    annDock.style.setProperty('--ann-top', off + 'px');
+  }
+  function panelFocusKey() { var a = document.activeElement; return a && annDock.contains(a) ? (a.getAttribute('data-focus-key') || 'title') : null; }
+  function openPanel(fid, o) {
+    o = o || {};
+    var f = byId[fid]; if (!f) return;
+    var host = o.host || heroSection;
+    if (o.toggle && PANEL.fid === fid && PANEL.host === host) { closePanel(true); return; }
+    hideTip();
+    if (o.kind) { PANEL.kind = o.kind; PANEL.trigger = o.trigger || null; PANEL.origin = fid; }
+    PANEL.fid = fid;
+    if (PANEL.host !== host || annDock.parentNode !== host) { host.appendChild(annDock); PANEL.host = host; }
+    heroSection.classList.toggle('ann-open', host === heroSection);
+    annDock.hidden = false;
+    markRail(fid); markPanel(); placeDock(); revealRow(fid);
+    fillPanel(o.focus || 'title');
+  }
+  function closePanel(refocus) {
+    if (!PANEL.fid) return;
+    var p = PANEL, scope = panelScope();
+    PANEL = { fid: null, kind: null, trigger: null, origin: null, host: p.host };
+    annDock.hidden = true; clear(annDock);
+    heroSection.classList.remove('ann-open');
+    markPanel();
+    if (!refocus) return;
+    var pin = scope.querySelector('.pins .pin' + fq(p.fid)), row = heroRail.querySelector('.pin-row' + fq(p.fid));
+    var board = p.kind === 'board' && p.fid === p.origin ? document.querySelector('[data-open-fid="' + String(p.fid).replace(/"/g, '') + '"]') : null;
+    var order = p.kind === 'row' ? [row, pin] : p.kind === 'board' ? [board, pin, row] : [pin, row];
+    for (var i = 0; i < order.length; i++) {
+      var el = order[i];
+      if (el && document.contains(el) && !el.hidden && el.offsetParent) { el.focus({ preventScroll: el !== board }); return; }
+    }
+  }
+  function syncPanel() { // after a re-render, a filter change or a move
+    if (!PANEL.fid) return;
+    var f = byId[PANEL.fid];
+    if (!f || !panelList().some(function (x) { return x.f.id === f.id; })) { closePanel(false); return; }
+    markRail(f.id); markPanel(); placeDock(); fillPanel(panelFocusKey());
+  }
+  function openFromBoard(fid, trigger) { showOnCapture(fid); openPanel(fid, { kind: 'board', trigger: trigger }); }
+  function fillPanel(focusKey) {
+    var f = byId[PANEL.fid]; if (!f) return;
+    var inDialog = PANEL.host !== heroSection;
+    var list = panelList(), i = -1;
+    list.forEach(function (x, k) { if (x.f.id === f.id) i = k; });
+    var n = null; panelList(true).forEach(function (x) { if (x.f.id === f.id) n = x.n; });
+    var prev = i > 0 ? list[i - 1] : null, next = i >= 0 && i < list.length - 1 ? list[i + 1] : null;
+    var d = SEL[f.id], lock = d ? lockReason(f) : null, t = ticketOf(f);
+    var ex = f.expected || {}, ac = f.actual || {}, el = f.element || {}, loc = sourceLocation(f);
+    function where(x) { return (x.n !== null ? 'pin ' + x.n : 'not positioned') + ', ' + x.f.id + ', ' + x.f.title; }
+    function nav(dir, x) {
+      return h('button', { type: 'button', class: 'btn btn-ghost btn-icon-sm ann-nav-btn', 'data-focus-key': dir, disabled: !x,
+        'aria-label': (dir === 'prev' ? 'Previous annotation' : 'Next annotation') + (x ? ': ' + where(x) : ''), 'data-tip': x ? (dir === 'prev' ? 'Previous: ' : 'Next: ') + x.f.id : null,
+        onclick: function () { if (x) openPanel(x.f.id, { host: PANEL.host, focus: dir }); } }, icon(dir === 'prev' ? 'chevron-left' : 'chevron-right'));
+    }
+    var hint = !d ? ['Not triaged: ' + orDash(f.resolution) + ' findings stay out of Fix now and Debt.']
+      : lock ? [icon('lock', 'icon-3-5'), h('span', null, h('b', null, 'Locked in Fix now. '), lock)]
+        : d === 'fix-now' ? [h('span', null, 'Your agents get this when you copy the command.')]
+          : [h('span', null, 'Becomes a ticket and a debt-log entry. '), t ? h('a', { class: 'badge badge-outline', href: safeHref(t.url), target: '_blank', rel: 'noopener noreferrer' }, t.key, icon('external-link')) : h('span', { class: 'badge badge-outline' }, 'Ticket on apply')];
+    function row(k, v) { return blank(v) || v === DASH ? null : [h('dt', null, k), h('dd', null, v)]; }
+    var evImgs = arr(f.evidence).filter(function (e) { return e && e.path && isImage(e.path) && ['screenshot', 'figma', 'diff'].indexOf(e.type) !== -1; });
+    var evAll = arr(f.evidence).filter(function (e) { return e && e.path; });
+    var panel = h('div', { class: 'ann-panel', id: 'ann-panel', role: 'dialog', 'aria-labelledby': 'ann-title', 'data-fid': f.id },
+      h('div', { class: 'ann-head' },
+        h('div', { class: 'ann-kicker' }, h('span', { class: 'badge badge-outline', 'data-sev': f.severity }, dot(f.severity), sevLabel(f.severity)),
+          h('span', { class: 'fid' }, (n !== null ? 'Pin ' + n : 'Not positioned') + ' · ' + f.id)),
+        h('div', { class: 'ann-nav' }, i >= 0 ? h('span', { class: 'muted tabular ann-count', 'aria-label': 'Annotation ' + (i + 1) + ' of ' + list.length }, (i + 1) + ' / ' + list.length) : null,
+          nav('prev', prev), nav('next', next),
+          h('button', { type: 'button', class: 'btn btn-ghost btn-icon-sm', 'data-focus-key': 'close', 'aria-label': 'Close annotation panel', onclick: function () { closePanel(true); } }, icon('x')))),
+      h('h2', { class: 'ann-title', id: 'ann-title', tabindex: '-1', 'data-focus-key': 'title' }, f.title),
+      h('div', { class: 'ann-scroll' },
+        h('div', { class: 'ann-bucket' },
+          (function (g) { if (g) g.setAttribute('aria-describedby', 'ann-bucket-hint'); return g; })(triageSeg(f, 'panel', { large: true })),
+          h('p', { class: 'ann-hint', id: 'ann-bucket-hint' }, hint)),
+        h('div', { class: 'ea-grid ann-ea' },
+          h('div', { class: 'ea-box' }, h('div', { class: 'section-label' }, 'Expected' + (blank(ex.source) ? '' : ' · ' + ex.source)), h('div', { class: 'val' }, orDash(ex.value)), ex.token ? h('span', { class: 'tok' }, ex.token) : null),
+          h('div', { class: 'ea-box' }, h('div', { class: 'section-label' }, 'Actual'), h('div', { class: 'val' }, orDash(ac.value)), ac.token ? h('span', { class: 'tok' }, ac.token) : null)),
+        h('dl', { class: 'dl ann-dl' },
+          row('Source', loc !== DASH ? h('code', { class: 'code-inline' }, loc) : null),
+          row('Element', el.selector ? h('code', { class: 'code-inline' }, el.selector) : null),
+          row('Property', blank(f.property) ? null : f.property + (blank(f.delta) ? '' : ' · ' + f.delta)),
+          row('Figma layer', blank(el.figmaLayerPath) ? null : [String(el.figmaLayerPath), el.figmaNodeId ? h('span', { class: 'muted mono' }, ' ' + el.figmaNodeId) : null]),
+          row('Owner', f.resolution === 'SYNC_FIGMA' ? 'Design: sync to Figma. The Figma file changes, not the code.' : null),
+          row('Ticket', t ? h('a', { class: 'link-btn', href: safeHref(t.url), target: '_blank', rel: 'noopener noreferrer' }, t.key) : null),
+          row('Known drift', f.knownDrift || null),
+          row('Evidence', evAll.length ? (evImgs.length && !inDialog
+            ? h('button', { type: 'button', class: 'link-btn', 'data-focus-key': 'evidence', onclick: function () { openLightbox(evImgs.map(evItem), 0, f.id + ' · ' + f.title); } }, 'View ' + evImgs.length + (evImgs.length === 1 ? ' image' : ' images'))
+            : h('span', { class: 'path' }, evAll.map(function (e) { return e.path; }).join(', '))) : null))),
+      h('div', { class: 'ann-foot' },
+        btn('Details', { size: 'sm', cls: 'ann-details', tip: 'Open ' + f.id + ' in the Findings tab', onclick: function () { var id = f.id; closePanel(false); closeLightbox(); setTab('findings'); openFinding(id); } }),
+        copyBtn('Copy agent prompt', function () { return agentPrompt(f); }, f.id, { variant: 'ghost' })));
+    panel.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closePanel(true); e.preventDefault(); e.stopPropagation(); } });
+    clear(annDock); annDock.appendChild(panel);
+    if (focusKey) {
+      var target = panel.querySelector('[data-focus-key="' + focusKey + '"]:not([disabled])') || panel.querySelector('#ann-title');
+      target.focus({ preventScroll: true });
+    }
+  }
+  window.addEventListener('resize', placeDock);
+  // Scroll the rail (only the rail, never the page) so a finding's row is visible under the sticky head.
+  function revealRow(fid) {
+    var row = heroRail.querySelector('.pin-row[data-fid="' + String(fid).replace(/"/g, '') + '"]');
+    if (!row || !row.offsetParent) return null;
+    var rr = heroRail.getBoundingClientRect(), r = row.parentNode.getBoundingClientRect(), head = heroRail.querySelector('.rail-head'), hh = head ? head.offsetHeight : 0;
+    if (r.top < rr.top + hh || r.bottom > rr.bottom) heroRail.scrollTo({ top: heroRail.scrollTop + r.top - rr.top - hh - 8, behavior: reduceMotion() ? 'auto' : 'smooth' });
+    return row;
+  }
+  // Where a finding shows on the capture: a pin in its own state, else a pin in another state, else an unpositioned row.
+  var CAP_AT = null;
+  function captureLoc(fid) {
+    if (!CAP_AT) {
+      CAP_AT = {};
+      var hits = {};
+      comparable.forEach(function (r) {
+        var P = statePins(r.state);
+        P.placed.forEach(function (p) { (hits[p.f.id] = hits[p.f.id] || []).push({ state: r.state, n: p.n }); });
+        P.loose.forEach(function (f) { (hits[f.id] = hits[f.id] || []).push({ state: r.state, n: null }); });
+      });
+      Object.keys(hits).forEach(function (id) {
+        var f = byId[id], list = hits[id];
+        function find(placed, own) { for (var i = 0; i < list.length; i++) if ((list[i].n !== null) === placed && (!own || list[i].state === f.state)) return list[i]; return null; }
+        CAP_AT[id] = find(true, true) || find(true, false) || find(false, true) || find(false, false);
+      });
+    }
+    return CAP_AT[fid] || null;
+  }
+  var FLASH = { fid: null, timer: null };
+  function flash(fid) {
+    clearTimeout(FLASH.timer);
+    Array.prototype.forEach.call(document.querySelectorAll('.flash'), function (el) { el.classList.remove('flash'); });
+    FLASH.fid = fid;
+    var q = '[data-fid="' + String(fid).replace(/"/g, '') + '"]';
+    Array.prototype.forEach.call(document.querySelectorAll('.pins .pin' + q), function (el) { el.classList.add('flash'); });
+    var row = heroRail.querySelector('.pin-row' + q); if (row) row.parentNode.classList.add('flash');
+    FLASH.timer = setTimeout(function () { FLASH.fid = null; Array.prototype.forEach.call(document.querySelectorAll('.flash'), function (el) { el.classList.remove('flash'); }); }, 2400);
+  }
+  function showOnCapture(fid) {
+    var f = byId[fid], loc = captureLoc(fid); if (!f || !loc) return;
+    if (PANEL.fid && PANEL.fid !== fid) closePanel(false);
+    setTab('overview', { hash: false });
+    if (S.sevOff[f.severity]) delete S.sevOff[f.severity]; // the chip filter would hide it
+    if (S.state !== loc.state) selectState(loc.state, false); else applySevFilter();
+    writeHash();
+    heroSection.scrollIntoView({ block: 'start', behavior: reduceMotion() ? 'auto' : 'smooth' });
+    markRail(fid); flash(fid);
+    var row = revealRow(fid), pin = S.pins ? heroStage.querySelector('.pins .pin[data-fid="' + String(fid).replace(/"/g, '') + '"]:not([hidden])') : null;
+    (pin || row || heroSection).focus({ preventScroll: true });
+  }
+  function sevLabel(v) { return v.replace('_', ' ').toLowerCase(); }
+  // Severity chips filter the rail rows and every pin layer (hero + fullscreen) without re-numbering.
+  function applySevFilter() {
+    Array.prototype.forEach.call(document.querySelectorAll('.pins .pin[data-sev], .pins .crop-outline[data-sev]'), function (el) { el.hidden = !!S.sevOff[el.getAttribute('data-sev')]; });
+    var rows = heroRail.querySelectorAll('.pin-list > li[data-sev]'), shown = 0;
+    Array.prototype.forEach.call(rows, function (li) { var off = !!S.sevOff[li.getAttribute('data-sev')]; li.hidden = off; if (!off) shown++; });
+    Array.prototype.forEach.call(heroRail.querySelectorAll('.chip[data-sev]'), function (c) { c.setAttribute('aria-pressed', String(!S.sevOff[c.getAttribute('data-sev')])); });
+    var loose = heroRail.querySelector('#not-positioned'), looseLabel = heroRail.querySelector('#not-positioned-label');
+    if (loose && looseLabel) looseLabel.hidden = !loose.querySelector('li:not([hidden])');
+    var cnt = heroRail.querySelector('#rail-count'), total = rows.length;
+    if (cnt) cnt.textContent = shown === total ? String(total) : shown + ' of ' + total;
+    var empty = heroRail.querySelector('#rail-empty');
+    if (empty) {
+      var none = SEV.every(function (v) { return S.sevOff[v]; });
+      empty.hidden = !total || shown > 0;
+      empty.textContent = none ? 'No severities selected. Turn a chip on to show annotations.' : 'No annotations match the selected severities.';
+    }
+    syncPanel();
   }
   function renderRail() {
     clear(heroRail);
     var r = stateRow[S.state]; if (!r) return;
     var P = statePins(r.state), beh = arr(LEDG.behavior).filter(function (b) { return b && b.state === r.state; });
+    var all = P.placed.map(function (p) { return p.f; }).concat(P.loose), per = {};
+    all.forEach(function (f) { per[f.severity] = (per[f.severity] || 0) + 1; });
+    function row(f, n) { return h('li', { class: 'pin-item', 'data-sev': f.severity, 'data-tri-row': SEL[f.id] ? f.id : null, 'data-bucket': SEL[f.id] || null }, railRow(f, n)); }
+    var triHere = all.some(function (f) { return SEL[f.id]; });
+    var chips = all.length ? h('div', { class: 'chips', role: 'group', 'aria-label': 'Filter annotations by severity' }, SEV.map(function (v) {
+      var n = per[v] || 0;
+      return h('button', { type: 'button', class: 'chip', 'data-sev': v, 'aria-pressed': String(!S.sevOff[v]), 'aria-label': sevLabel(v) + ', ' + n + (n === 1 ? ' annotation' : ' annotations'),
+        onclick: function () { if (S.sevOff[v]) delete S.sevOff[v]; else S.sevOff[v] = true; applySevFilter(); } },
+        dot(v), h('span', { class: 'chip-label' }, sevLabel(v)), h('span', { class: 'chip-n', 'aria-hidden': 'true' }, String(n)));
+    })) : null;
     heroRail.appendChild(h('section', { 'aria-labelledby': 'rail-title' },
-      h('h2', { class: 'rail-title', id: 'rail-title' }, h('span', null, 'Annotations'), h('span', { class: 'muted tabular', style: 'font-weight:400' }, String(P.placed.length + P.loose.length))),
-      P.placed.length ? h('div', { class: 'legend', style: 'margin:0 0 0.5rem 0.5rem', 'aria-label': 'Pin colours' }, SEV.map(function (s) { return dotText(s, s.replace('_', ' ').toLowerCase()); })) : null,
-      h('ol', { class: 'pin-list' }, P.placed.map(function (p) { return h('li', null, railRow(p.f, String(p.n))); })),
-      !P.placed.length && !P.loose.length ? h('p', { class: 'muted' }, 'No findings for this state.') : null,
-      P.loose.length ? [h('div', { class: 'section-label', style: 'margin:0.75rem 0 0.25rem 0.5rem' }, 'Not positioned'),
-        h('ol', { class: 'pin-list', id: 'not-positioned' }, P.loose.map(function (f) { return h('li', null, railRow(f, '–')); }))] : null,
+      h('div', { class: 'rail-head' },
+        h('h2', { class: 'rail-title', id: 'rail-title' }, h('span', null, 'Annotations'), h('span', { class: 'muted tabular', id: 'rail-count', style: 'font-weight:400', 'aria-live': 'polite' }, String(all.length))),
+        chips,
+        triHere ? h('p', { class: 'bucket-key', id: 'bucket-key' }, h('span', null, h('span', { class: 'key-pin', 'aria-hidden': 'true' }), 'Fix now'),
+          h('span', null, h('span', { class: 'key-pin debt', 'aria-hidden': 'true' }), 'Debt: dashed ring')) : null,
+        triHere ? h('p', { class: 'tri-summary', id: 'rail-tri-summary', 'aria-live': 'polite' }) : null),
+      h('ol', { class: 'pin-list' }, P.placed.map(function (p) { return row(p.f, String(p.n)); })),
+      !all.length ? h('p', { class: 'muted' }, 'No findings for this state.') : null,
+      all.length ? h('p', { class: 'rail-empty', id: 'rail-empty', role: 'status', hidden: true }) : null,
+      P.loose.length ? [h('div', { class: 'section-label', id: 'not-positioned-label', style: 'margin:0.75rem 0 0.25rem 0.5rem' }, 'Not positioned'),
+        h('ol', { class: 'pin-list', id: 'not-positioned' }, P.loose.map(function (f) { return row(f, '–'); }))] : null,
       r.note ? h('p', { class: 'note', style: 'margin:0.75rem 0.5rem 0' }, r.note) : null));
+    paintRailSummary();
     if (beh.length) heroRail.appendChild(h('section', { 'aria-labelledby': 'beh-title' }, h('h2', { class: 'rail-title', id: 'beh-title' }, 'Behaviour'),
       h('ul', { class: 'checklist' }, beh.map(function (b) {
         return h('li', null, dot(b.result), h('div', { style: 'min-width:0' }, h('div', { style: 'font-weight:500' }, orDash(b.trigger)),
           h('div', { class: 'muted' }, b.result + ' · ' + orDash(b.observed)), h('div', { class: 'row', style: 'gap:0.375rem;margin-top:0.25rem' }, b.acRef ? h('span', { class: 'muted', 'data-tip': acText(b.acRef) }, b.acRef) : null, arr(b.findingIds).map(fidBtn))));
       }))));
+    applySevFilter();
   }
   function openFullscreen() {
     if (lb.hidden) LB.lastFocus = document.activeElement;
@@ -1281,7 +1684,6 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   var selEdited = !!store.get(SEL_KEY);
   function syncTriage() { findings.forEach(function (f) { f.__triage = SEL[f.id] || 'none'; }); }
   function ticketOf(f) { var it = triItem[f.id]; return it && it.ticket && it.ticket.key ? it.ticket : null; }
-  function triageLabel(f) { var d = SEL[f.id], t = d === 'debt' ? ticketOf(f) : null; return !d ? null : t ? 'debt, ' + t.key : d === 'debt' ? 'debt' : 'fix now'; }
   function selected(d, res) { return triageable.filter(function (f) { return SEL[f.id] === d && (!res || f.resolution === res); }); }
   function idList(list) { return list.map(function (f) { return f.id; }); }
   // Mirrors triageCommand() in scripts/lib/triage.mjs: code fixes, then Figma syncs, each in rank order; 'none' when empty.
@@ -1302,22 +1704,28 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   }
   var laneFix = h('ol', { class: 'lane-list', id: 'lane-fix' }), laneDebt = h('ol', { class: 'lane-list', id: 'lane-debt' });
   var countFix = h('span', { class: 'num-muted', id: 'count-fix' }), countDebt = h('span', { class: 'num-muted', id: 'count-debt' });
+  var boardSummary = h('p', { class: 'tri-summary', id: 'board-tri-summary', 'aria-live': 'polite' });
   var triStatus = h('p', { class: 'triage-status', id: 'triage-status', role: 'status' }), triButtons = h('div', { class: 'row' }), triNote = h('p', { class: 'muted', style: 'font-size:0.875rem' });
   function triCard(f) {
-    var fix = SEL[f.id] === 'fix-now', t = ticketOf(f), el = f.element || {}, loc = sourceLocation(f);
-    var ctl = f.severity === 'BLOCKER'
-      ? h('span', { class: 'tri-lock', tabindex: '0', role: 'img', 'aria-label': f.id + ' is a blocker and stays in Fix now', 'data-tip': "Blockers can't be deferred. Sign it off as intentional instead." }, icon('lock'))
-      : h('button', { type: 'button', role: 'checkbox', class: 'checkbox tri-check', 'aria-checked': String(fix), 'aria-label': 'Fix ' + f.id + ' now: ' + f.title, onclick: function () { toggleTriage(f.id); } }, icon('check'));
-    return h('li', { class: 'tri-card', 'data-fid': f.id, 'data-decision': SEL[f.id] }, ctl,
+    var fix = SEL[f.id] === 'fix-now', t = ticketOf(f), el = f.element || {}, loc = sourceLocation(f), cap = captureLoc(f.id);
+    var where = cap ? stateLabel(cap.state) + (cap.n !== null ? ', pin ' + cap.n : ', not positioned') : null;
+    var show = cap ? h('button', { type: 'button', class: 'link-btn tri-show', 'data-show-fid': f.id, 'aria-label': 'Show ' + f.id + ' on the capture (' + where + ')', 'data-tip': where,
+      onclick: function () { showOnCapture(f.id); } }, icon('map-pin', 'icon-3'), 'Show on capture') : null;
+    var open = cap ? h('button', { type: 'button', class: 'link-btn tri-show', 'data-open-fid': f.id, 'aria-label': 'Open ' + f.id + ' in the annotation panel', 'aria-haspopup': 'dialog',
+      onclick: function (e) { openFromBoard(f.id, e.currentTarget); } }, 'Open') : null;
+    return h('li', { class: 'tri-card', 'data-fid': f.id, 'data-decision': SEL[f.id] },
       h('div', { style: 'min-width:0' },
         h('div', { class: 'tri-title' }, dot(f.severity), h('button', { type: 'button', class: 'tri-open', onclick: function () { openFinding(f.id); } }, f.title),
           f.resolution === 'SYNC_FIGMA' ? h('span', { class: 'badge badge-outline', 'data-tip': 'Owner: design. The Figma file changes, not the code.' }, 'Figma') : null),
         h('div', { class: 'tri-where' }, f.id + ' · ' + (loc !== DASH ? loc : orDash(el.selector))),
-        fix ? null : h('div', { class: 'tri-ticket' }, t ? h('a', { class: 'badge badge-outline', href: safeHref(t.url), target: '_blank', rel: 'noopener noreferrer', 'data-tip': 'Ticket for ' + f.id }, t.key, icon('external-link'))
-          : h('span', { class: 'muted' }, 'Ticket on apply'))));
+        h('div', { class: 'tri-foot' },
+          h('div', { class: 'tri-decide' }, triageSeg(f, 'board'),
+            fix ? null : h('span', { class: 'tri-ticket' }, t ? h('a', { class: 'badge badge-outline', href: safeHref(t.url), target: '_blank', rel: 'noopener noreferrer', 'data-tip': 'Ticket for ' + f.id }, t.key, icon('external-link'))
+              : h('span', { class: 'muted' }, 'Ticket on apply'))),
+          cap ? h('span', { class: 'tri-links' }, open, show) : null)));
   }
   function reduceMotion() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
-  function renderBoard(first, focusId) { // FLIP: cards slide from where they were (instant with reduced motion)
+  function renderBoard(first) { // FLIP: cards slide from where they were (instant with reduced motion)
     clear(laneFix); clear(laneDebt);
     var cards = {};
     triageable.forEach(function (f) { cards[f.id] = triCard(f); (SEL[f.id] === 'fix-now' ? laneFix : laneDebt).appendChild(cards[f.id]); });
@@ -1325,13 +1733,13 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     var nFix = selected('fix-now').length, nDebt = selected('debt').length;
     countFix.textContent = String(nFix); countDebt.textContent = String(nDebt);
     triStatus.textContent = nFix + ' to fix now · ' + nDebt + ' to debt';
+    clear(boardSummary); append(boardSummary, triSummary(triageable));
     renderTriButtons();
     if (first && !reduceMotion()) Object.keys(cards).forEach(function (id) {
       var a = first[id]; if (!a || !cards[id].animate) return;
       var b = cards[id].getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top;
       if (dx || dy) cards[id].animate([{ transform: 'translate(' + dx + 'px,' + dy + 'px)' }, { transform: 'none' }], { duration: 260, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
     });
-    if (focusId && cards[focusId]) { var c = cards[focusId].querySelector('[role="checkbox"]'); if (c) c.focus({ preventScroll: true }); }
   }
   function renderTriButtons() {
     clear(triButtons);
@@ -1346,23 +1754,28 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   }
   function snapshot() { var m = {}; Array.prototype.forEach.call(document.querySelectorAll('.tri-card'), function (c) { m[c.getAttribute('data-fid')] = c.getBoundingClientRect(); }); return m; }
   function persist() { if (store.set(SEL_KEY, JSON.stringify(SEL))) selEdited = true; paintTriNote(); syncTriage(); renderFindings(); }
-  function toggleTriage(id) {
-    var f = byId[id]; if (!f || f.severity === 'BLOCKER' || !SEL[id]) return;
+  // The single write path for the shared triage state: every triageSeg() control (rail, board, Findings, panel).
+  function setTriage(id, decision, o) {
+    o = o || {};
+    var f = byId[id];
+    if (!f || !SEL[id] || lockReason(f) || (decision !== 'fix-now' && decision !== 'debt') || SEL[id] === decision) return false;
     var first = snapshot();
-    SEL[id] = SEL[id] === 'fix-now' ? 'debt' : 'fix-now';
-    renderBoard(first, id); persist();
+    SEL[id] = decision;
+    renderBoard(first); persist(); paintTriageViews();
+    if (o.announce) toast(id + ' moved to ' + bucketName(decision));
+    return true;
   }
-  function resetTriage() { var first = snapshot(); SEL = recommended(); renderBoard(first); persist(); toast('Selection reset to the recommended split'); }
+  function resetTriage() { var first = snapshot(); SEL = recommended(); renderBoard(first); persist(); paintTriageViews(); toast('Selection reset to the recommended split'); }
   function paintTriNote() {
     triNote.textContent = (TRI ? 'Decided by ' + orDash(TRI.decidedBy) + ' on ' + fmtDate(TRI.decidedAt) + '. ' : 'Recommended from the ranking. ') +
-      (selEdited ? 'Changed in this browser: copy the command to apply it.' : 'Tick what gets fixed now; the rest becomes debt.');
+      (selEdited ? 'Changed in this browser: copy the command to apply it.' : 'Choose Fix now or Debt on each card; the rest of the app follows.');
   }
   function sectionTriage() {
     syncTriage();
     if (!triageable.length) return h('section', { 'aria-labelledby': 'h-triage' }, h('h2', { class: 'section-title', id: 'h-triage' }, 'Choose what to fix'), h('p', { class: 'muted' }, 'Nothing to triage: no open code or Figma findings.'));
     renderBoard(); paintTriNote();
     return h('section', { class: 'triage', 'aria-labelledby': 'h-triage' },
-      h('div', { class: 'section-head' }, h('div', null, h('h2', { class: 'section-title', id: 'h-triage' }, 'Choose what to fix'), triNote)),
+      h('div', { class: 'section-head' }, h('div', null, h('h2', { class: 'section-title', id: 'h-triage' }, 'Choose what to fix'), triNote, boardSummary)),
       h('div', { class: 'lanes' },
         h('div', { class: 'lane', role: 'group', 'aria-labelledby': 'lane-fix-title' }, h('div', { class: 'lane-head' }, h('h3', { class: 'lane-title', id: 'lane-fix-title' }, 'Fix now', countFix), h('p', { class: 'lane-sub' }, 'Your agents get these')), laneFix),
         h('div', { class: 'lane', role: 'group', 'aria-labelledby': 'lane-debt-title' }, h('div', { class: 'lane-head' }, h('h3', { class: 'lane-title', id: 'lane-debt-title' }, 'Debt', countDebt), h('p', { class: 'lane-sub' }, 'Become tickets and a debt-log entry')), laneDebt)),
@@ -1539,7 +1952,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     if (key === 'state') return h('td', { class: 'muted' }, f.state ? stateLabel(f.state) : DASH);
     if (key === 'region') return h('td', { class: 'muted' }, orDash(f.region));
     if (key === 'resolution') return h('td', null, orDash(f.resolution));
-    if (key === 'triage') { var tk = f.__triage === 'debt' ? ticketOf(f) : null; return h('td', null, f.__triage === 'none' ? h('span', { class: 'muted' }, DASH) : tk ? h('span', { class: 'fid' }, tk.key) : TRIAGE_LABEL[f.__triage]); }
+    if (key === 'triage') { var tk = f.__triage === 'debt' ? ticketOf(f) : null; return h('td', null, f.__triage === 'none' ? h('span', { class: 'muted' }, DASH) : h('span', { class: 'tri-decide', style: 'flex-wrap:nowrap' }, triageSeg(f, 'table'), tk ? h('span', { class: 'fid' }, tk.key) : null)); }
     return h('td', { class: 'num' }, f.rank && f.rank.bucket !== 'none' ? h('span', { class: 'row', style: 'justify-content:flex-end;flex-wrap:nowrap' }, h('span', { class: 'muted', style: 'font-size:0.75rem' }, f.rank.bucket), String(score(f))) : h('span', { class: 'muted' }, DASH));
   }
   function renderFindings(o) {
@@ -1610,7 +2023,8 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
     clear(sheetRoot);
     var panel = h('div', { class: 'sheet', id: 'finding-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'sheet-title', 'data-id': id },
       h('div', { class: 'sheet-header' }, findingBadges(f, false), h('h2', { class: 'sheet-title', id: 'sheet-title' }, f.title),
-        h('p', { class: 'sheet-description' }, orDash(f.region) + ' · ' + (LEDGER_LABEL[f.ledger] || orDash(f.ledger)) + ' ledger' + (f.rank && f.rank.bucket !== 'none' ? ' · score ' + score(f) : '') + (triageLabel(f) ? ' · triage: ' + triageLabel(f) : ''))),
+        h('p', { class: 'sheet-description' }, orDash(f.region) + ' · ' + (LEDGER_LABEL[f.ledger] || orDash(f.ledger)) + ' ledger' + (f.rank && f.rank.bucket !== 'none' ? ' · score ' + score(f) : '') + (ticketOf(f) ? ' · ticket ' + ticketOf(f).key : '')),
+        SEL[f.id] ? h('div', { class: 'sheet-triage' }, triageSeg(f, 'sheet')) : null),
       h('div', { class: 'sheet-body' }, findingDetail(f)),
       h('button', { type: 'button', class: 'x-close', 'aria-label': 'Close', onclick: closeSheet }, icon('x')));
     panel.addEventListener('keydown', function (e) { trapFocus(panel, e); });
@@ -1732,6 +2146,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   }
   function closeLightbox() {
     if (lb.hidden) return;
+    if (PANEL.fid && lb.contains(annDock)) closePanel(false);
     lb.hidden = true; clear(lb);
     if (LB.lastFocus && LB.lastFocus.focus && document.contains(LB.lastFocus)) LB.lastFocus.focus();
   }
@@ -1902,6 +2317,7 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       if (menu) { closeMenu(true); e.preventDefault(); }
+      else if (PANEL.fid && (lb.hidden || lb.contains(annDock))) { closePanel(true); e.preventDefault(); }
       else if (!lb.hidden) { closeLightbox(); e.preventDefault(); }
       else if (!sheetRoot.hidden) { closeSheet(); e.preventDefault(); }
       else hideTip();
