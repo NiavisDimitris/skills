@@ -4,9 +4,10 @@ Fix mode runs the audit, lets the person choose what to fix now (triage), then d
 
 ## Scope
 
-- **The fix-now set only**: `FIX_CODE` findings triaged fix now (`triage.items[].decision == "fix-now"`). Without a recorded triage, offer the split first (SKILL.md Phase 10); if the person does not choose, use the default split (the fix-now bucket plus every blocker).
+- **The fix-now set only**: `FIX_CODE` findings triaged fix now (`triage.items[].decision == "fix-now"`). Without a recorded triage, offer the split first (SKILL.md Phase 9); if the person does not choose, use the default split (the fix-now bucket plus every blocker).
 - Debt is not touched. It is ticketed and logged instead (report.md, "Triage and debt").
-- Never change code to match a design that is stale (`SYNC_FIGMA`), and never touch data (`DATA`) or accepted drift (`INTENTIONAL`).
+- Never touch data (`DATA`), accepted drift (`INTENTIONAL`) or dismissed findings (`DISMISSED`).
+- The design is the target. When a fix feels wrong because the code seems better than the design, stop and ask: the person can sign the finding off or dismiss it with a reason. Never change the design.
 - Work in rank order within the fix-now set. If an item turns out much bigger than expected, ask whether to move it to debt (re-run triage; blockers cannot move) instead of widening the change.
 - A fix that would change a shared design-system component (and so every screen that uses it) is a design-system change. Ask first, or reclassify the finding as 🔵 DS_CANDIDATE.
 - Note uncommitted changes before you start, so this pass's diff stays reviewable on its own.
@@ -26,7 +27,7 @@ for (const file of files) {
     const src = stripAllowed(read(file), allowed);
     expect(src).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);      // raw hex colors
     expect(src).not.toMatch(/z-index:\s*\d+/);           // raw z-index
-    expect(src).not.toMatch(/transition:[^;]*\d+m?s/);   // raw durations
+    expect(src).not.toMatch(/transition:[^;]*\d+m?s/);   // raw durations (use motion tokens)
   });
 }
 ```
@@ -66,6 +67,17 @@ test('owner column visibility follows the data', () => {
 });
 ```
 
+**Motion.** Pins the transition to the motion tokens, so a missing or changed transition fails.
+
+```ts
+test('order row animates its hover background with the motion tokens', () => {
+  const styles = orderRowStyles(theme);
+  expect(styles.transitionProperty).toContain('background-color');
+  expect(styles.transitionDuration).toBe(theme.motion.duration.fast);
+  expect(styles.transitionTimingFunction).toBe(theme.motion.easing.out);
+});
+```
+
 ## 2. Apply the fix
 
 - **Tokens over raw values.** Replace the hardcoded value with the token the design binds (`expected.token`).
@@ -74,8 +86,10 @@ test('owner column visibility follows the data', () => {
 - **The right scale.** Use the token for the element's role (a control radius for controls, a container radius for cards), not the nearest number.
 - **Data-driven visibility.** Derive conditional sections from the data.
 - **Missing states.** Build them with the library's empty-state, skeleton and error components, matching the state's frame.
+- **Extra elements.** Remove what the app renders that the design does not have, or replace it with what the design shows there.
+- **Motion.** Add or correct the transition or animation with the motion tokens (duration, easing), on the property and trigger the design animates. Respect `prefers-reduced-motion`.
 - Change nothing beyond what the finding says. Copy changes only where the finding is about copy.
-- **Never hand-edit generated files** (compiled token outputs, generated styles, generated clients). Fix the source or the generator's input and regenerate. When the generated tokens come from Figma and are wrong there, the finding is `SYNC_FIGMA` or an open decision, not a code fix.
+- **Never hand-edit generated files** (compiled token outputs, generated styles, generated clients). Fix the source or the generator's input and regenerate. When the generated tokens come from Figma and disagree with the design you compare against, record an open decision; do not hand-patch the output.
 
 ## 3. Run the tests
 
@@ -84,18 +98,18 @@ Run `commands.test` from `commands.cwd`, and each command in `commands.lint`. A 
 ## 4. Re-verify in the browser
 
 1. Re-capture the touched states, for example `node scripts/capture.mjs … --state hover --driver '<json>' --grab <grab.json> --out <dir>/evidence`.
-2. Re-run the structure, component and style ledgers for the touched elements from the new `computed/` and `dom/` files.
+2. Re-run the structure, component, style and motion ledgers for the touched elements from the new `computed/`, `dom/` and `motion/` files. With a coded prototype, re-run `scripts/compare.mjs --app <dir>/evidence --states <touched states>`; for Figma reactions, add `--figma-spec <dir>/evidence/figma-spec.json`.
 3. A verified fix keeps its finding id and becomes 🟢 PASS / `NONE`; update its evidence to the new capture. A fix that did not hold stays `FIX_CODE`.
 
 ## 5. Pixel diff
 
-In fix mode the diff is policy: run it for every re-captured state that has a Figma PNG.
+In fix mode the diff is policy: run it for every re-captured state that has a design PNG.
 
 ```bash
 node scripts/diff.mjs --pairs <dir>/evidence/pairs.json --out-dir <dir>/evidence/diff --pass 1 --review 5
 ```
 
-Bands: below 1% pass; up to 5% review (explain the remaining difference or mask it as data); above 5% fail (the script exits 1). Use `tolerances.pixelDiff` when config sets other limits. In audit mode the diff is optional. Without a persisted Figma PNG, skip it and say so; the computed-style ledger stays the source of truth.
+Bands: below 1% pass; up to 5% review (explain the remaining difference or mask it as data); above 5% fail (the script exits 1). Use `tolerances.pixelDiff` when config sets other limits. In audit mode the diff is optional. Without a persisted design PNG, skip it and say so; the computed-style ledger stays the source of truth.
 
 ## 6. Log and repeat
 
@@ -114,4 +128,4 @@ Add one `fixLoop` entry per iteration:
 
 `result` is `green`, `red` or `skipped` (no tests could run; say why in `action`).
 
-Repeat until no fix-now `FIX_CODE` rows remain. Stop early only when a fix needs a decision (reclassify as `UNCLASSIFIED` with an open decision) or the scope needs the user's approval. Then continue with Phase 9, and offer a sync pass if fix-now `SYNC_FIGMA` rows remain. The loop is closed when `scorecard.loopClosed` is true: everything left is ticketed debt, signed off or data.
+Repeat until no fix-now `FIX_CODE` rows remain. Stop early only when a fix needs a decision (reclassify as `UNCLASSIFIED` with an open decision) or the scope needs the user's approval. Then continue with Phase 8. The loop is closed when `scorecard.loopClosed` is true: everything left is ticketed debt, signed off, dismissed or data.

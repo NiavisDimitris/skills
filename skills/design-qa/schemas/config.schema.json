@@ -106,7 +106,8 @@
                 "component": { "type": "number" },
                 "style": { "type": "number" },
                 "state": { "type": "number" },
-                "behavior": { "type": "number" }
+                "behavior": { "type": "number" },
+                "motion": { "type": "number" }
               }
             }
           }
@@ -162,7 +163,32 @@
             "nodeId": { "type": "string", "minLength": 1 }
           }
         },
+        "prototype": {
+          "type": ["string", "null"],
+          "pattern": "^(https?://|file:|\\$\\{)",
+          "errorMessage": "must be an http(s) or file: URL or a ${ENV_VAR} placeholder",
+          "description": "Prototype URL used as the design source of truth: a Figma prototype (figma.com/proto/...) or a coded prototype (Figma Make, Framer, v0, Lovable, static HTML, localhost). capture.mjs --side design captures it."
+        },
+        "screens": {
+          "type": "object",
+          "description": "Multi-screen surface: one entry per screen id (kebab-case, as in figma-fetch --screens auto). Each screen is captured with --screen <id> into evidence/screens/<id>.",
+          "additionalProperties": { "$ref": "#/definitions/screen" }
+        },
         "states": { "type": "object", "additionalProperties": { "$ref": "#/definitions/driver" } }
+      }
+    },
+    "screen": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "figma": { "type": ["string", "null"], "description": "Figma link (design or proto) of this screen's frame." },
+        "prototype": {
+          "type": ["string", "null"],
+          "pattern": "^(https?://|file:|\\$\\{)",
+          "errorMessage": "must be an http(s) or file: URL or a ${ENV_VAR} placeholder",
+          "description": "Coded prototype URL of this screen."
+        },
+        "route": { "type": "string", "description": "App route of this screen (relative to app.baseUrl, or absolute)." }
       }
     },
     "driver": {

@@ -1,0 +1,7 @@
+{
+  "with-data": {
+    "a": "figma/with-data.png",
+    "b": "app/with-data.png",
+    "mask": "mask-with-data.json"
+  }
+}

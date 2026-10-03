@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acme · Payment</title>
+<link rel="stylesheet" href="../acme-ds.css">
+<style>
+  /* src/features/payment/payment.css */
+  .alert-retry { height: 32px; margin-top: 10px; padding: 0 12px; font-size: 13px; }
+  html.state-processing .pay-label { display: none; }
+  html.state-processing .pay-btn::before { content: ""; width: 16px; height: 16px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; animation: spin 700ms linear infinite; }
+  html.state-processing .pay-btn::after { content: "Processing payment…"; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  html.state-processing .ads-input { background-color: var(--ads-color-surface-muted); color: var(--ads-color-text-muted); }
+  html.state-processing .pay-btn { opacity: 0.85; cursor: progress; }
+</style>
+</head>
+<body>
+<header data-topbar="3"></header>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Payment</h1>
+    <p>All transactions are secure and encrypted.</p>
+  </div>
+
+  <div class="cols">
+    <section class="ads-card" data-component="Card" aria-label="Payment details">
+      <div class="ads-alert" role="alert" data-component="Alert" data-variant="danger" data-when="error">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.01"/></svg>
+        <div>
+          <strong>Your card was declined</strong>
+          <p>Try another card, or contact your bank to approve the payment.</p>
+          <button type="button" class="ads-btn ads-btn--secondary alert-retry" data-component="Button" data-variant="secondary" data-testid="alert-action">Try again</button>
+        </div>
+      </div>
+
+      <h2>Card details</h2>
+      <div class="fields" style="margin-top: 16px">
+        <div class="field field--full">
+          <label class="ads-label" for="f-cardname" data-testid="field-label">Cardholder name</label>
+          <input class="ads-input" id="f-cardname" data-component="Input" data-testid="field-control" value="Dana Whitfield">
+        </div>
+        <div class="field field--full">
+          <label class="ads-label" for="f-cardnumber" data-testid="field-label">Card number</label>
+          <input class="ads-input" id="f-cardnumber" data-component="Input" data-testid="field-control" value="4242 4242 4242 4242">
+        </div>
+        <div class="field">
+          <label class="ads-label" for="f-expiry" data-testid="field-label">Expiry</label>
+          <input class="ads-input" id="f-expiry" data-component="Input" data-testid="field-control" value="08 / 29">
+        </div>
+        <div class="field">
+          <label class="ads-label" for="f-cvc" data-testid="field-label">CVC</label>
+          <input class="ads-input" id="f-cvc" data-component="Input" data-testid="field-control" value="•••">
+        </div>
+      </div>
+      <p class="opt-sub" style="margin-top: 16px" data-testid="secure-note">Payments are processed by Stripe. We never store your card details.</p>
+
+      <div class="actions">
+        <button type="button" class="ads-btn ads-btn--secondary" data-component="Button" data-variant="secondary" data-testid="secondary-cta">Back to shipping</button>
+        <button type="button" class="ads-btn ads-btn--primary pay-btn" data-component="Button" data-variant="primary" data-testid="primary-cta"><span class="pay-label">Pay €248.40</span></button>
+      </div>
+    </section>
+
+    <aside class="ads-card" data-component="Card" aria-label="Order summary">
+      <h2>Order summary</h2>
+      <div class="summary-rows">
+        <div class="summary-row" data-testid="summary-row"><span>3 items</span><span>€229.00</span></div>
+        <div class="summary-row" data-testid="summary-row"><span>Shipping · Standard</span><span>Free</span></div>
+        <div class="summary-row" data-testid="summary-row"><span>Estimated tax</span><span>€19.40</span></div>
+      </div>
+      <div class="summary-total" data-testid="summary-total"><span>Total</span><span>€248.40</span></div>
+      <p class="summary-note">Ships to Dana Whitfield, Rotterdam</p>
+    </aside>
+  </div>
+</main>
+<script src="../chrome.js"></script>
+</body>
+</html>

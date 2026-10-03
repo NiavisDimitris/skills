@@ -1,0 +1,146 @@
+{
+  "url": "http://localhost:5179/figma/cart",
+  "title": "Checkout v3 / Cart (Figma frame stand-in)",
+  "ariaSnapshot": "- banner:\n  - text: acme Secure checkout\n  - list \"Checkout progress\":\n    - listitem: 1 Cart\n    - listitem: 2 Shipping\n    - listitem: 3 Payment\n    - listitem: 4 Review\n    - listitem: 5 Done\n- main:\n  - heading \"Your cart\" [level=1]\n  - paragraph: 3 items · Ships in 2–3 business days\n  - region \"Cart items\":\n    - text: Aero wireless earbuds Graphite · In stock\n    - button \"Decrease quantity\": −\n    - text: \"1\"\n    - button \"Increase quantity\": +\n    - text: €129.00\n    - link \"Remove\":\n      - /url: \"#remove\"\n    - text: Canvas tote, large Sand · In stock\n    - button \"Decrease quantity\": −\n    - text: \"2\"\n    - button \"Increase quantity\": +\n    - text: €64.00\n    - link \"Remove\":\n      - /url: \"#remove\"\n    - text: Trail bottle, 750 ml Moss · In stock\n    - button \"Decrease quantity\": −\n    - text: \"1\"\n    - button \"Increase quantity\": +\n    - text: €36.00\n    - link \"Remove\":\n      - /url: \"#remove\"\n  - complementary \"Order summary\":\n    - heading \"Order summary\" [level=2]\n    - text: Subtotal €229.00 Shipping Free Estimated tax €19.40 Total €248.40\n    - button \"Go to checkout\"\n    - paragraph: Free returns within 30 days",
+  "elements": [
+    {
+      "role": "heading",
+      "name": "Your cart",
+      "text": "Your cart",
+      "visible": true,
+      "level": 1
+    },
+    {
+      "role": "button",
+      "name": "Decrease quantity",
+      "text": "−",
+      "visible": true
+    },
+    {
+      "role": "button",
+      "name": "Increase quantity",
+      "text": "+",
+      "visible": true
+    },
+    {
+      "role": "link",
+      "name": "Remove",
+      "text": "Remove",
+      "visible": true
+    },
+    {
+      "role": "button",
+      "name": "Decrease quantity",
+      "text": "−",
+      "visible": true
+    },
+    {
+      "role": "button",
+      "name": "Increase quantity",
+      "text": "+",
+      "visible": true
+    },
+    {
+      "role": "link",
+      "name": "Remove",
+      "text": "Remove",
+      "visible": true
+    },
+    {
+      "role": "button",
+      "name": "Decrease quantity",
+      "text": "−",
+      "visible": true
+    },
+    {
+      "role": "button",
+      "name": "Increase quantity",
+      "text": "+",
+      "visible": true
+    },
+    {
+      "role": "link",
+      "name": "Remove",
+      "text": "Remove",
+      "visible": true
+    },
+    {
+      "role": "heading",
+      "name": "Order summary",
+      "text": "Order summary",
+      "visible": true,
+      "level": 2
+    },
+    {
+      "role": "button",
+      "name": "Go to checkout",
+      "text": "Go to checkout",
+      "visible": true
+    },
+    {
+      "role": "heading",
+      "name": "Your cart is empty",
+      "text": "Your cart is empty",
+      "visible": false,
+      "level": 2
+    },
+    {
+      "role": "button",
+      "name": "Continue shopping",
+      "text": "Continue shopping",
+      "visible": false
+    }
+  ],
+  "texts": [
+    "acme",
+    "Secure checkout",
+    "1",
+    "Cart",
+    "2",
+    "Shipping",
+    "3",
+    "Payment",
+    "4",
+    "Review",
+    "5",
+    "Done",
+    "Your cart",
+    "3 items · Ships in 2–3 business days",
+    "Aero wireless earbuds",
+    "Graphite ·",
+    "In stock",
+    "−",
+    "1",
+    "+",
+    "€129.00",
+    "Remove",
+    "Canvas tote, large",
+    "Sand ·",
+    "In stock",
+    "−",
+    "2",
+    "+",
+    "€64.00",
+    "Remove",
+    "Trail bottle, 750 ml",
+    "Moss ·",
+    "In stock",
+    "−",
+    "1",
+    "+",
+    "€36.00",
+    "Remove",
+    "Order summary",
+    "Subtotal",
+    "€229.00",
+    "Shipping",
+    "Free",
+    "Estimated tax",
+    "€19.40",
+    "Total",
+    "€248.40",
+    "Go to checkout",
+    "Free returns within 30 days"
+  ],
+  "truncated": false
+}

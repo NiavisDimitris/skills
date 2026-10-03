@@ -501,7 +501,7 @@
     const specs = [
       ['Read ticket ACME-482', '4 acceptance criteria · 1 Figma link · preview URL'],
       ['Extract Figma spec', '25 layers · 31 tokens · 7 designed states'],
-      ['Capture 9 states', '1440 × 900 @1x · every state driven by mocks'],
+      ['Capture 8 states', '1440 × 900 @1x · every state driven by mocks'],
       ['Compare', 'structure · components · styles · states · behaviour'],
     ];
     const L = specs.map(([a, b]) => termLine(lines, a, b));
@@ -540,16 +540,15 @@
   function buildStates() {
     const S = scene('states', 18, 22, 'dark');
     const world = el('div', 'world', null, S.root);
-    const RES = { PASS: 'Pass', FAIL: 'Fail', MISSING_IN_CODE: 'Missing in code', MISSING_IN_DESIGN: 'Missing in design', CANNOT_VERIFY: 'Cannot verify', NOT_SPECIFIED: 'Not specified' };
-    const items = [['with-data', 'With data', 'PASS'], ['empty', 'Empty', 'MISSING_IN_CODE'], ['loading', 'Loading', 'FAIL'], ['error', 'Error', 'PASS'], ['hover', 'Row hover', 'FAIL'], ['focus', 'Row focus', 'PASS'], ['selected', 'Row selected', 'CANNOT_VERIFY'], ['bulk', 'Bulk selected', 'MISSING_IN_DESIGN'], ['long', 'Long content', 'NOT_SPECIFIED']];
+    const RES = { PASS: 'Pass', FAIL: 'Fail', MISSING_IN_CODE: 'Missing in code', CANNOT_VERIFY: 'Cannot verify', NOT_SPECIFIED: 'Not specified' };
+    const items = [['with-data', 'With data', 'PASS'], ['empty', 'Empty', 'MISSING_IN_CODE'], ['loading', 'Loading', 'FAIL'], ['error', 'Error', 'PASS'], ['hover', 'Row hover', 'FAIL'], ['focus', 'Row focus', 'PASS'], ['selected', 'Row selected', 'CANNOT_VERIFY'], ['long', 'Long content', 'NOT_SPECIFIED']];
     const cards = items.map(([st, label, res], i) => {
       const c = el('div', 'scard', `<div class="thumb"></div><div class="lbl"><span>${label}</span><span class="res ${res}">${RES[res]}</span></div>`, world);
       c.querySelector('.thumb').appendChild(frameOf('app', st));
       box(c, 0, 0);
-      return { c, gx: i < 5 ? i * 408 : 204 + (i - 5) * 408, gy: i < 5 ? 0 : 318, r0: (rnd() - 0.5) * 26 };
+      return { c, gx: i < 5 ? i * 408 : 408 + (i - 5) * 408, gy: i < 5 ? 0 : 318, r0: (rnd() - 0.5) * 26 };
     });
     const st1 = el('div', 'stamp red', 'Missing in code', cards[1].c);
-    const st2 = el('div', 'stamp violet', 'Missing in design', cards[7].c);
     S.caps = [
       cap(S.root, { t0: 18.1, t1: 21.05, text: 'Every state.', x: 96, y: 64, size: 72 }),
       cap(S.root, { t0: 18.42, t1: 21.05, text: '~Captured ~at ~the ~exact ~frame ~size: ~1440 ~× ~900 ~@1x', x: 98, y: 150, size: 30, cls: 'sub', stagger: 0.025 }),
@@ -576,7 +575,7 @@
         op(k.c, clamp((t - t0) / 0.1));
         vis(k.c, t >= t0);
       });
-      [[st1, 19.8, -8], [st2, 20.1, 6]].forEach(([s, t0, rot]) => {
+      [[st1, 19.8, -8]].forEach(([s, t0, rot]) => {
         vis(s, t >= t0);
         const u = E.outBack(clamp((t - t0) / 0.32));
         s.style.transform = `translate(-50%,-50%) rotate(${rot}deg) scale(${lerp(1.8, 1, u).toFixed(3)})`;
@@ -836,9 +835,9 @@
   }
 
   /* =====================================================================
-     SCENE 10 · Every state gets a verdict (37–42 s)
+     SCENE 10 · Every state gets a verdict, and a finding is dismissed with a reason (37–42 s)
      ===================================================================== */
-  const RES = { PASS: 'Pass', FAIL: 'Fail', MISSING_IN_CODE: 'Missing in code', MISSING_IN_DESIGN: 'Missing in design', CANNOT_VERIFY: 'Cannot verify', NOT_SPECIFIED: 'Not specified' };
+  const RES = { PASS: 'Pass', FAIL: 'Fail', MISSING_IN_CODE: 'Missing in code', CANNOT_VERIFY: 'Cannot verify', NOT_SPECIFIED: 'Not specified' };
   function buildMatrix() {
     const S = scene('matrix', 37, 42, 'light');
     const world = el('div', 'world', null, S.root);
@@ -849,24 +848,36 @@
     const rows = [
       ['With data', yes, 'AC-1', yes, 'PASS'], ['Empty', yes, 'AC-2', no, 'MISSING_IN_CODE'], ['Loading', yes, 'AC-4', yes, 'FAIL'],
       ['Error', yes, 'AC-3', yes, 'PASS'], ['Row hover', yes, '—', yes, 'FAIL'], ['Row selected', yes, '—', '<span class="c">no driver</span>', 'CANNOT_VERIFY'],
-      ['Bulk selected', no, '—', yes, 'MISSING_IN_DESIGN'],
     ].map(([n, d, s, b, r], i) => el('div', 'r', `<span class="bgh"></span><span>${n}</span><span>${d}</span><span class="c">${s}</span><span>${b}</span><span><span class="res ${r}">${RES[r]}</span></span>`, mx));
     S.caps = [
       cap(S.root, { t0: 37.06, t1: 38.16, text: 'Every state gets a verdict.', x: 96, y: 64, size: 64 }),
       cap(S.root, { t0: 38.36, t1: 39.86, text: 'Designed, never built: !a !blocker.', x: 96, y: 64, size: 64 }),
-      cap(S.root, { t0: 40.06, t1: 41.8, text: 'Built, never designed: ^back ^to ^Figma.', x: 96, y: 64, size: 64 }),
+      cap(S.root, { t0: 40.06, t1: 41.8, text: 'Not an issue? ^Dismiss ^it, ^with ^a ^reason.', x: 96, y: 64, size: 64 }),
     ];
+    // a With data finding (DQ-022 in the sample report), dismissed in one click with a written reason
+    const DZ = { x: 385, y: 416, w: 1150 };
+    const REASON = '11px and 12px render the same pill at 22px tall.';
+    const dz = el('div', 'dz sev-WARNING', `<span class="d"></span><span class="t1">Status badge radius is 11px, the design says 12px</span><span class="t2">DQ-022 · With data · Badge.module.css:6</span><span class="sb w">Warning</span><span class="bt out dis">Dismiss</span>
+      <div class="pw"><div class="pn"><span class="ph">Dismiss DQ-022</span><span class="seg"><span class="on">Not an issue</span><span>Remove from QA</span><span>Accept as intentional</span></span><span class="lb">Reason (required)</span><span class="in"><span class="tx"></span><span class="k"></span></span><span class="ac"><span class="bt gho">Cancel</span><span class="bt pri sv">Save</span></span></div></div>
+      <span class="dn"><b>Not an issue</b> · “${REASON}” · Maya Chen</span>`, world);
+    box(dz, DZ.x, DZ.y);
+    const dzSb = dz.querySelector('.sb'), dzDis = dz.querySelector('.dis'), dzPw = dz.querySelector('.pw'), dzTx = dz.querySelector('.in .tx'), dzK = dz.querySelector('.in .k');
+    const dzSv = dz.querySelector('.sv'), dzDn = dz.querySelector('.dn'), dzT1 = dz.querySelector('.t1'), dzD = dz.querySelector('.d');
+    const cursor = el('div', 'cursor', CURSOR, world);
+    const btnDis = { x: DZ.x + DZ.w - 28 - 75 + 44, y: DZ.y + 26 + 22 + 6 }, btnSave = { x: DZ.x + DZ.w - 28 - 20 - 55 + 32, y: DZ.y + 96 + 210 + 22 + 6 };
+    const cpath = [{ t: 40.0, x: 1290, y: 760 }, { t: 40.17, ...btnDis }, { t: 40.3, ...btnDis }, { t: 40.78, ...btnSave }, { t: 41.2, ...btnSave }];
+    const CLICK_DIS = 40.2, TYPE0 = 40.32, TYPE1 = 40.72, CLICK_SAVE = 40.85, DONE = 40.95;
     const rowY = (i) => 236 + 60 + 80 * i + 40;
     const cam = track([
       { t: 37, x: 960, y: 560, s: 1 }, { t: 38.3, x: 960, y: 560, s: 1 },
       { t: 38.76, x: 960, y: rowY(1) - 50, s: 1.3, e: E.inOutExpo }, { t: 39.95, x: 960, y: rowY(1) - 48, s: 1.33, e: E.lin },
-      { t: 40.4, x: 960, y: rowY(6) - 50, s: 1.3, e: E.inOutExpo }, { t: 41.5, x: 960, y: rowY(6) - 48, s: 1.33, e: E.lin },
+      { t: 40.3, x: 960, y: 566, s: 1.2, e: E.inOutExpo }, { t: 41.5, x: 960, y: 562, s: 1.22, e: E.lin },
       { t: 41.96, x: 960, y: 560, s: 1, e: E.inOutQuint },
     ]);
     S.render = (t) => {
       world.style.transform = camCSS(cam(t));
       blur(world, motionBlur(cam, t, 0.7));
-      const focus = t >= 38.35 && t < 39.98 ? 1 : t >= 40.05 && t < 41.55 ? 6 : -1;
+      const focus = t >= 38.35 && t < 39.98 ? 1 : t >= 40.0 && t < 41.62 ? 0 : -1;
       rows.forEach((r, i) => {
         const t0 = 37.0 + i * 0.1;
         const u = P(t, t0, 0.5);
@@ -875,6 +886,40 @@
         op(r, clamp((t - t0) / 0.14) * dim);
         op(r.firstChild, focus === i ? 1 : 0);
       });
+      // the finding card: Dismiss, the kind and a reason, Save, then it reads as dismissed
+      const on = t >= 40.0 && t < 41.62;
+      vis(dz, on);
+      if (on) {
+        const done = t >= DONE;
+        op(dz, clamp((t - 40.0) / 0.12) * (1 - clamp((t - 41.48) / 0.14)));
+        dz.style.transform = `translateY(${f2((1 - P(t, 40.0, 0.4)) * 30)}px)`;
+        const open = done ? 1 - P(t, DONE, 0.3) : P(t, CLICK_DIS, 0.3);
+        dzPw.style.height = f2(open * 288) + 'px';
+        op(dzPw, done ? 1 - clamp((t - DONE) / 0.1) : 1);
+        dz.style.height = f2(96 + open * 288 + (done ? P(t, DONE, 0.3) * 56 : 0)) + 'px';
+        const n = clamp(Math.floor((t - TYPE0) / ((TYPE1 - TYPE0) / REASON.length)) + 1, 0, REASON.length);
+        dzTx.textContent = t < TYPE0 ? '' : REASON.slice(0, n);
+        vis(dzK, !done && (t < TYPE1 || Math.floor(t * 4) % 2 === 0));
+        dzDis.style.transform = t >= CLICK_DIS && t < CLICK_DIS + 0.08 ? 'scale(0.95)' : '';
+        dzSv.style.transform = t >= CLICK_SAVE && t < CLICK_SAVE + 0.08 ? 'scale(0.95)' : '';
+        vis(dzDis, !done);
+        dzSb.className = done ? 'sb x' : 'sb w';
+        dzSb.textContent = done ? 'Dismissed' : 'Warning';
+        dzSb.style.right = done ? '28px' : '';
+        dzSb.style.transform = done ? `scale(${lerp(1.18, 1, P(t, DONE, 0.32, E.outBack)).toFixed(3)})` : '';
+        dzT1.style.color = done ? 'var(--muted-fg)' : '';
+        dzD.style.background = done ? '#a3a3a3' : '';
+        op(dzDn, clamp((t - DONE - 0.1) / 0.15));
+        vis(dzDn, done);
+      }
+      vis(cursor, t >= 40.0 && t < DONE);
+      let seg = 0; while (seg < cpath.length - 2 && t >= cpath[seg + 1].t) seg++;
+      const pa = cpath[seg], pb = cpath[seg + 1];
+      const mu = E.inOutCubic(clamp((t - pa.t) / (pb.t - pa.t)));
+      box(cursor, lerp(pa.x, pb.x, mu) - 4, lerp(pa.y, pb.y, mu) - 4);
+      op(cursor, clamp((t - 40.0) / 0.1) * (1 - clamp((t - CLICK_SAVE - 0.02) / 0.08)));
+      const press = [CLICK_DIS, CLICK_SAVE].some((c) => t >= c && t < c + 0.1);
+      cursor.style.transform = press ? 'scale(0.86)' : '';
     };
     return S;
   }
@@ -889,7 +934,7 @@
     const L = el('div', 'win', '<div class="wbar"><i></i><i></i><i></i><span class="t">qa-reports/ACME-482/report.html</span></div>', world);
     box(L, 96, 244, 846, 740);
     const wb = el('div', null, `<div style="display:flex;align-items:center;gap:12px;font:600 30px/1 var(--sans);letter-spacing:-0.03em">Orders list <span class="verdict fail" style="height:30px;font-size:15px;padding:0 10px">FAIL</span></div>
-      <div style="margin-top:10px;font:400 17px/1 var(--sans);color:var(--muted-fg)">Parity 45% · 11 of 20 findings open · 5/9 states verified</div>`, L);
+      <div style="margin-top:10px;font:400 17px/1 var(--sans);color:var(--muted-fg)">Parity 45% · 11 of 20 findings open · 5/8 states verified</div>`, L);
     wb.style.cssText = 'position:relative;padding:26px 28px';
     const st = el('div', 'stage', null, wb);
     st.style.cssText += ';position:relative;margin-top:22px;width:790px;height:494px';
@@ -906,7 +951,7 @@
     box(R, 978, 244, 846, 740);
     el('div', 'md', [
       '<span class="h1"># Design QA fix plan — ACME-482</span>',
-      '<span class="mu">Verdict</span> <span class="fail">FAIL</span> <span class="mu">· Parity 45% · States 5/9</span>',
+      '<span class="mu">Verdict</span> <span class="fail">FAIL</span> <span class="mu">· Parity 45% · States 5/8</span>',
       '',
       '<span class="h2">## Fix now (5)</span>',
       '1. <span class="id">DQ-001</span>  Empty state is not implemented',
@@ -1073,7 +1118,7 @@ open    DQ-008   engineering  ACME-514
 open    DQ-016   engineering  ACME-515</div>`, world);
     box(log, 1170, 612, 654);
     const jrows = [...jira.querySelectorAll('.jr')];
-    const meter = el('div', 'meter', `<div class="lbl"><span>Unexplained diffs</span><span class="verdict fail">FAIL</span></div><div class="big">8</div><div class="stack"><i class="fx"></i><i class="tr"></i></div><div class="ft" style="margin-top:20px;font:400 21px/1.3 var(--sans);color:var(--muted-fg)">Re-checking 9 states…</div>`, S.root);
+    const meter = el('div', 'meter', `<div class="lbl"><span>Unexplained diffs</span><span class="verdict fail">FAIL</span></div><div class="big">8</div><div class="stack"><i class="fx"></i><i class="tr"></i></div><div class="ft" style="margin-top:20px;font:400 21px/1.3 var(--sans);color:var(--muted-fg)">Re-checking 8 states…</div>`, S.root);
     const vd = meter.querySelector('.verdict'), big = meter.querySelector('.big'), fx = meter.querySelector('.fx'), trk = meter.querySelector('.tr'), ft = meter.querySelector('.ft');
     S.caps = [
       cap(S.root, { t0: 50.15, t1: 51.6, text: 'Your pick, applied.', x: 96, y: 64, size: 64 }),
@@ -1111,7 +1156,7 @@ open    DQ-016   engineering  ACME-515</div>`, world);
       vd.className = 'verdict ' + (pass ? 'pass' : 'fail');
       vd.textContent = pass ? 'PASS' : 'FAIL';
       vd.style.transform = pass ? `scale(${lerp(1.25, 1, P(t, 55.1, 0.4, E.outBack)).toFixed(3)})` : '';
-      ft.innerHTML = pass ? '<b style="color:var(--pass);font-weight:600">3 fixed</b> · <b style="color:var(--fg);font-weight:600">5 tracked in Jira</b> · 0 unexplained' : 'Re-checking 9 states…';
+      ft.innerHTML = pass ? '<b style="color:var(--pass);font-weight:600">3 fixed</b> · <b style="color:var(--fg);font-weight:600">5 tracked in Jira</b> · 0 unexplained' : 'Re-checking 8 states…';
     };
     return S;
   }

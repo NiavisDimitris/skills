@@ -35,8 +35,10 @@ export function toUrlNodeId(id) {
 
 /**
  * Parse a Figma link. Returns null when the input is not a Figma design/file/proto link, else
- * { fileKey, mainFileKey, branchKey, nodeId, kind, fileName, url }.
+ * { fileKey, mainFileKey, branchKey, nodeId, startingNodeId, kind, isPrototype, fileName, url }.
  * fileKey is the key to call the REST API with (the branch key for branch links).
+ * Prototype links: nodeId is node-id (else starting-point-node-id); startingNodeId is the
+ * flow's starting-point-node-id (null elsewhere).
  */
 export function parseFigmaUrl(input) {
   if (typeof input !== 'string' || !input.trim()) return null;
@@ -65,13 +67,16 @@ export function parseFigmaUrl(input) {
       fileName = segments[nameIndex];
     }
   }
-  const nodeParam = url.searchParams.get('node-id') ?? (kind === 'proto' ? url.searchParams.get('starting-point-node-id') : null);
+  const startingNodeId = kind === 'proto' ? normalizeNodeId(url.searchParams.get('starting-point-node-id')) : null;
+  const nodeParam = url.searchParams.get('node-id');
   return {
     fileKey: branchKey ?? key,
     mainFileKey: key,
     branchKey,
-    nodeId: normalizeNodeId(nodeParam),
+    nodeId: normalizeNodeId(nodeParam) ?? startingNodeId,
+    startingNodeId,
     kind,
+    isPrototype: kind === 'proto',
     fileName,
     url: input.trim(),
   };

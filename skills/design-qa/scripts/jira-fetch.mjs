@@ -12,7 +12,7 @@ import { describeUrl, fetchWithRetry, readJsonResponse } from './lib/http.mjs';
 import { computeScorecard, resolveOptions, triageIndex } from './lib/ranking.mjs';
 import { validateConfig, validateReport } from './lib/schema-check.mjs';
 import { buildJiraTicket } from './lib/ticket-extract.mjs';
-import { ownerOf, triageLists } from './lib/triage.mjs';
+import { DEBT_OWNER, triageLists } from './lib/triage.mjs';
 
 const HELP = `Fetch a Jira issue for design QA, or write results back to it.
 
@@ -54,7 +54,7 @@ Environment:
 
 ticket.json: { provider, key, url, title, status, description (plain text from ADF),
 acceptanceCriteria, expectedBehaviors [{ acRef, text, state, trigger }], figmaUrls,
-previewUrls, prUrls, otherUrls, branches, attachments, fetchedAt }. Links are read
+prototypeUrls, previewUrls, prUrls, otherUrls, branches, attachments, fetchedAt }. Links are read
 from the description, comments and remote links.
 
 Exit codes: 0 ok · 1 error (issue not found, request failed) · 2 bad arguments ·
@@ -173,7 +173,7 @@ async function main(argv) {
     writeJson(file, ticket);
     log(`${ticket.key}: ${ticket.title ?? '(no title)'} [${ticket.status ?? 'no status'}]`);
     log(`  ${ticket.acceptanceCriteria.length} acceptance criteria · states: ${[...new Set(ticket.expectedBehaviors.map((b) => b.state).filter(Boolean))].join(', ') || 'none'}`);
-    log(`  Figma: ${ticket.figmaUrls.length} · preview: ${ticket.previewUrls.length} · PRs: ${ticket.prUrls.length} · branches: ${ticket.branches.join(', ') || 'none'}`);
+    log(`  Figma: ${ticket.figmaUrls.length} · prototype: ${ticket.prototypeUrls.length} · preview: ${ticket.previewUrls.length} · PRs: ${ticket.prUrls.length} · branches: ${ticket.branches.join(', ') || 'none'}`);
     log(`Wrote ${displayPath(file)}`);
   }
 
@@ -247,7 +247,7 @@ export function debtIssueFields(finding, item, report, { project, parent = null,
   const decided = [triage.decidedBy ? `by ${triage.decidedBy}` : null, day(triage.decidedAt) ? `on ${day(triage.decidedAt)}` : null].filter(Boolean).join(' ');
   const lines = [
     `Design debt deferred in design QA${decided ? ` ${decided}` : ''}${item?.reason ? `: ${item.reason}` : '.'}`,
-    `Severity: ${f.severity} · Owner: ${ownerOf(f)} · State: ${f.state ?? DASH}`,
+    `Severity: ${f.severity} · Owner: ${DEBT_OWNER} · State: ${f.state ?? DASH}`,
     `Where: ${where}`,
     `Expected: ${f.expected?.value ?? DASH} (token ${f.expected?.token ?? 'none'}) · Actual: ${f.actual?.value ?? DASH} (token ${f.actual?.token ?? 'none'})`,
     `Fix: ${f.fix?.summary ?? DASH}`,

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CliError, displayPath, parseCli, readJsonFile, runMain, toNumber, usageError, writeJson, writeText } from './lib/args.mjs';
 import { renderFixplan } from './lib/fixplan.mjs';
+import { renderBackfillPlan } from './lib/backfill-plan.mjs';
 import { computeScorecard, rankFindings, resolveOptions } from './lib/ranking.mjs';
 import { validateConfig, validateReport } from './lib/schema-check.mjs';
 
@@ -18,7 +19,7 @@ export const PLACEHOLDERS = Object.freeze({
 });
 const MAX_EMBED_BYTES = 15 * 1024 * 1024;
 const IMAGE_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml' };
-const IMAGE_EVIDENCE = new Set(['screenshot', 'figma', 'diff']);
+const IMAGE_EVIDENCE = new Set(['screenshot', 'design', 'figma', 'diff', 'motion']);
 
 const HELP = `Render a design-qa report.json into the interactive HTML report.
 
@@ -30,19 +31,30 @@ Options:
   --out <file>         HTML to write (default: report.html next to --in)
   --template <file>    HTML template (default: ../templates/report.html next to this script)
   --embed-images       inline every referenced image as a data: URI so the HTML is
-                       self-contained (scorecard.pixelDiff[*].image, stateMatrix[*].captured.*,
-                       findings[*].evidence[*].path of screenshot/figma/diff evidence,
-                       evidence.states[*].figma|app|diff). Paths resolve relative to the
-                       report.json directory; missing files are skipped with a warning.
-  --fixplan <file>     also write the Markdown fix plan: Triage line, Fix now (+ paste block
-                       for a coding agent), Sync to Figma (+ paste block for a design agent),
-                       Debt — tickets, Missing states / needs decision, Cannot verify. With a
-                       triage block (schemaVersion 1.1) the person's decisions fill Fix now,
-                       Sync to Figma and Debt; otherwise the rank buckets do
+                       self-contained (scorecard.pixelDiff[*].image, stateMatrix[*].captured.
+                       design|app|diff, findings[*].evidence[*].path of screenshot/design/
+                       figma/diff/motion evidence with an image extension,
+                       evidence.states[*].design|app|diff, backfill.items[*].captured.app).
+                       Paths resolve relative to the report.json directory; missing files
+                       are skipped with a warning.
+  --fixplan <file>     also write the Markdown fix plan: Source, Triage and Dismissed lines,
+                       Fix now (+ paste block for a coding agent), Design-system mismatches
+                       (Tokens, Components, Motion), Debt — tickets, Missing states / needs
+                       decision, Dismissed, Cannot verify. With a triage block the person's
+                       decisions fill Fix now and Debt; otherwise the recommendation does
+                       (the fix-now bucket plus every blocker). When the report has design-
+                       backfill items, the plan ends with one pointer line to report-backfill.md
+  --backfill-plan <file>
+                       also write the design-backfill plan (step 2, report-backfill.md) when
+                       the report's backfill block has items: status line (production
+                       matches the design yes/no, counts; "Blocked until step 1 is closed"
+                       when not ready), Build in Figma (+ paste block for a design agent),
+                       Built, Not needed, Pending decision. Not written without items
   --recompute          rewrite the derived values from the rules instead of failing when the
                        stored ones disagree: every finding's rank and the scorecard
                        (severity/resolution counts, parity, verdict, pixel-diff bands,
-                       state coverage)
+                       state coverage, unexplained, debt, loopClosed, dismissed,
+                       designSystem, and backfill when the report has a backfill block)
   --write-back         save the rendered report (ranks filled, scorecard recomputed with
                        --recompute) back to the --in file
   --config <file>      design-qa.config.json: tolerances.pixelDiff, report.topN,
@@ -55,9 +67,9 @@ Options:
 Before rendering, the report is validated (same rules as validate.mjs) and the
 command fails on any error. When any finding has "rank": null (or with --top-n /
 --recompute) every finding is ranked with the derived rules: score = severity×100 +
-ledger×10 + (6 − effort) for BLOCKER/WARNING/DS_CANDIDATE findings; FIX_CODE ones
-by score → the top N are "fix-now", the rest "debt" (the engineer's lists);
-SYNC_FIGMA ones → "sync-figma" (the designer's list); everything else "none".
+ledger×10 + (6 − effort) for FIX_CODE findings with severity BLOCKER, WARNING or
+DS_CANDIDATE; by score the top N are "fix-now", the rest "debt"; everything else
+(INTENTIONAL, DATA, DISMISSED, UNCLASSIFIED, PASS, CANNOT_VERIFY) is "none".
 Without --recompute the stored scorecard must equal the derived one.
 
 Template contract: the template must contain
@@ -93,7 +105,7 @@ export function collectImagePaths(report) {
   };
   for (const entry of Object.values(report?.scorecard?.pixelDiff || {})) add(entry?.image);
   for (const row of report?.stateMatrix || []) {
-    add(row?.captured?.figma);
+    add(row?.captured?.design);
     add(row?.captured?.app);
     add(row?.captured?.diff);
   }
@@ -101,10 +113,11 @@ export function collectImagePaths(report) {
     for (const e of f?.evidence || []) if (IMAGE_EVIDENCE.has(e?.type)) add(e.path);
   }
   for (const s of Object.values(report?.evidence?.states || {})) {
-    add(s?.figma);
+    add(s?.design);
     add(s?.app);
     add(s?.diff);
   }
+  for (const item of Array.isArray(report?.backfill?.items) ? report.backfill.items : []) add(item?.captured?.app);
   return out;
 }
 
@@ -156,6 +169,8 @@ export function prepareReport(input, { options = {}, recompute = false, rerank =
   const o = resolveOptions(options);
   const inputFindings = Array.isArray(input?.findings) ? input.findings : [];
   const needsRank = rerank || recompute || inputFindings.some((f) => !f || f.rank === null || f.rank === undefined);
+  // --recompute derives the scorecard, so a report written without one (or with a partial one) is fine.
+  if (recompute && input && typeof input === 'object') input = { ...input, scorecard: computeScorecard(input, o) };
   const first = validateReport(input, { options: o, skipScorecard: recompute, skipRanks: needsRank });
   if (!first.valid) return { report: input, errors: first.errors, warnings: first.warnings };
   let report = input;
@@ -182,6 +197,7 @@ async function main(argv) {
     template: { type: 'string' },
     'embed-images': { type: 'boolean' },
     fixplan: { type: 'string' },
+    'backfill-plan': { type: 'string' },
     recompute: { type: 'boolean' },
     'write-back': { type: 'boolean' },
     config: { type: 'string' },
@@ -254,6 +270,16 @@ async function main(argv) {
     const planFile = path.resolve(values.fixplan);
     writeText(planFile, renderFixplan(report, options));
     log(`Wrote fix plan ${displayPath(planFile)}`);
+  }
+  if (values['backfill-plan']) {
+    const planFile = path.resolve(values['backfill-plan']);
+    const plan = renderBackfillPlan(report);
+    if (plan) {
+      writeText(planFile, plan);
+      log(`Wrote design-backfill plan ${displayPath(planFile)}`);
+    } else {
+      log(`No design-backfill items; ${displayPath(planFile)} not written`);
+    }
   }
   if (values['write-back']) {
     writeJson(inFile, report);

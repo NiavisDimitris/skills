@@ -59,8 +59,8 @@ test('enum violations list the allowed values', () => {
   r.stateMatrix[1].result = 'OK';
   r.meta.mode = 'review';
   expectError(r, /^findings\[3\]\.severity: expected one of BLOCKER, WARNING, PASS, CANNOT_VERIFY, DS_CANDIDATE \(got "CRITICAL"\)$/);
-  expectError(r, /^stateMatrix\[1\]\.result: expected one of PASS, FAIL, CANNOT_VERIFY, MISSING_IN_CODE, MISSING_IN_DESIGN, NOT_SPECIFIED/);
-  expectError(r, /^meta\.mode: expected one of audit, fix, sync, ci/);
+  expectError(r, /^stateMatrix\[1\]\.result: expected one of PASS, FAIL, CANNOT_VERIFY, MISSING_IN_CODE, NOT_SPECIFIED \(got "OK"\)$/);
+  expectError(r, /^meta\.mode: expected one of audit, fix, ci \(got "review"\)$/);
 });
 
 test('types, patterns, ranges and formats', () => {
@@ -92,7 +92,7 @@ test('every reference must point at an existing finding', () => {
   r.openDecisions[0].relatedFindings = ['DQ-097'];
   r.fixLoop[0].findingIds = ['DQ-096'];
   expectError(r, /^ledgers\.style\[0\]\.findingIds\[1\]: references unknown finding "DQ-099"$/);
-  expectError(r, /^stateMatrix\[0\]\.findings\[3\]: references unknown finding "DQ-098"$/);
+  expectError(r, /^stateMatrix\[0\]\.findings\[5\]: references unknown finding "DQ-098"$/);
   expectError(r, /^openDecisions\[0\]\.relatedFindings\[0\]: references unknown finding "DQ-097"$/);
   expectError(r, /^fixLoop\[0\]\.findingIds\[0\]: references unknown finding "DQ-096"$/);
 });
@@ -121,12 +121,28 @@ test('scorecard values must equal the derived ones', () => {
   r.scorecard.byResolution.NONE = 1;
   r.scorecard.stateCoverage.verified = 5;
   r.scorecard.pixelDiff.empty.band = 'review';
-  expectError(r, /^scorecard\.parity: expected 43 \(4 open of 7 findings\), got 80$/);
+  expectError(r, /^scorecard\.parity: expected 38 \(5 open of 8 findings; 1 dismissed not counted\), got 80$/);
   expectError(r, /^scorecard\.verdict: expected FAIL \(DQ-001 is an open BLOCKER/);
-  expectError(r, /^scorecard\.bySeverity\.WARNING: expected 3 \(counted from findings\[\]\.severity\), got 2$/);
+  expectError(r, /^scorecard\.bySeverity\.WARNING: expected 5 \(counted from findings\[\]\.severity\), got 2$/);
   expectError(r, /^scorecard\.byResolution\.NONE: expected 2/);
   expectError(r, /^scorecard\.stateCoverage\.verified: expected 3/);
   expectError(r, /^scorecard\.pixelDiff\.empty\.band: expected "fail" for 7\.2% \(pass < 1, review <= 5\), got "review"$/);
+});
+
+test('scorecard 2.0: dismissed and designSystem are required and derived', () => {
+  const r = loadFixture('report-valid.json');
+  r.scorecard.dismissed = 0;
+  r.scorecard.designSystem = { tokens: 1, components: 1, motion: 0 };
+  expectError(r, /^scorecard\.dismissed: expected 1 \(findings with resolution DISMISSED\), got 0$/);
+  expectError(r, /^scorecard\.designSystem\.tokens: expected 2 \(open style findings with an expected token the code does not use\), got 1$/);
+  expectError(r, /^scorecard\.designSystem\.motion: expected 1 \(open motion findings\), got 0$/);
+  assert.ok(!errorsOf(r).some((e) => e.startsWith('scorecard.designSystem.components')));
+
+  const missing = loadFixture('report-valid.json');
+  for (const k of ['unexplained', 'debt', 'loopClosed', 'dismissed', 'designSystem']) delete missing.scorecard[k];
+  for (const k of ['unexplained', 'debt', 'loopClosed', 'dismissed', 'designSystem']) {
+    expectError(missing, new RegExp(`^scorecard\\.${k}: required key is missing$`));
+  }
 });
 
 test('pixel-diff bands follow configured tolerances', () => {
@@ -148,7 +164,7 @@ test('unknown keys are warnings, not errors', () => {
   );
 });
 
-test('rank buckets: only FIX_CODE fills fix-now/debt, only SYNC_FIGMA fills sync-figma (errors)', () => {
+test('rank buckets: only FIX_CODE fills fix-now/debt; everything else is none (errors)', () => {
   const ranked = () => {
     const r = loadFixture('report-valid.json');
     r.findings = rankFindings(r.findings);
@@ -156,37 +172,41 @@ test('rank buckets: only FIX_CODE fills fix-now/debt, only SYNC_FIGMA fills sync
   };
   assert.deepEqual(errorsOf(ranked()), [], 'ranks from rankFindings are valid');
 
-  const syncInFixNow = ranked();
-  syncInFixNow.findings[2].rank = { score: 233, bucket: 'fix-now' }; // DQ-003 is SYNC_FIGMA
-  expectError(syncInFixNow, /^findings\[2\]\.rank\.bucket: must be "sync-figma" for a SYNC_FIGMA finding: fix-now and debt are for FIX_CODE only \(got "fix-now"\)$/);
-
-  const fixInSync = ranked();
-  fixInSync.findings[1].rank = { score: 225, bucket: 'sync-figma' }; // DQ-002 is FIX_CODE
-  expectError(fixInSync, /^findings\[1\]\.rank\.bucket: must be "fix-now" or "debt" for a FIX_CODE finding with severity BLOCKER, WARNING or DS_CANDIDATE \(got "sync-figma"\)$/);
+  const fixInNone = ranked();
+  fixInNone.findings[1].rank = { score: 225, bucket: 'none' }; // DQ-002 is FIX_CODE
+  expectError(fixInNone, /^findings\[1\]\.rank\.bucket: must be "fix-now" or "debt" for a FIX_CODE finding with severity BLOCKER, WARNING or DS_CANDIDATE \(got "none"\)$/);
 
   const unrankedInDebt = ranked();
   unrankedInDebt.findings[4].rank = { score: 0, bucket: 'debt' }; // DQ-005 is PASS / NONE
-  unrankedInDebt.findings[6].rank = { score: 0, bucket: 'sync-figma' }; // DQ-007 is INTENTIONAL
-  expectError(unrankedInDebt, /^findings\[4\]\.rank\.bucket: must be "none": only FIX_CODE and SYNC_FIGMA findings with severity BLOCKER, WARNING or DS_CANDIDATE are ranked \(got "debt"\)$/);
+  unrankedInDebt.findings[6].rank = { score: 0, bucket: 'fix-now' }; // DQ-007 is INTENTIONAL
+  unrankedInDebt.findings[8].rank = { score: 225, bucket: 'fix-now' }; // DQ-009 is DISMISSED
+  expectError(unrankedInDebt, /^findings\[4\]\.rank\.bucket: must be "none": only FIX_CODE findings with severity BLOCKER, WARNING or DS_CANDIDATE are ranked \(got "debt"\)$/);
   expectError(unrankedInDebt, /^findings\[6\]\.rank\.bucket: must be "none"/);
+  expectError(unrankedInDebt, /^findings\[8\]\.rank\.bucket: must be "none"/);
 
   const unknownBucket = ranked();
   unknownBucket.findings[0].rank = { score: 334, bucket: 'later' };
-  expectError(unknownBucket, /^findings\[0\]\.rank\.bucket: expected one of fix-now, debt, sync-figma, none \(got "later"\)$/);
+  expectError(unknownBucket, /^findings\[0\]\.rank\.bucket: expected one of fix-now, debt, none \(got "later"\)$/);
 
-  assert.equal(validateReport(syncInFixNow, { skipRanks: true }).valid, true, 'skipRanks ignores ranks about to be recomputed');
+  const sync = ranked();
+  sync.findings[2].rank = { score: 233, bucket: 'sync-figma' };
+  expectError(sync, /^findings\[2\]\.rank\.bucket: the sync-figma bucket was removed in 2\.0: FIX_CODE findings are fix-now or debt, everything else none$/);
+
+  assert.equal(validateReport(unrankedInDebt, { skipRanks: true }).valid, true, 'skipRanks ignores ranks about to be recomputed');
 });
 
 test('a fix-now/debt split that differs from topN is a warning, not an error', () => {
   const r = loadFixture('report-valid.json');
-  r.findings = rankFindings(r.findings, { topN: 1 }); // DQ-002 and DQ-004 land in debt
-  const result = validateReport(r); // default topN 5 would put them in fix-now
+  r.findings = rankFindings(r.findings, { topN: 1 }); // everything but DQ-001 lands in debt
+  const result = validateReport(r); // default topN 5 puts all five FIX_CODE findings in fix-now
   assert.equal(result.valid, true);
   assert.deepEqual(
     result.warnings.map((w) => `${w.path}: ${w.message}`),
     [
       'findings[1].rank.bucket: is "debt" but the ranking rules give "fix-now" (score 225, topN 5)',
+      'findings[2].rank.bucket: is "debt" but the ranking rules give "fix-now" (score 233, topN 5)',
       'findings[3].rank.bucket: is "debt" but the ranking rules give "fix-now" (score 123, topN 5)',
+      'findings[7].rank.bucket: is "debt" but the ranking rules give "fix-now" (score 225, topN 5)',
     ],
   );
   assert.deepEqual(validateReport(r, { topN: 1 }).warnings, [], 'no warning with the same topN');
@@ -317,7 +337,7 @@ test('CLI: --config supplies pixel-diff tolerances; config files validate by inf
 });
 
 // ---------------------------------------------------------------------------
-// schemaVersion 1.1: triage, unexplained, debt, loopClosed
+// Triage, unexplained, debt, loopClosed
 // ---------------------------------------------------------------------------
 
 function triagedReport() {
@@ -326,9 +346,9 @@ function triagedReport() {
   return applyTriage(r, triage);
 }
 
-test('schemaVersion 1.1: a triaged report validates; the 1.1 scorecard fields are required and derived', () => {
+test('a triaged report validates; unexplained, debt and loopClosed are required and derived', () => {
   const r = triagedReport();
-  assert.equal(r.schemaVersion, '1.1');
+  assert.equal(r.schemaVersion, '2.0');
   assert.deepEqual(validateReport(r).errors, []);
   assert.deepEqual(validateReport(r).warnings, []);
 
@@ -342,13 +362,9 @@ test('schemaVersion 1.1: a triaged report validates; the 1.1 scorecard fields ar
   drift.scorecard.unexplained = 0;
   drift.scorecard.debt.ticketed = 2;
   drift.scorecard.loopClosed = true;
-  expectError(drift, /^scorecard\.unexplained: expected 4 \(open findings that are not ticketed debt\), got 0$/);
+  expectError(drift, /^scorecard\.unexplained: expected 5 \(open findings that are not ticketed debt\), got 0$/);
   expectError(drift, /^scorecard\.debt\.ticketed: expected 0 \(debt items with a ticket\), got 2$/);
-  expectError(drift, /^scorecard\.loopClosed: expected false \(unexplained 4, open decisions 1\), got true$/);
-
-  const future = loadFixture('report-valid.json');
-  future.schemaVersion = '2.0';
-  expectError(future, /^schemaVersion: expected one of 1\.0, 1\.1 \(got "2\.0"\)$/);
+  expectError(drift, /^scorecard\.loopClosed: expected false \(unexplained 5, open decisions 1\), got true$/);
 });
 
 test('triage: a BLOCKER can never be debt', () => {
@@ -369,26 +385,286 @@ test('triage: exactly one decision for every triageable finding', () => {
   r.triage.items.push({ findingId: 'DQ-002', decision: 'debt', reason: null, ticket: null });
   r.triage.items.push({ findingId: 'DQ-099', decision: 'debt' });
   r.triage.items.push({ findingId: 'DQ-005', decision: 'debt' });
+  r.triage.items.push({ findingId: 'DQ-009', decision: 'fix-now' });
   r.triage.items.push({ findingId: 'DQ-003', decision: 'later' });
   r.scorecard = computeScorecard(r);
-  expectError(r, /^triage\.items: no decision for DQ-004: every FIX_CODE and SYNC_FIGMA finding with severity BLOCKER, WARNING or DS_CANDIDATE needs "fix-now" or "debt"$/);
+  expectError(r, /^triage\.items: no decision for DQ-004: every FIX_CODE finding with severity BLOCKER, WARNING or DS_CANDIDATE needs "fix-now" or "debt"$/);
   expectError(r, /^triage\.items\[\d+\]\.findingId: duplicate decision for "DQ-002" \(first at triage\.items\[\d+\]\)$/);
   expectError(r, /^triage\.items\[\d+\]\.findingId: references unknown finding "DQ-099"$/);
   expectError(r, /^triage\.items\[\d+\]\.findingId: DQ-005 is not triageable \(PASS \/ NONE\)/);
+  expectError(r, /^triage\.items\[\d+\]\.findingId: DQ-009 is not triageable \(WARNING \/ DISMISSED\): only FIX_CODE findings/);
   expectError(r, /^triage\.items\[\d+\]\.decision: expected one of fix-now, debt \(got "later"\)$/);
 });
 
-test('triage: tickets need provider, key, url and createdAt; triage in a 1.0 report is a warning', () => {
+test('triage: tickets need provider, key, url and createdAt', () => {
   const r = triagedReport();
   const i = r.triage.items.findIndex((item) => item.findingId === 'DQ-004');
   r.triage.items[i].ticket = { provider: 'trello', key: 'X-1' };
   r.scorecard = computeScorecard(r);
   expectError(r, new RegExp(`^triage\\.items\\[${i}\\]\\.ticket\\.provider: expected one of jira, linear, github`));
   expectError(r, new RegExp(`^triage\\.items\\[${i}\\]\\.ticket\\.url: required key is missing$`));
+});
 
-  const old = triagedReport();
-  old.schemaVersion = '1.0';
-  const result = validateReport(old);
-  assert.deepEqual(result.errors, []);
-  assert.deepEqual(result.warnings.map((w) => `${w.path}: ${w.message}`), ['triage: triage is a schemaVersion 1.1 feature; set "schemaVersion": "1.1"']);
+// ---------------------------------------------------------------------------
+// schemaVersion 2.0: removals, dismissals, source, motion, screens
+// ---------------------------------------------------------------------------
+
+test('only schemaVersion 2.0 validates; a 1.x report gets one clear message', () => {
+  for (const version of ['1.0', '1.1']) {
+    const old = loadFixture('report-valid.json');
+    old.schemaVersion = version;
+    delete old.meta.source;
+    assert.deepEqual(errorsOf(old), [`schemaVersion: schemaVersion 2.0 required; 1.x reports: re-run the pass (got "${version}")`]);
+  }
+  const future = loadFixture('report-valid.json');
+  future.schemaVersion = '3.0';
+  expectError(future, /^schemaVersion: schemaVersion 2\.0 required; 1\.x reports: re-run the pass \(got "3\.0"\)$/);
+});
+
+test('removed 1.x values get messages that say what to do instead', () => {
+  const r = loadFixture('report-valid.json');
+  r.findings[2].resolution = 'SYNC_FIGMA';
+  r.stateMatrix[2].result = 'MISSING_IN_DESIGN';
+  r.ledgers.state[2].result = 'MISSING_IN_DESIGN';
+  r.meta.mode = 'sync';
+  r.stateMatrix[0].captured.figma = 'figma/with-data.png';
+  r.evidence.states.empty.figma = 'figma/empty.png';
+  const opts = { skipScorecard: true };
+  expectError(r, /^findings\[2\]\.resolution: SYNC_FIGMA was removed in 2\.0: reclassify as FIX_CODE or dismiss it$/, opts);
+  expectError(r, /^stateMatrix\[2\]\.result: MISSING_IN_DESIGN was removed in 2\.0: the state matrix lists only states the design defines; drop this row$/, opts);
+  expectError(r, /^ledgers\.state\[2\]\.result: MISSING_IN_DESIGN was removed in 2\.0/, opts);
+  expectError(r, /^meta\.mode: mode "sync" was removed in 2\.0 \(design → code only\): use audit or fix$/, opts);
+  expectError(r, /^stateMatrix\[0\]\.captured\.figma: captured\.figma was renamed to captured\.design in 2\.0 \(got "figma\/with-data\.png"\)$/, opts);
+  expectError(r, /^evidence\.states\.empty\.figma: evidence\.states\.<state>\.figma was renamed to design in 2\.0/, opts);
+  assert.ok(!errorsOf(r, opts).some((e) => /expected one of FIX_CODE/.test(e)), 'no generic enum error next to the removal message');
+
+  const rows = loadFixture('report-valid.json').stateMatrix;
+  rows[1].result = 'MISSING_IN_DESIGN';
+  assert.deepEqual(validateStateMatrix(rows).errors.map((e) => `${e.path}: ${e.message}`), [
+    '[1].result: MISSING_IN_DESIGN was removed in 2.0: the state matrix lists only states the design defines; drop this row',
+  ]);
+});
+
+test('DISMISSED needs a dismissal with a reason; only BLOCKER, WARNING and DS_CANDIDATE can be dismissed', () => {
+  const r = loadFixture('report-valid.json');
+  assert.equal(r.findings[8].resolution, 'DISMISSED');
+  const noDismissal = loadFixture('report-valid.json');
+  delete noDismissal.findings[8].dismissal;
+  expectError(noDismissal, /^findings\[8\]\.dismissal: is required when resolution is DISMISSED: \{ kind, reason, by, date, source \}$/);
+  noDismissal.findings[8].dismissal = null;
+  expectError(noDismissal, /^findings\[8\]\.dismissal: is required when resolution is DISMISSED/);
+
+  const blank = loadFixture('report-valid.json');
+  blank.findings[8].dismissal.reason = '   ';
+  expectError(blank, /^findings\[8\]\.dismissal\.reason: must say why the finding is dismissed \(got only whitespace\)$/);
+  blank.findings[8].dismissal.reason = '';
+  expectError(blank, /^findings\[8\]\.dismissal\.reason: must not be empty$/);
+
+  const bad = loadFixture('report-valid.json');
+  bad.findings[8].dismissal.kind = 'intentional';
+  bad.findings[8].dismissal.source = 'email';
+  bad.findings[8].dismissal.date = '2026-09-23';
+  delete bad.findings[8].dismissal.by;
+  delete bad.findings[8].dismissal.priorRef;
+  expectError(bad, /^findings\[8\]\.dismissal\.kind: expected one of not-an-issue, remove \(got "intentional"\)$/);
+  expectError(bad, /^findings\[8\]\.dismissal\.source: expected one of report-ui, chat, cli, prior-pass/);
+  expectError(bad, /^findings\[8\]\.dismissal\.date: expected an ISO-8601 date-time/);
+  assert.ok(!errorsOf(bad).some((e) => /\.by|priorRef/.test(e)), 'by and priorRef may be omitted');
+
+  const pass = loadFixture('report-valid.json');
+  pass.findings[4].resolution = 'DISMISSED'; // DQ-005 is PASS
+  pass.findings[4].dismissal = structuredClone(r.findings[8].dismissal);
+  expectError(pass, /^findings\[4\]\.resolution: must be NONE when severity is PASS or CANNOT_VERIFY \(got "DISMISSED"\)$/, { skipScorecard: true });
+
+  const stray = loadFixture('report-valid.json');
+  stray.findings[1].dismissal = structuredClone(r.findings[8].dismissal);
+  const result = validateReport(stray);
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.warnings.map((w) => `${w.path}: ${w.message}`), ['findings[1].dismissal: is ignored: resolution is FIX_CODE, not DISMISSED']);
+});
+
+test('meta.source is required; meta.figma only for Figma sources, with the same frame', () => {
+  const noSource = loadFixture('report-valid.json');
+  delete noSource.meta.source;
+  expectError(noSource, /^meta\.source: required key is missing$/);
+
+  const noFigma = loadFixture('report-valid.json');
+  delete noFigma.meta.figma;
+  expectError(noFigma, /^meta\.figma: is required when meta\.source\.kind is "figma" \(\{ fileKey, nodeId, url, frame \}\)$/);
+  noFigma.meta.source.kind = 'figma-prototype';
+  expectError(noFigma, /^meta\.figma: is required when meta\.source\.kind is "figma-prototype"/);
+  noFigma.meta.source = { kind: 'prototype', url: 'https://acme.framer.website/items', label: null, tool: 'framer', frame: { width: 1440, height: 900 } };
+  noFigma.meta.tools.figmaAccess = 'none';
+  noFigma.meta.tools.prototypeCapture = 'script';
+  assert.deepEqual(errorsOf(noFigma), [], 'a coded prototype needs no meta.figma');
+
+  const frames = loadFixture('report-valid.json');
+  frames.meta.source.frame = { width: 1280, height: 800 };
+  expectError(frames, /^meta\.figma\.frame: must equal meta\.source\.frame \(1280×800\), got 1440×900$/);
+
+  const bad = loadFixture('report-valid.json');
+  bad.meta.source.kind = 'sketch';
+  bad.meta.source.tool = 'webflow';
+  bad.meta.tools.prototypeCapture = 'manual';
+  expectError(bad, /^meta\.source\.kind: expected one of figma, figma-prototype, prototype \(got "sketch"\)$/);
+  expectError(bad, /^meta\.source\.tool: expected one of figma-make, framer, v0, lovable, html, other, null/);
+  expectError(bad, /^meta\.tools\.prototypeCapture: expected one of script, playwright-mcp, builtin, null/);
+});
+
+test('motion ledger: required, observed null means missing motion; expected.source and evidence types', () => {
+  const r = loadFixture('report-valid.json');
+  assert.equal(r.ledgers.motion[0].observed, null);
+  delete r.ledgers.motion[0].observed;
+  assert.deepEqual(errorsOf(r), [], 'observed may be omitted (null)');
+
+  const missing = loadFixture('report-valid.json');
+  delete missing.ledgers.motion;
+  expectError(missing, /^ledgers\.motion: required key is missing$/);
+
+  const bad = loadFixture('report-valid.json');
+  bad.ledgers.motion[0].trigger = 'wiggle';
+  bad.ledgers.motion[0].observed = { durationMs: -1 };
+  bad.ledgers.motion[0].findingIds = ['DQ-099'];
+  bad.findings[0].expected.source = 'sketch';
+  bad.findings[0].evidence[0].type = 'video';
+  expectError(bad, /^ledgers\.motion\[0\]\.trigger: expected one of hover, focus, press, click, load, state-change, scroll, timeout, other/);
+  expectError(bad, /^ledgers\.motion\[0\]\.observed\.type: required key is missing$/);
+  expectError(bad, /^ledgers\.motion\[0\]\.findingIds\[0\]: references unknown finding "DQ-099"$/);
+  expectError(bad, /^findings\[0\]\.expected\.source: expected one of figma, prototype, ticket, design-rules/);
+  expectError(bad, /^findings\[0\]\.evidence\[0\]\.type: expected one of screenshot, design, computed, dom, motion, figma, diff/);
+});
+
+test('multi-screen: the prototype fixture validates; screens, state prefixes and finding screens must agree', () => {
+  const ok = validateReport(loadFixture('report-multiscreen.json'));
+  assert.deepEqual(ok.errors, []);
+  assert.deepEqual(ok.warnings, []);
+
+  const r = loadFixture('report-multiscreen.json');
+  r.stateMatrix[0].state = 'with-data';
+  r.stateMatrix[1].screen = 'checkout';
+  delete r.stateMatrix[2].screen;
+  r.findings[0].screen = 'payment';
+  r.findings[1].state = 'cart/with-data';
+  delete r.findings[2].screen;
+  r.meta.screens.push({ id: 'cart', name: 'Cart again' });
+  const result = validateReport(r, { skipScorecard: true });
+  const errors = result.errors.map((e) => `${e.path}: ${e.message}`);
+  const has = (re) => assert.ok(errors.some((e) => re.test(e)), `missing ${re} in\n${errors.join('\n')}`);
+  has(/^stateMatrix\[0\]\.state: must be "<screen>\/<state>" with a meta\.screens id \(cart, checkout\) when meta\.screens is set \(got "with-data"\)$/);
+  has(/^stateMatrix\[1\]\.screen: must equal the state prefix "cart" \(got "checkout"\)$/);
+  has(/^stateMatrix\[2\]\.screen: is required when meta\.screens is set \(expected "checkout"\)$/);
+  has(/^findings\[0\]\.screen: references unknown screen "payment" \(meta\.screens: cart, checkout\)$/);
+  has(/^findings\[1\]\.state: must start with "checkout\/" \(the finding's screen\), got "cart\/with-data"$/);
+  has(/^meta\.screens\[2\]\.id: duplicate screen id "cart" \(first used at meta\.screens\[0\]\)$/);
+  assert.ok(result.warnings.some((w) => w.path === 'findings[2].screen' && /is missing: meta\.screens is set/.test(w.message)));
+
+  const single = loadFixture('report-valid.json');
+  single.stateMatrix[0].screen = 'items';
+  single.findings[0].screen = 'items';
+  expectError(single, /^stateMatrix\[0\]\.screen: is only allowed when meta\.screens lists the screens$/);
+  expectError(single, /^findings\[0\]\.screen: is only allowed when meta\.screens lists the screens$/);
+
+  const badId = loadFixture('report-multiscreen.json');
+  badId.meta.screens[0].id = 'Cart Page';
+  expectError(badId, /^meta\.screens\[0\]\.id: must match/, { skipScorecard: true });
+});
+
+test('design backfill: the fixture validates; ids, reasons, figma, the gate and designed states are checked', () => {
+  const ok = loadFixture('report-backfill.json');
+  assert.deepEqual(validateReport(ok).errors, []);
+  assert.deepEqual(validateReport({ ...loadFixture('report-valid.json'), backfill: null }).errors, [], 'backfill: null is no backfill');
+
+  const r = loadFixture('report-backfill.json');
+  r.backfill.items[1].id = 'BF-001';
+  r.backfill.items.push({ id: 'BF-4', state: 'empty', label: 'Empty', discoveredBy: 'code', decision: 'maybe' });
+  r.backfill.items[2].reason = '  ';
+  const errors = errorsOf(r, { skipScorecard: true });
+  const has = (re) => assert.ok(errors.some((e) => re.test(e)), `missing ${re} in\n${errors.join('\n')}`);
+  has(/^backfill\.items\[1\]\.id: duplicate id "BF-001" \(first used at backfill\.items\[0\]\)$/);
+  has(/^backfill\.items\[3\]\.id: must match \^BF-\\d\{3,\}\$ \(got "BF-4"\)$/);
+  has(/^backfill\.items\[3\]\.discoveredBy: expected one of config, source, ticket, capture \(got "code"\)$/);
+  has(/^backfill\.items\[3\]\.decision: expected one of pending, build, not-needed \(got "maybe"\)$/);
+  has(/^backfill\.items\[3\]\.state: "empty" is a stateMatrix row: the design defines it, so it is not an undesigned state \(drop this backfill item\)$/);
+  has(/^backfill\.items\[2\]\.reason: is required when decision is "not-needed": say why this state needs no design frame$/);
+
+  const notBuild = loadFixture('report-backfill.json');
+  notBuild.backfill.items[1].decision = 'pending';
+  expectError(notBuild, /^backfill\.items\[1\]\.figma: is only allowed when decision is "build" \(got "pending"\)$/, { skipScorecard: true });
+
+  const early = loadFixture('report-backfill.json');
+  early.backfill.gate.override = null;
+  early.scorecard = computeScorecard(early);
+  const reopened = validateReport(early);
+  assert.deepEqual(reopened.errors, [], 'frames built earlier stay valid when step 1 reopens');
+  assert.ok(
+    reopened.warnings.some((w) => w.path === 'backfill.items[1].figma' && /built while production does not match the design/.test(w.message)),
+    'but the report warns',
+  );
+  const badOverride = loadFixture('report-backfill.json');
+  badOverride.backfill.gate.override = { by: null, date: 'friday', reason: '' };
+  expectError(badOverride, /^backfill\.gate\.override\.reason: must not be empty$/, { skipScorecard: true });
+  expectError(badOverride, /^backfill\.gate\.override\.date: expected an ISO-8601 date-time/, { skipScorecard: true });
+
+  const figma = loadFixture('report-backfill.json');
+  figma.backfill.items[1].figma.url = 'not a url';
+  figma.backfill.items[1].figma.roundTrip.band = 'fail';
+  const fr = validateReport(figma);
+  assert.ok(fr.errors.some((e) => e.path === 'backfill.items[1].figma.url'));
+  assert.ok(fr.warnings.some((w) => w.path === 'backfill.items[1].figma.roundTrip.band' && /is "fail" but 0\.6% is "pass"/.test(w.message)));
+
+  const single = loadFixture('report-backfill.json');
+  single.backfill.items[0].screen = 'items';
+  expectError(single, /^backfill\.items\[0\]\.screen: is only allowed when meta\.screens lists the screens$/);
+  const multi = loadFixture('report-multiscreen.json');
+  multi.backfill = {
+    gate: { override: null },
+    items: [
+      { id: 'BF-001', state: 'cart/bulk-selected', screen: 'cart', label: 'Bulk selected', discoveredBy: 'source', decision: 'pending' },
+      { id: 'BF-002', state: 'cart/promo', screen: 'checkout', label: 'Promo', discoveredBy: 'ticket', decision: 'pending' },
+      { id: 'BF-003', state: 'promo', screen: 'payment', label: 'Promo', discoveredBy: 'ticket', decision: 'pending' },
+      { id: 'BF-004', state: 'checkout/toast', label: 'Toast', discoveredBy: 'source', decision: 'pending' },
+    ],
+  };
+  multi.scorecard = computeScorecard(multi);
+  const mr = validateReport(multi);
+  const merr = mr.errors.map((e) => `${e.path}: ${e.message}`);
+  assert.deepEqual(merr, [
+    'backfill.items[1].state: must start with "checkout/" (the item\'s screen), got "cart/promo"',
+    'backfill.items[2].screen: references unknown screen "payment" (meta.screens: cart, checkout)',
+  ]);
+  assert.ok(mr.warnings.some((w) => w.path === 'backfill.items[3].screen' && /is missing: meta\.screens is set/.test(w.message)));
+});
+
+test('design backfill: scorecard.backfill exists exactly when backfill does, with derived values', () => {
+  const r = loadFixture('report-backfill.json');
+  r.scorecard.backfill.toBuild = 2;
+  r.scorecard.backfill.ready = false;
+  expectError(r, /^scorecard\.backfill\.toBuild: expected 1 \(items decided "build" without a Figma frame yet\), got 2$/);
+  expectError(r, /^scorecard\.backfill\.ready: expected true \(loopClosed false, backfill\.gate\.override set\), got false$/);
+
+  const missing = loadFixture('report-backfill.json');
+  delete missing.scorecard.backfill;
+  expectError(missing, /^scorecard\.backfill: is required when report\.backfill is set/);
+
+  const extra = loadFixture('report-valid.json');
+  extra.scorecard.backfill = { candidates: 0, toBuild: 0, built: 0, notNeeded: 0, pending: 0, ready: false };
+  expectError(extra, /^scorecard\.backfill: must be omitted: the report has no backfill block$/);
+
+  const shape = loadFixture('report-backfill.json');
+  shape.scorecard.backfill = { candidates: 3 };
+  expectError(shape, /^scorecard\.backfill\.toBuild: required key is missing$/);
+});
+
+test('CLI: validate.mjs reports backfill errors and documents the rules', async () => {
+  const dir = tmpDir();
+  const bad = loadFixture('report-backfill.json');
+  bad.backfill.items[2].reason = null;
+  bad.scorecard = computeScorecard(bad);
+  const file = path.join(dir, 'report.json');
+  writeFileSync(file, JSON.stringify(bad));
+  const res = await run(VALIDATE, [file]);
+  assert.equal(res.code, 1);
+  assert.match(res.stderr, /ERROR backfill\.items\[2\]\.reason: is required when decision is "not-needed"/);
+  const help = await run(VALIDATE, ['--help']);
+  assert.match(help.stdout, /Design backfill \(step 2, optional "backfill" block\)/);
 });

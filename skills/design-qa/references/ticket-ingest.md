@@ -1,6 +1,6 @@
 # Ticket ingest
 
-Phase 1 turns a ticket into three things: the states and behaviours it specifies, the design it links to, and the deployment it may point at. Skip the phase when no ticket is given (`meta.ticket: null`, `meta.tools.ticket: "none"`).
+Phase 1 turns a ticket into three things: the behaviours it specifies for the designed states, the design it links to (Figma or a prototype), and the deployment it may point at. Skip the phase when no ticket is given (`meta.ticket: null`, `meta.tools.ticket: "none"`).
 
 ## ticket.json
 
@@ -25,6 +25,7 @@ Written to `<dir>/evidence/ticket.json`, whichever way the ticket was read:
     { "acRef": "AC-3", "text": "If the request fails, show an error message with Try again", "state": "error", "trigger": "fetch fails" }
   ],
   "figmaUrls": ["https://www.figma.com/design/AbCdEf123/App?node-id=12-345"],
+  "prototypeUrls": [],
   "previewUrls": ["https://orders-empty-state-your-app.vercel.app"],
   "prUrls": ["https://github.com/your-org/your-app/pull/482"],
   "otherUrls": [],
@@ -62,15 +63,16 @@ For each criterion that describes UI:
 
 Criteria that are not about UI (APIs, analytics, permissions) stay in `acceptanceCriteria` without a behaviour.
 
-When the ticket and the design disagree (different copy, a state the design lacks), do not pick a side. Record an open decision with both options; usually the more recent approved source wins, but that is a person's call.
+The design is the source of truth. A criterion only adds checks to states the design defines; a criterion about a state the design does not have adds no row and no finding; it becomes a design-backfill candidate (`discoveredBy: "ticket"`) for step 2 (design-backfill.md). When the ticket and the design disagree about something the design shows (different copy, a different call to action), record an open decision with both options, recommending the design.
 
 ## Links
 
-`scripts/lib/target-url.mjs` classifies inputs and extracts links from ticket text:
+`scripts/lib/target-url.mjs` classifies inputs (`classifyInput`) and extracts links from ticket text (`extractUrls(text)` → `{ figmaUrls, prototypeUrls, previewUrls, prUrls, otherUrls }`, deduplicated, in order; `jira-fetch.mjs` copies them into `ticket.json`). Code-host and Atlassian links are dropped. A link is tested in this order: prototype host, Figma, pull request, preview, anything else.
 
 | Kind | Recognised by | Goes to |
 |---|---|---|
 | Figma | `figma.com/design/…`, `/file/…`, `/proto/…` | `figmaUrls`, parsed with `scripts/lib/figma-url.mjs` |
+| Prototype | Hosts of prototype tools: Figma Make (`figma.com/make/…`, `*.figma.site`), Framer, v0, Lovable. Tested before Figma, so a Figma Make link is a prototype, not a `figmaUrls` entry. Static HTML pages and localhost links are not recognised here: they land in `otherUrls` or `previewUrls` | `prototypeUrls`; the agent proposes it as the design and confirms it with the user (ci mode: only when the workflow passes it) |
 | Preview | `*.vercel.app`, `*.netlify.app`, `*.pages.dev`, hosts containing `preview` or `staging` | `previewUrls` |
 | Pull request | GitHub pull requests, GitLab merge requests, Bitbucket pull requests | `prUrls` |
 | Anything else | other links | `otherUrls` |
@@ -101,7 +103,7 @@ After triage (report.md, "Triage and debt"), every finding triaged as debt gets 
 1. **Preview.** `node scripts/jira-fetch.mjs --tickets-from <dir>/report.json` is a dry run: it prints every ticket it would create. Show that list to the person.
 2. **Confirm.** Create nothing until they say yes. An item they do not want ticketed moves to fix now or is signed off as `INTENTIONAL` (re-run triage); it never stays untracked.
 3. **Create.** Add `--write`. The script creates one ticket per debt item that has no ticket yet and writes `{ provider, key, url, createdAt }` into `triage.items[].ticket` in `report.json`.
-4. **Record.** Re-render the report (Phase 9) and update the debt log with `scripts/debt-log.mjs`.
+4. **Record.** Re-render the report (Phase 8) and update the debt log with `scripts/debt-log.mjs`.
 
 ```bash
 node scripts/jira-fetch.mjs --tickets-from <dir>/report.json [--parent ABC-123] [--project ABC] \

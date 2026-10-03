@@ -1,0 +1,1186 @@
+{
+  "body": {
+    "selector": "body",
+    "count": 1,
+    "samples": [
+      {
+        "font-family": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "color": "rgb(17, 24, 39)",
+        "background-color": "rgb(246, 247, 249)",
+        "__rect": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 619
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "body",
+          "id": null,
+          "classes": [],
+          "component": null,
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "acme Secure checkout ✓ Cart ✓ Shipping 3 Payment 4 Review 5 Done Payment All tra",
+          "selector": "body"
+        },
+        "__vars": {
+          "color": [
+            "--ads-color-text-primary"
+          ],
+          "background-color": [
+            "--ads-color-bg"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "topbar": {
+    "selector": "[data-testid=topbar]",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(255, 255, 255)",
+        "height": "64px",
+        "border-bottom-color": "rgb(229, 231, 235)",
+        "__rect": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 64
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "header",
+          "id": null,
+          "classes": [
+            "topbar"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "topbar",
+          "role": null,
+          "text": "acme Secure checkout ✓ Cart ✓ Shipping 3 Payment 4 Review 5 Done",
+          "selector": "header.topbar"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ],
+          "border-bottom-color": [
+            "--ads-color-border"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "stepper": {
+    "selector": "[data-component=Stepper]",
+    "count": 1,
+    "samples": [
+      {
+        "gap": "24px",
+        "font-size": "13px",
+        "__rect": {
+          "x": 860,
+          "y": 20,
+          "w": 460,
+          "h": 23
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "ol",
+          "id": null,
+          "classes": [
+            "ads-stepper"
+          ],
+          "component": "Stepper",
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "✓ Cart ✓ Shipping 3 Payment 4 Review 5 Done",
+          "selector": "ol.ads-stepper"
+        },
+        "__vars": {
+          "gap": [
+            "--ads-space-6"
+          ],
+          "font-size": [
+            "--ads-font-size-sm"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "stepCurrent": {
+    "selector": "[data-component=Stepper] [aria-current=step]",
+    "count": 1,
+    "samples": [
+      {
+        "color": "rgb(17, 24, 39)",
+        "font-weight": "600",
+        "__rect": {
+          "x": 1049,
+          "y": 20,
+          "w": 86,
+          "h": 23
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "li",
+          "id": null,
+          "classes": [],
+          "component": null,
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "3 Payment",
+          "selector": "li"
+        },
+        "__vars": {
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "pageTitle": {
+    "selector": "h1",
+    "count": 1,
+    "samples": [
+      {
+        "font-size": "28px",
+        "font-weight": "650",
+        "line-height": "36px",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 120,
+          "y": 96,
+          "w": 1200,
+          "h": 36
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "h1",
+          "id": null,
+          "classes": [],
+          "component": null,
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "Payment",
+          "selector": "h1"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-xl"
+          ],
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "sectionTitle": {
+    "selector": "h2",
+    "count": 2,
+    "samples": [
+      {
+        "font-size": "18px",
+        "font-weight": "600",
+        "line-height": "26px",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 145,
+          "y": 207,
+          "w": 746,
+          "h": 27
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "h2",
+          "id": null,
+          "classes": [],
+          "component": null,
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "Card details",
+          "selector": "h2"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-lg"
+          ],
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      },
+      {
+        "font-size": "18px",
+        "font-weight": "600",
+        "line-height": "26px",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 965,
+          "y": 207,
+          "w": 330,
+          "h": 27
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "h2",
+          "id": null,
+          "classes": [],
+          "component": null,
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "Order summary",
+          "selector": "h2"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-lg"
+          ],
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "card": {
+    "selector": "[data-component=Card]",
+    "count": 2,
+    "samples": [
+      {
+        "background-color": "rgb(255, 255, 255)",
+        "border-radius": "14px",
+        "padding-top": "24px",
+        "padding-left": "24px",
+        "box-shadow": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "__rect": {
+          "x": 120,
+          "y": 182,
+          "w": 796,
+          "h": 437
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "section",
+          "id": null,
+          "classes": [
+            "ads-card"
+          ],
+          "component": "Card",
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "Card details Name on card Card number Expiry CVC Your payment is encrypted and s",
+          "selector": "section.ads-card"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ],
+          "border-radius": [
+            "--ads-radius-lg"
+          ],
+          "padding-top": [
+            "--ads-space-6"
+          ],
+          "padding-left": [
+            "--ads-space-6"
+          ]
+        }
+      },
+      {
+        "background-color": "rgb(255, 255, 255)",
+        "border-radius": "14px",
+        "padding-top": "24px",
+        "padding-left": "24px",
+        "box-shadow": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "__rect": {
+          "x": 940,
+          "y": 182,
+          "w": 380,
+          "h": 284
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "aside",
+          "id": null,
+          "classes": [
+            "ads-card"
+          ],
+          "component": "Card",
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "Order summary 3 items €229.00 Shipping · Standard Free Estimated tax €19.40 Tota",
+          "selector": "aside.ads-card"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ],
+          "border-radius": [
+            "--ads-radius-lg"
+          ],
+          "padding-top": [
+            "--ads-space-6"
+          ],
+          "padding-left": [
+            "--ads-space-6"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "lineItem": {
+    "selector": "[data-testid=line-item]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "thumb": {
+    "selector": "[data-testid=line-item-thumb]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "stockBadge": {
+    "selector": "[data-testid=stock-badge]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "summaryRow": {
+    "selector": "[data-testid=summary-row]",
+    "count": 3,
+    "samples": [
+      {
+        "font-size": "15px",
+        "color": "rgb(75, 85, 99)",
+        "__rect": {
+          "x": 965,
+          "y": 249,
+          "w": 330,
+          "h": 23
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "div",
+          "id": null,
+          "classes": [
+            "summary-row"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "summary-row",
+          "role": null,
+          "text": "3 items €229.00",
+          "selector": "div.summary-row"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-md"
+          ],
+          "color": [
+            "--ads-color-text-secondary"
+          ]
+        }
+      },
+      {
+        "font-size": "15px",
+        "color": "rgb(75, 85, 99)",
+        "__rect": {
+          "x": 965,
+          "y": 284,
+          "w": 330,
+          "h": 23
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "div",
+          "id": null,
+          "classes": [
+            "summary-row"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "summary-row",
+          "role": null,
+          "text": "Shipping · Standard Free",
+          "selector": "div.summary-row"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-md"
+          ],
+          "color": [
+            "--ads-color-text-secondary"
+          ]
+        }
+      },
+      {
+        "font-size": "15px",
+        "color": "rgb(75, 85, 99)",
+        "__rect": {
+          "x": 965,
+          "y": 318,
+          "w": 330,
+          "h": 23
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "div",
+          "id": null,
+          "classes": [
+            "summary-row"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "summary-row",
+          "role": null,
+          "text": "Estimated tax €19.40",
+          "selector": "div.summary-row"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-md"
+          ],
+          "color": [
+            "--ads-color-text-secondary"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "summaryTotal": {
+    "selector": "[data-testid=summary-total]",
+    "count": 1,
+    "samples": [
+      {
+        "font-size": "18px",
+        "font-weight": "700",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 965,
+          "y": 357,
+          "w": 330,
+          "h": 44
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "div",
+          "id": null,
+          "classes": [
+            "summary-total"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "summary-total",
+          "role": null,
+          "text": "Total €248.40",
+          "selector": "div.summary-total"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-lg"
+          ],
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "primaryCta": {
+    "selector": "[data-testid=primary-cta]",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(79, 70, 229)",
+        "color": "rgb(255, 255, 255)",
+        "border-radius": "10px",
+        "height": "44px",
+        "padding-left": "20px",
+        "font-size": "15px",
+        "font-weight": "600",
+        "__rect": {
+          "x": 755,
+          "y": 549,
+          "w": 136,
+          "h": 45
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "button",
+          "id": null,
+          "classes": [
+            "ads-btn",
+            "ads-btn--primary"
+          ],
+          "component": "Button",
+          "variant": "primary",
+          "testid": "primary-cta",
+          "role": null,
+          "text": "Pay €248.40",
+          "selector": "button.ads-btn.ads-btn--primary"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-brand"
+          ],
+          "color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ],
+          "border-radius": [
+            "--ads-radius-md"
+          ],
+          "padding-left": [
+            "--ads-space-5"
+          ],
+          "font-size": [
+            "--ads-font-size-md"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "secondaryCta": {
+    "selector": "[data-testid=secondary-cta]",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(255, 255, 255)",
+        "color": "rgb(17, 24, 39)",
+        "border-radius": "10px",
+        "height": "44px",
+        "border-top-color": "rgb(201, 206, 214)",
+        "__rect": {
+          "x": 145,
+          "y": 549,
+          "w": 163,
+          "h": 45
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "button",
+          "id": null,
+          "classes": [
+            "ads-btn",
+            "ads-btn--secondary"
+          ],
+          "component": "Button",
+          "variant": "secondary",
+          "testid": "secondary-cta",
+          "role": null,
+          "text": "Back to shipping",
+          "selector": "button.ads-btn.ads-btn--secondary"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ],
+          "color": [
+            "--ads-color-text-primary"
+          ],
+          "border-radius": [
+            "--ads-radius-md"
+          ],
+          "border-top-color": [
+            "--ads-color-border-strong"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "fieldLabel": {
+    "selector": "[data-testid=field-label]",
+    "count": 4,
+    "samples": [
+      {
+        "font-size": "13px",
+        "font-weight": "600",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 145,
+          "y": 249,
+          "w": 746,
+          "h": 20
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "label",
+          "id": null,
+          "classes": [
+            "ads-label"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "field-label",
+          "role": null,
+          "text": "Name on card",
+          "selector": "label.ads-label"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-sm"
+          ],
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      },
+      {
+        "font-size": "13px",
+        "font-weight": "600",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 145,
+          "y": 335,
+          "w": 746,
+          "h": 20
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "label",
+          "id": null,
+          "classes": [
+            "ads-label"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "field-label",
+          "role": null,
+          "text": "Card number",
+          "selector": "label.ads-label"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-sm"
+          ],
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      },
+      {
+        "font-size": "13px",
+        "font-weight": "600",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 145,
+          "y": 420,
+          "w": 365,
+          "h": 20
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "label",
+          "id": null,
+          "classes": [
+            "ads-label"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "field-label",
+          "role": null,
+          "text": "Expiry",
+          "selector": "label.ads-label"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-sm"
+          ],
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      },
+      {
+        "font-size": "13px",
+        "font-weight": "600",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 526,
+          "y": 420,
+          "w": 365,
+          "h": 20
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "label",
+          "id": null,
+          "classes": [
+            "ads-label"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "field-label",
+          "role": null,
+          "text": "CVC",
+          "selector": "label.ads-label"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-sm"
+          ],
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "fieldControl": {
+    "selector": "[data-testid=field-control]",
+    "count": 4,
+    "samples": [
+      {
+        "height": "44px",
+        "border-top-color": "rgb(201, 206, 214)",
+        "border-radius": "10px",
+        "padding-left": "12px",
+        "font-size": "15px",
+        "background-color": "rgb(255, 255, 255)",
+        "__rect": {
+          "x": 145,
+          "y": 275,
+          "w": 746,
+          "h": 44
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "input",
+          "id": "f-cardname",
+          "classes": [
+            "ads-input"
+          ],
+          "component": "Input",
+          "variant": null,
+          "testid": "field-control",
+          "role": null,
+          "text": "Dana Whitfield",
+          "selector": "input#f-cardname.ads-input"
+        },
+        "__vars": {
+          "border-top-color": [
+            "--ads-color-border-strong"
+          ],
+          "border-radius": [
+            "--ads-radius-md"
+          ],
+          "padding-left": [
+            "--ads-font-size-xs",
+            "--ads-space-3"
+          ],
+          "font-size": [
+            "--ads-font-size-md"
+          ],
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ]
+        }
+      },
+      {
+        "height": "44px",
+        "border-top-color": "rgb(201, 206, 214)",
+        "border-radius": "10px",
+        "padding-left": "12px",
+        "font-size": "15px",
+        "background-color": "rgb(255, 255, 255)",
+        "__rect": {
+          "x": 145,
+          "y": 360,
+          "w": 746,
+          "h": 45
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "input",
+          "id": "f-cardnumber",
+          "classes": [
+            "ads-input"
+          ],
+          "component": "Input",
+          "variant": null,
+          "testid": "field-control",
+          "role": null,
+          "text": "4242 4242 4242 4242",
+          "selector": "input#f-cardnumber.ads-input"
+        },
+        "__vars": {
+          "border-top-color": [
+            "--ads-color-border-strong"
+          ],
+          "border-radius": [
+            "--ads-radius-md"
+          ],
+          "padding-left": [
+            "--ads-font-size-xs",
+            "--ads-space-3"
+          ],
+          "font-size": [
+            "--ads-font-size-md"
+          ],
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ]
+        }
+      },
+      {
+        "height": "44px",
+        "border-top-color": "rgb(201, 206, 214)",
+        "border-radius": "10px",
+        "padding-left": "12px",
+        "font-size": "15px",
+        "background-color": "rgb(255, 255, 255)",
+        "__rect": {
+          "x": 145,
+          "y": 446,
+          "w": 365,
+          "h": 44
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "input",
+          "id": "f-expiry",
+          "classes": [
+            "ads-input"
+          ],
+          "component": "Input",
+          "variant": null,
+          "testid": "field-control",
+          "role": null,
+          "text": "08 / 29",
+          "selector": "input#f-expiry.ads-input"
+        },
+        "__vars": {
+          "border-top-color": [
+            "--ads-color-border-strong"
+          ],
+          "border-radius": [
+            "--ads-radius-md"
+          ],
+          "padding-left": [
+            "--ads-font-size-xs",
+            "--ads-space-3"
+          ],
+          "font-size": [
+            "--ads-font-size-md"
+          ],
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ]
+        }
+      },
+      {
+        "height": "44px",
+        "border-top-color": "rgb(201, 206, 214)",
+        "border-radius": "10px",
+        "padding-left": "12px",
+        "font-size": "15px",
+        "background-color": "rgb(255, 255, 255)",
+        "__rect": {
+          "x": 526,
+          "y": 446,
+          "w": 365,
+          "h": 44
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "input",
+          "id": "f-cvc",
+          "classes": [
+            "ads-input"
+          ],
+          "component": "Input",
+          "variant": null,
+          "testid": "field-control",
+          "role": null,
+          "text": "•••",
+          "selector": "input#f-cvc.ads-input"
+        },
+        "__vars": {
+          "border-top-color": [
+            "--ads-color-border-strong"
+          ],
+          "border-radius": [
+            "--ads-radius-md"
+          ],
+          "padding-left": [
+            "--ads-font-size-xs",
+            "--ads-space-3"
+          ],
+          "font-size": [
+            "--ads-font-size-md"
+          ],
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "countrySelect": {
+    "selector": "[data-testid=country]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "deliveryOption": {
+    "selector": "[data-testid=delivery-option]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "alert": {
+    "selector": "[data-component=Alert]",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(254, 242, 242)",
+        "color": "rgb(153, 27, 27)",
+        "border-radius": "10px",
+        "padding-top": "16px",
+        "__rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        },
+        "__visible": false,
+        "__el": {
+          "tag": "div",
+          "id": null,
+          "classes": [
+            "ads-alert"
+          ],
+          "component": "Alert",
+          "variant": "danger",
+          "testid": null,
+          "role": "alert",
+          "text": "Your card was declined Try another card, or contact your bank to approve the pay",
+          "selector": "div.ads-alert"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-danger-bg"
+          ],
+          "color": [
+            "--ads-color-danger-fg"
+          ],
+          "border-radius": [
+            "--ads-radius-md"
+          ],
+          "padding-top": [
+            "--ads-space-4"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "alertTitle": {
+    "selector": "[data-component=Alert] strong",
+    "count": 1,
+    "samples": [
+      {
+        "font-weight": "600",
+        "color": "rgb(153, 27, 27)",
+        "__rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        },
+        "__visible": false,
+        "__el": {
+          "tag": "strong",
+          "id": null,
+          "classes": [],
+          "component": null,
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "Your card was declined",
+          "selector": "strong"
+        },
+        "__vars": {
+          "color": [
+            "--ads-color-danger-fg"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "alertAction": {
+    "selector": "[data-testid=alert-action]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "secureNote": {
+    "selector": "[data-testid=secure-note]",
+    "count": 1,
+    "samples": [
+      {
+        "font-size": "13px",
+        "color": "rgb(75, 85, 99)",
+        "__rect": {
+          "x": 145,
+          "y": 506,
+          "w": 746,
+          "h": 20
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "p",
+          "id": null,
+          "classes": [
+            "opt-sub"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "secure-note",
+          "role": null,
+          "text": "Your payment is encrypted and secure.",
+          "selector": "p.opt-sub"
+        },
+        "__vars": {
+          "font-size": [
+            "--ads-font-size-sm"
+          ],
+          "color": [
+            "--ads-color-text-secondary"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 1
+  },
+  "reviewBlock": {
+    "selector": "[data-testid=review-block]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "reviewItems": {
+    "selector": "[data-testid=review-items]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "promoRow": {
+    "selector": "[data-testid=promo-row]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "editLink": {
+    "selector": "[data-testid=edit-link]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "emptyState": {
+    "selector": "[data-component=EmptyState]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "confirmIcon": {
+    "selector": "[data-testid=confirm-icon]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "orderNumber": {
+    "selector": "[data-testid=order-number]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "toast": {
+    "selector": "[data-component=Toast]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "rootTokens": {
+    "--ads-color-bg": "rgb(246, 247, 249)",
+    "--ads-color-border": "rgb(229, 231, 235)",
+    "--ads-color-border-strong": "rgb(201, 206, 214)",
+    "--ads-color-brand": "rgb(79, 70, 229)",
+    "--ads-color-brand-hover": "rgb(67, 56, 202)",
+    "--ads-color-brand-subtle": "rgb(238, 242, 255)",
+    "--ads-color-danger-bg": "rgb(254, 242, 242)",
+    "--ads-color-danger-border": "rgb(254, 202, 202)",
+    "--ads-color-danger-fg": "rgb(153, 27, 27)",
+    "--ads-color-inverse-bg": "rgb(15, 23, 42)",
+    "--ads-color-inverse-fg": "rgb(249, 250, 251)",
+    "--ads-color-on-brand": "rgb(255, 255, 255)",
+    "--ads-color-success-bg": "rgb(220, 252, 231)",
+    "--ads-color-success-fg": "rgb(22, 101, 52)",
+    "--ads-color-surface": "rgb(255, 255, 255)",
+    "--ads-color-surface-muted": "rgb(249, 250, 251)",
+    "--ads-color-text-muted": "rgb(107, 114, 128)",
+    "--ads-color-text-primary": "rgb(17, 24, 39)",
+    "--ads-color-text-secondary": "rgb(75, 85, 99)",
+    "--ads-ease-out": "cubic-bezier(0, 0, 0.58, 1)",
+    "--ads-font-sans": "\"Inter\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "--ads-font-size-lg": "18px",
+    "--ads-font-size-md": "15px",
+    "--ads-font-size-sm": "13px",
+    "--ads-font-size-xl": "28px",
+    "--ads-font-size-xs": "12px",
+    "--ads-motion-base": "160ms",
+    "--ads-motion-fast": "120ms",
+    "--ads-motion-slow": "320ms",
+    "--ads-radius-lg": "14px",
+    "--ads-radius-md": "10px",
+    "--ads-radius-pill": "999px",
+    "--ads-radius-sm": "6px",
+    "--ads-shadow-card": "0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px rgba(17, 24, 39, 0.05)",
+    "--ads-shadow-toast": "0 8px 24px rgba(17, 24, 39, 0.18)",
+    "--ads-space-1": "4px",
+    "--ads-space-10": "40px",
+    "--ads-space-2": "8px",
+    "--ads-space-3": "12px",
+    "--ads-space-4": "16px",
+    "--ads-space-5": "20px",
+    "--ads-space-6": "24px",
+    "--ads-space-8": "32px"
+  }
+}

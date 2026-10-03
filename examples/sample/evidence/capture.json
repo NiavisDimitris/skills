@@ -19,6 +19,7 @@
       "screenshot": "app/with-data.png",
       "computed": "computed/with-data.json",
       "dom": "dom/with-data.json",
+      "motion": "motion/with-data.json",
       "settleMs": 250,
       "durationMs": 2412,
       "scroll": {
@@ -39,6 +40,7 @@
       "screenshot": "app/loading.png",
       "computed": "computed/loading.json",
       "dom": "dom/loading.json",
+      "motion": "motion/loading.json",
       "settleMs": 0,
       "durationMs": 1873,
       "scroll": {
@@ -60,6 +62,7 @@
       "screenshot": "app/error.png",
       "computed": "computed/error.json",
       "dom": "dom/error.json",
+      "motion": "motion/error.json",
       "settleMs": 250,
       "durationMs": 2105,
       "scroll": {
@@ -77,6 +80,7 @@
       "screenshot": "app/hover.png",
       "computed": "computed/hover.json",
       "dom": "dom/hover.json",
+      "motion": "motion/hover.json",
       "settleMs": 250,
       "durationMs": 2688,
       "scroll": {
@@ -94,25 +98,9 @@
       "screenshot": "app/focus.png",
       "computed": "computed/focus.json",
       "dom": "dom/focus.json",
+      "motion": "motion/focus.json",
       "settleMs": 250,
       "durationMs": 2540,
-      "scroll": {
-        "x": 0,
-        "y": 0
-      },
-      "warnings": []
-    },
-    "bulk-selected": {
-      "driver": {
-        "action": "click",
-        "selector": "[data-testid=orders-select-all]"
-      },
-      "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders",
-      "screenshot": "app/bulk-selected.png",
-      "computed": "computed/bulk-selected.json",
-      "dom": "dom/bulk-selected.json",
-      "settleMs": 250,
-      "durationMs": 2731,
       "scroll": {
         "x": 0,
         "y": 0
@@ -125,6 +113,7 @@
       "screenshot": null,
       "computed": null,
       "dom": null,
+      "motion": null,
       "settleMs": null,
       "durationMs": 0,
       "warnings": [

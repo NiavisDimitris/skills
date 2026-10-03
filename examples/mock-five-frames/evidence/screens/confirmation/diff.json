@@ -1,0 +1,25 @@
+{
+  "results": {
+    "with-data": {
+      "state": "with-data",
+      "width": 1440,
+      "height": 900,
+      "diffPixels": 4801,
+      "totalPixels": 1296000,
+      "percent": 0.37,
+      "band": "pass",
+      "pixelBand": "pass",
+      "structuralPercent": 0,
+      "structuralBand": "pass",
+      "structuralRegions": [],
+      "maskedPercent": 0.16,
+      "out": "examples/mock-five-frames/evidence/screens/confirmation/diff/with-data.png"
+    }
+  },
+  "worst": {
+    "state": "with-data",
+    "percent": 0.37,
+    "band": "pass",
+    "structuralPercent": 0
+  }
+}

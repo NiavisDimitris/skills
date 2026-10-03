@@ -1,0 +1,57 @@
+{
+  "results": {
+    "with-data": {
+      "state": "with-data",
+      "width": 1440,
+      "height": 900,
+      "diffPixels": 1774,
+      "totalPixels": 1296000,
+      "percent": 0.14,
+      "band": "pass",
+      "pixelBand": "pass",
+      "structuralPercent": 0,
+      "structuralBand": "pass",
+      "structuralRegions": [],
+      "maskedPercent": 0,
+      "out": "examples/mock-five-frames/evidence/screens/payment/diff/with-data.png"
+    },
+    "error": {
+      "state": "error",
+      "width": 1440,
+      "height": 900,
+      "diffPixels": 25632,
+      "totalPixels": 1296000,
+      "percent": 1.98,
+      "band": "review",
+      "pixelBand": "review",
+      "structuralPercent": 4.31,
+      "structuralBand": "review",
+      "structuralRegions": [
+        {
+          "x": 120,
+          "y": 648,
+          "w": 800,
+          "h": 112,
+          "pixels": 32982,
+          "percent": 2.54
+        },
+        {
+          "x": 248,
+          "y": 288,
+          "w": 640,
+          "h": 40,
+          "pixels": 22830,
+          "percent": 1.76
+        }
+      ],
+      "maskedPercent": 0,
+      "out": "examples/mock-five-frames/evidence/screens/payment/diff/error.png"
+    }
+  },
+  "worst": {
+    "state": "error",
+    "percent": 1.98,
+    "band": "review",
+    "structuralPercent": 4.31
+  }
+}

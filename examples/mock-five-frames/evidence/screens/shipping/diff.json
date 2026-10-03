@@ -1,0 +1,40 @@
+{
+  "results": {
+    "with-data": {
+      "state": "with-data",
+      "width": 1440,
+      "height": 900,
+      "diffPixels": 561,
+      "totalPixels": 1296000,
+      "percent": 0.04,
+      "band": "pass",
+      "pixelBand": "pass",
+      "structuralPercent": 0,
+      "structuralBand": "pass",
+      "structuralRegions": [],
+      "maskedPercent": 0,
+      "out": "examples/mock-five-frames/evidence/screens/shipping/diff/with-data.png"
+    },
+    "hover": {
+      "state": "hover",
+      "width": 1440,
+      "height": 900,
+      "diffPixels": 561,
+      "totalPixels": 1296000,
+      "percent": 0.04,
+      "band": "pass",
+      "pixelBand": "pass",
+      "structuralPercent": 0,
+      "structuralBand": "pass",
+      "structuralRegions": [],
+      "maskedPercent": 0,
+      "out": "examples/mock-five-frames/evidence/screens/shipping/diff/hover.png"
+    }
+  },
+  "worst": {
+    "state": "with-data",
+    "percent": 0.04,
+    "band": "pass",
+    "structuralPercent": 0
+  }
+}

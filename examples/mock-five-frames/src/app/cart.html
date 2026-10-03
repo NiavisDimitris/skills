@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acme · Cart</title>
+<link rel="stylesheet" href="../acme-ds.css">
+<style>
+  /* src/features/cart/cart.css */
+  .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+  .pill-green { background-color: #d1fae5; color: #065f46; }
+  .line-item { padding-top: 22px; padding-bottom: 22px; }
+  .line-item:first-child { padding-top: 0; }
+  .line-item:last-child { padding-bottom: 0; }
+  html.state-removed .line-item:nth-child(2) { padding-top: 0; }
+  .thumb { border-radius: 8px; } /* shared ProductImage */
+  .summary-total { color: #1f2937; }
+</style>
+</head>
+<body>
+<header data-topbar="1"></header>
+
+<main class="page">
+  <div class="page-head" data-unless="empty">
+    <h1>Your cart</h1>
+    <p data-unless="removed">3 items · Ships in 2–3 business days</p><p data-when="removed">2 items · Ships in 2–3 business days</p>
+  </div>
+
+  <div class="cols" data-unless="empty">
+    <section class="ads-card" data-component="Card" aria-label="Cart items">
+      <div class="line-item" data-testid="line-item" data-unless="removed">
+        <div class="thumb thumb--a" data-testid="line-item-thumb"></div>
+        <div>
+          <div class="li-name">Aero wireless earbuds</div>
+          <div class="li-meta">Graphite · <span class="pill pill-green" data-testid="stock-badge">In stock</span></div>
+        </div>
+        <div class="qty" data-component="QuantityStepper"><button type="button" aria-label="Decrease quantity">−</button><span>1</span><button type="button" aria-label="Increase quantity">+</button></div>
+        <div><div class="li-price">€129.00</div><a class="ads-link ads-link--muted li-remove" href="#remove">Remove</a></div>
+      </div>
+      <div class="line-item" data-testid="line-item">
+        <div class="thumb thumb--b" data-testid="line-item-thumb"></div>
+        <div>
+          <div class="li-name">Canvas tote, large</div>
+          <div class="li-meta">Sand · <span class="pill pill-green" data-testid="stock-badge">In stock</span></div>
+        </div>
+        <div class="qty" data-component="QuantityStepper"><button type="button" aria-label="Decrease quantity">−</button><span>2</span><button type="button" aria-label="Increase quantity">+</button></div>
+        <div><div class="li-price">€64.00</div><a class="ads-link ads-link--muted li-remove" href="#remove">Remove</a></div>
+      </div>
+      <div class="line-item" data-testid="line-item">
+        <div class="thumb thumb--c" data-testid="line-item-thumb"></div>
+        <div>
+          <div class="li-name">Trail bottle, 750 ml</div>
+          <div class="li-meta">Moss · <span class="pill pill-green" data-testid="stock-badge">In stock</span></div>
+        </div>
+        <div class="qty" data-component="QuantityStepper"><button type="button" aria-label="Decrease quantity">−</button><span>1</span><button type="button" aria-label="Increase quantity">+</button></div>
+        <div><div class="li-price">€36.00</div><a class="ads-link ads-link--muted li-remove" href="#remove">Remove</a></div>
+      </div>
+    </section>
+
+    <aside class="ads-card" data-component="Card" aria-label="Order summary">
+      <h2>Order summary</h2>
+      <div class="summary-rows">
+        <div class="summary-row" data-testid="summary-row"><span>Subtotal</span><span data-unless="removed">€229.00</span><span data-when="removed">€100.00</span></div>
+        <div class="summary-row" data-testid="summary-row"><span>Shipping</span><span>Free</span></div>
+        <div class="summary-row" data-testid="summary-row"><span>Estimated tax</span><span data-unless="removed">€19.40</span><span data-when="removed">€8.47</span></div>
+      </div>
+      <div class="summary-total" data-testid="summary-total"><span>Total</span><span data-unless="removed">€248.40</span><span data-when="removed">€108.47</span></div>
+      <button type="button" class="ads-btn ads-btn--primary ads-btn--block" data-component="Button" data-variant="primary" data-testid="primary-cta">Go to checkout</button>
+      <p class="summary-note">Free returns within 30 days</p>
+    </aside>
+  </div>
+
+  <section class="ads-card ads-empty" data-component="EmptyState" data-when="empty" aria-label="Empty cart">
+    <div class="empty-art" aria-hidden="true">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>
+    </div>
+    <h2>Your cart is empty</h2>
+    <p>Browse the catalogue and add something you love. Your saved items stay here for 30 days.</p>
+    <button type="button" class="ads-btn ads-btn--primary" data-component="Button" data-variant="primary" data-testid="primary-cta">Continue shopping</button>
+  </section>
+  <div class="ads-toast" data-component="Toast" role="status" data-when="removed">
+    <span>Aero wireless earbuds removed from your cart</span><a class="ads-link" href="#undo">Undo</a>
+  </div>
+</main>
+<script src="../chrome.js"></script>
+</body>
+</html>

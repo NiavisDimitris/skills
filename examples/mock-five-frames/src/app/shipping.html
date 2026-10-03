@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acme · Shipping</title>
+<link rel="stylesheet" href="../acme-ds.css">
+<style>
+  /* src/features/shipping/shipping.css */
+  .country-select { height: 44px; padding: 0 10px; border: 1px solid #c9ced6; border-radius: 8px; font: inherit; font-size: 15px; background-color: #ffffff; color: #111827; width: 100%; }
+  .ads-radio-card { border-color: #d1d5db; }
+  .continue-btn { transition: none; }
+</style>
+</head>
+<body>
+<header data-topbar="2"></header>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Shipping</h1>
+    <p>Where should we send your order?</p>
+  </div>
+
+  <div class="cols">
+    <section class="ads-card" data-component="Card" aria-label="Shipping details">
+      <h2>Contact and address</h2>
+      <div class="fields" style="margin-top: 16px">
+        <div class="field">
+          <label class="ads-label" for="f-name" data-testid="field-label">Full name</label>
+          <input class="ads-input" id="f-name" data-component="Input" data-testid="field-control" value="Dana Whitfield">
+        </div>
+        <div class="field">
+          <label class="ads-label" for="f-email" data-testid="field-label">Email</label>
+          <input class="ads-input" id="f-email" data-component="Input" data-testid="field-control" value="dana@example.com">
+        </div>
+        <div class="field field--full">
+          <label class="ads-label" for="f-address" data-testid="field-label">Street address</label>
+          <input class="ads-input" id="f-address" data-component="Input" data-testid="field-control" value="18 Harbour Street, Apt 4">
+        </div>
+        <div class="field">
+          <label class="ads-label" for="f-city" data-testid="field-label">City</label>
+          <input class="ads-input" id="f-city" data-component="Input" data-testid="field-control" value="Rotterdam">
+        </div>
+        <div class="field">
+          <label class="ads-label" for="f-postcode" data-testid="field-label">Postcode</label>
+          <input class="ads-input" id="f-postcode" data-component="Input" data-testid="field-control" value="3011 TA">
+        </div>
+        <div class="field field--full">
+          <span class="ads-label" id="country-label" data-testid="field-label">Country</span>
+          <select class="country-select" aria-labelledby="country-label" data-testid="country">
+            <option selected>Netherlands</option><option>Belgium</option><option>Germany</option>
+          </select>
+        </div>
+      </div>
+
+      <h3 class="section-title">Delivery method</h3>
+      <div class="options" role="radiogroup" aria-label="Delivery method">
+        <div class="ads-radio-card" role="radio" aria-checked="true" data-component="RadioCard" data-testid="delivery-option">
+          <span class="radio-dot"></span>
+          <div><div class="opt-title">Standard</div><div class="opt-sub">3–5 business days</div></div>
+          <span class="opt-price">Free</span>
+        </div>
+        <div class="ads-radio-card" role="radio" aria-checked="false" data-component="RadioCard" data-testid="delivery-option">
+          <span class="radio-dot"></span>
+          <div><div class="opt-title">Express</div><div class="opt-sub">Next business day</div></div>
+          <span class="opt-price">€9.90</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="ads-btn ads-btn--secondary" data-component="Button" data-variant="secondary" data-testid="secondary-cta">Back to cart</button>
+        <button type="button" class="ads-btn ads-btn--primary continue-btn" data-component="Button" data-variant="primary" data-testid="primary-cta">Continue to payment</button>
+      </div>
+    </section>
+
+    <aside class="ads-card" data-component="Card" aria-label="Order summary">
+      <h2>Order summary</h2>
+      <div class="summary-rows">
+        <div class="summary-row" data-testid="summary-row"><span>3 items</span><span>€229.00</span></div>
+        <div class="summary-row" data-testid="summary-row"><span>Shipping</span><span>Free</span></div>
+        <div class="summary-row" data-testid="summary-row"><span>Estimated tax</span><span>€19.40</span></div>
+      </div>
+      <div class="summary-total" data-testid="summary-total"><span>Total</span><span>€248.40</span></div>
+      <p class="summary-note">You can review everything before you pay.</p>
+    </aside>
+  </div>
+</main>
+<script src="../chrome.js"></script>
+</body>
+</html>

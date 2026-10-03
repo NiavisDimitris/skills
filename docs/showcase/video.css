@@ -114,7 +114,6 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; text-rende
 .res::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .res.PASS { color: var(--pass); background: oklch(97.9% 0.021 166.113); }
 .res.FAIL, .res.MISSING_IN_CODE { color: var(--blocker); background: oklch(97.1% 0.013 17.38); }
-.res.MISSING_IN_DESIGN { color: var(--ds); background: oklch(96.9% 0.016 293.756); }
 .res.CANNOT_VERIFY, .res.NOT_SPECIFIED { color: #525252; background: var(--muted); }
 .stamp { position: absolute; left: 50%; top: 42%; padding: 12px 20px; border: 4px solid currentColor; border-radius: 12px; font: 700 26px/1 var(--sans); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; background: rgb(255 255 255 / 0.92); }
 .stamp.red { color: var(--blocker); } .stamp.violet { color: var(--ds); }
@@ -166,6 +165,35 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; text-rende
 .mx .r .ok { color: var(--pass); }
 .mx .res { height: 40px; padding: 0 16px; font-size: 19px; gap: 9px; }
 .mx .res::before { width: 10px; height: 10px; }
+/* one-click Dismiss on a finding, as in report.html: segmented kind, required reason, Save */
+.dz { position: absolute; width: 1150px; border-radius: 18px; background: #fff; border: 1px solid var(--border); box-shadow: 0 30px 70px rgb(0 0 0 / 0.14); overflow: hidden; font-family: var(--sans); color: var(--fg); }
+.dz > * { position: absolute; }
+.dz .d { left: 28px; top: 42px; width: 12px; height: 12px; border-radius: 50%; background: var(--c); }
+.dz .t1 { left: 56px; top: 22px; font: 500 26px/1.2 var(--sans); letter-spacing: -0.02em; white-space: nowrap; }
+.dz .t2 { left: 56px; top: 60px; font: 400 17px/1 var(--mono); color: var(--muted-fg); white-space: nowrap; }
+.dz .sb { right: 196px; top: 28px; display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 16px; border-radius: 999px; font: 500 19px/1 var(--sans); white-space: nowrap; }
+.dz .sb::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+.dz .sb.w { color: var(--warning); background: oklch(98.7% 0.022 95.277); }
+.dz .sb.x { color: #525252; background: var(--muted); }
+.dz .bt { display: inline-flex; align-items: center; justify-content: center; height: 44px; border-radius: 10px; font: 500 19px/1 var(--sans); white-space: nowrap; }
+.dz .bt.out { border: 1px solid var(--border); background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.dz .bt.pri { background: var(--fg); color: #fff; }
+.dz .bt.gho { color: var(--muted-fg); }
+.dz .dis { right: 28px; top: 26px; width: 150px; }
+.dz .pw { left: 28px; right: 28px; top: 96px; overflow: hidden; }
+.dz .pn { position: relative; height: 268px; border-radius: 14px; border: 1px solid var(--border); background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.dz .pn > * { position: absolute; left: 20px; right: 20px; }
+.dz .ph { top: 18px; font: 600 20px/1 var(--sans); letter-spacing: -0.01em; }
+.dz .seg { top: 52px; height: 50px; display: flex; gap: 3px; padding: 3px; border-radius: 12px; background: var(--muted); }
+.dz .seg span { flex: 1; display: grid; place-items: center; border-radius: 9px; border: 1px solid transparent; font: 500 19px/1 var(--sans); color: var(--muted-fg); white-space: nowrap; }
+.dz .seg span.on { background: #fff; color: var(--fg); border-color: var(--border); box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
+.dz .lb { top: 118px; font: 500 17px/1 var(--sans); }
+.dz .in { top: 144px; height: 52px; display: flex; align-items: center; padding: 0 16px; border-radius: 10px; border: 1px solid #a3a3a3; box-shadow: 0 0 0 3px rgb(0 0 0 / 0.06); font: 400 20px/1 var(--sans); white-space: nowrap; }
+.dz .in .k { display: inline-block; width: 2px; height: 24px; margin-left: 2px; background: var(--fg); }
+.dz .ac { top: 210px; display: flex; justify-content: flex-end; gap: 10px; }
+.dz .ac .bt { width: 110px; }
+.dz .dn { left: 56px; right: 28px; top: 104px; font: 400 19px/1.2 var(--sans); color: var(--muted-fg); white-space: nowrap; }
+.dz .dn b { color: var(--fg); font-weight: 500; }
 
 /* ---------- outputs ---------- */
 .win { position: absolute; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: #fff; box-shadow: 0 30px 70px rgb(0 0 0 / 0.14); }

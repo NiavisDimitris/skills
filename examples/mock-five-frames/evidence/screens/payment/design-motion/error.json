@@ -1,0 +1,492 @@
+{
+  "state": "error",
+  "side": "design",
+  "trigger": null,
+  "reducedMotion": false,
+  "elements": {
+    "body": {
+      "selector": "body",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "body"
+        }
+      ]
+    },
+    "topbar": {
+      "selector": "[data-testid=topbar]",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "header.topbar"
+        }
+      ]
+    },
+    "stepper": {
+      "selector": "[data-component=Stepper]",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "ol.ads-stepper"
+        }
+      ]
+    },
+    "stepCurrent": {
+      "selector": "[data-component=Stepper] [aria-current=step]",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "li"
+        }
+      ]
+    },
+    "pageTitle": {
+      "selector": "h1",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "h1"
+        }
+      ]
+    },
+    "sectionTitle": {
+      "selector": "h2",
+      "count": 2,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "h2"
+        },
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "h2"
+        }
+      ]
+    },
+    "card": {
+      "selector": "[data-component=Card]",
+      "count": 2,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "section.ads-card"
+        },
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "aside.ads-card"
+        }
+      ]
+    },
+    "lineItem": {
+      "selector": "[data-testid=line-item]",
+      "count": 0,
+      "samples": []
+    },
+    "thumb": {
+      "selector": "[data-testid=line-item-thumb]",
+      "count": 0,
+      "samples": []
+    },
+    "stockBadge": {
+      "selector": "[data-testid=stock-badge]",
+      "count": 0,
+      "samples": []
+    },
+    "summaryRow": {
+      "selector": "[data-testid=summary-row]",
+      "count": 3,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "div.summary-row"
+        },
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "div.summary-row"
+        },
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "div.summary-row"
+        }
+      ]
+    },
+    "summaryTotal": {
+      "selector": "[data-testid=summary-total]",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "div.summary-total"
+        }
+      ]
+    },
+    "primaryCta": {
+      "selector": "[data-testid=primary-cta]",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "background-color, border-color",
+          "transition-duration": "0.16s, 0.16s",
+          "transition-timing-function": "cubic-bezier(0, 0, 0.58, 1), cubic-bezier(0, 0, 0.58, 1)",
+          "transition-delay": "0s, 0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "button.ads-btn.ads-btn--primary"
+        }
+      ]
+    },
+    "secondaryCta": {
+      "selector": "[data-testid=secondary-cta]",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "background-color, border-color",
+          "transition-duration": "0.16s, 0.16s",
+          "transition-timing-function": "cubic-bezier(0, 0, 0.58, 1), cubic-bezier(0, 0, 0.58, 1)",
+          "transition-delay": "0s, 0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "button.ads-btn.ads-btn--secondary"
+        }
+      ]
+    },
+    "fieldLabel": {
+      "selector": "[data-testid=field-label]",
+      "count": 4,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "label.ads-label"
+        },
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "label.ads-label"
+        },
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "label.ads-label"
+        },
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "label.ads-label"
+        }
+      ]
+    },
+    "fieldControl": {
+      "selector": "[data-testid=field-control]",
+      "count": 4,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "input#f-cardname.ads-input"
+        },
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "input#f-cardnumber.ads-input"
+        },
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "input#f-expiry.ads-input"
+        },
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "input#f-cvc.ads-input"
+        }
+      ]
+    },
+    "countrySelect": {
+      "selector": "[data-testid=country]",
+      "count": 0,
+      "samples": []
+    },
+    "deliveryOption": {
+      "selector": "[data-testid=delivery-option]",
+      "count": 0,
+      "samples": []
+    },
+    "alert": {
+      "selector": "[data-component=Alert]",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "div.ads-alert"
+        }
+      ]
+    },
+    "alertTitle": {
+      "selector": "[data-component=Alert] strong",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "strong"
+        }
+      ]
+    },
+    "alertAction": {
+      "selector": "[data-testid=alert-action]",
+      "count": 0,
+      "samples": []
+    },
+    "secureNote": {
+      "selector": "[data-testid=secure-note]",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "all",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1",
+          "__selector": "p.opt-sub"
+        }
+      ]
+    },
+    "reviewBlock": {
+      "selector": "[data-testid=review-block]",
+      "count": 0,
+      "samples": []
+    },
+    "reviewItems": {
+      "selector": "[data-testid=review-items]",
+      "count": 0,
+      "samples": []
+    },
+    "promoRow": {
+      "selector": "[data-testid=promo-row]",
+      "count": 0,
+      "samples": []
+    },
+    "editLink": {
+      "selector": "[data-testid=edit-link]",
+      "count": 0,
+      "samples": []
+    },
+    "emptyState": {
+      "selector": "[data-component=EmptyState]",
+      "count": 0,
+      "samples": []
+    },
+    "confirmIcon": {
+      "selector": "[data-testid=confirm-icon]",
+      "count": 0,
+      "samples": []
+    },
+    "orderNumber": {
+      "selector": "[data-testid=order-number]",
+      "count": 0,
+      "samples": []
+    },
+    "toast": {
+      "selector": "[data-component=Toast]",
+      "count": 0,
+      "samples": []
+    }
+  },
+  "actionTarget": null,
+  "animations": [],
+  "keyframes": {
+    "ads-pop-in": "@keyframes ads-pop-in { \n  0% { transform: scale(0.6); opacity: 0; }\n  100% { transform: scale(1); opacity: 1; }\n}",
+    "ads-toast-in": "@keyframes ads-toast-in { \n  0% { transform: translateY(16px); opacity: 0; }\n  100% { transform: translateY(0px); opacity: 1; }\n}"
+  }
+}

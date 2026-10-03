@@ -1,5 +1,6 @@
 // Build figma-spec.json from a Figma REST "GET /v1/files/:key/nodes" response.
 import { CliError } from './args.mjs';
+import { figmaMotionSpecs } from './figma-motion.mjs';
 import { discoverFigmaStates } from './state-discovery.mjs';
 
 const LAYER_KEYS = [
@@ -7,7 +8,7 @@ const LAYER_KEYS = [
   'effects', 'opacity', 'layoutMode', 'primaryAxisAlignItems', 'counterAxisAlignItems', 'paddingLeft',
   'paddingRight', 'paddingTop', 'paddingBottom', 'itemSpacing', 'layoutSizingHorizontal', 'layoutSizingVertical',
   'style', 'characters', 'componentId', 'componentName', 'variantProperties', 'boundVariables', 'reactions',
-  'annotations', 'description',
+  'annotations', 'description', 'transitionNodeID', 'transitionDuration', 'transitionEasing', 'flowStartingPoints',
 ];
 const STYLE_KEYS = ['fontFamily', 'fontSize', 'fontWeight', 'lineHeightPx', 'letterSpacing', 'textCase', 'textAlignHorizontal'];
 
@@ -114,11 +115,14 @@ export function buildFigmaSpec({ fileKey, nodeId, url, response, variables = nul
     variables,
     siblings,
     states: [],
+    motion: [],
     exports: [],
     fetchedAt: now.toISOString(),
     degradations,
   };
   spec.states = discoverFigmaStates(spec);
+  // Prototype transitions (reactions[].actions[].transition) as CSS-comparable specs.
+  spec.motion = figmaMotionSpecs(spec);
   return spec;
 }
 

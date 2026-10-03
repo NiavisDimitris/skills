@@ -21,18 +21,29 @@ Options:
   --json             print { file, type, valid, errors, warnings } as JSON on stdout
   -h, --help         show this help
 
-Report rules (schemaVersion 1.0 or 1.1): required keys and enums (keys whose value
-may be null can be omitted); finding ids unique and matching DQ-001; every findingIds /
-relatedFindings / stateMatrix[].findings entry references an existing finding;
-severity PASS or CANNOT_VERIFY ⇒ resolution NONE; BLOCKER, WARNING or
-DS_CANDIDATE ⇒ resolution other than NONE; every stateMatrix row has a result;
-rank.bucket is "fix-now" or "debt" only for FIX_CODE findings and "sync-figma"
-only for SYNC_FIGMA findings (severity BLOCKER, WARNING or DS_CANDIDATE), "none"
-otherwise; with a triage block (1.1) every triageable finding (FIX_CODE or
-SYNC_FIGMA, severity BLOCKER, WARNING or DS_CANDIDATE) has exactly one "fix-now" or
-"debt" decision and no BLOCKER is debt; scorecard counts, parity, verdict, pixel-diff
-bands, state coverage and (1.1) unexplained, debt and loopClosed equal the values
-derived from the findings (see render-report.mjs --recompute).
+Report rules (schemaVersion 2.0 only; a 1.x report fails with "re-run the pass"):
+required keys and enums (keys whose value may be null can be omitted); finding ids
+unique and matching DQ-001; every findingIds / relatedFindings / stateMatrix[].findings
+entry references an existing finding; severity PASS or CANNOT_VERIFY ⇒ resolution
+NONE; BLOCKER, WARNING or DS_CANDIDATE ⇒ FIX_CODE, INTENTIONAL, DATA, DISMISSED or
+UNCLASSIFIED; DISMISSED ⇒ a dismissal { kind, reason, by, date, source } with a
+non-empty reason; meta.source is required and meta.figma too when the source is
+figma or figma-prototype (same frame); with meta.screens every state is
+"<screen>/<state>" and every row / finding screen is a listed id; rank.bucket is
+"fix-now" or "debt" only for FIX_CODE findings (severity BLOCKER, WARNING or
+DS_CANDIDATE), "none" otherwise; with a triage block every triageable finding (the
+same FIX_CODE set) has exactly one "fix-now" or "debt" decision and no BLOCKER is
+debt; scorecard counts, parity (dismissed findings leave the denominator), verdict,
+pixel-diff bands, state coverage, unexplained, debt, loopClosed, dismissed and
+designSystem equal the values derived from the findings (see render-report.mjs
+--recompute). Design backfill (step 2, optional "backfill" block): item ids unique
+and matching BF-001; screens as for findings; "not-needed" needs a reason; "figma"
+only with decision "build", and only once step 1 is closed (loopClosed) or
+backfill.gate.override is recorded; no item may share a state id with a stateMatrix
+row (that state is designed); scorecard.backfill exists exactly when backfill does,
+with derived candidates, toBuild, built, notNeeded, pending and ready. The backfill
+never changes parity, verdict, unexplained, loopClosed or designSystem. Removed 1.x values (SYNC_FIGMA, MISSING_IN_DESIGN, mode "sync",
+bucket "sync-figma", captured.figma) get a message saying what to use instead.
 Unknown keys, and a fix-now/debt split that differs from topN, are warnings.
 
 Exit codes: 0 valid · 1 invalid (or not JSON) · 2 bad arguments / file not found`;

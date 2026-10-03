@@ -1,7 +1,7 @@
 {
   "name": "design-qa-skill",
-  "version": "0.1.0",
-  "description": "Claude Code skill/plugin: Figma ↔ code design-parity QA across all designed states, with agent-readable JSON and an interactive HTML report.",
+  "version": "0.2.0",
+  "description": "Claude Code skill/plugin: design → code parity QA against Figma or a prototype URL, across all designed screens and states (tokens, components, motion), with agent-readable JSON and an interactive HTML report.",
   "type": "module",
   "license": "MIT",
   "private": true,
@@ -11,7 +11,7 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "sample:fixtures": "node examples/sample/make-fixtures.mjs",
-    "sample:render": "node skills/design-qa/scripts/render-report.mjs --in examples/sample/sample-report.json --out examples/sample/report.html --embed-images --fixplan examples/sample/report-fixplan.md",
+    "sample:render": "node skills/design-qa/scripts/render-report.mjs --in examples/sample/sample-report.json --out examples/sample/report.html --embed-images --fixplan examples/sample/report-fixplan.md --backfill-plan examples/sample/report-backfill.md --recompute --write-back",
     "validate:sample": "node skills/design-qa/scripts/validate.mjs examples/sample/sample-report.json",
     "validate:config": "node skills/design-qa/scripts/validate.mjs examples/design-qa.config.example.json --type config"
   },

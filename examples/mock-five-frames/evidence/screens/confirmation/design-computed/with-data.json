@@ -1,0 +1,621 @@
+{
+  "body": {
+    "selector": "body",
+    "count": 1,
+    "samples": [
+      {
+        "font-family": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "color": "rgb(17, 24, 39)",
+        "background-color": "rgb(246, 247, 249)",
+        "__rect": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 523
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "body",
+          "id": null,
+          "classes": [],
+          "component": null,
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "acme Secure checkout ✓ Cart ✓ Shipping ✓ Payment ✓ Review 5 Done Thanks, Dana! Y",
+          "selector": "body"
+        },
+        "__vars": {
+          "color": [
+            "--ads-color-text-primary"
+          ],
+          "background-color": [
+            "--ads-color-bg"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "topbar": {
+    "selector": "[data-testid=topbar]",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(255, 255, 255)",
+        "height": "64px",
+        "border-bottom-color": "rgb(229, 231, 235)",
+        "__rect": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 64
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "header",
+          "id": null,
+          "classes": [
+            "topbar"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "topbar",
+          "role": null,
+          "text": "acme Secure checkout ✓ Cart ✓ Shipping ✓ Payment ✓ Review 5 Done",
+          "selector": "header.topbar"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ],
+          "border-bottom-color": [
+            "--ads-color-border"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "stepper": {
+    "selector": "[data-component=Stepper]",
+    "count": 1,
+    "samples": [
+      {
+        "gap": "24px",
+        "font-size": "13px",
+        "__rect": {
+          "x": 860,
+          "y": 20,
+          "w": 460,
+          "h": 23
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "ol",
+          "id": null,
+          "classes": [
+            "ads-stepper"
+          ],
+          "component": "Stepper",
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "✓ Cart ✓ Shipping ✓ Payment ✓ Review 5 Done",
+          "selector": "ol.ads-stepper"
+        },
+        "__vars": {
+          "gap": [
+            "--ads-space-6"
+          ],
+          "font-size": [
+            "--ads-font-size-sm"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "stepCurrent": {
+    "selector": "[data-component=Stepper] [aria-current=step]",
+    "count": 1,
+    "samples": [
+      {
+        "color": "rgb(17, 24, 39)",
+        "font-weight": "600",
+        "__rect": {
+          "x": 1257,
+          "y": 20,
+          "w": 63,
+          "h": 23
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "li",
+          "id": null,
+          "classes": [],
+          "component": null,
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "5 Done",
+          "selector": "li"
+        },
+        "__vars": {
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "pageTitle": {
+    "selector": "h1",
+    "count": 1,
+    "samples": [
+      {
+        "font-size": "26px",
+        "font-weight": "650",
+        "line-height": "34px",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 433,
+          "y": 253,
+          "w": 574,
+          "h": 34
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "h1",
+          "id": null,
+          "classes": [],
+          "component": null,
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "Thanks, Dana! Your order is confirmed",
+          "selector": "h1"
+        },
+        "__vars": {
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "sectionTitle": {
+    "selector": "h2",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "card": {
+    "selector": "[data-component=Card]",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(255, 255, 255)",
+        "border-radius": "14px",
+        "padding-top": "40px",
+        "padding-left": "32px",
+        "box-shadow": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "__rect": {
+          "x": 400,
+          "y": 120,
+          "w": 640,
+          "h": 403
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "section",
+          "id": null,
+          "classes": [
+            "ads-card",
+            "confirm"
+          ],
+          "component": "Card",
+          "variant": null,
+          "testid": null,
+          "role": null,
+          "text": "Thanks, Dana! Your order is confirmed Order #AC-10482 · A confirmation is on its",
+          "selector": "section.ads-card.confirm"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ],
+          "border-radius": [
+            "--ads-radius-lg"
+          ],
+          "padding-top": [
+            "--ads-space-10"
+          ],
+          "padding-left": [
+            "--ads-space-8"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "lineItem": {
+    "selector": "[data-testid=line-item]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "thumb": {
+    "selector": "[data-testid=line-item-thumb]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "stockBadge": {
+    "selector": "[data-testid=stock-badge]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "summaryRow": {
+    "selector": "[data-testid=summary-row]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "summaryTotal": {
+    "selector": "[data-testid=summary-total]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "primaryCta": {
+    "selector": "[data-testid=primary-cta]",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(79, 70, 229)",
+        "color": "rgb(255, 255, 255)",
+        "border-radius": "10px",
+        "height": "44px",
+        "padding-left": "20px",
+        "font-size": "15px",
+        "font-weight": "600",
+        "__rect": {
+          "x": 561,
+          "y": 438,
+          "w": 127,
+          "h": 44
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "button",
+          "id": null,
+          "classes": [
+            "ads-btn",
+            "ads-btn--primary"
+          ],
+          "component": "Button",
+          "variant": "primary",
+          "testid": "primary-cta",
+          "role": null,
+          "text": "Track order",
+          "selector": "button.ads-btn.ads-btn--primary"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-brand"
+          ],
+          "color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ],
+          "border-radius": [
+            "--ads-radius-md"
+          ],
+          "padding-left": [
+            "--ads-space-5"
+          ],
+          "font-size": [
+            "--ads-font-size-md"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "secondaryCta": {
+    "selector": "[data-testid=secondary-cta]",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(255, 255, 255)",
+        "color": "rgb(17, 24, 39)",
+        "border-radius": "10px",
+        "height": "44px",
+        "border-top-color": "rgb(201, 206, 214)",
+        "__rect": {
+          "x": 699,
+          "y": 438,
+          "w": 180,
+          "h": 44
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "button",
+          "id": null,
+          "classes": [
+            "ads-btn",
+            "ads-btn--secondary"
+          ],
+          "component": "Button",
+          "variant": "secondary",
+          "testid": "secondary-cta",
+          "role": null,
+          "text": "Continue shopping",
+          "selector": "button.ads-btn.ads-btn--secondary"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-on-brand",
+            "--ads-color-surface"
+          ],
+          "color": [
+            "--ads-color-text-primary"
+          ],
+          "border-radius": [
+            "--ads-radius-md"
+          ],
+          "border-top-color": [
+            "--ads-color-border-strong"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "fieldLabel": {
+    "selector": "[data-testid=field-label]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "fieldControl": {
+    "selector": "[data-testid=field-control]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "countrySelect": {
+    "selector": "[data-testid=country]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "deliveryOption": {
+    "selector": "[data-testid=delivery-option]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "alert": {
+    "selector": "[data-component=Alert]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "alertTitle": {
+    "selector": "[data-component=Alert] strong",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "alertAction": {
+    "selector": "[data-testid=alert-action]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "secureNote": {
+    "selector": "[data-testid=secure-note]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "reviewBlock": {
+    "selector": "[data-testid=review-block]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "reviewItems": {
+    "selector": "[data-testid=review-items]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "promoRow": {
+    "selector": "[data-testid=promo-row]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "editLink": {
+    "selector": "[data-testid=edit-link]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "emptyState": {
+    "selector": "[data-component=EmptyState]",
+    "count": 0,
+    "samples": [],
+    "inlineStyleOutliers": 0
+  },
+  "confirmIcon": {
+    "selector": "[data-testid=confirm-icon]",
+    "count": 1,
+    "samples": [
+      {
+        "width": "72px",
+        "height": "72px",
+        "background-color": "rgb(220, 252, 231)",
+        "__rect": {
+          "x": 684,
+          "y": 161,
+          "w": 72,
+          "h": 72
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "div",
+          "id": null,
+          "classes": [
+            "confirm-icon"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "confirm-icon",
+          "role": null,
+          "text": "",
+          "selector": "div.confirm-icon"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-success-bg"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "orderNumber": {
+    "selector": "[data-testid=order-number]",
+    "count": 1,
+    "samples": [
+      {
+        "font-weight": "600",
+        "color": "rgb(17, 24, 39)",
+        "__rect": {
+          "x": 513,
+          "y": 296,
+          "w": 84,
+          "h": 19
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "span",
+          "id": null,
+          "classes": [
+            "order-number"
+          ],
+          "component": null,
+          "variant": null,
+          "testid": "order-number",
+          "role": null,
+          "text": "#AC-10482",
+          "selector": "span.order-number"
+        },
+        "__vars": {
+          "color": [
+            "--ads-color-text-primary"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "toast": {
+    "selector": "[data-component=Toast]",
+    "count": 1,
+    "samples": [
+      {
+        "background-color": "rgb(15, 23, 42)",
+        "color": "rgb(249, 250, 251)",
+        "border-radius": "10px",
+        "__rect": {
+          "x": 1125,
+          "y": 824,
+          "w": 283,
+          "h": 44
+        },
+        "__visible": true,
+        "__el": {
+          "tag": "div",
+          "id": null,
+          "classes": [
+            "ads-toast"
+          ],
+          "component": "Toast",
+          "variant": null,
+          "testid": null,
+          "role": "status",
+          "text": "Receipt sent to dana@example.com",
+          "selector": "div.ads-toast"
+        },
+        "__vars": {
+          "background-color": [
+            "--ads-color-inverse-bg"
+          ],
+          "color": [
+            "--ads-color-inverse-fg",
+            "--ads-color-surface-muted"
+          ],
+          "border-radius": [
+            "--ads-radius-md"
+          ]
+        }
+      }
+    ],
+    "inlineStyleOutliers": 0
+  },
+  "rootTokens": {
+    "--ads-color-bg": "rgb(246, 247, 249)",
+    "--ads-color-border": "rgb(229, 231, 235)",
+    "--ads-color-border-strong": "rgb(201, 206, 214)",
+    "--ads-color-brand": "rgb(79, 70, 229)",
+    "--ads-color-brand-hover": "rgb(67, 56, 202)",
+    "--ads-color-brand-subtle": "rgb(238, 242, 255)",
+    "--ads-color-danger-bg": "rgb(254, 242, 242)",
+    "--ads-color-danger-border": "rgb(254, 202, 202)",
+    "--ads-color-danger-fg": "rgb(153, 27, 27)",
+    "--ads-color-inverse-bg": "rgb(15, 23, 42)",
+    "--ads-color-inverse-fg": "rgb(249, 250, 251)",
+    "--ads-color-on-brand": "rgb(255, 255, 255)",
+    "--ads-color-success-bg": "rgb(220, 252, 231)",
+    "--ads-color-success-fg": "rgb(22, 101, 52)",
+    "--ads-color-surface": "rgb(255, 255, 255)",
+    "--ads-color-surface-muted": "rgb(249, 250, 251)",
+    "--ads-color-text-muted": "rgb(107, 114, 128)",
+    "--ads-color-text-primary": "rgb(17, 24, 39)",
+    "--ads-color-text-secondary": "rgb(75, 85, 99)",
+    "--ads-ease-out": "cubic-bezier(0, 0, 0.58, 1)",
+    "--ads-font-sans": "\"Inter\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "--ads-font-size-lg": "18px",
+    "--ads-font-size-md": "15px",
+    "--ads-font-size-sm": "13px",
+    "--ads-font-size-xl": "28px",
+    "--ads-font-size-xs": "12px",
+    "--ads-motion-base": "160ms",
+    "--ads-motion-fast": "120ms",
+    "--ads-motion-slow": "320ms",
+    "--ads-radius-lg": "14px",
+    "--ads-radius-md": "10px",
+    "--ads-radius-pill": "999px",
+    "--ads-radius-sm": "6px",
+    "--ads-shadow-card": "0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px rgba(17, 24, 39, 0.05)",
+    "--ads-shadow-toast": "0 8px 24px rgba(17, 24, 39, 0.18)",
+    "--ads-space-1": "4px",
+    "--ads-space-10": "40px",
+    "--ads-space-2": "8px",
+    "--ads-space-3": "12px",
+    "--ads-space-4": "16px",
+    "--ads-space-5": "20px",
+    "--ads-space-6": "24px",
+    "--ads-space-8": "32px"
+  }
+}

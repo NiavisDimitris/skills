@@ -90,6 +90,7 @@ test('loading detection, state lists, driver and grab validation', () => {
   assert.deepEqual(checkDriver('x', { selector: '.a', colour: 1 }), ['colour: unknown key (ignored)', '"selector" has no effect without an "action"']);
   assert.throws(() => checkGrab({ row: { selector: '.row' } }), /expected \{ "selector": string, "props"/);
   assert.throws(() => checkGrab({ row: { selector: '.row', props: [], limit: 0 } }), /limit must be an integer/);
+  assert.throws(() => checkGrab({ rootTokens: { selector: ':root', props: [] } }), /"rootTokens" is reserved/);
 });
 
 test('configDefaults: URL, states, auth, headers and flags from design-qa.config.json', () => {
@@ -111,6 +112,29 @@ test('configDefaults: URL, states, auth, headers and flags from design-qa.config
   const two = loadFixture('config.json');
   two.surfaces.other = { route: '/other' };
   assert.throws(() => configDefaults(two), /pass --surface/);
+});
+
+test('configDefaults: prototype URL for --side design, per-screen routes and prototypes', () => {
+  const config = loadFixture('config.json');
+  assert.equal(configDefaults(config, 'items').prototype, null);
+  assert.equal(configDefaults(config, 'items', { side: 'design' }).url, null, 'no prototype configured: --url is needed');
+  config.surfaces.items.prototype = 'https://items-proto.framer.app/items';
+  config.surfaces.items.screens = {
+    cart: { figma: 'https://www.figma.com/design/KEY/Shop?node-id=1-1', prototype: 'https://items-proto.framer.app/cart', route: '/cart' },
+    profile: { figma: null, prototype: null, route: 'https://other.example.com/me' },
+  };
+  const design = configDefaults(config, 'items', { side: 'design' });
+  assert.equal(design.url, 'https://items-proto.framer.app/items');
+  assert.equal(design.auth, 'none', 'app credentials are never sent to the prototype');
+  assert.deepEqual(design.headers, {});
+  assert.equal(configDefaults(config, 'items', { screen: 'cart' }).url, '${APP_URL}/cart');
+  assert.equal(configDefaults(config, 'items', { screen: 'cart', side: 'design' }).url, 'https://items-proto.framer.app/cart');
+  assert.equal(configDefaults(config, 'items', { screen: 'profile' }).url, 'https://other.example.com/me');
+  assert.deepEqual(Object.keys(configDefaults(config, 'items').screens), ['cart', 'profile']);
+  assert.throws(() => configDefaults(config, 'items', { screen: 'nope' }), /has no screen "nope" \(have: cart, profile\)/);
+  const bad = loadFixture('config.json');
+  bad.surfaces.items.prototype = 'ftp://x';
+  assert.throws(() => configDefaults(bad, 'items'), /prototype: must be an http\(s\) or file: URL/);
 });
 
 test('isDrivable: only with-data may be captured without a driver', () => {
@@ -135,6 +159,10 @@ test('capture CLI rejects bad arguments before launching a browser (exit 2)', as
     ['--url', 'http://127.0.0.1:9/', ...base, '--auth', 'login'],
     ['--url', 'http://${MISSING_TEST_VAR}/', ...base],
     ['--url', 'http://127.0.0.1:9/{id}', ...base],
+    ['--url', 'http://127.0.0.1:9/', ...base, '--side', 'figma'],
+    ['--side', 'design', ...base],
+    ['--url', 'file:///tmp/app.html', ...base],
+    ['--url', 'http://127.0.0.1:9/', ...base, '--screen', 'cart'],
   ];
   for (const args of cases) {
     const res = await run(CAPTURE, args, { env: { DESIGN_QA_APP_USER: '', DESIGN_QA_APP_PASS: '' } });
@@ -227,6 +255,8 @@ test('capture: one screenshot, computed styles and DOM per state at the exact vi
 
     const computed = {};
     const dom = {};
+    const motion = {};
+    assert.equal(manifest.side, 'app');
     for (const state of Object.keys(manifest.states)) {
       const entry = manifest.states[state];
       assert.equal(entry.screenshot, `app/${state}.png`);
@@ -237,12 +267,36 @@ test('capture: one screenshot, computed styles and DOM per state at the exact vi
       dom[state] = JSON.parse(readFileSync(path.join(out, entry.dom), 'utf8'));
       assert.ok(dom[state].texts.length > 0, `${state} dom texts`);
       assert.ok(dom[state].elements.length > 0, `${state} dom elements`);
-      assert.deepEqual(Object.keys(computed[state].heading.samples[0]), ['font-size', 'fontWeight', '__rect', '__visible']);
+      assert.deepEqual(Object.keys(computed[state].heading.samples[0]), ['font-size', 'fontWeight', '__rect', '__visible', '__el', '__vars']);
+      assert.equal(entry.motion, `motion/${state}.json`);
+      motion[state] = JSON.parse(readFileSync(path.join(out, entry.motion), 'utf8'));
+      assert.deepEqual(entry.degradations, [], `${state}: motion captured without problems`);
       assert.equal(computed[state].heading.samples[0]['font-size'], '24px');
       assert.deepEqual(entry.scroll, { x: 0, y: 0 });
     }
     assert.equal(computed['with-data'].row.count, 3);
-    assert.deepEqual(Object.keys(computed['with-data'].row.samples[0]), ['background-color', 'padding-top', '__rect', '__visible']);
+    assert.deepEqual(Object.keys(computed['with-data'].row.samples[0]), ['background-color', 'padding-top', '__rect', '__visible', '__el', '__vars']);
+    assert.deepEqual(computed['with-data'].rootTokens, {}, 'app.html defines no custom properties');
+    assert.deepEqual(computed['with-data'].row.samples[1].__el, {
+      tag: 'div', id: null, classes: ['row'], component: null, variant: null, testid: null, role: null, text: 'Beta', selector: 'div.row',
+    });
+
+    // Motion: longhands per grabbed element, running animations, keyframes, the action target.
+    assert.equal(motion.hover.trigger, 'hover');
+    assert.equal(motion.hover.actionTarget.selector, '.row');
+    assert.equal(motion.hover.actionTarget['transition-duration'], '0s');
+    assert.deepEqual(Object.keys(motion['with-data'].elements.row.samples[0]), [
+      'transition-property', 'transition-duration', 'transition-timing-function', 'transition-delay', 'animation-name',
+      'animation-duration', 'animation-timing-function', 'animation-delay', 'animation-iteration-count', '__selector',
+    ]);
+    const spin = motion.loading.animations.find((a) => a.animationName === 'spin');
+    assert.deepEqual(
+      { type: spin.type, target: spin.target, element: spin.element, durationMs: spin.durationMs, easing: spin.easing, iterations: spin.iterations },
+      { type: 'CSSAnimation', target: 'div.spinner', element: null, durationMs: 1000, easing: 'linear', iterations: 'infinite' },
+      'the loading spinner is running (not grabbed, so element is null)',
+    );
+    assert.match(motion.loading.keyframes.spin, /@keyframes spin/);
+    assert.equal(motion['with-data'].animations.length, 0, 'nothing animates once the rows are shown');
 
     // Element boxes for evidence crops: integers, inside the 800×600 capture, rows stacked.
     const rows = computed['with-data'].row.samples.map((sample) => sample.__rect);
@@ -411,6 +465,34 @@ test('capture: a failing action marks that state failed and exits 1', { timeout:
     assert.equal(manifest.states['with-data'].screenshot, 'app/with-data.png');
     assert.equal(manifest.states.hover.screenshot, null);
     assert.match(manifest.states.hover.error, /action "hover" on "\.does-not-exist" failed/);
+  } finally {
+    await server.close();
+  }
+});
+
+test('capture: a motion-trace failure never fails the state; it is recorded as a degradation', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) {
+    t.skip(SKIP_REASON);
+    return;
+  }
+  const page = '<!doctype html><title>x</title><h1>Hi</h1><script>document.getAnimations = () => { throw new Error("boom"); };</script>';
+  const server = await startServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end(page);
+  });
+  try {
+    const dir = tmpDir();
+    const res = await run(CAPTURE, ['--url', `${server.url}/`, '--width', '320', '--height', '240', '--out', dir], { env: captureEnv, cwd: dir });
+    assert.equal(res.code, 0, res.stderr);
+    const manifest = JSON.parse(readFileSync(path.join(dir, 'capture.json'), 'utf8'));
+    const state = manifest.states['with-data'];
+    assert.equal(state.screenshot, 'app/with-data.png');
+    assert.equal(state.motion, 'motion/with-data.json');
+    assert.equal(state.degradations.length, 1);
+    assert.equal(state.degradations[0].step, 'motion:with-data');
+    assert.match(state.degradations[0].reason, /document\.getAnimations\(\) failed: .*boom/);
+    assert.ok(manifest.degradations.some((d) => d.step === 'motion:with-data'));
+    assert.deepEqual(JSON.parse(readFileSync(path.join(dir, state.motion), 'utf8')).animations, []);
   } finally {
     await server.close();
   }

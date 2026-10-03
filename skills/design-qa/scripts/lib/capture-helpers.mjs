@@ -30,6 +30,12 @@ export const DEFAULT_GRAB = Object.freeze({
     props: ['font-size', 'color', 'background-color', 'border-top-width', 'border-top-color', 'border-radius', 'height', 'padding-left'],
     limit: 3,
   },
+  // Spinners, toasts, banners: where load and state-change animations usually live.
+  feedback: {
+    selector: '[role=status], [role=alert], [role=progressbar], [aria-busy=true]',
+    props: ['color', 'background-color', 'border-radius', 'opacity'],
+    limit: 3,
+  },
 });
 
 /** Expand ${ENV_VAR} placeholders in strings (recursively); a missing variable is a usage error. */
@@ -213,6 +219,7 @@ export function loadStates({ statesFile = null, stateName = null, driver = null 
 export function checkGrab(grab) {
   if (!grab || typeof grab !== 'object' || Array.isArray(grab)) throw usageError('--grab: expected an object { "<elementClass>": { "selector", "props": [] } }');
   for (const [cls, g] of Object.entries(grab)) {
+    if (cls === 'rootTokens' || cls.startsWith('__')) throw usageError(`--grab: "${cls}" is reserved; rename that element class`);
     const ok = g && typeof g.selector === 'string' && g.selector && Array.isArray(g.props) && g.props.every((p) => typeof p === 'string');
     if (!ok) throw usageError(`--grab ${cls}: expected { "selector": string, "props": [string], "limit"?: number }`);
     if (g.limit !== undefined && !(Number.isInteger(g.limit) && g.limit >= 1)) throw usageError(`--grab ${cls}: limit must be an integer >= 1`);
@@ -222,10 +229,13 @@ export function checkGrab(grab) {
 
 /**
  * Capture defaults from design-qa.config.json for one surface:
- * { url, states, auth, envPrefix, loginConfig, headers, fullPage, reducedMotion }.
- * The URL is app.baseUrl + surface.route; explicit CLI flags override every value.
+ * { url, states, auth, envPrefix, loginConfig, headers, fullPage, reducedMotion,
+ *   prototype, screens }.
+ * The app URL is app.baseUrl + surface.route; with side "design" it is the surface's
+ * prototype URL (or null). A screen ({ screen: "<id>" }) takes route / prototype from
+ * surfaces.<name>.screens.<id> instead. Explicit CLI flags override every value.
  */
-export function configDefaults(config, surfaceName = null) {
+export function configDefaults(config, surfaceName = null, { side = 'app', screen = null } = {}) {
   const check = validateConfig(config);
   if (!check.valid) {
     throw usageError(`--config is invalid:\n${check.errors.map((e) => `  ${e.path}: ${e.message}`).join('\n')}`);
@@ -235,18 +245,31 @@ export function configDefaults(config, surfaceName = null) {
   if (!name) throw usageError(`--config has ${names.length} surfaces; pass --surface (one of: ${names.join(', ') || 'none'})`);
   const surface = config.surfaces[name];
   if (!surface) throw usageError(`surface "${name}" is not in the config (have: ${names.join(', ') || 'none'})`);
+  const screens = surface.screens && Object.keys(surface.screens).length ? surface.screens : null;
+  let target = surface;
+  if (screen) {
+    if (!screens?.[screen]) throw usageError(`surface "${name}" has no screen "${screen}" (have: ${Object.keys(screens || {}).join(', ') || 'none'})`);
+    target = screens[screen];
+  }
   const base = String(config.app.baseUrl).replace(/\/+$/, '');
-  const route = String(surface.route || '');
+  const route = String(target.route ?? surface.route ?? '');
   const auth = config.app.auth || {};
+  const prototype = target.prototype ?? null;
+  let url = /^https?:\/\//.test(route) ? route : `${base}/${route.replace(/^\/+/, '')}`;
+  // Design side: the prototype URL (null when the config has none; --url must then be given).
+  if (side === 'design') url = prototype;
   return {
     surface: name,
-    url: /^https?:\/\//.test(route) ? route : `${base}/${route.replace(/^\/+/, '')}`,
+    screen: screen ?? null,
+    url,
     states: surface.states && Object.keys(surface.states).length ? surface.states : null,
-    auth: auth.type ?? 'none',
+    auth: side === 'design' ? 'none' : auth.type ?? 'none',
     envPrefix: auth.envPrefix ?? null,
-    loginConfig: auth.login ?? null,
-    headers: config.app.headers || {},
+    loginConfig: side === 'design' ? null : auth.login ?? null,
+    headers: side === 'design' ? {} : config.app.headers || {},
     fullPage: surface.fullPage === true,
     reducedMotion: config.capture?.reducedMotion === true,
+    prototype: surface.prototype ?? null,
+    screens,
   };
 }

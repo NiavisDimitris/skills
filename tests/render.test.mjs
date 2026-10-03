@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { agentPrompt, codingAgentIntro, designAgentIntro, parseDebtItems, renderFixplan, triageCommand } from '../skills/design-qa/scripts/lib/fixplan.mjs';
+import { agentPrompt, codingAgentIntro, parseDebtItems, renderFixplan, stateLabel, triageCommand } from '../skills/design-qa/scripts/lib/fixplan.mjs';
+import { collectImagePaths } from '../skills/design-qa/scripts/render-report.mjs';
 import { validateReport } from '../skills/design-qa/scripts/lib/schema-check.mjs';
 import { applyTriage, buildTriage } from '../skills/design-qa/scripts/lib/triage.mjs';
 import { createPng, writePng } from '../skills/design-qa/scripts/lib/png.mjs';
@@ -41,7 +42,7 @@ test('renders the template: placeholders replaced, ranks filled, title escaped',
   assert.equal(data.meta.feature, 'Items <list> & "more"');
   assert.deepEqual(
     data.findings.map((f) => f.rank.bucket),
-    ['fix-now', 'fix-now', 'sync-figma', 'fix-now', 'none', 'none', 'none'],
+    ['fix-now', 'fix-now', 'fix-now', 'fix-now', 'none', 'none', 'none', 'fix-now', 'none'],
   );
   assert.deepEqual(JSON.parse(scriptContent(html, 'design-qa-assets')), {}, 'no assets without --embed-images');
 });
@@ -69,7 +70,7 @@ test('--embed-images inlines every referenced image that exists', async () => {
   const dir = tmpDir();
   const report = loadFixture('report-valid.json');
   const inFile = writeReport(dir, report);
-  for (const rel of ['app/empty.png', 'figma/empty.png', 'diff/with-data.png', 'app/with-data.png']) {
+  for (const rel of ['app/empty.png', 'figma/empty.png', 'diff/with-data.png', 'app/with-data.png', 'figma/hover.png']) {
     mkdirSync(path.join(dir, path.dirname(rel)), { recursive: true });
     writePng(path.join(dir, rel), createPng(2, 2, [255, 0, 0, 255]));
   }
@@ -77,10 +78,34 @@ test('--embed-images inlines every referenced image that exists', async () => {
   const res = await run(RENDER, ['--in', inFile, '--out', out, '--template', TEMPLATE, '--embed-images']);
   assert.equal(res.code, 0, res.stderr);
   const assets = JSON.parse(scriptContent(readFileSync(out, 'utf8'), 'design-qa-assets'));
-  assert.deepEqual(Object.keys(assets).sort(), ['app/empty.png', 'app/with-data.png', 'diff/with-data.png', 'figma/empty.png']);
+  assert.deepEqual(Object.keys(assets).sort(), ['app/empty.png', 'app/with-data.png', 'diff/with-data.png', 'figma/empty.png', 'figma/hover.png']);
   for (const value of Object.values(assets)) assert.match(value, /^data:image\/png;base64,iVBORw0KGgo/);
   assert.match(res.stderr, /image not found, not embedded: diff\/empty\.png/);
   assert.ok(!('computed/with-data.json' in assets), 'JSON evidence is not an image');
+  assert.ok(!('motion/hover.json' in assets), 'motion JSON is not an image');
+});
+
+test('collectImagePaths: captured.design, evidence.states.*.design and design/motion evidence images', () => {
+  assert.deepEqual(collectImagePaths(loadFixture('report-multiscreen.json')), [
+    'screens/cart/diff/with-data.png',
+    'screens/checkout/diff/with-data.png',
+    'screens/cart/design/with-data.png',
+    'screens/cart/app/with-data.png',
+    'screens/cart/design/empty.png',
+    'screens/cart/app/empty.png',
+    'screens/checkout/design/with-data.png',
+    'screens/checkout/app/with-data.png',
+  ]);
+  const report = {
+    findings: [{ evidence: [{ type: 'motion', path: 'motion/hover.gif' }, { type: 'design', path: 'design/only-here.png' }, { type: 'computed', path: 'x.png' }] }],
+    evidence: { states: { hover: { design: 'design/hover.webp', designComputed: 'design-computed/hover.json' } } },
+  };
+  assert.deepEqual(collectImagePaths(report), ['motion/hover.gif', 'design/only-here.png', 'design/hover.webp']);
+  const withBackfill = {
+    ...report,
+    backfill: { gate: { override: null }, items: [{ captured: { app: 'evidence/backfill/app/bulk.png', computed: 'evidence/backfill/computed/bulk.json' } }, { captured: null }, { captured: { app: 'design/hover.webp' } }] },
+  };
+  assert.deepEqual(collectImagePaths(withBackfill), ['motion/hover.gif', 'design/only-here.png', 'design/hover.webp', 'evidence/backfill/app/bulk.png'], 'backfill captures (app side) last, deduplicated');
 });
 
 test('invalid reports fail; scorecard drift needs --recompute; --write-back saves', async () => {
@@ -97,14 +122,14 @@ test('invalid reports fail; scorecard drift needs --recompute; --write-back save
   const driftFile = writeReport(dir, drift);
   const refused = await run(RENDER, ['--in', driftFile, '--template', TEMPLATE, '--out', path.join(dir, 'r.html')]);
   assert.equal(refused.code, 1);
-  assert.match(refused.stderr, /scorecard\.parity: expected 43/);
+  assert.match(refused.stderr, /scorecard\.parity: expected 38/);
   assert.match(refused.stderr, /--recompute/);
 
   const fixed = await run(RENDER, ['--in', driftFile, '--template', TEMPLATE, '--out', path.join(dir, 'r.html'), '--recompute', '--write-back']);
   assert.equal(fixed.code, 0, fixed.stderr);
   const html = readFileSync(path.join(dir, 'r.html'), 'utf8');
   const data = JSON.parse(scriptContent(html, 'design-qa-data'));
-  assert.equal(data.scorecard.parity, 43);
+  assert.equal(data.scorecard.parity, 38);
   assert.equal(data.scorecard.verdict, 'FAIL');
   const saved = JSON.parse(readFileSync(driftFile, 'utf8'));
   assert.equal(saved.scorecard.verdict, 'FAIL');
@@ -117,16 +142,16 @@ test('stale ranks: rejected without --recompute, re-ranked with it', async () =>
   const dir = tmpDir();
   const stale = loadFixture('report-valid.json');
   stale.findings = rankFindings(stale.findings);
-  stale.findings[2].rank = { score: 233, bucket: 'fix-now' }; // DQ-003 is SYNC_FIGMA
+  stale.findings[8].rank = { score: 225, bucket: 'fix-now' }; // DQ-009 is DISMISSED
   const file = writeReport(dir, stale);
   const refused = await run(RENDER, ['--in', file, '--template', TEMPLATE, '--out', path.join(dir, 'r.html')]);
   assert.equal(refused.code, 1);
-  assert.match(refused.stderr, /findings\[2\]\.rank\.bucket: must be "sync-figma"/);
+  assert.match(refused.stderr, /findings\[8\]\.rank\.bucket: must be "none"/);
   assert.match(refused.stderr, /scorecard or ranks disagree with the derived rules; fix the report or pass --recompute/);
   const fixed = await run(RENDER, ['--in', file, '--template', TEMPLATE, '--out', path.join(dir, 'r.html'), '--recompute']);
   assert.equal(fixed.code, 0, fixed.stderr);
   const data = JSON.parse(scriptContent(readFileSync(path.join(dir, 'r.html'), 'utf8'), 'design-qa-data'));
-  assert.deepEqual(data.findings[2].rank, { score: 233, bucket: 'sync-figma' });
+  assert.deepEqual(data.findings[8].rank, { score: 0, bucket: 'none' });
 });
 
 test('a template without the data placeholder is rejected', async () => {
@@ -139,7 +164,7 @@ test('a template without the data placeholder is rejected', async () => {
   assert.equal((await run(RENDER, ['--out', 'x.html'])).code, 2, '--in is required');
 });
 
-test('fix plan: section order, fix-now ordering, paste blocks, debt and sync to Figma', async () => {
+test('fix plan: section order, fix-now ordering, paste block, design-system mismatches, debt and dismissed', async () => {
   const dir = tmpDir();
   const plan = path.join(dir, 'fixplan.md');
   const res = await run(RENDER, [
@@ -152,69 +177,147 @@ test('fix plan: section order, fix-now ordering, paste blocks, debt and sync to 
     '# Design QA fix plan — Items list',
     '## Fix now (2)',
     '### Paste to your coding agent',
-    '## Sync to Figma (1)',
-    '### Paste to your design agent',
-    '## Debt (1) — tickets',
+    '## Design-system mismatches',
+    '### Tokens (2)',
+    '### Components (1)',
+    '### Motion (1)',
+    '## Debt (3) — tickets',
     '## Missing states / needs decision',
+    '## Dismissed (2)',
     '## Cannot verify',
   ]);
+  assert.ok(!/sync|Paste to your design agent/i.test(md), 'nothing points back at the design');
   const lines = md.split('\n');
-  assert.equal(lines[1], 'Verdict: FAIL · Parity 43% · States: 3/5 verified (4 designed, 3 specified, 5 implemented)');
+  assert.equal(lines[1], 'Verdict: FAIL · Parity 38% · States: 3/5 verified (5 designed, 3 specified, 4 implemented)');
   assert.equal(
     lines[2],
-    'Figma: https://www.figma.com/design/AbCdEf123456/Items?node-id=1-2 · App: http://localhost:3000/items (local) · Ticket: ABC-12 · Generated: 2026-09-23T10:00:00Z',
+    'Source: figma https://www.figma.com/design/AbCdEf123456/Items?node-id=1-2 · App: http://localhost:3000/items (local) · Ticket: ABC-12 · Generated: 2026-09-23T10:00:00Z',
   );
   assert.equal(
     lines[3],
-    'Triage: recommended (top 2 by rank). Choose in report.html, or run /design-qa triage ABC-12 --fix DQ-001,DQ-002,DQ-003',
+    'Triage: recommended (top 2 by rank). Choose in report.html, or run /design-qa triage ABC-12 --fix DQ-001,DQ-003',
   );
-  assert.equal(lines[4], '');
+  assert.equal(lines[4], 'Dismissed: 1 · accepted as intentional: 1');
+  assert.equal(lines[5], '');
   const section = (from, to) => md.slice(md.indexOf(from), md.indexOf(to));
 
-  const fixNow = section('## Fix now', '## Sync to Figma');
+  const fixNow = section('## Fix now', '## Design-system mismatches');
   assert.ok(fixNow.includes('1. **DQ-001 — Empty state message is missing** (BLOCKER, structure, state empty)\n   - Where: src/Items.tsx:42 · selector `main .empty`'));
-  assert.ok(fixNow.includes('2. **DQ-002 — Row padding is 12px instead of 16px** (WARNING, style, state with-data)'));
+  assert.ok(fixNow.includes('2. **DQ-003 — Hover row renders ListItem instead of TableRow** (WARNING, component, state hover)'));
   assert.ok(fixNow.includes(`\`\`\`text\n${codingAgentIntro}\n\n[DQ-001]`));
-  assert.ok(fixNow.indexOf('[DQ-001]') < fixNow.indexOf('[DQ-002]'));
-  assert.ok(!fixNow.includes('DQ-003'), 'SYNC_FIGMA findings never go to the coding agent');
+  assert.ok(fixNow.indexOf('[DQ-001]') < fixNow.indexOf('[DQ-003]'));
+  assert.ok(!fixNow.includes('DQ-009'), 'dismissed findings never go to the coding agent');
 
-  const debtSection = section('## Debt', '## Missing states');
   assert.equal(
-    debtSection.trim(),
-    '## Debt (1) — tickets\n- DQ-004 — Hard-coded grey could be a design-system token (DS_CANDIDATE, owner engineering) — no ticket yet — Replace the literal with var(--color-text-muted)',
+    section('## Design-system mismatches', '## Debt').trim(),
+    [
+      '## Design-system mismatches',
+      '### Tokens (2)',
+      '- DQ-002 — Row padding is 12px instead of 16px — expected space.4 (16px) · actual 12px',
+      '- DQ-004 — Hard-coded grey could be a design-system token — expected color.text.muted (#6B7280) · actual #6B7280',
+      '### Components (1)',
+      '- DQ-003 — Hover row renders ListItem instead of TableRow — expected TableRow (State=Hover) · actual ListItem',
+      '### Motion (1)',
+      '- DQ-008 — Row hover has no background transition — expected motion.duration.fast (150ms ease-out on background-color) · actual none',
+    ].join('\n'),
   );
 
-  const sync = section('## Sync to Figma', '## Debt');
   assert.equal(
-    sync.trim(),
+    section('## Debt', '## Missing states').trim(),
     [
-      '## Sync to Figma (1)',
-      '- DQ-003 — Hover row uses the old highlight colour in Figma (WARNING, component, state hover) — Update the Row/Hover variant to color.surface.hover — Figma: Row / Hover',
-      '',
-      '### Paste to your design agent',
-      '```text',
-      designAgentIntro,
-      '',
-      agentPrompt(loadFixture('report-valid.json').findings[2]),
-      '```',
+      '## Debt (3) — tickets',
+      "- DQ-002 — Row padding is 12px instead of 16px (WARNING, owner engineering) — no ticket yet — Use the space.4 token for the row's vertical padding",
+      '- DQ-008 — Row hover has no background transition (WARNING, owner engineering) — no ticket yet — Add the fast background-color transition to .row',
+      '- DQ-004 — Hard-coded grey could be a design-system token (DS_CANDIDATE, owner engineering) — no ticket yet — Replace the literal with var(--color-text-muted)',
+    ].join('\n'),
+  );
+
+  assert.equal(
+    section('## Missing states', '## Dismissed').trim(),
+    [
+      '## Missing states / needs decision',
+      '- Loading: MISSING_IN_CODE — Designed (Loading skeleton) but not implemented: if the code has it, add a driver at surfaces.items.states.loading; otherwise build it.',
+      '- OD-1: Ship the empty state before the illustration asset is final? — options: Ship with the placeholder illustration: Empty state matches the layout now; the asset is swapped later; Wait for the final asset: DQ-001 stays open until the asset lands — recommendation: Ship with the placeholder illustration',
     ].join('\n'),
   );
   assert.equal(
-    designAgentIntro,
-    'Update the Figma file so these match the shipped code. Use library components and bound variables, never arbitrary hex. Re-export the node and diff it against the app after each item.',
+    section('## Dismissed', '## Cannot verify').trim(),
+    [
+      '## Dismissed (2)',
+      '- DQ-007 — Table header is sticky in the app, static in the design — intentional — "Sticky header approved for long lists" — by design lead, 2026-09-20',
+      '- DQ-009 — Table header text renders 1px lower — not-an-issue — "Font rasterisation difference between the Figma export and Chrome; the line boxes are identical." — by Dana, 2026-09-23',
+    ].join('\n'),
   );
-
-  assert.ok(md.includes('- Disabled: MISSING_IN_DESIGN — Read-only mode exists in code but has no design'));
-  assert.ok(md.includes('- OD-1: Should read-only mode get its own design? — options: Design it: One more frame to maintain; Reuse the disabled style: No design work; slightly less clear — recommendation: Reuse the disabled style'));
   assert.ok(md.includes('## Cannot verify\n- DQ-006 — Retry button behaviour could not be exercised — no driver for the error state\n- Error: No runtime driver for the error state'));
 
   const debt = parseDebtItems(md);
-  assert.deepEqual(debt.map((d) => d.id), ['DQ-004']);
-  assert.equal(debt[0].title, 'Hard-coded grey could be a design-system token');
-  assert.equal(debt[0].meta, 'DS_CANDIDATE, owner engineering');
-  assert.equal(debt[0].owner, 'engineering');
-  assert.equal(debt[0].ticket, null);
-  assert.equal(debt[0].summary, 'Replace the literal with var(--color-text-muted)');
+  assert.deepEqual(debt.map((d) => d.id), ['DQ-002', 'DQ-008', 'DQ-004']);
+  assert.equal(debt[2].title, 'Hard-coded grey could be a design-system token');
+  assert.equal(debt[2].meta, 'DS_CANDIDATE, owner engineering');
+  assert.equal(debt[2].owner, 'engineering');
+  assert.equal(debt[2].ticket, null);
+  assert.equal(debt[2].summary, 'Replace the literal with var(--color-text-muted)');
+});
+
+test('fix plan: the recommendation keeps every blocker in fix now; prototype sources and screens', () => {
+  const report = loadFixture('report-valid.json');
+  const md = renderFixplan({ ...report, findings: rankFindings(report.findings, { topN: 0 }) }, { topN: 0 });
+  assert.ok(md.includes('## Fix now (1)\n1. **DQ-001'), 'a blocker in the debt bucket is still fixed now');
+  assert.ok(md.includes('## Debt (4) — tickets\n- DQ-003'));
+  assert.ok(md.split('\n')[3].endsWith('--fix DQ-001'));
+
+  const multi = loadFixture('report-multiscreen.json');
+  const plan = renderFixplan(multi);
+  const lines = plan.split('\n');
+  assert.equal(lines[2], 'Source: prototype https://acme-checkout.framer.website/cart · App: http://localhost:5173/cart (local) · Ticket: – · Generated: 2026-10-01T09:30:00Z');
+  assert.ok(!plan.includes('Dismissed: '), 'no Dismissed line when nothing is dismissed');
+  assert.ok(plan.includes('### Tokens (1)\n- DQ-001 — Cart total uses a hard-coded colour instead of the brand token — expected --color-text-strong (rgb(17, 24, 39)) · actual rgb(31, 41, 55)'));
+  assert.ok(plan.includes('### Components (0)\n- None'));
+  assert.ok(plan.includes('### Motion (1)\n- DQ-002 — Pay button has no press animation — expected 120ms ease-out on transform · actual none'));
+  assert.ok(plan.includes('(WARNING, style, state cart/with-data)'));
+  assert.ok(plan.includes('## Dismissed (0)\n- None'));
+});
+
+test('fix plan: multi-screen state lines name the screen (Missing states, Cannot verify)', () => {
+  const multi = loadFixture('report-multiscreen.json');
+  const base = multi.stateMatrix[0];
+  const report = {
+    ...multi,
+    stateMatrix: [
+      ...multi.stateMatrix,
+      { ...base, screen: 'checkout', state: 'checkout/promo-applied', label: 'Promo applied', result: 'MISSING_IN_CODE', note: 'Apply has no handler' },
+      { ...base, screen: 'cart', state: 'cart/promo-applied', label: 'Promo applied', result: 'NOT_SPECIFIED', note: 'no AC' },
+      { ...base, screen: 'checkout', state: 'checkout/error', label: null, result: 'CANNOT_VERIFY', note: 'No runtime driver for the error state' },
+    ],
+    findings: [
+      ...multi.findings,
+      { ...multi.findings[1], id: 'DQ-004', severity: 'CANNOT_VERIFY', resolution: 'UNCLASSIFIED', title: 'Pay button focus ring cannot be verified', delta: 'no focus driver', rank: undefined },
+    ],
+  };
+  const plan = renderFixplan(report);
+  const section = (from, to) => plan.slice(plan.indexOf(from), plan.indexOf(to));
+  assert.equal(
+    section('## Missing states', '## Dismissed').trim(),
+    [
+      '## Missing states / needs decision',
+      '- Checkout / Promo applied: MISSING_IN_CODE — Apply has no handler',
+      '- Cart / Promo applied: NOT_SPECIFIED — no AC',
+    ].join('\n'),
+    'the same label on two screens stays unambiguous',
+  );
+  assert.ok(
+    plan.includes(
+      [
+        '## Cannot verify',
+        '- DQ-004 — Checkout / With data: Pay button focus ring cannot be verified — no focus driver',
+        '- Checkout / error: No runtime driver for the error state',
+      ].join('\n'),
+    ),
+    plan,
+  );
+  assert.equal(stateLabel(report, { state: 'with-data', label: 'With data' }), 'With data', 'single-screen rows keep their label');
+  assert.equal(stateLabel(report, { screen: 'ghost', state: 'ghost/empty' }), 'ghost / empty', 'an unknown screen id shows the id');
+  assert.equal(stateLabel(report, null), '–');
 });
 
 test('parseDebtItems reads the current and the older debt bullet formats', () => {
@@ -235,23 +338,7 @@ test('parseDebtItems reads the current and the older debt bullet formats', () =>
   ]);
 });
 
-test('sync to Figma: several items in score order, Figma node id when there is no layer path', () => {
-  const report = loadFixture('report-valid.json');
-  const extra = structuredClone(report.findings[2]);
-  extra.id = 'DQ-008';
-  extra.title = 'Empty illustration differs from the shipped one';
-  extra.severity = 'BLOCKER';
-  extra.ledger = 'structure';
-  extra.element = { selector: null, figmaLayerPath: null, figmaNodeId: '1:41' };
-  extra.fix = null;
-  report.findings.push(extra);
-  const md = renderFixplan({ ...report, findings: rankFindings(report.findings) });
-  const sync = md.slice(md.indexOf('## Sync to Figma'), md.indexOf('## Debt'));
-  assert.ok(sync.startsWith('## Sync to Figma (2)\n- DQ-008 — Empty illustration differs from the shipped one (BLOCKER, structure, state hover) — – — Figma: 1:41\n- DQ-003'));
-  assert.ok(sync.indexOf('[DQ-008]') < sync.indexOf('[DQ-003]'), 'design prompts follow score order');
-});
-
-test('fix plan with triage: the decisions fill Fix now, Sync to Figma and Debt', () => {
+test('fix plan with triage: the decisions fill Fix now and Debt', () => {
   const report = loadFixture('report-valid.json');
   const { triage } = buildTriage(report, { fixIds: ['DQ-002'], decidedBy: 'Dana', decidedAt: '2026-09-24T09:00:00Z', source: 'cli' });
   triage.items.find((i) => i.findingId === 'DQ-004').ticket = {
@@ -261,27 +348,22 @@ test('fix plan with triage: the decisions fill Fix now, Sync to Figma and Debt',
   assert.deepEqual(validateReport(triaged).errors, []);
   const md = renderFixplan(triaged);
   const lines = md.split('\n');
-  assert.equal(lines[3], 'Triage: 2 fix now · 2 debt (1 ticketed) · Dana, 2026-09-24');
+  assert.equal(lines[3], 'Triage: 2 fix now · 3 debt (1 ticketed) · Dana, 2026-09-24');
+  assert.equal(lines[4], 'Dismissed: 1 · accepted as intentional: 1');
   const section = (from, to) => md.slice(md.indexOf(from), md.indexOf(to));
-  const fixNow = section('## Fix now', '## Sync to Figma');
+  const fixNow = section('## Fix now', '## Design-system mismatches');
   assert.ok(fixNow.startsWith('## Fix now (2)\n1. **DQ-001'), 'the BLOCKER stays in fix now');
   assert.ok(fixNow.includes('2. **DQ-002'));
-  assert.equal(section('## Sync to Figma', '## Debt').trim(), '## Sync to Figma (0)\n- None', 'DQ-003 was deferred, so nothing goes to the design agent now');
   assert.equal(
     section('## Debt', '## Missing states').trim(),
     [
-      '## Debt (2) — tickets',
-      '- DQ-003 — Hover row uses the old highlight colour in Figma (WARNING, owner design) — no ticket yet — Update the Row/Hover variant to color.surface.hover',
+      '## Debt (3) — tickets',
+      '- DQ-003 — Hover row renders ListItem instead of TableRow (WARNING, owner engineering) — no ticket yet — Render the design-system TableRow for each item',
+      '- DQ-008 — Row hover has no background transition (WARNING, owner engineering) — no ticket yet — Add the fast background-color transition to .row',
       '- DQ-004 — Hard-coded grey could be a design-system token (DS_CANDIDATE, owner engineering) — ABC-99 — Replace the literal with var(--color-text-muted)',
     ].join('\n'),
   );
-  assert.ok(!md.includes('Paste to your design agent'));
-
-  const syncNow = applyTriage(report, buildTriage(report, { fixIds: ['DQ-003'], decidedAt: '2026-09-24T09:00:00Z' }).triage);
-  const md2 = renderFixplan(syncNow);
-  assert.equal(md2.split('\n')[3], 'Triage: 2 fix now · 2 debt (0 ticketed) · –, 2026-09-24');
-  assert.ok(md2.includes('## Sync to Figma (1)\n- DQ-003'));
-  assert.ok(md2.includes('### Paste to your design agent'));
+  assert.ok(section('## Design-system mismatches', '## Debt').includes('### Tokens (2)\n- DQ-002'), 'design-system lists every open mismatch, fix now or debt');
 });
 
 test('triageCommand: slug from the ticket key, else the kebab-cased feature', () => {
@@ -339,10 +421,11 @@ test('renderFixplan handles empty sections', () => {
   assert.ok(md.includes('## Fix now (0)\n- None'));
   assert.ok(!md.includes('Paste to your coding agent'));
   assert.equal(md.split('\n')[3], 'Triage: nothing to triage');
+  assert.equal(md.split('\n')[4], '', 'no Dismissed line');
+  assert.ok(md.includes('## Design-system mismatches\n### Tokens (0)\n- None\n### Components (0)\n- None\n### Motion (0)\n- None'));
   assert.ok(md.includes('## Debt (0) — tickets\n- None'));
-  assert.ok(md.includes('## Sync to Figma (0)\n- None'));
-  assert.ok(!md.includes('Paste to your design agent'));
   assert.ok(md.includes('## Missing states / needs decision\n- None'));
+  assert.ok(md.includes('## Dismissed (0)\n- None'));
   assert.ok(md.includes('## Cannot verify\n- None'));
 });
 

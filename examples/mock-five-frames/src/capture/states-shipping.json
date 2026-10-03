@@ -1,0 +1,1 @@
+{ "with-data": {}, "hover": { "action": "hover", "selector": "[data-testid=primary-cta]" } }

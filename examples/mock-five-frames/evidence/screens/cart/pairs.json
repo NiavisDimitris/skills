@@ -1,0 +1,10 @@
+{
+  "with-data": {
+    "a": "figma/with-data.png",
+    "b": "app/with-data.png"
+  },
+  "empty": {
+    "a": "figma/empty.png",
+    "b": "app/empty.png"
+  }
+}

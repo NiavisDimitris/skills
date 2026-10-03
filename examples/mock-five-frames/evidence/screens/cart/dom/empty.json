@@ -1,0 +1,124 @@
+{
+  "url": "http://localhost:5179/checkout/cart?empty=1",
+  "title": "Acme · Cart",
+  "ariaSnapshot": "- banner:\n  - text: acme Secure checkout\n  - list \"Checkout progress\":\n    - listitem: 1 Cart\n    - listitem: 2 Shipping\n    - listitem: 3 Payment\n    - listitem: 4 Review\n    - listitem: 5 Done\n- main:\n  - region \"Empty cart\":\n    - heading \"Your cart is empty\" [level=2]\n    - paragraph: Browse the catalogue and add something you love. Your saved items stay here for 30 days.\n    - button \"Continue shopping\"",
+  "elements": [
+    {
+      "role": "heading",
+      "name": "Your cart",
+      "text": "Your cart",
+      "visible": false,
+      "level": 1
+    },
+    {
+      "role": "button",
+      "name": "Decrease quantity",
+      "text": "−",
+      "visible": false
+    },
+    {
+      "role": "button",
+      "name": "Increase quantity",
+      "text": "+",
+      "visible": false
+    },
+    {
+      "role": "link",
+      "name": "Remove",
+      "text": "Remove",
+      "visible": false
+    },
+    {
+      "role": "button",
+      "name": "Decrease quantity",
+      "text": "−",
+      "visible": false
+    },
+    {
+      "role": "button",
+      "name": "Increase quantity",
+      "text": "+",
+      "visible": false
+    },
+    {
+      "role": "link",
+      "name": "Remove",
+      "text": "Remove",
+      "visible": false
+    },
+    {
+      "role": "button",
+      "name": "Decrease quantity",
+      "text": "−",
+      "visible": false
+    },
+    {
+      "role": "button",
+      "name": "Increase quantity",
+      "text": "+",
+      "visible": false
+    },
+    {
+      "role": "link",
+      "name": "Remove",
+      "text": "Remove",
+      "visible": false
+    },
+    {
+      "role": "heading",
+      "name": "Order summary",
+      "text": "Order summary",
+      "visible": false,
+      "level": 2
+    },
+    {
+      "role": "button",
+      "name": "Go to checkout",
+      "text": "Go to checkout",
+      "visible": false
+    },
+    {
+      "role": "heading",
+      "name": "Your cart is empty",
+      "text": "Your cart is empty",
+      "visible": true,
+      "level": 2
+    },
+    {
+      "role": "button",
+      "name": "Continue shopping",
+      "text": "Continue shopping",
+      "visible": true
+    },
+    {
+      "role": "status",
+      "name": "Aero wireless earbuds removed from your cartUndo",
+      "text": "Aero wireless earbuds removed from your cartUndo",
+      "visible": false
+    },
+    {
+      "role": "link",
+      "name": "Undo",
+      "text": "Undo",
+      "visible": false
+    }
+  ],
+  "texts": [
+    "acme",
+    "Secure checkout",
+    "1",
+    "Cart",
+    "2",
+    "Shipping",
+    "3",
+    "Payment",
+    "4",
+    "Review",
+    "5",
+    "Done",
+    "Your cart is empty",
+    "Browse the catalogue and add something you love. Your saved items stay here for 30 days.",
+    "Continue shopping"
+  ],
+  "truncated": false
+}

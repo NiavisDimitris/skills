@@ -1,0 +1,211 @@
+{
+  "schemaVersion": "2.0",
+  "meta": {
+    "feature": "Checkout flow",
+    "generatedAt": "2026-10-01T09:30:00Z",
+    "skillVersion": "0.2.0",
+    "mode": "audit",
+    "ticket": null,
+    "source": {
+      "kind": "prototype",
+      "url": "https://acme-checkout.framer.website/cart",
+      "label": "Checkout prototype (Framer)",
+      "tool": "framer",
+      "frame": { "width": 1280, "height": 800 }
+    },
+    "screens": [
+      { "id": "cart", "name": "Cart", "designRef": "https://acme-checkout.framer.website/cart", "appRoute": "/cart", "frame": { "width": 1280, "height": 800 } },
+      { "id": "checkout", "name": "Checkout", "designRef": "https://acme-checkout.framer.website/checkout", "appRoute": "/checkout", "frame": { "width": 1280, "height": 800 } }
+    ],
+    "app": {
+      "url": "http://localhost:5173/cart",
+      "kind": "local",
+      "route": "/cart",
+      "commit": null,
+      "branch": "feature/checkout",
+      "viewport": { "width": 1280, "height": 800 },
+      "dpr": 1
+    },
+    "fixture": null,
+    "tools": { "figmaAccess": "none", "capture": "script", "ticket": "none", "prototypeCapture": "script" },
+    "degradations": []
+  },
+  "scorecard": {
+    "parity": 33,
+    "verdict": "REVIEW",
+    "bySeverity": { "BLOCKER": 0, "WARNING": 2, "PASS": 1, "CANNOT_VERIFY": 0, "DS_CANDIDATE": 0 },
+    "byResolution": { "FIX_CODE": 2, "INTENTIONAL": 0, "DATA": 0, "DISMISSED": 0, "NONE": 1, "UNCLASSIFIED": 0 },
+    "pixelDiff": {
+      "cart/with-data": { "percent": 0.6, "band": "pass", "image": "screens/cart/diff/with-data.png" },
+      "checkout/with-data": { "percent": 2.4, "band": "review", "image": "screens/checkout/diff/with-data.png" }
+    },
+    "stateCoverage": { "total": 3, "designed": 3, "specified": 0, "implemented": 3, "verified": 3 },
+    "unexplained": 2,
+    "debt": { "count": 0, "ticketed": 0 },
+    "loopClosed": false,
+    "dismissed": 0,
+    "designSystem": { "tokens": 1, "components": 0, "motion": 1 }
+  },
+  "stateMatrix": [
+    {
+      "state": "cart/with-data",
+      "screen": "cart",
+      "label": "With data",
+      "designed": { "nodeId": "/cart", "name": "Cart" },
+      "specified": null,
+      "implemented": { "driver": "fixture", "detail": "default render of /cart" },
+      "captured": { "design": "screens/cart/design/with-data.png", "app": "screens/cart/app/with-data.png", "diff": "screens/cart/diff/with-data.png" },
+      "result": "FAIL",
+      "note": null,
+      "findings": ["DQ-001", "DQ-003"]
+    },
+    {
+      "state": "cart/empty",
+      "screen": "cart",
+      "label": "Empty",
+      "designed": { "nodeId": "/cart?empty=1", "name": "Cart / Empty" },
+      "specified": null,
+      "implemented": { "driver": "query", "detail": "query ?empty=1" },
+      "captured": { "design": "screens/cart/design/empty.png", "app": "screens/cart/app/empty.png", "diff": null },
+      "result": "PASS",
+      "note": null,
+      "findings": []
+    },
+    {
+      "state": "checkout/with-data",
+      "screen": "checkout",
+      "label": "With data",
+      "designed": { "nodeId": "/checkout", "name": "Checkout" },
+      "specified": null,
+      "implemented": { "driver": "fixture", "detail": "default render of /checkout" },
+      "captured": { "design": "screens/checkout/design/with-data.png", "app": "screens/checkout/app/with-data.png", "diff": "screens/checkout/diff/with-data.png" },
+      "result": "FAIL",
+      "note": null,
+      "findings": ["DQ-002"]
+    }
+  ],
+  "findings": [
+    {
+      "id": "DQ-001",
+      "title": "Cart total uses a hard-coded colour instead of the brand token",
+      "ledger": "style",
+      "state": "cart/with-data",
+      "screen": "cart",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Order summary",
+      "element": { "selector": ".summary .total", "figmaLayerPath": null, "figmaNodeId": null },
+      "property": "color",
+      "expected": { "value": "rgb(17, 24, 39)", "token": "--color-text-strong", "source": "prototype" },
+      "actual": { "value": "rgb(31, 41, 55)", "token": null, "source": { "file": "src/cart/Summary.css", "line": 18, "snippet": null } },
+      "delta": "different colour",
+      "tolerance": "exact",
+      "fix": { "summary": "Use var(--color-text-strong) for the total", "patchHint": "color: var(--color-text-strong);", "files": ["src/cart/Summary.css"], "effort": 1 },
+      "evidence": [
+        { "type": "design", "path": "screens/cart/design/with-data.png", "crop": { "x": 880, "y": 520, "w": 360, "h": 48 }, "state": "cart/with-data" },
+        { "type": "computed", "path": "screens/cart/computed/with-data.json", "crop": null, "state": "cart/with-data" }
+      ],
+      "rank": null,
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-002",
+      "title": "Pay button has no press animation",
+      "ledger": "motion",
+      "state": "checkout/with-data",
+      "screen": "checkout",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Payment",
+      "element": { "selector": "button.pay", "figmaLayerPath": null, "figmaNodeId": null },
+      "property": "transition-duration",
+      "expected": { "value": "120ms ease-out on transform", "token": null, "source": "prototype" },
+      "actual": { "value": "none", "token": null, "source": { "file": "src/checkout/PayButton.tsx", "line": 9, "snippet": null } },
+      "delta": "missing motion",
+      "tolerance": "±20ms",
+      "fix": { "summary": "Add the press scale transition to the pay button", "patchHint": "transition: transform 120ms ease-out;", "files": ["src/checkout/PayButton.tsx"], "effort": 2 },
+      "evidence": [{ "type": "motion", "path": "screens/checkout/motion/with-data.json", "crop": null, "state": "checkout/with-data" }],
+      "rank": null,
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-003",
+      "title": "Line item spacing matches",
+      "ledger": "style",
+      "state": "cart/with-data",
+      "screen": "cart",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Line items",
+      "element": { "selector": ".line-item", "figmaLayerPath": null, "figmaNodeId": null },
+      "property": "gap",
+      "expected": { "value": "16px", "token": "--space-4", "source": "prototype" },
+      "actual": { "value": "16px", "token": "--space-4", "source": { "file": null, "line": null, "snippet": null } },
+      "delta": null,
+      "tolerance": "±1px",
+      "fix": null,
+      "evidence": [],
+      "rank": null,
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    }
+  ],
+  "ledgers": {
+    "structure": [],
+    "component": [],
+    "style": [
+      { "elementClass": "total", "selector": ".summary .total", "property": "color", "figma": "rgb(17, 24, 39)", "token": "--color-text-strong", "computed": "rgb(31, 41, 55)", "sourceValue": "#1f2937", "result": "FAIL", "findingIds": ["DQ-001"] }
+    ],
+    "state": [
+      { "state": "cart/with-data", "result": "FAIL", "findingIds": ["DQ-001"] },
+      { "state": "cart/empty", "result": "PASS", "findingIds": [] },
+      { "state": "checkout/with-data", "result": "FAIL", "findingIds": ["DQ-002"] }
+    ],
+    "behavior": [],
+    "motion": [
+      {
+        "state": "checkout/with-data",
+        "selector": "button.pay",
+        "figmaNodeId": null,
+        "trigger": "press",
+        "property": "transform",
+        "expected": { "type": "transition", "durationMs": 120, "easing": "ease-out", "delayMs": 0, "detail": "scale(0.98) while pressed" },
+        "observed": null,
+        "result": "FAIL",
+        "findingIds": ["DQ-002"]
+      }
+    ]
+  },
+  "openDecisions": [],
+  "fixLoop": [],
+  "evidence": {
+    "figmaSpec": null,
+    "ticket": null,
+    "capture": "screens/cart/capture.json",
+    "compare": "compare.json",
+    "prototypeCapture": "screens/cart/design-capture.json",
+    "states": {
+      "cart/with-data": {
+        "design": "screens/cart/design/with-data.png",
+        "app": "screens/cart/app/with-data.png",
+        "diff": "screens/cart/diff/with-data.png",
+        "computed": "screens/cart/computed/with-data.json",
+        "designComputed": "screens/cart/design-computed/with-data.json",
+        "motion": "screens/cart/motion/with-data.json"
+      },
+      "checkout/with-data": {
+        "design": "screens/checkout/design/with-data.png",
+        "app": "screens/checkout/app/with-data.png",
+        "diff": "screens/checkout/diff/with-data.png",
+        "computed": "screens/checkout/computed/with-data.json",
+        "designComputed": "screens/checkout/design-computed/with-data.json",
+        "motion": "screens/checkout/motion/with-data.json"
+      }
+    }
+  }
+}

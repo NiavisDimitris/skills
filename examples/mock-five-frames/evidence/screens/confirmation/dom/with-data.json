@@ -1,0 +1,58 @@
+{
+  "url": "http://localhost:5179/checkout/confirmation",
+  "title": "Acme · Order confirmed",
+  "ariaSnapshot": "- banner:\n  - text: acme Secure checkout\n  - list \"Checkout progress\":\n    - listitem: ✓ Cart\n    - listitem: ✓ Shipping\n    - listitem: ✓ Payment\n    - listitem: ✓ Review\n    - listitem: 5 Done\n- main:\n  - region \"Order confirmed\":\n    - heading \"Thank you, your order is confirmed\" [level=1]\n    - paragraph: \"Order #AC-10517 · A confirmation is on its way to dana@example.com\"\n    - text: Arriving Thu 15 Oct – Mon 19 Oct Total paid €248.40 · Visa 4242\n    - button \"Track order\"\n    - button \"Continue shopping\"\n  - status: Receipt sent to dana@example.com",
+  "elements": [
+    {
+      "role": "heading",
+      "name": "Thank you, your order is confirmed",
+      "text": "Thank you, your order is confirmed",
+      "visible": true,
+      "level": 1
+    },
+    {
+      "role": "button",
+      "name": "Track order",
+      "text": "Track order",
+      "visible": true
+    },
+    {
+      "role": "button",
+      "name": "Continue shopping",
+      "text": "Continue shopping",
+      "visible": true
+    },
+    {
+      "role": "status",
+      "name": "Receipt sent to dana@example.com",
+      "text": "Receipt sent to dana@example.com",
+      "visible": true
+    }
+  ],
+  "texts": [
+    "acme",
+    "Secure checkout",
+    "✓",
+    "Cart",
+    "✓",
+    "Shipping",
+    "✓",
+    "Payment",
+    "✓",
+    "Review",
+    "5",
+    "Done",
+    "Thank you, your order is confirmed",
+    "Order",
+    "#AC-10517",
+    "· A confirmation is on its way to dana@example.com",
+    "Arriving",
+    "Thu 15 Oct – Mon 19 Oct",
+    "Total paid",
+    "€248.40 · Visa 4242",
+    "Track order",
+    "Continue shopping",
+    "Receipt sent to dana@example.com"
+  ],
+  "truncated": false
+}

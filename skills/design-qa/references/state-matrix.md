@@ -1,12 +1,12 @@
 # State matrix
 
-A screen is the set of its states. The state matrix lists every state the design, the ticket or the code expects, how to put the app into it, and what the comparison found. It is written to `<dir>/state-matrix.json` in Phase 3 and ends up as `stateMatrix` in `report.json`.
+A screen is the set of its states. The state matrix lists every state the design defines, how to put the app into it, and what the comparison found. It is written to `<dir>/state-matrix.json` in Phase 3 and ends up as `stateMatrix` in `report.json`.
 
-## Where expected states come from
+The design is the source of truth, so only designed states are rows. A state that exists only in code, or only in the ticket, is not a row and not a finding: it goes to `backfill-candidates.json`, the input of step 2, design backfill (below, and design-backfill.md). The ticket and the code still matter: the ticket's criteria feed the behaviour and motion checks of the designed states, and the code tells you how to reach them.
 
-Take the union of three sources and deduplicate by normalised id.
+## Where designed states come from
 
-### Figma
+### Figma (file or prototype link)
 
 - Component variant properties: `State=Hover`, `State=Selected`, `Status=Error`, booleans such as `Disabled=true`.
 - Sibling frames and sections named with state keywords: Empty, No results, Loading, Skeleton, Error, Success, Selected, Expanded, Disabled.
@@ -16,9 +16,13 @@ Take the union of three sources and deduplicate by normalised id.
 
 Details: figma-extraction.md.
 
-### Ticket
+### Coded prototype
 
-Parse the acceptance criteria into expected behaviours, each tagged with a state and a trigger:
+The states the prototype shows: its routes (`/cart`, `/cart?empty=1`), its own state toggles or controls, and the interactions it responds to (hover, focus, click, open). List them in the matrix yourself with `designed: { "nodeId": null, "name": "<route or how to reach it>" }`, and write the drivers that reach each one in the prototype (prototype-source.md).
+
+### Ticket: behaviours of designed states
+
+Parse the acceptance criteria into expected behaviours, each tagged with a state and a trigger. They become `specified` on the matching designed row and rows in the behaviour and motion ledgers. A criterion whose state the design does not define adds no row; it becomes a backfill candidate (`discoveredBy: "ticket"`).
 
 | Criterion | State | Trigger |
 |---|---|---|
@@ -29,16 +33,20 @@ Parse the acceptance criteria into expected behaviours, each tagged with a state
 
 `scripts/jira-fetch.mjs` writes them to `ticket.json` as `expectedBehaviors: [{ acRef, text, state, trigger }]` (ticket-ingest.md).
 
-### Code
+### Code: how to reach designed states
 
 - States that config can drive: `surfaces.<name>.states`.
-- States you find in the source of the surface: loading flags (`isLoading`, `isFetching`, `status === 'pending'`), empty branches (`items.length === 0`, `isEmpty`), error branches (`isError`, `error &&`, error boundaries), `disabled`, `aria-selected`, `aria-expanded`.
+- Where a designed state lives in the source of the surface: loading flags (`isLoading`, `isFetching`, `status === 'pending'`), empty branches (`items.length === 0`, `isEmpty`), error branches (`isError`, `error &&`, error boundaries), `disabled`, `aria-selected`, `aria-expanded`.
 
-List code states even when nobody designed them. Surfacing undesigned states is one of the most useful things this pass does. The script only knows the states config lists, so every code state goes into `surfaces.<name>.states`: a runtime driver when you can reach it, else `{ "source": "<file>:<line>" }`. The `with-data` default render always counts as implemented.
+Use the source to find the `implemented` side of each designed state: a runtime driver when you can reach it, else `{ "source": "<file>:<line>" }`. A designed state with no branch in the source is `MISSING_IN_CODE`. A code branch with no designed state is not a row: add it to `backfill-candidates.json` (`discoveredBy: "source"`, `detail` = `file:line`). The `with-data` default render always counts as implemented.
+
+## Multi-screen passes
+
+A page, section or prototype flow with several screens is one matrix. Every row carries `screen` (an id from `meta.screens`) and its state id is `<screen>/<state>`: `cart/with-data`, `cart/empty`, `checkout/error`. The normalised ids below apply to the part after the slash. Each screen's drivers, captures and diffs live under `<dir>/evidence/screens/<id>/`. Single-screen passes omit `screen` and the prefix.
 
 ## Normalised ids
 
-Use these ids in the matrix, in file names (`app/<state>.png`) and in findings. `scripts/lib/state-discovery.mjs` applies the same table.
+Use these ids in the matrix, in file names (`app/<state>.png`) and in findings (prefixed with `<screen>/` in a multi-screen pass). `scripts/lib/state-discovery.mjs` applies the same table.
 
 | Id | Synonyms |
 |---|---|
@@ -74,7 +82,7 @@ The file is an array of rows, the same shape as `report.json` `stateMatrix`:
   "designed": { "nodeId": "12:400", "name": "Orders – Empty" },
   "specified": { "acRef": "AC-2", "text": "Given no orders match … show 'No orders found'" },
   "implemented": { "driver": "mock", "detail": "mock **/api/orders* → 200 {\"items\":[]}" },
-  "captured": { "figma": "evidence/figma/empty.png", "app": "evidence/app/empty.png", "diff": "evidence/diff/empty.png" },
+  "captured": { "design": "evidence/figma/empty.png", "app": "evidence/app/empty.png", "diff": "evidence/diff/empty.png" },
   "result": "FAIL",
   "note": "Clear filters button missing",
   "findings": ["DQ-007"]
@@ -83,7 +91,31 @@ The file is an array of rows, the same shape as `report.json` `stateMatrix`:
 
 The script decides every result from its inputs, before any capture (the full table is under "Gap classification"). Only one result is provisional: a designed state with a real runtime driver starts as `CANNOT_VERIFY` with the note "pending capture", and capture and compare replace it with `PASS` or `FAIL`. Every other result stands.
 
-Do not override the script's other results by hand. When you learn something the inputs lack (a state in source that config does not list, a driver that reaches a `source`-only state, a design frame the spec missed), extend the inputs and run the script again. In ci mode, write the extended config to the output folder and pass that copy with `--config` instead of editing the repository's file.
+Do not override the script's other results by hand. When you learn something the inputs lack (a driver that reaches a `source`-only state, a design frame the spec missed), extend the inputs and run the script again. In ci mode, write the extended config to the output folder and pass that copy with `--config` instead of editing the repository's file.
+
+## States the design does not define (backfill candidates)
+
+Step 1 never compares them; step 2 builds their frames in Figma (design-backfill.md). The same run lists them, apart from the matrix:
+
+```bash
+node scripts/lib/state-discovery.mjs --figma-spec <dir>/evidence/figma-spec.json \
+  [--ticket <dir>/evidence/ticket.json] [--config design-qa.config.json --surface <name>] \
+  --out <dir>/state-matrix.json --backfill-out <dir>/backfill-candidates.json
+```
+
+```json
+{ "generatedAt": "…", "surface": "orders",
+  "candidates": [ { "state": "bulk-selected", "screen": null, "label": "Bulk selected", "discoveredBy": "config",
+                    "detail": "surfaces.orders.states.bulk-selected", "driver": { "action": "click", "selector": "[data-testid=row-checkbox]" } } ] }
+```
+
+| Source | `discoveredBy` |
+|---|---|
+| `surfaces.<name>.states` entry with a driver, for a state the design does not define | `config` |
+| A ticket criterion whose state the design does not define | `ticket` |
+| A code branch found by the agent (`isLoading`, `isEmpty`, error branches, toasts, bulk-selection bars…), added by hand | `source` |
+
+Candidates never become rows, never get a result and never count in `stateCoverage`. A candidate with a driver is captured app-only into `evidence/backfill/` (Phase 4); Phase 8 merges the file into `report.json` `backfill` with `backfill.mjs --candidates` (report.md, "Design backfill"). A state id that is a matrix row is designed, so it is never a candidate.
 
 ## Reachability drivers
 
@@ -99,7 +131,7 @@ A driver tells `scripts/capture.mjs` how to put the app into a state. Drivers li
 | `selector` | CSS selector | Target of the action. |
 | `keys` | string | For `keyboard`: space-separated Playwright key names, e.g. `Tab Tab Enter`. |
 | `settleMs` | integer | Wait after the action for transitions to finish. |
-| `viewport` | `{ width, height }` | Viewport for this state only. It must equal this state's Figma frame (a mobile frame, a narrow panel). |
+| `viewport` | `{ width, height }` | Viewport for this state only. It must equal this state's design frame (a mobile frame, a narrow panel). |
 | `reducedMotion` | boolean | Emulate `prefers-reduced-motion: reduce` in this state. |
 | `wait` | CSS selector | Element that proves the state rendered; overrides `--wait`. |
 | `source` | file reference | The state exists in code but nothing can drive it at runtime. Reported as ℹ️ CANNOT_VERIFY. |
@@ -134,20 +166,18 @@ In interactive modes, when steps 2–4 work, offer to add the driver to config s
 
 ## Gap classification
 
-Rows as `scripts/lib/state-discovery.mjs` writes them. "Implemented" means config lists the state: "driver" is a runtime driver (`fixture`, `query`, `mock`, `storage`, `action`), "source" is `{ "source": … }` only. "–" means either.
+Rows as `scripts/lib/state-discovery.mjs` writes them. Every row is a designed state; "specified" only adds the ticket criterion to it. "Implemented" means config lists the state: "driver" is a runtime driver (`fixture`, `query`, `mock`, `storage`, `action`), "source" is `{ "source": … }` only.
 
-| Designed | Specified | Implemented | Result | Finding |
-|---|---|---|---|---|
-| yes | – | driver | `CANNOT_VERIFY`, "pending capture"; `PASS` or `FAIL` once captured and compared | For `FAIL`: the ledgers' findings, with `state` set |
-| yes | – | source | `CANNOT_VERIFY`, naming the hook `surfaces.<name>.states.<state>` | ℹ️ CANNOT_VERIFY / `NONE` |
-| yes | – | no | `MISSING_IN_CODE` | 🔴 BLOCKER / `FIX_CODE`, ledger `state` |
-| no | yes | no | `MISSING_IN_CODE`, noting that the design frame is missing too | 🔴 BLOCKER / `FIX_CODE`, plus an open decision "design needed?" |
-| no | yes | driver or source | `CANNOT_VERIFY`: no visual reference | Behaviour checked against the criterion; ℹ️ finding plus an open decision "design needed?" |
-| no | no | driver or source | `MISSING_IN_DESIGN` | 🟡 WARNING / `SYNC_FIGMA`, or 🔵 DS_CANDIDATE when the library lacks the pattern; plus an open decision |
+| Designed | Implemented | Result | Finding |
+|---|---|---|---|
+| yes | driver | `CANNOT_VERIFY`, "pending capture"; `PASS` or `FAIL` once captured and compared | For `FAIL`: the ledgers' findings, with `state` set |
+| yes | source | `CANNOT_VERIFY`, naming the hook `surfaces.<name>.states.<state>` | ℹ️ CANNOT_VERIFY / `NONE` |
+| yes | no | `MISSING_IN_CODE` | 🔴 BLOCKER / `FIX_CODE`, ledger `state` |
+| no | – | not a row; a backfill candidate (step 2) | none |
 
 After capture and compare, a captured state is `PASS` when none of its findings is open and `FAIL` when at least one is.
 
-The script never writes `NOT_SPECIFIED`. Add such a row yourself only for a state the screen type implies (a data fetch implies loading, empty and error) that nobody designed, specified or built, with an open decision.
+The script never writes `NOT_SPECIFIED`. Add such a row yourself only for a state the design defines partly (a hover reaction whose destination frame is missing, a variant with no content), so it cannot be compared yet, with an open decision.
 
 A state excluded with `--states`, or skipped by capture because its driver changes nothing, stays `CANNOT_VERIFY` with the reason in its note.
 
@@ -156,7 +186,7 @@ A state excluded with `--states`, or skipped by capture because its driver chang
 For each state with a trigger, check and record a `behavior` ledger row:
 
 - **Trigger**: the trigger produces the state (hovering the row shows the hover styles and the actions; a failed request shows the error, not a blank page).
-- **Transition**: duration and easing come from the motion tokens or the ticket. No bounce or loops unless designed. Panels and dialogs move the distance the design specifies.
+- **Transition**: the motion ledger (ledgers.md) checks every expected transition and animation: present, the right type, duration, easing and delay. No bounce or loops unless designed. Panels and dialogs move the distance the design specifies.
 - **Copy**: empty-state and error copy verbatim, per the structure ledger rules.
 - **Calls to action**: present, labelled as designed, and working (Try again repeats the request; Clear filters resets them).
 - **Focus**: the focus indicator is visible in every focusable state, focus order follows the visual order, and focus lands sensibly after a change (a dialog opens on its first field and returns focus to the trigger when closed).
@@ -166,7 +196,7 @@ For each state with a trigger, check and record a `behavior` ledger row:
 ## From matrix to capture and report
 
 1. Capture takes the configured states with `--config`. Write `states.json` only for drivers config does not have yet; it replaces the configured states for that run, so list every state to capture, respecting the skill's `--states` list.
-2. After capture, fill `captured` with paths relative to the report folder: `evidence/figma/<state>.png`, `evidence/app/<state>.png`, `evidence/diff/<state>.png` (null where missing).
+2. After capture, fill `captured` with paths relative to the report folder: `design` is `evidence/figma/<state>.png` (Figma) or `evidence/design/<state>.png` (coded prototype), `app` is `evidence/app/<state>.png`, `diff` is `evidence/diff/<state>.png` (null where missing; under `evidence/screens/<id>/` per screen).
 3. Replace each "pending capture" result with `PASS` or `FAIL`, and fill `note` and `findings` on every row.
 4. Copy the rows into `report.json` `stateMatrix`. The scorecard's `stateCoverage` is derived from them (classification.md).
-5. The fix plan lists `MISSING_IN_CODE`, `MISSING_IN_DESIGN` and `NOT_SPECIFIED` rows under "Missing states / needs decision" and `CANNOT_VERIFY` rows under "Cannot verify". The HTML report shows the coverage grid and a tab per state in the compare view.
+5. The fix plan lists `MISSING_IN_CODE` and `NOT_SPECIFIED` rows under "Missing states / needs decision" and `CANNOT_VERIFY` rows under "Cannot verify". The HTML report shows the coverage grid and a tab per state in the compare view.

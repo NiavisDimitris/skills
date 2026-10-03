@@ -1,0 +1,1427 @@
+{
+  "schemaVersion": "2.0",
+  "meta": {
+    "feature": "Orders list",
+    "generatedAt": "2026-10-01T12:00:00Z",
+    "skillVersion": "0.2.0",
+    "mode": "audit",
+    "ticket": {
+      "provider": "jira",
+      "key": "ACME-482",
+      "url": "https://acme.atlassian.net/browse/ACME-482",
+      "title": "Orders list"
+    },
+    "source": {
+      "kind": "figma",
+      "url": "https://www.figma.com/design/AbC123/Orders?node-id=1-2",
+      "label": "Orders v3 (Figma)",
+      "tool": null,
+      "frame": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    "figma": {
+      "fileKey": "AbC123",
+      "nodeId": "1:2",
+      "url": "https://www.figma.com/design/AbC123/Orders?node-id=1-2",
+      "frame": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    "app": {
+      "url": "http://localhost:3000/orders",
+      "kind": "local",
+      "route": "/orders",
+      "commit": "a1b2c3d4e5",
+      "branch": "feat/orders",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1
+    },
+    "fixture": "rich-orders",
+    "tools": {
+      "figmaAccess": "rest",
+      "capture": "script",
+      "ticket": "rest",
+      "prototypeCapture": null
+    },
+    "degradations": []
+  },
+  "scorecard": {
+    "parity": 31,
+    "verdict": "FAIL",
+    "bySeverity": {
+      "BLOCKER": 3,
+      "WARNING": 9,
+      "PASS": 1,
+      "CANNOT_VERIFY": 1,
+      "DS_CANDIDATE": 1
+    },
+    "byResolution": {
+      "FIX_CODE": 8,
+      "INTENTIONAL": 1,
+      "DATA": 1,
+      "DISMISSED": 2,
+      "NONE": 2,
+      "UNCLASSIFIED": 1
+    },
+    "pixelDiff": {
+      "with-data": {
+        "percent": 3.4,
+        "band": "review",
+        "image": "evidence/diff/with-data.png"
+      },
+      "loading": {
+        "percent": 6.1,
+        "band": "fail",
+        "image": "evidence/diff/loading.png"
+      },
+      "hover": {
+        "percent": 1.2,
+        "band": "review",
+        "image": "evidence/diff/hover.png"
+      },
+      "error": {
+        "percent": 0.3,
+        "band": "pass",
+        "image": "evidence/diff/error.png"
+      }
+    },
+    "stateCoverage": {
+      "total": 6,
+      "designed": 6,
+      "specified": 0,
+      "implemented": 6,
+      "verified": 4
+    },
+    "unexplained": 9,
+    "debt": {
+      "count": 0,
+      "ticketed": 0
+    },
+    "loopClosed": false,
+    "dismissed": 2,
+    "designSystem": {
+      "tokens": 3,
+      "components": 1,
+      "motion": 2
+    },
+    "backfill": {
+      "candidates": 4,
+      "toBuild": 1,
+      "built": 0,
+      "notNeeded": 1,
+      "pending": 2,
+      "ready": false
+    }
+  },
+  "stateMatrix": [
+    {
+      "state": "with-data",
+      "label": "With data",
+      "designed": {
+        "nodeId": "1:9",
+        "name": "Orders / With data"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "fixture",
+        "detail": "default"
+      },
+      "captured": {
+        "design": "evidence/design/with-data.png",
+        "app": "evidence/app/with-data.png",
+        "diff": "evidence/diff/with-data.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-002",
+        "DQ-004",
+        "DQ-005",
+        "DQ-008",
+        "DQ-009",
+        "DQ-010",
+        "DQ-012",
+        "DQ-013",
+        "DQ-015"
+      ]
+    },
+    {
+      "state": "empty",
+      "label": "Empty",
+      "designed": {
+        "nodeId": "1:5",
+        "name": "Orders / Empty"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "fixture",
+        "detail": "default"
+      },
+      "captured": {
+        "design": "evidence/design/empty.png",
+        "app": null,
+        "diff": null
+      },
+      "result": "MISSING_IN_CODE",
+      "note": "The app renders an empty table",
+      "findings": [
+        "DQ-001"
+      ]
+    },
+    {
+      "state": "loading",
+      "label": "Loading",
+      "designed": {
+        "nodeId": "1:7",
+        "name": "Orders / Loading"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "fixture",
+        "detail": "default"
+      },
+      "captured": {
+        "design": "evidence/design/loading.png",
+        "app": "evidence/app/loading.png",
+        "diff": "evidence/diff/loading.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-007",
+        "DQ-014"
+      ]
+    },
+    {
+      "state": "hover",
+      "label": "Hover",
+      "designed": {
+        "nodeId": "1:5",
+        "name": "Orders / Hover"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "fixture",
+        "detail": "default"
+      },
+      "captured": {
+        "design": "evidence/design/hover.png",
+        "app": "evidence/app/hover.png",
+        "diff": "evidence/diff/hover.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-003",
+        "DQ-006"
+      ]
+    },
+    {
+      "state": "error",
+      "label": "Error",
+      "designed": {
+        "nodeId": "1:5",
+        "name": "Orders / Error"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "fixture",
+        "detail": "default"
+      },
+      "captured": {
+        "design": "evidence/design/error.png",
+        "app": "evidence/app/error.png",
+        "diff": "evidence/diff/error.png"
+      },
+      "result": "PASS",
+      "note": null,
+      "findings": []
+    },
+    {
+      "state": "selected",
+      "label": "Selected",
+      "designed": {
+        "nodeId": "1:8",
+        "name": "Orders / Selected"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "fixture",
+        "detail": "default"
+      },
+      "captured": {
+        "design": "evidence/design/selected.png",
+        "app": null,
+        "diff": null
+      },
+      "result": "CANNOT_VERIFY",
+      "note": "No driver for the selected state",
+      "findings": [
+        "DQ-011"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "DQ-001",
+      "title": "Empty state is not implemented",
+      "ledger": "state",
+      "state": "empty",
+      "severity": "BLOCKER",
+      "resolution": "FIX_CODE",
+      "region": "Main content",
+      "element": {
+        "selector": "main .empty",
+        "figmaLayerPath": "Orders / Empty",
+        "figmaNodeId": null
+      },
+      "property": "presence",
+      "expected": {
+        "value": "Empty state with illustration and Clear filters",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "blank table",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 41,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "Render <EmptyState> when the list is empty",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 2
+      },
+      "evidence": [
+        {
+          "type": "design",
+          "path": "evidence/design/empty.png",
+          "crop": {
+            "x": 264,
+            "y": 204,
+            "w": 1144,
+            "h": 400
+          },
+          "state": "empty"
+        }
+      ],
+      "rank": {
+        "score": 334,
+        "bucket": "fix-now"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-002",
+      "title": "Table header is hand-styled, not Acme DS Table.Header",
+      "ledger": "component",
+      "state": "with-data",
+      "severity": "BLOCKER",
+      "resolution": "FIX_CODE",
+      "region": "Orders table",
+      "element": {
+        "selector": "table thead",
+        "figmaLayerPath": "Orders/Table/Header",
+        "figmaNodeId": null
+      },
+      "property": "component",
+      "expected": {
+        "value": "Acme DS Table.Header (compact)",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "<thead> with custom CSS",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 42,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "Use <Table.Header density=compact>",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 3
+      },
+      "evidence": [
+        {
+          "type": "design",
+          "path": "evidence/design/with-data.png",
+          "crop": {
+            "x": 288,
+            "y": 228,
+            "w": 1096,
+            "h": 40
+          },
+          "state": "with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": {
+            "x": 284,
+            "y": 224,
+            "w": 1104,
+            "h": 40
+          },
+          "state": "with-data"
+        }
+      ],
+      "rank": {
+        "score": 333,
+        "bucket": "fix-now"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-003",
+      "title": "Row hover background is a hardcoded hex",
+      "ledger": "style",
+      "state": "hover",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Orders table",
+      "element": {
+        "selector": "tr:hover",
+        "figmaLayerPath": "Orders/Table/Row/Hover",
+        "figmaNodeId": null
+      },
+      "property": "background-color",
+      "expected": {
+        "value": "#F4F4F5",
+        "token": "--ads-color-surface-hover",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "#F5F5F5",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 43,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "Use var(--ads-color-surface-hover)",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "design",
+          "path": "evidence/design/hover.png",
+          "crop": {
+            "x": 288,
+            "y": 316,
+            "w": 1096,
+            "h": 48
+          },
+          "state": "hover"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/app/hover.png",
+          "crop": {
+            "x": 284,
+            "y": 312,
+            "w": 1104,
+            "h": 48
+          },
+          "state": "hover"
+        }
+      ],
+      "rank": {
+        "score": 225,
+        "bucket": "fix-now"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-004",
+      "title": "Card padding is 20px instead of 24px",
+      "ledger": "style",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Orders card",
+      "element": {
+        "selector": ".orders-card",
+        "figmaLayerPath": "Orders/Card",
+        "figmaNodeId": null
+      },
+      "property": "padding",
+      "expected": {
+        "value": "24px",
+        "token": "--ads-space-6",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "20px",
+        "token": "--ads-space-5",
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 44,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "Use --ads-space-6",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "design",
+          "path": "evidence/design/with-data.png",
+          "crop": {
+            "x": 264,
+            "y": 204,
+            "w": 1144,
+            "h": 520
+          },
+          "state": "with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": {
+            "x": 264,
+            "y": 204,
+            "w": 1144,
+            "h": 656
+          },
+          "state": "with-data"
+        }
+      ],
+      "rank": {
+        "score": 225,
+        "bucket": "fix-now"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-005",
+      "title": "Status badge variants match the design",
+      "ledger": "component",
+      "state": "with-data",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Orders table",
+      "element": {
+        "selector": ".status-badge",
+        "figmaLayerPath": "Orders/Table/Status",
+        "figmaNodeId": null
+      },
+      "property": "component",
+      "expected": {
+        "value": "Badge (success)",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Badge (success)",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 45,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": null,
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": {
+            "x": 750,
+            "y": 277,
+            "w": 66,
+            "h": 22
+          },
+          "state": "with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-006",
+      "title": "Row hover has no background transition",
+      "ledger": "motion",
+      "state": "hover",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Orders table",
+      "element": {
+        "selector": "tr",
+        "figmaLayerPath": "Orders/Table/Row",
+        "figmaNodeId": null
+      },
+      "property": "transition",
+      "expected": {
+        "value": "150ms ease-out on background-color",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "none",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 46,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "Add transition: background-color 150ms ease-out",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/hover.png",
+          "crop": {
+            "x": 284,
+            "y": 312,
+            "w": 1104,
+            "h": 48
+          },
+          "state": "hover"
+        },
+        {
+          "type": "motion",
+          "path": "evidence/motion/hover.json",
+          "crop": null,
+          "state": "hover"
+        }
+      ],
+      "rank": {
+        "score": 225,
+        "bucket": "fix-now"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-007",
+      "title": "Skeleton fade-in is 400ms linear instead of 200ms ease-out",
+      "ledger": "motion",
+      "state": "loading",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Orders table",
+      "element": {
+        "selector": ".skeleton",
+        "figmaLayerPath": "Orders/Loading",
+        "figmaNodeId": null
+      },
+      "property": "transition-duration",
+      "expected": {
+        "value": "200ms ease-out on opacity",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "400ms linear on opacity",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 47,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "Use --ads-motion-fast",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/loading.png",
+          "crop": {
+            "x": 284,
+            "y": 264,
+            "w": 1104,
+            "h": 384
+          },
+          "state": "loading"
+        }
+      ],
+      "rank": {
+        "score": 225,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-008",
+      "title": "Row divider is 1px darker than the design",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "DISMISSED",
+      "region": "Orders table",
+      "element": {
+        "selector": "tr + tr",
+        "figmaLayerPath": "Orders/Table/Divider",
+        "figmaNodeId": null
+      },
+      "property": "border-color",
+      "expected": {
+        "value": "#E4E4E7",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "#E1E1E4",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 48,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": null,
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": {
+            "x": 284,
+            "y": 312,
+            "w": 1104,
+            "h": 2
+          },
+          "state": "with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
+      "dismissal": {
+        "kind": "not-an-issue",
+        "reason": "Rendering noise: anti-aliasing on the 1px divider, the colour token is the same.",
+        "by": "A. Lee",
+        "date": "2026-09-30T09:12:00Z",
+        "source": "report-ui",
+        "priorRef": null
+      }
+    },
+    {
+      "id": "DQ-009",
+      "title": "Pagination moved from below the table to the toolbar",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "INTENTIONAL",
+      "region": "Toolbar",
+      "element": {
+        "selector": ".pagination",
+        "figmaLayerPath": "Orders/Pagination",
+        "figmaNodeId": null
+      },
+      "property": "position",
+      "expected": {
+        "value": "below the table",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "toolbar, right",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 49,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": null,
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": {
+            "x": 1060,
+            "y": 152,
+            "w": 196,
+            "h": 36
+          },
+          "state": "with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": {
+        "by": "M. Ortiz (design lead)",
+        "date": "2026-09-29",
+        "reason": "Agreed in the design review: the toolbar placement tests better."
+      },
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-010",
+      "title": "Table shows 12 rows; the design sample shows 8",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "DATA",
+      "region": "Orders table",
+      "element": {
+        "selector": "tbody",
+        "figmaLayerPath": "Orders/Table",
+        "figmaNodeId": null
+      },
+      "property": "rows",
+      "expected": {
+        "value": "8 rows",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "12 rows",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 50,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": null,
+      "evidence": [],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-011",
+      "title": "Selected row background cannot be verified",
+      "ledger": "style",
+      "state": "selected",
+      "severity": "CANNOT_VERIFY",
+      "resolution": "NONE",
+      "region": "Orders table",
+      "element": {
+        "selector": "tr[aria-selected]",
+        "figmaLayerPath": "Orders/Table/Row/Selected",
+        "figmaNodeId": null
+      },
+      "property": "background-color",
+      "expected": {
+        "value": "#EFF6FF",
+        "token": "--ads-color-selected",
+        "source": "figma"
+      },
+      "actual": {
+        "value": null,
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 51,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": null,
+      "evidence": [],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-012",
+      "title": "Search placeholder copy differs from the design",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "UNCLASSIFIED",
+      "region": "Toolbar",
+      "element": {
+        "selector": "input[type=search]",
+        "figmaLayerPath": "Orders/Toolbar/Search",
+        "figmaNodeId": null
+      },
+      "property": "placeholder",
+      "expected": {
+        "value": "Search orders",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Search…",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 52,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": null,
+      "evidence": [
+        {
+          "type": "design",
+          "path": "evidence/design/with-data.png",
+          "crop": {
+            "x": 264,
+            "y": 152,
+            "w": 320,
+            "h": 36
+          },
+          "state": "with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": {
+            "x": 264,
+            "y": 152,
+            "w": 320,
+            "h": 36
+          },
+          "state": "with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-013",
+      "title": "Divider colour is hardcoded instead of --ads-color-border",
+      "ledger": "style",
+      "state": "with-data",
+      "severity": "DS_CANDIDATE",
+      "resolution": "FIX_CODE",
+      "region": "Orders table",
+      "element": {
+        "selector": "tr + tr",
+        "figmaLayerPath": "Orders/Table/Divider",
+        "figmaNodeId": null
+      },
+      "property": "border-color",
+      "expected": {
+        "value": "#E4E4E7",
+        "token": "--ads-color-border",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "#E5E5E5",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 53,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "Use var(--ads-color-border)",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": {
+            "x": 284,
+            "y": 360,
+            "w": 1104,
+            "h": 2
+          },
+          "state": "with-data"
+        }
+      ],
+      "rank": {
+        "score": 125,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-014",
+      "title": "Loading skeleton appears immediately instead of after 300 ms",
+      "ledger": "behavior",
+      "state": "loading",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Orders table",
+      "element": {
+        "selector": ".skeleton",
+        "figmaLayerPath": "Orders/Loading",
+        "figmaNodeId": null
+      },
+      "property": "delay",
+      "expected": {
+        "value": "300ms",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "0ms",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 54,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "Delay the skeleton by 300ms",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 2
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/loading.png",
+          "crop": {
+            "x": 284,
+            "y": 264,
+            "w": 1104,
+            "h": 384
+          },
+          "state": "loading"
+        }
+      ],
+      "rank": {
+        "score": 224,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-015",
+      "title": "App renders an extra bulk-action bar not in the design",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "BLOCKER",
+      "resolution": "DISMISSED",
+      "region": "Footer",
+      "element": {
+        "selector": ".bulk-bar",
+        "figmaLayerPath": null,
+        "figmaNodeId": null
+      },
+      "property": "presence",
+      "expected": {
+        "value": "absent",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "bulk-action bar",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 55,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": null,
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": {
+            "x": 400,
+            "y": 808,
+            "w": 640,
+            "h": 56
+          },
+          "state": "with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
+      "dismissal": {
+        "kind": "remove",
+        "reason": "Out of scope for this QA: bulk actions ship behind a flag in ACME-500.",
+        "by": "J. Park",
+        "date": "2026-09-30T10:00:00Z",
+        "source": "chat",
+        "priorRef": null
+      }
+    }
+  ],
+  "ledgers": {
+    "structure": [],
+    "component": [
+      {
+        "figmaComponent": "Table/Header",
+        "variant": "compact",
+        "expectedComponent": "Table.Header",
+        "actualComponent": "thead (custom CSS)",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-002"
+        ]
+      },
+      {
+        "figmaComponent": "Badge",
+        "variant": "success",
+        "expectedComponent": "Badge",
+        "actualComponent": "Badge",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-005"
+        ]
+      }
+    ],
+    "style": [],
+    "state": [],
+    "behavior": [
+      {
+        "state": "loading",
+        "trigger": "load",
+        "expected": "skeleton after 300ms",
+        "observed": "skeleton at 0ms",
+        "acRef": null,
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-014"
+        ]
+      }
+    ],
+    "motion": [
+      {
+        "state": "hover",
+        "selector": "tr",
+        "figmaNodeId": "1:77",
+        "trigger": "hover",
+        "property": "background-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 150,
+          "easing": "ease-out",
+          "delayMs": null,
+          "detail": null
+        },
+        "observed": null,
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-006"
+        ]
+      },
+      {
+        "state": "loading",
+        "selector": ".skeleton",
+        "figmaNodeId": null,
+        "trigger": "load",
+        "property": "opacity",
+        "expected": {
+          "type": "transition",
+          "durationMs": 200,
+          "easing": "ease-out",
+          "delayMs": null,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 400,
+          "easing": "linear",
+          "delayMs": null,
+          "detail": null
+        },
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-007"
+        ]
+      },
+      {
+        "state": "with-data",
+        "selector": ".row-menu",
+        "figmaNodeId": "1:90",
+        "trigger": "click",
+        "property": "transform",
+        "expected": {
+          "type": "smart-animate",
+          "durationMs": 300,
+          "easing": "ease-in-out",
+          "delayMs": null,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 300,
+          "easing": "ease-in-out",
+          "delayMs": null,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": []
+      }
+    ]
+  },
+  "openDecisions": [],
+  "fixLoop": [],
+  "triage": null,
+  "evidence": {
+    "figmaSpec": "evidence/figma-spec.json",
+    "ticket": null,
+    "capture": "evidence/capture.json",
+    "compare": null,
+    "prototypeCapture": null,
+    "states": {
+      "hover": {
+        "design": "evidence/design/hover.png",
+        "app": "evidence/app/hover.png",
+        "diff": "evidence/diff/hover.png",
+        "computed": "evidence/computed/hover.json",
+        "dom": null,
+        "motion": "evidence/motion/hover.json",
+        "designComputed": null
+      }
+    }
+  },
+  "backfill": {
+    "gate": {
+      "override": null
+    },
+    "items": [
+      {
+        "id": "BF-001",
+        "state": "bulk-selected",
+        "screen": null,
+        "label": "Bulk selected",
+        "discoveredBy": "source",
+        "detail": "OrdersTable.tsx:88 renders BulkBar when selection.length > 0",
+        "driver": {
+          "action": "click",
+          "selector": "tbody tr:first-child input[type=checkbox]"
+        },
+        "captured": {
+          "app": "evidence/backfill/app/bulk-selected.png",
+          "computed": "evidence/backfill/computed/bulk-selected.json",
+          "dom": "evidence/backfill/dom/bulk-selected.json",
+          "motion": "evidence/backfill/motion/bulk-selected.json"
+        },
+        "anchor": {
+          "nodeId": "12:345",
+          "name": "Orders – With data"
+        },
+        "components": [
+          {
+            "name": "Button",
+            "variant": "Secondary",
+            "selector": ".bulk-bar button",
+            "inLibrary": true
+          },
+          {
+            "name": "Checkbox",
+            "variant": "Checked",
+            "selector": "tbody input[type=checkbox]",
+            "inLibrary": true
+          }
+        ],
+        "tokens": [
+          "color/surface/raised",
+          "space/4"
+        ],
+        "decision": "pending",
+        "decidedBy": null,
+        "decidedAt": null,
+        "reason": null,
+        "figma": null,
+        "dsGaps": []
+      },
+      {
+        "id": "BF-002",
+        "state": "saved-toast",
+        "screen": null,
+        "label": "Saved toast",
+        "discoveredBy": "ticket",
+        "detail": "AC-4: a toast confirms the save",
+        "driver": null,
+        "captured": {
+          "app": "evidence/backfill/app/saved-toast.png",
+          "computed": null,
+          "dom": null,
+          "motion": null
+        },
+        "anchor": {
+          "nodeId": "12:345",
+          "name": "Orders – With data"
+        },
+        "components": [
+          {
+            "name": "Toast",
+            "variant": "Success",
+            "selector": "[role=status]",
+            "inLibrary": false
+          }
+        ],
+        "tokens": [
+          "color/feedback/success"
+        ],
+        "decision": "build",
+        "decidedBy": "A. Lee",
+        "decidedAt": "2026-10-01T13:00:00Z",
+        "reason": null,
+        "figma": null,
+        "dsGaps": [
+          "Toast (Success)"
+        ]
+      },
+      {
+        "id": "BF-003",
+        "state": "filter-no-results",
+        "screen": null,
+        "label": "Filter – no results",
+        "discoveredBy": "config",
+        "detail": "design-qa.config.json surfaces.orders.states.filter-no-results",
+        "driver": {
+          "action": "fill",
+          "selector": "#search",
+          "value": "zzz"
+        },
+        "captured": null,
+        "anchor": null,
+        "components": [
+          {
+            "name": "EmptyState",
+            "variant": "Search",
+            "selector": ".empty",
+            "inLibrary": true
+          }
+        ],
+        "tokens": [],
+        "decision": "pending",
+        "decidedBy": null,
+        "decidedAt": null,
+        "reason": null,
+        "figma": null,
+        "dsGaps": []
+      },
+      {
+        "id": "BF-004",
+        "state": "refreshing",
+        "screen": null,
+        "label": "Refreshing",
+        "discoveredBy": "source",
+        "detail": "useOrders.ts:41 shows a spinner while isFetching",
+        "driver": null,
+        "captured": null,
+        "anchor": {
+          "nodeId": "12:350",
+          "name": "Orders – Loading"
+        },
+        "components": [],
+        "tokens": [],
+        "decision": "not-needed",
+        "decidedBy": "J. Park",
+        "decidedAt": "2026-10-01T13:05:00Z",
+        "reason": "Same as Loading; the loading frame covers it.",
+        "figma": null,
+        "dsGaps": []
+      }
+    ]
+  }
+}

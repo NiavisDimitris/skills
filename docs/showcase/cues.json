@@ -479,19 +479,9 @@
    "index": 7
   },
   {
-   "t": 24.76,
-   "type": "swish",
-   "index": 8
-  },
-  {
    "t": 26,
    "type": "stamp",
    "severity": "BLOCKER"
-  },
-  {
-   "t": 26.3,
-   "type": "stamp",
-   "severity": "DS_CANDIDATE"
   },
   {
    "t": 27.4,
@@ -659,19 +649,27 @@
    "index": 5
   },
   {
-   "t": 46.6,
-   "type": "tick",
-   "index": 6
-  },
-  {
    "t": 47.3,
    "type": "stamp",
    "severity": "BLOCKER"
   },
   {
    "t": 49,
-   "type": "stamp",
-   "severity": "DS_CANDIDATE"
+   "type": "whoosh",
+   "dir": "down",
+   "dur": 0.3
+  },
+  {
+   "t": 49.2,
+   "type": "click"
+  },
+  {
+   "t": 49.85,
+   "type": "click"
+  },
+  {
+   "t": 49.95,
+   "type": "success"
   },
   {
    "t": 51,

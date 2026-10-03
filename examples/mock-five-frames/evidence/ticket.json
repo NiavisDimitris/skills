@@ -1,0 +1,45 @@
+{
+  "provider": "jira",
+  "key": "CHK-214",
+  "url": "https://acme.atlassian.net/browse/CHK-214",
+  "title": "Checkout v3: five-step checkout from cart to confirmation",
+  "status": "In review",
+  "links": {
+    "figma": "https://www.figma.com/design/Ck3fQ9xYzA1/Checkout-v3?node-id=2140-118",
+    "pullRequest": "https://github.com/acme/storefront/pull/2318"
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "text": "The cart lists each item with its variant, stock status, quantity stepper and price, and an order summary with a Go to checkout button."
+    },
+    {
+      "id": "AC-2",
+      "text": "An empty cart shows the empty state with a 'Continue shopping' action."
+    },
+    {
+      "id": "AC-3",
+      "text": "Shipping collects contact details, the address and the country, and offers Standard (free) and Express delivery."
+    },
+    {
+      "id": "AC-4",
+      "text": "Payment collects the card details and shows the amount on the Pay button."
+    },
+    {
+      "id": "AC-5",
+      "text": "If the card is declined, show an error above the card fields so the customer can correct the card and pay again."
+    },
+    {
+      "id": "AC-6",
+      "text": "Review shows the address, delivery method, payment method and the items in the order before the order is placed."
+    },
+    {
+      "id": "AC-7",
+      "text": "A valid promo code shows a discount line with the code and the updated total."
+    },
+    {
+      "id": "AC-8",
+      "text": "After payment, show the order number, the delivery estimate and a receipt toast."
+    }
+  ]
+}

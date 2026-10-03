@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acme · Review</title>
+<link rel="stylesheet" href="../acme-ds.css">
+<style>
+  /* src/features/review/review.css */
+  .place-order { border-radius: 8px; }
+</style>
+</head>
+<body>
+<header data-topbar="4"></header>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Review your order</h1>
+    <p>Check the details below, then place your order.</p>
+  </div>
+
+  <div class="cols">
+    <section class="ads-card" data-component="Card" aria-label="Order details">
+      <div class="review-block" data-testid="review-block">
+        <span class="rb-label">Ship to</span>
+        <div class="rb-body">Dana Whitfield<small>18 Harbour Street, Apt 4, 3011 TA Rotterdam, Netherlands</small></div>
+        <a class="ads-link" href="#edit-address" data-testid="edit-link">Edit</a>
+      </div>
+      <div class="review-block" data-testid="review-block">
+        <span class="rb-label">Delivery</span>
+        <div class="rb-body">Standard · Free<small>Arrives Thu 15 Oct – Mon 19 Oct</small></div>
+        <a class="ads-link" href="#edit-delivery" data-testid="edit-link">Edit</a>
+      </div>
+      <div class="review-block" data-testid="review-block">
+        <span class="rb-label">Payment</span>
+        <div class="rb-body">Visa ending in 4242<small>Expires 08/29</small></div>
+        <a class="ads-link" href="#edit-payment" data-testid="edit-link">Edit</a>
+      </div>
+    </section>
+
+    <aside class="ads-card" data-component="Card" aria-label="Order summary">
+      <h2>Order summary</h2>
+      <div class="promo">
+        <input class="ads-input" id="f-promo" aria-label="Promo code" placeholder="Promo code" data-component="Input" data-testid="field-control">
+        <button type="button" class="ads-btn ads-btn--secondary" data-component="Button" data-variant="secondary" data-testid="secondary-cta">Apply</button>
+      </div>
+      <div class="summary-rows">
+        <div class="summary-row" data-testid="summary-row"><span>Subtotal</span><span>€229.00</span></div>
+        <div class="summary-row" data-testid="summary-row"><span>Shipping</span><span>Free</span></div>
+        <div class="summary-row" data-testid="summary-row"><span>Estimated tax</span><span>€19.40</span></div>
+      </div>
+      <div class="summary-total" data-testid="summary-total"><span>Total</span><span>€248.40</span></div>
+      <button type="button" class="ads-btn ads-btn--primary ads-btn--block place-order" data-component="Button" data-variant="primary" data-testid="primary-cta">Place order</button>
+      <p class="summary-note">By placing your order you agree to the Terms of sale.</p>
+    </aside>
+  </div>
+</main>
+<script src="../chrome.js"></script>
+</body>
+</html>

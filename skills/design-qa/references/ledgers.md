@@ -1,14 +1,17 @@
 # Ledgers
 
-Phase 5 compares design and implementation in five ledgers. The first three are the classic ones; the state and behaviour ledgers are built from the state matrix (state-matrix.md).
+Phase 5 compares the design with the implementation in six ledgers. The design is the source of truth: every row asks whether the code matches it, never the other way round. The state, behaviour and motion ledgers are built from the state matrix (state-matrix.md).
 
-| Ledger | Question | Design side | App side |
-|---|---|---|---|
-| `structure` | Is everything there, in order, saying the right thing? | Layer tree, text layers | `dom/<state>.json`, visible text |
-| `component` | Is each piece the right design-system component, in the right variant? | Instances, variant properties | Rendered components, source imports |
-| `style` | Does every value match, and does it come from the right token? | Spec values, bound variables | `computed/<state>.json`, source files |
-| `state` | Does every expected state exist, and does it match? | State frames and variants | Captures per state |
-| `behavior` | Do triggers, transitions and copy behave as specified? | Prototype reactions, ticket criteria | Driven interactions |
+| Ledger | Question | Design side (Figma) | Design side (coded prototype) | App side |
+|---|---|---|---|---|
+| `structure` | Is everything there, in order, saying the right thing, and nothing extra? | Layer tree, text layers | `design-dom/<state>.json` | `dom/<state>.json`, visible text |
+| `component` | Is each piece the right design-system component, in the right variant? | Instances, variant properties | Component markers in `design-computed/` and `design-dom/` | Rendered components, source imports |
+| `style` | Does every value match, and does it come from the right token? | Spec values, bound variables | `design-computed/<state>.json`, `rootTokens` | `computed/<state>.json`, source files |
+| `state` | Does every designed state exist, and does it match? | State frames and variants | The prototype's states | Captures per state |
+| `behavior` | Do triggers, copy, calls to action and focus behave as designed and specified? | Prototype reactions, ticket criteria | Driven interactions on the prototype | Driven interactions |
+| `motion` | Does every designed transition and animation run, with the right type, duration, easing and delay? | Reaction transitions, `get_motion_context` | `design-motion/<state>.json` | `motion/<state>.json` |
+
+With a coded prototype, `scripts/compare.mjs --app <dir>/evidence` (`--design` defaults to the same folder) writes `evidence/compare.json` with style, token, component, motion and structure rows per state (prototype-source.md, browser-capture.md). With a Figma source that has prototype reactions, `compare.mjs --figma-spec <dir>/evidence/figma-spec.json --app <dir>/evidence` writes the motion rows for them under `figmaMotion` (see "Motion"). Copy the rows into the ledgers and turn every `FAIL` row into a finding; the procedures below still decide severity and wording.
 
 Every compared item becomes a ledger row, including the ones that match. A row's `result` is `PASS`, `FAIL`, `CANNOT_VERIFY` or `DATA`, and it points at its findings through `findingIds`.
 
@@ -28,9 +31,19 @@ Procedure, per captured state:
 5. Apply the project's copy rules from `designSystem.designRules` (for example "sentence case everywhere", "buttons are verbs", "table headers are uppercase micro-labels"). Only rules the project states; this skill hardcodes none. When no rules file exists, compare verbatim against Figma and say so in the report.
 6. Check conditional visibility against the data-driven rule (parity-contract.md). An absence counts as `DATA` only after the source shows the condition is data-driven.
 
-Static copy versus data: copy lives in the source or the translation files, data comes from the API. Search for the string in the repository before deciding. A label that differs from Figma is a finding; a customer name that differs is `DATA`.
+Static copy versus data: copy lives in the source or the translation files, data comes from the API. Search for the string in the repository before deciding. A label that differs from the design is a finding; a customer name that differs is `DATA`.
+
+7. Look for extras: a region, control or label the app renders inside a designed state that the design does not have. It is a `FIX_CODE` finding phrased from the code side: "App renders an extra Try again button not in the design", `expected.value: "absent"`. The fix is to remove it or match the design. Never write it as "the design lacks X".
 
 Row: `{ "region", "figma": { "present", "order", "label" }, "app": { "present", "order", "label" }, "result", "findingIds" }`.
+
+## Design-system mismatches
+
+Token, component and motion mismatches are what a design-system team acts on, so the report lists them on their own (the Design system view in `report.html`, the "Design-system mismatches" section of the fix plan, `scorecard.designSystem`). Make them countable:
+
+- **Token mismatch**: a style finding whose `expected.token` names the token the design binds and whose `actual.token` names the token the code uses, or is null when the value is hardcoded. Fill both on every style finding where a token is involved, including findings whose rendered value matches.
+- **Component mismatch**: every finding in the `component` ledger. Name the expected component and variant in `expected.value` and what renders in `actual.value` (`<DS>Button Secondary` versus `native <button>`).
+- **Motion mismatch**: every finding in the `motion` ledger, missing or different.
 
 ## Component
 
@@ -58,7 +71,7 @@ With Code Connect, `get_code_connect_map` gives the mapping. Without it, use the
 }
 ```
 
-- `components` maps a Figma component name (`componentName` in the spec) to the code component, where it is imported from, how to find it in the DOM (a selector or data attribute), and how each Figma variant property maps to a prop. `"state"` marks a property that is an interactive state, handled by the state matrix rather than a prop.
+- `components` maps a Figma component name (`componentName` in the spec) to the code component, where it is imported from, how to find it in the DOM (a `selector`, a `className`, or a `data-testid` through `testid` for an exact id or `testidPrefix` for a family such as `order-row-`), and how each Figma variant property maps to a prop. `compare.mjs` never takes a bare `data-testid` as a component name: test ids name regions and hooks, so only a catalog entry turns one into a component. `"state"` marks a property that is an interactive state, handled by the state matrix rather than a prop.
 - `rawPrimitives` lists DOM patterns that mean "a design-system component should have been used here".
 
 Procedure:
@@ -70,7 +83,7 @@ Procedure:
    - a native element or a raw third-party primitive where a design-system component exists (🔴 BLOCKER, `FIX_CODE`),
    - a re-implemented primitive: a styled `div` acting as a button, a hand-made tooltip or tag (🔴 BLOCKER, `FIX_CODE`; 🔵 DS_CANDIDATE when the library lacks the pattern),
    - a variant or prop mismatch: size, intent, emphasis, icon position, state (🟡 WARNING, or 🔴 when the role changes, such as a secondary button rendered as primary),
-   - a detached or local component on the Figma side that the catalog cannot map (ℹ️ CANNOT_VERIFY, or `SYNC_FIGMA` when the design should use the library).
+   - a detached or local component on the design side that the catalog cannot map (ℹ️ CANNOT_VERIFY; compare its styles through the style ledger instead).
 
 Row: `{ "figmaComponent", "variant", "expectedComponent", "actualComponent", "result", "findingIds" }`.
 
@@ -97,7 +110,7 @@ Properties per element:
 
 ### Grab snippet
 
-`capture.mjs --grab` does this for you. With the MCP or built-in browser fallback, run this snippet instead; it returns the same shape. Each sample is a flat map of the computed properties plus two reserved keys: `__rect: { x, y, w, h }`, the whole-pixel box covering the element in screenshot pixels, and `__visible`, false for zero-size, `display: none` or `visibility: hidden` elements. Anything that loops over a sample's properties skips keys starting with `__`. The first sample's `__rect` is the crop for findings on that element class; findings on a specific instance use that instance's `__rect`.
+`capture.mjs --grab` does this for you. With the MCP or built-in browser fallback, run this snippet instead; it returns the same shape minus the extras. Each `capture.mjs` sample is a flat map of the computed properties plus four reserved keys: `__rect: { x, y, w, h }`, the whole-pixel box covering the element in screenshot pixels; `__visible`, false for zero-size, `display: none` or `visibility: hidden` elements; `__el`, the element's identity `{ tag, id, classes, component, variant, testid, role, text, selector }`; and `__vars`, the `:root` custom properties each value resolves to. The file also has a top-level `rootTokens` key (the page's `:root` custom properties, once), which is not an element class. Anything that loops over a sample's properties skips keys starting with `__`; anything that loops over element classes skips `rootTokens`. The snippet below writes `__rect` and `__visible` only, which is enough for crops and visibility; without `__el`, `__vars` and `rootTokens`, `compare.mjs` cannot name components or tokens on that capture. The first sample's `__rect` is the crop for findings on that element class; findings on a specific instance use that instance's `__rect`.
 
 ```js
 ((fullPage = false) => {
@@ -177,7 +190,8 @@ A value that renders right can still be wrong. After the computed comparison, fi
 grep -nE '#[0-9a-fA-F]{3,8}\b|rgba?\(|[0-9]+px|z-index:\s*[0-9]+|transition:[^;]*[0-9]+m?s|style=\{\{|style="' <files that render the region>
 ```
 
-- A hardcoded hex, px value, z-index, raw transition or inline style where a token exists is a finding even when the rendered value matches: 🟡 WARNING, `FIX_CODE`, with `actual.source` set to `{ file, line, snippet }` and `expected.token` naming the token to use.
+- A hardcoded hex, px value, z-index, raw transition or inline style where a token exists is a finding even when the rendered value matches: 🟡 WARNING, `FIX_CODE`, with `actual.source` set to `{ file, line, snippet }`, `expected.token` naming the token to use and `actual.token` null.
+- Coded prototype: `capture.mjs` records `rootTokens`, the custom properties resolved on `:root`. `compare.mjs` names the token whose value equals the design value (`expectedToken`) and the one equal to the app value (`actualToken`, null when hardcoded). Confirm both through the token map before writing them into the finding.
 - A raw value with no token at all: 🔵 DS_CANDIDATE when the value recurs (the token set is missing something); otherwise `FIX_CODE` to the nearest token the design binds.
 - A token that resolves to the right value but has the wrong role (a text token used for a border) is 🟡 WARNING: it breaks when the theme changes.
 
@@ -189,23 +203,70 @@ One row per state-matrix row: `{ "state", "result", "findingIds" }`. For each ca
 
 1. Re-run the structure and style ledgers on the elements that change in that state. Hover changes a background and a cursor; empty replaces the table with an illustration, a heading, a body and a call to action.
 2. Findings raised here carry `state` set to that state id and `ledger: "state"` when the state itself is missing or wrong, or their own ledger (`style`, `structure`) when a specific value differs inside it.
-3. Set the matrix row's `result` (PASS, FAIL, CANNOT_VERIFY, MISSING_IN_CODE, MISSING_IN_DESIGN, NOT_SPECIFIED) per state-matrix.md, and list its findings.
+3. Set the matrix row's `result` (PASS, FAIL, CANNOT_VERIFY, MISSING_IN_CODE, NOT_SPECIFIED) per state-matrix.md, and list its findings.
 
 ## Behaviour
 
-One row per expected behaviour: `{ "state", "trigger", "expected", "observed", "acRef", "result", "findingIds" }`. Expected behaviours come from the ticket's criteria (`ticket.json` `expectedBehaviors`), prototype reactions and the design rules. The checks are listed in state-matrix.md under "Behaviour checks".
+One row per expected behaviour: `{ "state", "trigger", "expected", "observed", "acRef", "result", "findingIds" }`. Expected behaviours come from the ticket's criteria (`ticket.json` `expectedBehaviors`) for designed states, prototype reactions and the design rules. The checks are listed in state-matrix.md under "Behaviour checks". Timing and easing belong to the motion ledger.
+
+## Motion
+
+The motion ledger checks that every transition and animation the design asks for runs in the app, the way the design asks for it. Missing motion is a finding like a missing element.
+
+### Expected side
+
+Use the first source that has the motion, per state and element:
+
+1. **Figma MCP `get_motion_context`** (fileKey, nodeId, `recursive: true` for a frame): animated nodes, keyframe tracks with easing curves, and pre-computed CSS. The MCP rung.
+2. **Reaction transitions** in `figma-spec.json`: `layers[].reactions[].actions[].transition`, listed as `motion` by `figma-fetch.mjs`. `scripts/lib/figma-motion.mjs` → `figmaMotionSpecs(spec)` turns them into `{ nodeId, nodeName, layerPath, trigger, figmaTrigger, destinationId, type, durationMs, easing, delayMs, property, approximate, detail, source: "figma-reaction" }` with CSS easings and duration in ms (figma-extraction.md has the mapping, springs included). `compare.mjs --figma-spec` checks them against the app (below).
+3. **Coded prototype**: `design-motion/<state>.json` from `capture.mjs --side design`; `compare.mjs` pairs it with the app.
+4. **Motion tokens and ticket criteria**: the design rules' durations and easings for a pattern ("dialogs open in 200ms ease-out"), a criterion such as "the panel slides in".
+
+No source says anything about an element: no motion row. A design that says "no animation" (an instant variant change) is a row with `expected.type: "none"`.
+
+### Observed side
+
+`capture.mjs` writes `motion/<state>.json` for every state (shape in browser-capture.md): under `elements`, per grabbed element class, the computed `transition-*` and `animation-*` properties; `actionTarget`, the same longhands for the driver's `selector`; `animations`, the list `document.getAnimations()` returns right after the state's action (`type`, `target`, `element` as class and index, `transitionProperty` or `animationName`, `durationMs`, `delayMs`, `easing`, `iterations`); and `keyframes`, best effort from same-origin stylesheets. Screenshots are still taken with animations disabled.
+
+### Compare
+
+1. Pair each expected motion with the element it animates (the selector for the Figma node, or the element class and index from the prototype) and the trigger (`hover`, `focus`, `press`, `click`, `load`, `state-change`, `scroll`, `timeout`).
+2. Map the type to what the browser shows: smart animate and dissolve between variants become CSS transitions on the properties that change (background, color, opacity, transform); move-in, slide and push become a transform transition or animation; a looping or keyframed effect becomes an animation.
+3. Match with `motionMatches(expected, observedList, { durationToleranceMs: 20 })` from `figma-motion.mjs`: same property, duration within tolerance, equivalent easing, same delay. `compare.mjs` does this for you: prototype rows land in `compare.json` `states.<state>.motion`, Figma reactions (with `--figma-spec`) in `figmaMotion`, each checked in the app state whose driver action performs the trigger. Rows are ledger rows already (plus a `_compare` helper key that the validator ignores): paste them into `ledgers.motion`, set `findingIds` once the findings exist, and for the Figma rows set `expected.source: "figma"` on the findings.
+4. Classify:
+   - Nothing animates where the design animates (`observed: null`): **missing motion**, 🟡 WARNING, `FIX_CODE`, `actual.value: "none"`. 🔴 BLOCKER when the motion carries meaning (a loading indicator that does not move, a panel that appears without its designed entry so the user loses context).
+   - Different type, duration, easing or delay: **different motion**, 🟡 WARNING, `FIX_CODE`.
+   - A raw duration or easing in source where a motion token exists: a style traceability finding (above).
+   - Motion the design does not have (a bounce, a loop): 🟡 WARNING, `FIX_CODE`, phrased from the code side.
+   - Reduced motion: with `reducedMotion: true` the non-essential motion is gone or reduced; anything else is a finding.
+   - Not observable (canvas or WebGL, script-driven per-frame styles, keyframes in a cross-origin stylesheet, an animation that ends before it can be read): ℹ️ CANNOT_VERIFY, `result: "CANNOT_VERIFY"`, saying which.
+
+Row:
+
+```json
+{ "state": "hover", "selector": "[data-testid=order-row]", "figmaNodeId": "12:361", "trigger": "hover",
+  "property": "background-color",
+  "expected": { "type": "smart-animate", "durationMs": 200, "easing": "cubic-bezier(0,0,0.58,1)", "delayMs": 0, "detail": "Row → Row/Hover" },
+  "observed": null,
+  "result": "FAIL", "findingIds": ["DQ-012"] }
+```
+
+A reaction whose trigger no captured state performs comes back `result: "CANNOT_VERIFY"` with `observed: null`: keep it as ℹ️ CANNOT_VERIFY naming the missing state driver, or add the state and re-run.
+
+The finding: `ledger: "motion"`, `property: "transition"` (or `"transition-duration"`, `"animation"`), `expected.value: "200ms ease-out on background-color"`, `actual.value: "none"`, evidence of type `motion` pointing at `evidence/motion/hover.json`.
 
 ## Writing a finding
 
 Fill every field a coding agent needs to act without opening the report:
 
-- `title`: what is wrong, in one line ("Section title uses 16px instead of heading/sm").
+- `title`: what is wrong in the code, in one line ("Section title uses 16px instead of heading/sm"). Always from the code side.
+- `screen` in a multi-screen pass, and `state` written `<screen>/<state>`.
 - `ledger`, `state`, `region`, `property`.
 - `element`: `selector` (stable, prefer test ids), `figmaLayerPath` (from the spec's `path`), `figmaNodeId`.
-- `expected`: `value`, `token`, `source` (`figma`, `ticket` or `design-rules`).
+- `expected`: `value`, `token`, `source` (`figma`, `prototype`, `ticket` or `design-rules`).
 - `actual`: `value`, `token`, and `source: { file, line, snippet }` whenever the code location is known.
 - `delta` and `tolerance`: "2px over", "ΔE 6.3 over 1.5".
 - `fix`: `summary`, `patchHint`, `files`, `effort` (1–5). Null only for `DATA`, `INTENTIONAL`, `NONE`.
-- `evidence`: at least one item, `{ type, path, crop, state }`, with paths relative to the report folder.
-- **Position every finding.** A finding that can be located on a capture must have an evidence entry with `crop: { x, y, w, h }` in that image's pixel space and `state` set; the HTML report pins the finding at the crop's centre and shows a Figma and app crop pair. App side: the element's `__rect` from the grab (captures are at DPR 1, so CSS pixels are image pixels). Figma side: the layer's `absoluteBoundingBox` minus the frame's top-left corner. Only findings with no place on the page (a missing state, a page-level rule) go without.
+- `evidence`: at least one item, `{ type, path, crop, state }`, with paths relative to the report folder. Types: `screenshot`, `design` (the design-side image), `computed`, `dom`, `motion`, `figma`, `diff`.
+- **Position every finding.** A finding that can be located on a capture must have an evidence entry with `crop: { x, y, w, h }` in that image's pixel space and `state` set; the HTML report pins the finding at the crop's centre and shows a design and app crop pair. App side and coded-prototype side: the element's `__rect` from the grab (captures are at DPR 1, so CSS pixels are image pixels). Figma side: the layer's `absoluteBoundingBox` minus the frame's top-left corner. Only findings with no place on the page (a missing state, a page-level rule) go without.
 - `acRef` when a ticket criterion is involved; `knownDrift` when a known drift is cited.

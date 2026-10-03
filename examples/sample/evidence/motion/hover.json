@@ -1,0 +1,34 @@
+{
+  "state": "hover",
+  "elements": {
+    "Table row": {
+      "selector": ".orders-row",
+      "count": 12,
+      "samples": [
+        {
+          "transition-property": "background-color",
+          "transition-duration": "0.4s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1"
+        }
+      ]
+    }
+  },
+  "animations": [
+    {
+      "type": "CSSTransition",
+      "target": ".orders-row:nth-child(2)",
+      "transitionProperty": "background-color",
+      "durationMs": 400,
+      "delayMs": 0,
+      "easing": "ease",
+      "iterations": 1
+    }
+  ],
+  "keyframes": {}
+}

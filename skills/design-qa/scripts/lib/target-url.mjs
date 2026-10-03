@@ -1,5 +1,6 @@
-// What did the user hand us (Figma link, app URL, ticket key, surface name),
-// what kind of deployment is an app URL, and which URL should be captured.
+// What did the user hand us (Figma link, Figma prototype, coded prototype, app URL,
+// ticket key, surface name), what kind of deployment is an app URL, and which URL
+// should be captured.
 import { parseFigmaUrl } from './figma-url.mjs';
 
 export const TICKET_KEY = /^[A-Z][A-Z0-9]+-\d+$/;
@@ -10,6 +11,15 @@ const CODE_HOSTS = /(^|\.)(github\.com|githubusercontent\.com|gitlab\.com|bitbuc
 const ATLASSIAN_HOSTS = /(^|\.)(atlassian\.net|atlassian\.com|jira\.com)$/i;
 const FIGMA_HOSTS = /(^|\.)figma\.com$/i;
 
+/** Hosts of prototyping tools: a URL there is a coded prototype (design source), not the app. */
+const PROTOTYPE_TOOLS = [
+  ['figma-make', (u) => (/(^|\.)figma\.com$/i.test(u.hostname) && /^\/make\//.test(u.pathname)) || /(^|\.)figma\.site$/i.test(u.hostname)],
+  ['framer', (u) => /(^|\.)(framer\.app|framer\.website|framer\.ai|framercanvas\.com)$/i.test(u.hostname) || (/(^|\.)framer\.com$/i.test(u.hostname) && /^\/projects\//.test(u.pathname))],
+  ['v0', (u) => /(^|\.)(v0\.dev|v0\.app|vusercontent\.net)$/i.test(u.hostname)],
+  ['lovable', (u) => /(^|\.)(lovable\.app|lovable\.dev|lovableproject\.com)$/i.test(u.hostname)],
+];
+const TOOL_LABELS = { 'figma-make': 'Figma Make prototype', framer: 'Framer prototype', v0: 'v0 prototype', lovable: 'Lovable prototype', html: 'HTML prototype', other: 'Prototype' };
+
 function toUrl(value) {
   try {
     const u = new URL(String(value).trim());
@@ -19,8 +29,48 @@ function toUrl(value) {
   }
 }
 
-/** local | preview | staging | prod for an app URL. */
+/**
+ * Prototyping tool behind a URL: figma-make | framer | v0 | lovable from the host;
+ * html for file: URLs and *.html / *.htm pages; null for anything else (any other URL
+ * can still be a prototype when the user says so: prototypeTool(url, { assume: true }) → "other").
+ */
+export function prototypeTool(url, { assume = false } = {}) {
+  let u;
+  try {
+    u = new URL(String(url ?? '').trim());
+  } catch {
+    return null;
+  }
+  if (u.protocol === 'file:') return 'html';
+  if (!/^https?:$/.test(u.protocol)) return null;
+  for (const [tool, test] of PROTOTYPE_TOOLS) if (test(u)) return tool;
+  if (/\.html?$/i.test(u.pathname)) return assume ? 'html' : null;
+  return assume ? 'other' : null;
+}
+
+/**
+ * meta.source for a design source URL:
+ * { kind: "figma" | "figma-prototype" | "prototype", url, label, tool, frame }.
+ * Figma design/file links → figma; figma.com/proto → figma-prototype; any other URL
+ * (Figma Make, Framer, v0, Lovable, static HTML, localhost…) → prototype.
+ * Returns null for a value that is not a URL.
+ */
+export function designSource(url, { label = null, frame = null } = {}) {
+  const s = String(url ?? '').trim();
+  const figma = parseFigmaUrl(s);
+  if (figma) {
+    const kind = figma.kind === 'proto' ? 'figma-prototype' : 'figma';
+    const name = figma.fileName ? `${figma.fileName} (${kind === 'figma' ? 'Figma' : 'Figma prototype'})` : null;
+    return { kind, url: s, label: label ?? name, tool: null, frame };
+  }
+  const tool = prototypeTool(s, { assume: true });
+  if (!tool) return null;
+  return { kind: 'prototype', url: s, label: label ?? TOOL_LABELS[tool], tool, frame };
+}
+
+/** local | preview | staging | prod for an app URL (file: URLs are local). */
 export function appKind(url) {
+  if (/^file:/i.test(String(url ?? '').trim())) return 'local';
   const u = toUrl(url);
   if (!u) return 'prod';
   const host = u.hostname.toLowerCase();
@@ -59,18 +109,27 @@ export function ticketFromUrl(url) {
 
 /**
  * Classify one input:
- *   { kind: "figma-url", fileKey, nodeId, url }
+ *   { kind: "figma-url", fileKey, nodeId, url }                     (design / file link)
+ *   { kind: "figma-prototype", fileKey, nodeId, startingNodeId, url } (figma.com/proto link)
+ *   { kind: "prototype", url, tool, appKind }   (Figma Make, Framer, v0, Lovable host; or any
+ *                                                http(s)/file URL when { prototype: true },
+ *                                                i.e. given with --prototype <url>)
  *   { kind: "ticket-key", key, provider?, url? }   (ABC-123, or a Jira/Linear issue link)
  *   { kind: "pr-url", url }                         (GitHub PR / GitLab MR / Bitbucket PR)
  *   { kind: "app-url", url, appKind }               (any other http(s) URL)
  *   { kind: "surface-name", name }                  (anything else)
  */
-export function classifyInput(input) {
+export function classifyInput(input, { prototype = false } = {}) {
   const s = String(input ?? '').trim();
   if (!s) return { kind: 'surface-name', name: '' };
   const figma = parseFigmaUrl(s);
+  if (figma && figma.kind === 'proto') {
+    return { kind: 'figma-prototype', fileKey: figma.fileKey, nodeId: figma.nodeId, startingNodeId: figma.startingNodeId, url: figma.url };
+  }
   if (figma) return { kind: 'figma-url', fileKey: figma.fileKey, nodeId: figma.nodeId, url: figma.url };
   if (TICKET_KEY.test(s)) return { kind: 'ticket-key', key: s };
+  const tool = prototypeTool(s, { assume: prototype });
+  if (tool) return { kind: 'prototype', url: s, tool, appKind: appKind(s) };
   const u = toUrl(s);
   if (u) {
     const ticket = ticketFromUrl(s);
@@ -94,12 +153,13 @@ function cleanUrl(raw) {
 
 /**
  * Every http(s) URL in a text, classified:
- * { figmaUrls, previewUrls, prUrls, otherUrls } (deduplicated, in order).
+ * { figmaUrls, prototypeUrls, previewUrls, prUrls, otherUrls } (deduplicated, in order).
+ * Figma: design/file/proto links. Prototype: Figma Make, Framer, v0, Lovable.
  * Preview: *.vercel.app, *.netlify.app, *.pages.dev, hosts containing "preview"
  * or "staging". Other: anything else that is not Figma, a code host or Atlassian.
  */
 export function extractUrls(text) {
-  const out = { figmaUrls: [], previewUrls: [], prUrls: [], otherUrls: [] };
+  const out = { figmaUrls: [], prototypeUrls: [], previewUrls: [], prUrls: [], otherUrls: [] };
   const push = (list, v) => {
     if (!list.includes(v)) list.push(v);
   };
@@ -108,6 +168,10 @@ export function extractUrls(text) {
     const u = toUrl(url);
     if (!u) continue;
     const host = u.hostname.toLowerCase();
+    if (prototypeTool(url)) {
+      push(out.prototypeUrls, url);
+      continue;
+    }
     if (FIGMA_HOSTS.test(host)) {
       if (parseFigmaUrl(url)) push(out.figmaUrls, url);
       continue;

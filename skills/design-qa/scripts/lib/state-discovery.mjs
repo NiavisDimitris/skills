@@ -1,21 +1,26 @@
 #!/usr/bin/env node
 // State discovery: which states exist in the design (Figma), which the ticket
 // specifies and which the app can be driven into (config), merged into the
-// state matrix.
+// state matrix. The design is the source of truth: rows are only the states the
+// design defines. States found only in the ticket or only in code (config,
+// source branches) are not rows; ticket criteria still annotate designed states.
 //
 // Results written here are provisional, decided before any capture:
 //   designed && !implemented                     → MISSING_IN_CODE
-//   !designed && specified && !implemented       → MISSING_IN_CODE (no design frame either)
-//   !designed && !specified && implemented       → MISSING_IN_DESIGN
-//   !designed && specified && implemented        → CANNOT_VERIFY (no design; checked against the AC)
 //   designed && implemented via "source" only    → CANNOT_VERIFY (names surfaces.<name>.states.<state>)
 //   designed && implemented (runtime driver)     → CANNOT_VERIFY, pending capture
 // Capture + compare replaces the "pending capture" rows with PASS or FAIL.
 // The main Figma frame is the design of with-data (or of the state its own name
 // maps to) whenever figmaSpec.states does not cover that state.
+// Multi-screen passes pass `screen`: state ids become "<screen>/<state>".
+//
+// Undesigned states (the app or the ticket has them, the design does not) are
+// never rows. discoverUndesigned() lists them separately as design-backfill
+// candidates (step 2, after parity) — read-only, written to backfill-candidates.json.
 //
 // CLI: node scripts/lib/state-discovery.mjs --figma-spec f.json [--ticket t.json]
-//        [--config c.json --surface name] --out state-matrix.json
+//        [--config c.json --surface name] [--screen id] --out state-matrix.json
+//        [--backfill-out backfill-candidates.json]
 import { displayPath, parseCli, readJsonFile, runMain, usageError, writeJson } from './args.mjs';
 
 /** Phrase → normalised state id. Matching is case-insensitive; "-", "_", "/" count as spaces. */
@@ -437,14 +442,16 @@ export function designedStates(figmaSpec) {
 }
 
 /**
- * Merge design, ticket and config into state-matrix rows (captured: null,
- * findings: []). See the header comment for the provisional result rules.
+ * State-matrix rows for the designed states (captured: null, findings: []), with
+ * the ticket's criteria and the config's drivers attached. See the header comment
+ * for the provisional result rules. With `screen`, state ids are "<screen>/<state>"
+ * and every row carries `screen`.
  */
-export function buildStateMatrix({ figmaSpec = null, ticket = null, config = null, surface = null } = {}) {
+export function buildStateMatrix({ figmaSpec = null, ticket = null, config = null, surface = null, screen = null } = {}) {
   const designed = new Map(designedStates(figmaSpec).map((s) => [s.state, s]));
   const specified = new Map(discoverTicketStates(ticket).map((s) => [s.state, s]));
   const implemented = new Map(discoverConfigStates(config, surface).map((s) => [s.state, s]));
-  const states = sortStates([...new Set([...designed.keys(), ...specified.keys(), ...implemented.keys()])].filter(Boolean));
+  const states = sortStates([...designed.keys()].filter(Boolean));
   const surfaceName = surface ?? Object.keys(config?.surfaces ?? {})[0] ?? '<surface>';
   const hook = (state, key) => `surfaces.${surfaceName}.states.${key ?? state}`;
 
@@ -453,9 +460,10 @@ export function buildStateMatrix({ figmaSpec = null, ticket = null, config = nul
     const sp = specified.get(state);
     const im = implemented.get(state);
     const row = {
-      state,
+      state: screen ? `${screen}/${state}` : state,
+      ...(screen ? { screen } : {}),
       label: stateLabel(state),
-      designed: d ? { nodeId: d.nodeId, name: d.name ?? '' } : null,
+      designed: { nodeId: d.nodeId, name: d.name ?? '' },
       specified: sp ? { acRef: sp.acRef ?? 'AC-?', text: sp.text } : null,
       implemented: im ? { driver: im.driver, detail: im.detail } : null,
       captured: null,
@@ -467,18 +475,11 @@ export function buildStateMatrix({ figmaSpec = null, ticket = null, config = nul
       row.result = result;
       row.note = note;
     };
-    if (d && !im) {
+    if (!im) {
       set(
         'MISSING_IN_CODE',
         `Designed (${d.name || d.nodeId})${sp ? ` and specified in ${sp.acRef}` : ''} but not implemented: if the code has it, add a driver at ${hook(state)}; otherwise build it.`,
       );
-    } else if (!d && sp && !im) {
-      set('MISSING_IN_CODE', `Specified in ${sp.acRef} but not implemented; no design frame either — open a decision for design.`);
-    } else if (!d && !sp && im) {
-      set('MISSING_IN_DESIGN', `The app has this state (${im.detail}) but the design does not; ask design or mark it intentional.`);
-    } else if (!d && sp && im) {
-      const drive = im.driver === 'source' ? ` once a driver exists at ${hook(state, im.key)}` : '';
-      set('CANNOT_VERIFY', `No design frame; behaviour is checked against ${sp.acRef}${drive} instead of a visual reference — open a decision for design.`);
     } else if (im.driver === 'source') {
       set(
         'CANNOT_VERIFY',
@@ -492,6 +493,64 @@ export function buildStateMatrix({ figmaSpec = null, ticket = null, config = nul
 }
 
 // ---------------------------------------------------------------------------
+// Design backfill candidates (step 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * States that exist in the app (config) or in the ticket but not in the design:
+ * the design-backfill candidates. Never matrix rows. Returns
+ * [{ state, screen, label, discoveredBy: "config"|"ticket", detail, driver }]:
+ *   config: a configured state the design does not define (driver = the config
+ *           DRIVER when it can be driven at runtime, else null);
+ *   ticket: a state named in the ticket's expected behaviours / AC that the design
+ *           does not define (and the config does not list; otherwise its AC is
+ *           appended to the config candidate's detail).
+ * The implicit with-data of a ticket (its first plain criterion) is never a
+ * candidate. "source" candidates (found in code) are added by the agent. With
+ * `screen`, state ids are "<screen>/<state>".
+ */
+export function discoverUndesigned({ figmaSpec = null, ticket = null, config = null, surface = null, screen = null } = {}) {
+  const designed = new Set(designedStates(figmaSpec).map((d) => d.state));
+  const surfaces = config?.surfaces && typeof config.surfaces === 'object' ? config.surfaces : {};
+  const surfaceName = surface ?? Object.keys(surfaces)[0] ?? null;
+  const s = surfaceName ? surfaces[surfaceName] : null;
+  const out = new Map();
+  const id = (state) => (screen ? `${screen}/${state}` : state);
+
+  for (const [key, driver] of Object.entries(s?.states || {})) {
+    const state = normalizeStateName(key);
+    if (!state || designed.has(state) || out.has(state)) continue;
+    const kind = driverKind(driver);
+    if (!kind && state === 'with-data') continue; // the default render: never undesigned on its own
+    const where = `config surfaces.${surfaceName}.states.${key}`;
+    const runtime = kind && kind !== 'source';
+    out.set(state, {
+      state: id(state),
+      screen: screen ?? null,
+      label: stateLabel(state),
+      discoveredBy: 'config',
+      detail: runtime
+        ? `${where}: ${describeDriver(driver)}`
+        : kind === 'source'
+          ? `${where}: source ${driver.source} (no runtime driver)`
+          : `${where}: listed without a runtime driver`,
+      driver: runtime ? structuredClone(driver) : null,
+    });
+  }
+  for (const t of discoverTicketStates(ticket)) {
+    if (t.state === 'with-data' || designed.has(t.state)) continue;
+    const ac = `${t.acRef ?? 'AC-?'}: ${t.text}`.trim();
+    const existing = out.get(t.state);
+    if (existing) {
+      existing.detail = `${existing.detail}; ticket ${ac}`;
+      continue;
+    }
+    out.set(t.state, { state: id(t.state), screen: screen ?? null, label: stateLabel(t.state), discoveredBy: 'ticket', detail: `ticket ${ac}`, driver: null });
+  }
+  return sortStates([...out.keys()]).map((k) => out.get(k));
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
 
@@ -499,19 +558,29 @@ const HELP = `Build a provisional state matrix from a Figma spec, a ticket and t
 
 Usage:
   node scripts/lib/state-discovery.mjs --figma-spec figma-spec.json [--ticket ticket.json]
-      [--config design-qa.config.json --surface <name>] --out state-matrix.json
+      [--config design-qa.config.json --surface <name>] [--screen <id>] --out state-matrix.json
+      [--backfill-out backfill-candidates.json]
 
-Rows get designed/specified/implemented from the three inputs and a provisional
-result:
+One row per state the design defines (states only in the ticket or only in code
+are not rows). Each row gets specified/implemented from the ticket and the config,
+and a provisional result:
   designed, not implemented                  MISSING_IN_CODE
-  specified only (no design, not implemented) MISSING_IN_CODE
-  implemented only                           MISSING_IN_DESIGN
-  specified + implemented, no design         CANNOT_VERIFY (checked against the AC)
   designed + implemented via "source" only   CANNOT_VERIFY (names the missing driver)
   designed + implemented                     CANNOT_VERIFY, pending capture
 Capture and compare replace the pending-capture rows with PASS/FAIL. The main
 Figma frame counts as the with-data design when figma-spec.json "states" does not
-cover it (its own name can map it to another state instead).
+cover it (its own name can map it to another state instead). --screen <id> writes
+multi-screen ids ("<id>/<state>") and sets each row's screen.
+
+--backfill-out <file> also writes the design-backfill candidates (step 2, after
+parity; never matrix rows): states the config or the ticket has that the design
+does not define:
+  { "generatedAt", "surface", "candidates": [ { "state", "screen", "label",
+    "discoveredBy": "config|ticket", "detail", "driver": DRIVER|null } ] }
+Add states you find in source by hand ("discoveredBy": "source") or with
+backfill.mjs --add. Merge them into report.json with
+  node scripts/backfill.mjs --report <dir>/report.json --candidates <file>
+--out or --backfill-out (or both) is required.
 
 Exit codes: 0 ok · 1 error · 2 bad arguments`;
 
@@ -521,17 +590,22 @@ async function main(argv) {
     ticket: { type: 'string' },
     config: { type: 'string' },
     surface: { type: 'string' },
+    screen: { type: 'string' },
     out: { type: 'string' },
+    'backfill-out': { type: 'string' },
     quiet: { type: 'boolean' },
   });
   if (values.help) {
     console.log(HELP);
     return 0;
   }
-  if (!values['figma-spec'] && !values.ticket && !values.config) {
-    throw usageError('pass at least --figma-spec (and optionally --ticket, --config); see --help');
+  if (!values['figma-spec']) {
+    throw usageError('--figma-spec is required: the rows are the states the design defines (--ticket and --config are optional); see --help');
   }
-  if (!values.out) throw usageError('--out <state-matrix.json> is required');
+  if (values.screen !== undefined && !/^[a-z0-9][a-z0-9-]*$/.test(values.screen)) {
+    throw usageError(`--screen must be a kebab-case id like "cart" (got "${values.screen}")`);
+  }
+  if (!values.out && !values['backfill-out']) throw usageError('--out <state-matrix.json> is required (and/or --backfill-out <backfill-candidates.json>)');
   const figmaSpec = values['figma-spec'] ? readJsonFile(values['figma-spec'], 'figma spec') : null;
   const ticket = values.ticket ? readJsonFile(values.ticket, 'ticket') : null;
   const config = values.config ? readJsonFile(values.config, 'config') : null;
@@ -541,17 +615,27 @@ async function main(argv) {
   if (config && !values.surface && Object.keys(config.surfaces || {}).length > 1) {
     throw usageError(`the config has several surfaces; pass --surface (one of: ${Object.keys(config.surfaces).join(', ')})`);
   }
-  const rows = buildStateMatrix({ figmaSpec, ticket, config, surface: values.surface ?? null });
-  writeJson(values.out, rows);
-  if (!values.quiet) {
-    const flag = (v) => (v ? 'yes' : '–');
-    console.log('state          designed  specified  implemented  result');
-    for (const r of rows) {
-      console.log(
-        `${r.state.padEnd(14)} ${flag(r.designed).padEnd(9)} ${flag(r.specified).padEnd(10)} ${(r.implemented?.driver ?? '–').padEnd(12)} ${r.result}`,
-      );
+  const inputs = { figmaSpec, ticket, config, surface: values.surface ?? null, screen: values.screen ?? null };
+  if (values.out) {
+    const rows = buildStateMatrix(inputs);
+    writeJson(values.out, rows);
+    if (!values.quiet) {
+      const flag = (v) => (v ? 'yes' : '–');
+      console.log('state          specified  implemented  result');
+      for (const r of rows) {
+        console.log(`${r.state.padEnd(14)} ${flag(r.specified).padEnd(10)} ${(r.implemented?.driver ?? '–').padEnd(12)} ${r.result}`);
+      }
+      console.log(`Wrote ${displayPath(values.out)} (${rows.length} states)`);
     }
-    console.log(`Wrote ${displayPath(values.out)} (${rows.length} states)`);
+  }
+  if (values['backfill-out']) {
+    const candidates = discoverUndesigned(inputs);
+    const surfaceName = values.surface ?? Object.keys(config?.surfaces ?? {})[0] ?? null;
+    writeJson(values['backfill-out'], { generatedAt: new Date().toISOString(), surface: surfaceName, candidates });
+    if (!values.quiet) {
+      for (const c of candidates) console.log(`undesigned ${c.state.padEnd(14)} ${c.discoveredBy.padEnd(7)} ${c.detail}`);
+      console.log(`Wrote ${displayPath(values['backfill-out'])} (${candidates.length} undesigned state(s) — design backfill, step 2, after parity; not in the matrix)`);
+    }
   }
   return 0;
 }

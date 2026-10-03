@@ -1,0 +1,34 @@
+{
+  "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders",
+  "kind": "preview",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "dpr": 1,
+  "fullPage": false,
+  "commit": "9f3c2a1e7b4d8c06a5f2e19d3b7c4a8e0f6d2b51",
+  "branch": "feat/orders-list",
+  "timestamp": "2026-09-22T14:29:41Z",
+  "states": {
+    "bulk-selected": {
+      "driver": {
+        "action": "click",
+        "selector": "[data-testid=orders-select-all]"
+      },
+      "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders",
+      "screenshot": "app/bulk-selected.png",
+      "computed": "computed/bulk-selected.json",
+      "dom": "dom/bulk-selected.json",
+      "motion": "motion/bulk-selected.json",
+      "settleMs": 250,
+      "durationMs": 2731,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": []
+    }
+  },
+  "degradations": []
+}

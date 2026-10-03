@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { appKind, classifyInput, extractUrls, isPrUrl, resolveTarget } from '../skills/design-qa/scripts/lib/target-url.mjs';
+import { appKind, classifyInput, designSource, extractUrls, isPrUrl, prototypeTool, resolveTarget } from '../skills/design-qa/scripts/lib/target-url.mjs';
 
 test('classifyInput', () => {
   assert.deepEqual(classifyInput('https://www.figma.com/design/KEY123/Items?node-id=1-2'), {
@@ -44,8 +44,9 @@ test('extractUrls classifies and cleans URLs from prose', () => {
     'Docs: https://docs.example.com/guide, repo https://github.com/acme/web, jira https://acme.atlassian.net/browse/ABC-1',
     'Again https://www.figma.com/design/KEY1/Items?node-id=1-2 and a FigJam https://www.figma.com/board/KEY2/Notes',
   ].join('\n');
-  assert.deepEqual(extractUrls(text), {
+  assert.deepEqual(extractUrls(`${text}\nPrototype https://checkout-v3.framer.app/cart and https://www.figma.com/make/MaKe1/Checkout`), {
     figmaUrls: ['https://www.figma.com/design/KEY1/Items?node-id=1-2'],
+    prototypeUrls: ['https://checkout-v3.framer.app/cart', 'https://www.figma.com/make/MaKe1/Checkout'],
     previewUrls: ['https://items-git-feat.vercel.app/items', 'https://staging.example.com/items'],
     prUrls: ['https://github.com/acme/web/pull/42', 'https://gitlab.com/acme/web/-/merge_requests/7'],
     otherUrls: ['https://docs.example.com/guide'],
@@ -73,4 +74,33 @@ test('resolveTarget: explicit, then ticket preview (confirmation rule), then con
   );
   assert.deepEqual(resolveTarget({ config, surface: 'items' }), { url: 'http://localhost:3000/items', kind: 'local', source: 'config', needsConfirmation: false });
   assert.equal(resolveTarget({}), null);
+});
+
+test('prototype links: Figma prototypes, coded prototypes and --prototype URLs', () => {
+  assert.deepEqual(classifyInput('https://www.figma.com/proto/KEY123/Checkout?node-id=4-5&starting-point-node-id=1-2'), {
+    kind: 'figma-prototype', fileKey: 'KEY123', nodeId: '4:5', startingNodeId: '1:2', url: 'https://www.figma.com/proto/KEY123/Checkout?node-id=4-5&starting-point-node-id=1-2',
+  });
+  assert.deepEqual(classifyInput('https://checkout.framer.website/cart'), { kind: 'prototype', url: 'https://checkout.framer.website/cart', tool: 'framer', appKind: 'prod' });
+  assert.equal(classifyInput('https://www.figma.com/make/MaKe1/Checkout').tool, 'figma-make');
+  assert.equal(classifyInput('https://shop-demo.figma.site').tool, 'figma-make');
+  assert.equal(classifyInput('https://v0.dev/chat/abc').tool, 'v0');
+  assert.equal(classifyInput('https://kzx.lovable.app/').tool, 'lovable');
+  assert.deepEqual(classifyInput('file:///Users/me/proto/index.html'), { kind: 'prototype', url: 'file:///Users/me/proto/index.html', tool: 'html', appKind: 'local' });
+  // Any URL handed over with --prototype is the design source, not the app.
+  assert.equal(classifyInput('http://localhost:5173/', { prototype: true }).kind, 'prototype');
+  assert.equal(classifyInput('http://localhost:5173/', { prototype: true }).tool, 'other');
+  assert.equal(classifyInput('https://example.com/proto/cart.html', { prototype: true }).tool, 'html');
+  assert.equal(classifyInput('http://localhost:5173/').kind, 'app-url', 'without --prototype a localhost URL is the app');
+  assert.equal(prototypeTool('https://example.com/'), null);
+  assert.equal(prototypeTool('nope'), null);
+});
+
+test('designSource builds meta.source for every kind of design source', () => {
+  assert.deepEqual(designSource('https://www.figma.com/design/KEY/Checkout-v3?node-id=1-2', { frame: { width: 390, height: 844 } }), {
+    kind: 'figma', url: 'https://www.figma.com/design/KEY/Checkout-v3?node-id=1-2', label: 'Checkout v3 (Figma)', tool: null, frame: { width: 390, height: 844 },
+  });
+  assert.equal(designSource('https://www.figma.com/proto/KEY/Checkout?node-id=1-2').kind, 'figma-prototype');
+  assert.deepEqual(designSource('https://checkout.framer.app/'), { kind: 'prototype', url: 'https://checkout.framer.app/', label: 'Framer prototype', tool: 'framer', frame: null });
+  assert.equal(designSource('http://localhost:4000/', { label: 'Local prototype' }).label, 'Local prototype');
+  assert.equal(designSource('not a url'), null);
 });

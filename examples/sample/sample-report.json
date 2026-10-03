@@ -1,10 +1,20 @@
 {
-  "schemaVersion": "1.1",
+  "schemaVersion": "2.0",
   "meta": {
     "feature": "Orders list",
     "generatedAt": "2026-09-22T14:32:08Z",
-    "skillVersion": "0.1.0",
+    "skillVersion": "0.2.0",
     "mode": "fix",
+    "source": {
+      "kind": "figma",
+      "url": "https://www.figma.com/design/aBcD3fGh1JkLmN0pQrStUv/Acme-Console?node-id=1204-3310",
+      "label": "Orders list (Figma)",
+      "tool": null,
+      "frame": {
+        "width": 1440,
+        "height": 900
+      }
+    },
     "ticket": {
       "provider": "jira",
       "key": "ACME-482",
@@ -36,6 +46,7 @@
     "tools": {
       "figmaAccess": "mcp",
       "capture": "script",
+      "prototypeCapture": null,
       "ticket": "mcp"
     },
     "degradations": [
@@ -47,7 +58,7 @@
       {
         "step": "figma:variables",
         "reason": "Motion variables (Acme DS / Motion) are not published to the library, so the MCP returned no motion tokens.",
-        "impact": "The transition expectation in DQ-008 comes from design-rules, not from Figma."
+        "impact": "The 160 ms / ease-out expectation in DQ-008 comes from the Figma prototype reaction; the --ads-motion-base token name comes from design-rules."
       }
     ]
   },
@@ -56,16 +67,16 @@
     "verdict": "FAIL",
     "bySeverity": {
       "BLOCKER": 2,
-      "WARNING": 11,
+      "WARNING": 13,
       "PASS": 5,
       "CANNOT_VERIFY": 1,
-      "DS_CANDIDATE": 1
+      "DS_CANDIDATE": 0
     },
     "byResolution": {
-      "FIX_CODE": 8,
-      "SYNC_FIGMA": 2,
+      "FIX_CODE": 10,
       "INTENTIONAL": 1,
       "DATA": 2,
+      "DISMISSED": 1,
       "NONE": 6,
       "UNCLASSIFIED": 1
     },
@@ -97,10 +108,10 @@
       }
     },
     "stateCoverage": {
-      "total": 9,
+      "total": 8,
       "designed": 7,
       "specified": 4,
-      "implemented": 7,
+      "implemented": 6,
       "verified": 5
     },
     "unexplained": 5,
@@ -108,7 +119,21 @@
       "count": 6,
       "ticketed": 6
     },
-    "loopClosed": false
+    "loopClosed": false,
+    "dismissed": 1,
+    "designSystem": {
+      "tokens": 4,
+      "components": 1,
+      "motion": 2
+    },
+    "backfill": {
+      "candidates": 2,
+      "toBuild": 1,
+      "built": 0,
+      "notNeeded": 1,
+      "pending": 0,
+      "ready": false
+    }
   },
   "stateMatrix": [
     {
@@ -127,7 +152,7 @@
         "detail": "fixtures/orders/with-data.json (12 orders)"
       },
       "captured": {
-        "figma": "evidence/figma/with-data.png",
+        "design": "evidence/figma/with-data.png",
         "app": "evidence/app/with-data.png",
         "diff": "evidence/diff/with-data.png"
       },
@@ -143,7 +168,8 @@
         "DQ-012",
         "DQ-013",
         "DQ-018",
-        "DQ-020"
+        "DQ-020",
+        "DQ-022"
       ]
     },
     {
@@ -159,7 +185,7 @@
       },
       "implemented": null,
       "captured": {
-        "figma": "evidence/figma/empty.png",
+        "design": "evidence/figma/empty.png",
         "app": null,
         "diff": null
       },
@@ -185,7 +211,7 @@
         "detail": "Mock handler delays GET /api/orders by 2 s"
       },
       "captured": {
-        "figma": "evidence/figma/loading.png",
+        "design": "evidence/figma/loading.png",
         "app": "evidence/app/loading.png",
         "diff": "evidence/diff/loading.png"
       },
@@ -193,7 +219,8 @@
       "note": "Skeleton exists, but bar radius (DQ-007) and card inset spacing (DQ-004) differ, and it appears immediately instead of after 300 ms (DQ-016).",
       "findings": [
         "DQ-007",
-        "DQ-016"
+        "DQ-016",
+        "DQ-021"
       ]
     },
     {
@@ -212,7 +239,7 @@
         "detail": "Mock handler returns 500 for GET /api/orders"
       },
       "captured": {
-        "figma": "evidence/figma/error.png",
+        "design": "evidence/figma/error.png",
         "app": "evidence/app/error.png",
         "diff": "evidence/diff/error.png"
       },
@@ -236,7 +263,7 @@
         "detail": "hover '[data-testid=orders-table] tbody tr:nth-child(2)'"
       },
       "captured": {
-        "figma": "evidence/figma/hover.png",
+        "design": "evidence/figma/hover.png",
         "app": "evidence/app/hover.png",
         "diff": "evidence/diff/hover.png"
       },
@@ -260,7 +287,7 @@
         "detail": "press Tab ×6 to focus the first row"
       },
       "captured": {
-        "figma": "evidence/figma/focus.png",
+        "design": "evidence/figma/focus.png",
         "app": "evidence/app/focus.png",
         "diff": "evidence/diff/focus.png"
       },
@@ -283,7 +310,7 @@
         "detail": "OrdersTable.tsx:88 sets aria-selected and .is-selected on the open row"
       },
       "captured": {
-        "figma": "evidence/figma/selected.png",
+        "design": "evidence/figma/selected.png",
         "app": null,
         "diff": null
       },
@@ -291,26 +318,6 @@
       "note": "Designed and implemented, but no driver hook: add surfaces.orders.states.selected to design-qa.config.json so capture can open a row.",
       "findings": [
         "DQ-014"
-      ]
-    },
-    {
-      "state": "bulk-selected",
-      "label": "Bulk selected",
-      "designed": null,
-      "specified": null,
-      "implemented": {
-        "driver": "action",
-        "detail": "click '[data-testid=orders-select-all]'"
-      },
-      "captured": {
-        "figma": null,
-        "app": "evidence/app/bulk-selected.png",
-        "diff": null
-      },
-      "result": "MISSING_IN_DESIGN",
-      "note": "Code ships a bulk-action bar (Export, Cancel orders) that has no design. Needs a decision: OD-1.",
-      "findings": [
-        "DQ-009"
       ]
     },
     {
@@ -754,7 +761,7 @@
       ],
       "rank": {
         "score": 225,
-        "bucket": "fix-now"
+        "bucket": "debt"
       },
       "signoff": null,
       "knownDrift": "KD-2",
@@ -849,8 +856,8 @@
     },
     {
       "id": "DQ-008",
-      "title": "Row hover transition is a hardcoded 400ms instead of --ads-motion-base (160ms)",
-      "ledger": "style",
+      "title": "Row hover transition is 400ms ease instead of 160ms ease-out (--ads-motion-base)",
+      "ledger": "motion",
       "state": "hover",
       "severity": "WARNING",
       "resolution": "FIX_CODE",
@@ -862,12 +869,12 @@
       },
       "property": "transition-duration",
       "expected": {
-        "value": "160ms",
+        "value": "160ms ease-out on background-color",
         "token": "--ads-motion-base",
-        "source": "design-rules"
+        "source": "figma"
       },
       "actual": {
-        "value": "400ms",
+        "value": "400ms ease on background-color",
         "token": null,
         "source": {
           "file": "src/features/orders/orders.css",
@@ -875,10 +882,10 @@
           "snippet": ".orders-row { transition: background-color 400ms ease; }"
         }
       },
-      "delta": "+240ms",
-      "tolerance": "Token match",
+      "delta": "+240ms, easing differs",
+      "tolerance": "±20ms",
       "fix": {
-        "summary": "Use the motion tokens for the row hover transition.",
+        "summary": "Use the motion tokens for the row hover transition (160ms, ease-out).",
         "patchHint": ".orders-row { transition: background-color var(--ads-motion-base) var(--ads-ease-standard); }",
         "files": [
           "src/features/orders/orders.css"
@@ -886,6 +893,12 @@
         "effort": 1
       },
       "evidence": [
+        {
+          "type": "motion",
+          "path": "evidence/motion/hover.json",
+          "crop": null,
+          "state": "hover"
+        },
         {
           "type": "computed",
           "path": "evidence/computed/hover.json",
@@ -913,77 +926,12 @@
       "acRef": null
     },
     {
-      "id": "DQ-009",
-      "title": "Bulk-action bar has no design (Acme DS candidate)",
-      "ledger": "component",
-      "state": "bulk-selected",
-      "severity": "DS_CANDIDATE",
-      "resolution": "SYNC_FIGMA",
-      "region": "Bulk-action bar",
-      "element": {
-        "selector": "[data-testid=orders-bulk-bar]",
-        "figmaLayerPath": null,
-        "figmaNodeId": null
-      },
-      "property": "component",
-      "expected": {
-        "value": "No design for bulk selection",
-        "token": null,
-        "source": "figma"
-      },
-      "actual": {
-        "value": "Local BulkActionBar: '12 selected', Clear selection, Export, Cancel orders (floating, dark)",
-        "token": null,
-        "source": {
-          "file": "src/features/orders/BulkActionBar.tsx",
-          "line": 1,
-          "snippet": "export function BulkActionBar({ count, onClear, onExport, onCancel }: Props) {"
-        }
-      },
-      "delta": "Pattern missing in design",
-      "tolerance": null,
-      "fix": {
-        "summary": "Design the bulk-selection pattern (select column + action bar) in Acme DS, then swap the local component for it, or remove it (OD-1).",
-        "patchHint": null,
-        "files": [
-          "src/features/orders/BulkActionBar.tsx"
-        ],
-        "effort": 3
-      },
-      "evidence": [
-        {
-          "type": "screenshot",
-          "path": "evidence/app/bulk-selected.png",
-          "crop": {
-            "x": 400,
-            "y": 808,
-            "w": 640,
-            "h": 56
-          },
-          "state": "bulk-selected"
-        },
-        {
-          "type": "dom",
-          "path": "evidence/dom/bulk-selected.json",
-          "crop": null,
-          "state": "bulk-selected"
-        }
-      ],
-      "rank": {
-        "score": 133,
-        "bucket": "sync-figma"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
-    },
-    {
       "id": "DQ-010",
-      "title": "'Updated' column ships in code but is missing from the design",
+      "title": "App renders an extra 'Updated' column that is not in the design",
       "ledger": "structure",
       "state": "with-data",
       "severity": "WARNING",
-      "resolution": "SYNC_FIGMA",
+      "resolution": "FIX_CODE",
       "region": "Table header",
       "element": {
         "selector": "th[data-col=updated]",
@@ -1005,13 +953,15 @@
           "snippet": "{ id: 'updated', header: 'Updated', cell: (o) => formatDateTime(o.updatedAt) },"
         }
       },
-      "delta": "+1 column (approved in ACME-497 after the frame was drawn)",
+      "delta": "+1 column (added in ACME-497 after the frame was drawn)",
       "tolerance": "Exact",
       "fix": {
-        "summary": "Add the approved 'Updated' column to the Figma frame and the Table.Row instances.",
-        "patchHint": "Figma: duplicate the Created column, rename it 'Updated', format 'MMM d, HH:mm'.",
-        "files": [],
-        "effort": 2
+        "summary": "Remove the 'Updated' column so the table matches the design: Order · Customer · Status · Total · Created.",
+        "patchHint": "// columns.ts: delete { id: 'updated', header: 'Updated', cell: (o) => formatDateTime(o.updatedAt) },",
+        "files": [
+          "src/features/orders/columns.ts"
+        ],
+        "effort": 1
       },
       "evidence": [
         {
@@ -1044,8 +994,8 @@
         }
       ],
       "rank": {
-        "score": 234,
-        "bucket": "sync-figma"
+        "score": 235,
+        "bucket": "fix-now"
       },
       "signoff": null,
       "knownDrift": null,
@@ -1082,7 +1032,7 @@
       "delta": "Moved above the table",
       "tolerance": "Exact position",
       "fix": {
-        "summary": "No code change (signed off). Update the Figma frame to show pagination in the toolbar.",
+        "summary": "No code change (signed off).",
         "patchHint": null,
         "files": [],
         "effort": 1
@@ -1118,7 +1068,7 @@
       "signoff": {
         "by": "Product",
         "date": "2026-09-18",
-        "reason": "Top pagination keeps page controls above the fold on 12-row pages. Approved in design review; Figma to be updated."
+        "reason": "Top pagination keeps page controls above the fold on 12-row pages. Approved in design review."
       },
       "knownDrift": null,
       "acRef": null
@@ -1699,6 +1649,143 @@
       "signoff": null,
       "knownDrift": null,
       "acRef": null
+    },
+    {
+      "id": "DQ-021",
+      "title": "Skeleton is swapped for the rows with no fade (missing 200ms dissolve)",
+      "ledger": "motion",
+      "state": "loading",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Table",
+      "element": {
+        "selector": "[data-testid=orders-skeleton]",
+        "figmaLayerPath": "Orders / Loading",
+        "figmaNodeId": "1204:3402"
+      },
+      "property": "animation",
+      "expected": {
+        "value": "200ms ease-out dissolve (opacity) from the skeleton to the rows",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "none: the rows replace the skeleton on the next frame",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersPage.tsx",
+          "line": 41,
+          "snippet": "{isLoading ? <OrdersSkeleton /> : <OrdersTable rows={rows} />}"
+        }
+      },
+      "delta": "No transition",
+      "tolerance": "±20ms",
+      "fix": {
+        "summary": "Cross-fade the skeleton out and the rows in: opacity 200ms ease-out.",
+        "patchHint": "<Fade show={!isLoading} duration={200} easing=\"ease-out\">…</Fade>",
+        "files": [
+          "src/features/orders/OrdersPage.tsx"
+        ],
+        "effort": 2
+      },
+      "evidence": [
+        {
+          "type": "motion",
+          "path": "evidence/motion/loading.json",
+          "crop": null,
+          "state": "loading"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/app/loading.png",
+          "crop": {
+            "x": 284,
+            "y": 264,
+            "w": 1104,
+            "h": 384
+          },
+          "state": "loading"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/dom/loading.json",
+          "crop": null,
+          "state": "loading"
+        }
+      ],
+      "rank": {
+        "score": 224,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-022",
+      "title": "Status badge radius is 11px, the design says 12px",
+      "ledger": "style",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "DISMISSED",
+      "region": "Table rows",
+      "element": {
+        "selector": "td.col-status .ads-badge",
+        "figmaLayerPath": "Orders / With data / Card / Row 1 / Status badge",
+        "figmaNodeId": "1204:3325"
+      },
+      "property": "border-radius",
+      "expected": {
+        "value": "12px",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "11px",
+        "token": null,
+        "source": {
+          "file": "src/components/Badge.module.css",
+          "line": 6,
+          "snippet": ".badge { border-radius: 11px; }"
+        }
+      },
+      "delta": "−1px",
+      "tolerance": "±1px",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": {
+            "x": 750,
+            "y": 277,
+            "w": 66,
+            "h": 22
+          },
+          "state": "with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/computed/with-data.json",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
+      "dismissal": {
+        "kind": "not-an-issue",
+        "reason": "The badge is 22px tall, so any radius of 11px or more renders as the same full pill; the 12px in the frame and the 11px in code look identical.",
+        "by": "Maya Chen",
+        "date": "2026-09-22T15:03:00Z",
+        "source": "report-ui",
+        "priorRef": null
+      }
     }
   ],
   "ledgers": {
@@ -1822,23 +1909,6 @@
         "findingIds": [
           "DQ-019"
         ]
-      },
-      {
-        "region": "Bulk-action bar",
-        "figma": {
-          "present": false,
-          "order": null,
-          "label": null
-        },
-        "app": {
-          "present": true,
-          "order": 6,
-          "label": "12 selected · Clear selection · Export · Cancel orders"
-        },
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-009"
-        ]
       }
     ],
     "component": [
@@ -1913,16 +1983,6 @@
         "findingIds": [
           "DQ-001"
         ]
-      },
-      {
-        "figmaComponent": "(none in design)",
-        "variant": null,
-        "expectedComponent": "(no design)",
-        "actualComponent": "BulkActionBar (local)",
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-009"
-        ]
       }
     ],
     "style": [
@@ -1974,19 +2034,6 @@
         "result": "FAIL",
         "findingIds": [
           "DQ-003"
-        ]
-      },
-      {
-        "elementClass": "Table row",
-        "selector": ".orders-row",
-        "property": "transition-duration",
-        "figma": "160ms",
-        "token": "--ads-motion-base",
-        "computed": "0.4s",
-        "sourceValue": "400ms",
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-008"
         ]
       },
       {
@@ -2051,6 +2098,19 @@
         "findingIds": [
           "DQ-005"
         ]
+      },
+      {
+        "elementClass": "Status badge",
+        "selector": "td.col-status .ads-badge",
+        "property": "border-radius",
+        "figma": "12px",
+        "token": null,
+        "computed": "11px",
+        "sourceValue": "11px",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-022"
+        ]
       }
     ],
     "state": [
@@ -2067,7 +2127,8 @@
           "DQ-012",
           "DQ-013",
           "DQ-018",
-          "DQ-020"
+          "DQ-020",
+          "DQ-022"
         ]
       },
       {
@@ -2082,7 +2143,8 @@
         "result": "FAIL",
         "findingIds": [
           "DQ-007",
-          "DQ-016"
+          "DQ-016",
+          "DQ-021"
         ]
       },
       {
@@ -2113,13 +2175,6 @@
         "result": "CANNOT_VERIFY",
         "findingIds": [
           "DQ-014"
-        ]
-      },
-      {
-        "state": "bulk-selected",
-        "result": "MISSING_IN_DESIGN",
-        "findingIds": [
-          "DQ-009"
         ]
       },
       {
@@ -2207,41 +2262,92 @@
           "DQ-014"
         ]
       }
+    ],
+    "motion": [
+      {
+        "state": "hover",
+        "selector": ".orders-row",
+        "figmaNodeId": "1204:3324",
+        "trigger": "hover",
+        "property": "background-color",
+        "expected": {
+          "type": "smart-animate",
+          "durationMs": 160,
+          "easing": "ease-out",
+          "delayMs": null,
+          "detail": "Figma prototype: ON_HOVER → Row State=Hover"
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 400,
+          "easing": "ease",
+          "delayMs": 0,
+          "detail": "transition: background-color 400ms ease"
+        },
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-008"
+        ]
+      },
+      {
+        "state": "loading",
+        "selector": "[data-testid=orders-skeleton]",
+        "figmaNodeId": "1204:3402",
+        "trigger": "timeout",
+        "property": "opacity",
+        "expected": {
+          "type": "dissolve",
+          "durationMs": 200,
+          "easing": "ease-out",
+          "delayMs": null,
+          "detail": "Figma prototype: after timeout, Orders / Loading → Orders / With data"
+        },
+        "observed": null,
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-021"
+        ]
+      },
+      {
+        "state": "focus",
+        "selector": ".orders-row:focus-visible",
+        "figmaNodeId": "1204:3440",
+        "trigger": "focus",
+        "property": "outline",
+        "expected": {
+          "type": "none",
+          "durationMs": null,
+          "easing": null,
+          "delayMs": null,
+          "detail": "Focus ring appears instantly (no transition specified)"
+        },
+        "observed": {
+          "type": "none",
+          "durationMs": null,
+          "easing": null,
+          "delayMs": null,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": []
+      }
     ]
   },
   "openDecisions": [
-    {
-      "id": "OD-1",
-      "question": "Bulk selection ships in code but has no design. Design it as an Acme DS pattern, or remove it from this release?",
-      "options": [
-        {
-          "label": "Design it (Acme DS pattern)",
-          "consequence": "Designer adds a select column and bulk-action bar to Acme DS; code swaps BulkActionBar for the DS component. About 3 days of design and 1 of code; the feature stays."
-        },
-        {
-          "label": "Remove it for now",
-          "consequence": "Delete BulkActionBar and the select-all control; ship without bulk actions. Parity is restored today and the feature returns with its own ticket."
-        }
-      ],
-      "recommendation": "Design it. The component already works and other list pages (Customers, Invoices) need the same pattern. Keep it behind the orders-bulk flag until the Acme DS version lands.",
-      "relatedFindings": [
-        "DQ-009"
-      ]
-    },
     {
       "id": "OD-2",
       "question": "Pagination: keep it in the toolbar (as built) or move it below the table (as designed)? Resolved on 2026-09-18.",
       "options": [
         {
           "label": "Keep it in the toolbar (as built)",
-          "consequence": "Page controls stay above the fold on 12-row pages; the Figma frame needs an update."
+          "consequence": "Page controls stay above the fold on 12-row pages; the deviation is recorded as signed off (DQ-011)."
         },
         {
           "label": "Move it below the table (as designed)",
           "consequence": "Matches the frame; page controls fall below the fold at 900px viewport height."
         }
       ],
-      "recommendation": "Keep as built: signed off by Product on 2026-09-18 (DQ-011). Update the Figma frame so the next pass compares like with like.",
+      "recommendation": "Keep as built: signed off by Product on 2026-09-18 (DQ-011).",
       "relatedFindings": [
         "DQ-011"
       ]
@@ -2262,9 +2368,12 @@
     },
     {
       "iteration": 2,
-      "action": "Stopped before DQ-009 (bulk-action bar): design it or remove it is open decision OD-1. No code changed; fix-now items are left for the engineer.",
+      "action": "Stopped after iteration 1: the remaining fix-now items (DQ-001, DQ-002, DQ-003, DQ-010) are left for the engineer. No code changed.",
       "findingIds": [
-        "DQ-009"
+        "DQ-001",
+        "DQ-002",
+        "DQ-003",
+        "DQ-010"
       ],
       "testsRun": null,
       "result": "skipped",
@@ -2277,67 +2386,68 @@
     "capture": "evidence/capture.json",
     "states": {
       "with-data": {
-        "figma": "evidence/figma/with-data.png",
+        "design": "evidence/figma/with-data.png",
         "app": "evidence/app/with-data.png",
         "diff": "evidence/diff/with-data.png",
         "computed": "evidence/computed/with-data.json",
-        "dom": "evidence/dom/with-data.json"
+        "dom": "evidence/dom/with-data.json",
+        "motion": "evidence/motion/with-data.json"
       },
       "empty": {
-        "figma": "evidence/figma/empty.png",
+        "design": "evidence/figma/empty.png",
         "app": null,
         "diff": null,
         "computed": null,
-        "dom": null
+        "dom": null,
+        "motion": null
       },
       "loading": {
-        "figma": "evidence/figma/loading.png",
+        "design": "evidence/figma/loading.png",
         "app": "evidence/app/loading.png",
         "diff": "evidence/diff/loading.png",
         "computed": "evidence/computed/loading.json",
-        "dom": "evidence/dom/loading.json"
+        "dom": "evidence/dom/loading.json",
+        "motion": "evidence/motion/loading.json"
       },
       "error": {
-        "figma": "evidence/figma/error.png",
+        "design": "evidence/figma/error.png",
         "app": "evidence/app/error.png",
         "diff": "evidence/diff/error.png",
         "computed": "evidence/computed/error.json",
-        "dom": "evidence/dom/error.json"
+        "dom": "evidence/dom/error.json",
+        "motion": "evidence/motion/error.json"
       },
       "hover": {
-        "figma": "evidence/figma/hover.png",
+        "design": "evidence/figma/hover.png",
         "app": "evidence/app/hover.png",
         "diff": "evidence/diff/hover.png",
         "computed": "evidence/computed/hover.json",
-        "dom": "evidence/dom/hover.json"
+        "dom": "evidence/dom/hover.json",
+        "motion": "evidence/motion/hover.json"
       },
       "focus": {
-        "figma": "evidence/figma/focus.png",
+        "design": "evidence/figma/focus.png",
         "app": "evidence/app/focus.png",
         "diff": "evidence/diff/focus.png",
         "computed": "evidence/computed/focus.json",
-        "dom": "evidence/dom/focus.json"
+        "dom": "evidence/dom/focus.json",
+        "motion": "evidence/motion/focus.json"
       },
       "selected": {
-        "figma": "evidence/figma/selected.png",
+        "design": "evidence/figma/selected.png",
         "app": null,
         "diff": null,
         "computed": null,
-        "dom": null
-      },
-      "bulk-selected": {
-        "figma": null,
-        "app": "evidence/app/bulk-selected.png",
-        "diff": null,
-        "computed": "evidence/computed/bulk-selected.json",
-        "dom": "evidence/dom/bulk-selected.json"
+        "dom": null,
+        "motion": null
       },
       "overflow": {
-        "figma": null,
+        "design": null,
         "app": null,
         "diff": null,
         "computed": null,
-        "dom": null
+        "dom": null,
+        "motion": null
       }
     }
   },
@@ -2426,15 +2536,89 @@
         }
       },
       {
-        "findingId": "DQ-009",
+        "findingId": "DQ-021",
         "decision": "debt",
-        "reason": "Waiting on OD-1: design the bulk pattern or remove it.",
+        "reason": "Motion polish; ships with the shared fade utility.",
         "ticket": {
           "provider": "jira",
           "key": "ACME-516",
           "url": "https://acme.atlassian.net/browse/ACME-516",
           "createdAt": "2026-09-22T14:32:08Z"
         }
+      }
+    ]
+  },
+  "backfill": {
+    "gate": {
+      "override": null
+    },
+    "items": [
+      {
+        "id": "BF-001",
+        "state": "bulk-selected",
+        "screen": null,
+        "label": "Bulk selected",
+        "discoveredBy": "source",
+        "detail": "src/orders/OrdersTable.tsx:88 renders <BulkBar> (Clear selection, Export, Cancel orders) when selection.length > 0; the header checkbox selects all 12 rows",
+        "driver": {
+          "action": "click",
+          "selector": "[data-testid=orders-select-all]"
+        },
+        "captured": {
+          "app": "evidence/backfill/app/bulk-selected.png",
+          "computed": "evidence/backfill/computed/bulk-selected.json",
+          "dom": "evidence/backfill/dom/bulk-selected.json",
+          "motion": "evidence/backfill/motion/bulk-selected.json"
+        },
+        "anchor": {
+          "nodeId": "1204:3310",
+          "name": "Orders / With data"
+        },
+        "components": [
+          {
+            "name": "Checkbox",
+            "variant": "Checked",
+            "selector": "[data-testid=orders-select-all]",
+            "inLibrary": true
+          },
+          {
+            "name": "Button",
+            "variant": "Secondary",
+            "selector": "[data-testid=orders-bulk-bar] button",
+            "inLibrary": true
+          }
+        ],
+        "tokens": [
+          "--ads-color-surface-selected",
+          "--ads-color-text-primary",
+          "--ads-space-4",
+          "--ads-radius-md"
+        ],
+        "decision": "build",
+        "decidedBy": "Maya Chen",
+        "decidedAt": "2026-09-22T15:05:00Z",
+        "reason": null,
+        "figma": null,
+        "dsGaps": []
+      },
+      {
+        "id": "BF-002",
+        "state": "export-in-progress",
+        "screen": null,
+        "label": "Export in progress",
+        "discoveredBy": "source",
+        "detail": "src/orders/BulkBar.tsx:41 swaps Export for a disabled 'Exporting…' button with a spinner while exportOrders.isPending",
+        "driver": null,
+        "captured": null,
+        "anchor": null,
+        "components": [],
+        "tokens": [],
+        "decision": "not-needed",
+        "decidedBy": "Maya Chen",
+        "decidedAt": "2026-09-22T15:05:00Z",
+        "reason": "Transient (a few seconds, only while the export request runs): the library Button already specifies its loading state, so a separate screen frame adds nothing.",
+        "figma": null,
+        "dsGaps": []
       }
     ]
   }

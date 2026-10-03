@@ -3,20 +3,28 @@
 // Structure is checked by interpreting the draft-07 JSON Schemas shipped in
 // ../../schemas (a subset: type, enum, const, required, properties,
 // additionalProperties, items, min/max, minLength, pattern, format, $ref,
-// allOf/anyOf/oneOf/not, if/then/else, plus the ajv-errors style "errorMessage").
-// Rules JSON Schema cannot express (unique ids, cross references, derived
-// scorecard values, pixel-diff bands against configured tolerances) are
-// implemented below. Unknown object keys are warnings, never errors.
+// allOf/anyOf/oneOf/not, if/then/else, plus the ajv-errors style "errorMessage"
+// and "x-removed": { "<value>": "<message>" } for enum values removed in 2.0).
+// Rules JSON Schema cannot express (unique ids, cross references, dismissals,
+// meta.source / meta.figma, meta.screens, derived scorecard values, pixel-diff
+// bands against configured tolerances, the design-backfill block) are implemented below. Unknown object
+// keys are warnings, never errors.
 import { readFileSync } from 'node:fs';
 import {
   BANDS,
   LEDGERS,
   RESOLUTIONS,
+  SCHEMA_VERSION,
   SEVERITIES,
   VERDICTS,
   band as bandFor,
   computeScorecard,
+  hasBackfill,
+  isBackfillReady,
+  isLoopClosed,
   explainVerdict,
+  pixelDiffBand,
+  isDismissed,
   isOpen,
   isTriageable,
   rankFindings,
@@ -147,7 +155,9 @@ function check(value, schema, segs, ctx) {
     fail(`expected ${JSON.stringify(schema.const)} (got ${show(value)})`);
   }
   if (Array.isArray(schema.enum) && !schema.enum.some((e) => deepEqual(e, value))) {
-    fail(`expected one of ${schema.enum.map((e) => (typeof e === 'string' ? e : JSON.stringify(e))).join(', ')} (got ${show(value)})`);
+    const removed = isPlainObject(schema['x-removed']) && typeof value === 'string' ? schema['x-removed'][value] : undefined;
+    if (typeof removed === 'string') ctx.errors.push({ path: formatPath(segs), message: removed });
+    else fail(`expected one of ${schema.enum.map((e) => (typeof e === 'string' ? e : JSON.stringify(e))).join(', ')} (got ${show(value)})`);
   }
 
   if (typeof value === 'string') {
@@ -266,6 +276,10 @@ export function validateReport(report, opts = {}) {
   const o = resolveOptions(
     opts.options ?? { ...(isPlainObject(opts.config) ? opts.config : {}), ...pick(opts, ['tolerances', 'topN', 'ranking']) },
   );
+  // A 1.x report differs in many places; one clear message beats dozens of schema errors.
+  if (isPlainObject(report) && typeof report.schemaVersion === 'string' && /^1\./.test(report.schemaVersion)) {
+    return result([{ path: 'schemaVersion', message: `${OLD_VERSION_MESSAGE} (got ${show(report.schemaVersion)})` }], []);
+  }
   const schemaResult = validateAgainstSchema(report, loadSchema('report'));
   const isRankPath = (e) => /^findings\[\d+\]\.rank(\.|\[|$)/.test(e.path);
   const isTriagePath = (e) => /^triage(\.|\[|$)/.test(e.path);
@@ -314,8 +328,13 @@ export function validateReport(report, opts = {}) {
   const loop = Array.isArray(report.fixLoop) ? report.fixLoop : [];
   loop.forEach((entry, i) => isPlainObject(entry) && refs(entry.findingIds, `fixLoop[${i}].findingIds`));
 
+  checkDismissals(findings, err, warn);
+  checkSource(report.meta, err);
+  checkScreens(report, matrix, findings, err, warn);
+  checkBackfill(report, matrix, o, err, warn);
+
   // Triage: one decision per triageable finding, and blockers are never deferred.
-  if (!opts.skipTriage && isPlainObject(report.triage)) checkTriage(report, findings, err, warn);
+  if (!opts.skipTriage && isPlainObject(report.triage)) checkTriage(report, findings, err);
 
   // Derived values: counts, parity, verdict, bands, coverage.
   if (!opts.skipScorecard && isPlainObject(report.scorecard)) compareScorecard(report, o, err);
@@ -333,8 +352,8 @@ export function validateReport(report, opts = {}) {
     }
   });
   // Which FIX_CODE findings are fix-now vs debt depends on topN and weights (config),
-  // so a different split is a warning. Wrong lists (e.g. SYNC_FIGMA in fix-now) are
-  // schema errors on rank.bucket.
+  // so a different split is a warning. Wrong lists (e.g. a DISMISSED finding in
+  // fix-now) are schema errors on rank.bucket.
   if (!opts.skipRanks && findings.length && findings.every((f) => isPlainObject(f) && isPlainObject(f.rank))) {
     const derived = rankFindings(findings, o);
     const engineer = ['fix-now', 'debt'];
@@ -348,7 +367,158 @@ export function validateReport(report, opts = {}) {
   return result(errors, warnings);
 }
 
-function checkTriage(report, findings, err, warn) {
+export const OLD_VERSION_MESSAGE = `schemaVersion ${SCHEMA_VERSION} required; 1.x reports: re-run the pass`;
+export const DISMISSAL_SHAPE = '{ kind, reason, by, date, source }';
+
+/**
+ * DISMISSED needs a dismissal with a reason. (The schema already limits DISMISSED
+ * to BLOCKER / WARNING / DS_CANDIDATE: PASS and CANNOT_VERIFY must be NONE.)
+ */
+function checkDismissals(findings, err, warn) {
+  findings.forEach((f, i) => {
+    if (!isPlainObject(f)) return;
+    const d = f.dismissal;
+    if (isDismissed(f)) {
+      if (!isPlainObject(d)) {
+        err(`findings[${i}].dismissal`, `is required when resolution is DISMISSED: ${DISMISSAL_SHAPE}`);
+      } else if (typeof d.reason === 'string' && d.reason.length && !d.reason.trim()) {
+        err(`findings[${i}].dismissal.reason`, 'must say why the finding is dismissed (got only whitespace)');
+      }
+    } else if (isPlainObject(d)) {
+      warn(`findings[${i}].dismissal`, `is ignored: resolution is ${f.resolution}, not DISMISSED`);
+    }
+  });
+}
+
+/** meta.figma is required for Figma sources, and its frame must match meta.source.frame. */
+function checkSource(meta, err) {
+  if (!isPlainObject(meta) || !isPlainObject(meta.source)) return;
+  const kind = meta.source.kind;
+  if ((kind === 'figma' || kind === 'figma-prototype') && !isPlainObject(meta.figma)) {
+    err('meta.figma', `is required when meta.source.kind is "${kind}" ({ fileKey, nodeId, url, frame })`);
+  }
+  const a = meta.figma?.frame;
+  const b = meta.source.frame;
+  if (isPlainObject(a) && isPlainObject(b) && (a.width !== b.width || a.height !== b.height)) {
+    err('meta.figma.frame', `must equal meta.source.frame (${b.width}×${b.height}), got ${a.width}×${a.height}`);
+  }
+}
+
+/**
+ * Multi-screen passes: every row's state is "<screen>/<state>" with row.screen
+ * equal to the prefix, and every finding's screen is a meta.screens id.
+ * Single-screen passes carry no screen at all.
+ */
+function checkScreens(report, matrix, findings, err, warn) {
+  const screens = Array.isArray(report.meta?.screens) ? report.meta.screens : null;
+  if (!screens) {
+    matrix.forEach((row, i) => {
+      if (isPlainObject(row) && typeof row.screen === 'string') err(`stateMatrix[${i}].screen`, 'is only allowed when meta.screens lists the screens');
+    });
+    findings.forEach((f, i) => {
+      if (isPlainObject(f) && typeof f.screen === 'string') err(`findings[${i}].screen`, 'is only allowed when meta.screens lists the screens');
+    });
+    return;
+  }
+  const ids = new Map();
+  screens.forEach((s, i) => {
+    if (!isPlainObject(s) || typeof s.id !== 'string') return;
+    if (ids.has(s.id)) err(`meta.screens[${i}].id`, `duplicate screen id "${s.id}" (first used at meta.screens[${ids.get(s.id)}])`);
+    else ids.set(s.id, i);
+  });
+  const known = [...ids.keys()].join(', ') || 'none';
+  const prefix = (state) => (typeof state === 'string' && state.includes('/') ? state.slice(0, state.indexOf('/')) : null);
+  matrix.forEach((row, i) => {
+    if (!isPlainObject(row) || typeof row.state !== 'string') return;
+    const p = prefix(row.state);
+    if (p === null || !ids.has(p)) {
+      err(`stateMatrix[${i}].state`, `must be "<screen>/<state>" with a meta.screens id (${known}) when meta.screens is set (got ${show(row.state)})`);
+      return;
+    }
+    if (typeof row.screen !== 'string') err(`stateMatrix[${i}].screen`, `is required when meta.screens is set (expected "${p}")`);
+    else if (row.screen !== p) err(`stateMatrix[${i}].screen`, `must equal the state prefix "${p}" (got ${show(row.screen)})`);
+  });
+  findings.forEach((f, i) => {
+    if (!isPlainObject(f)) return;
+    if (typeof f.screen === 'string') {
+      if (!ids.has(f.screen)) err(`findings[${i}].screen`, `references unknown screen "${f.screen}" (meta.screens: ${known})`);
+      else if (typeof f.state === 'string' && prefix(f.state) !== f.screen) {
+        err(`findings[${i}].state`, `must start with "${f.screen}/" (the finding's screen), got ${show(f.state)}`);
+      }
+    } else {
+      warn(`findings[${i}].screen`, `is missing: meta.screens is set, so name the screen (one of ${known})`);
+    }
+  });
+}
+
+/**
+ * Design backfill (step 2): unique BF ids, screens as for findings, a reason for
+ * not-needed, figma only with decision build and only once building is allowed
+ * (step 1 closed or an override recorded), and never a state the design defines.
+ */
+function checkBackfill(report, matrix, o, err, warn) {
+  if (!hasBackfill(report) || !Array.isArray(report.backfill.items)) return;
+  const items = report.backfill.items;
+  const base = (i) => `backfill.items[${i}]`;
+  const ids = new Map();
+  const states = new Map();
+  const designed = new Set(matrix.filter((r) => isPlainObject(r) && typeof r.state === 'string').map((r) => r.state));
+  const screens = Array.isArray(report.meta?.screens) ? report.meta.screens : null;
+  const screenIds = new Set((screens || []).filter((s) => isPlainObject(s) && typeof s.id === 'string').map((s) => s.id));
+  const known = [...screenIds].join(', ') || 'none';
+  const prefix = (state) => (typeof state === 'string' && state.includes('/') ? state.slice(0, state.indexOf('/')) : null);
+  const ready = isBackfillReady(report);
+
+  items.forEach((item, i) => {
+    if (!isPlainObject(item)) return;
+    if (typeof item.id === 'string') {
+      if (ids.has(item.id)) err(`${base(i)}.id`, `duplicate id "${item.id}" (first used at ${base(ids.get(item.id))})`);
+      else ids.set(item.id, i);
+    }
+    if (typeof item.state === 'string') {
+      if (designed.has(item.state)) {
+        err(`${base(i)}.state`, `"${item.state}" is a stateMatrix row: the design defines it, so it is not an undesigned state (drop this backfill item)`);
+      }
+      if (states.has(item.state)) warn(`${base(i)}.state`, `duplicate state "${item.state}" (also ${base(states.get(item.state))})`);
+      else states.set(item.state, i);
+    }
+    // Screens: the same rules as for findings.
+    if (!screens) {
+      if (typeof item.screen === 'string') err(`${base(i)}.screen`, 'is only allowed when meta.screens lists the screens');
+    } else if (typeof item.screen === 'string') {
+      if (!screenIds.has(item.screen)) err(`${base(i)}.screen`, `references unknown screen "${item.screen}" (meta.screens: ${known})`);
+      else if (typeof item.state === 'string' && prefix(item.state) !== item.screen) {
+        err(`${base(i)}.state`, `must start with "${item.screen}/" (the item's screen), got ${show(item.state)}`);
+      }
+    } else {
+      warn(`${base(i)}.screen`, `is missing: meta.screens is set, so name the screen (one of ${known})`);
+    }
+    if (item.decision === 'not-needed' && !(typeof item.reason === 'string' && item.reason.trim())) {
+      err(`${base(i)}.reason`, 'is required when decision is "not-needed": say why this state needs no design frame');
+    }
+    if (isPlainObject(item.figma)) {
+      if (item.decision !== 'build') {
+        err(`${base(i)}.figma`, `is only allowed when decision is "build" (got ${show(item.decision)})`);
+      } else if (!ready) {
+        // The gate is enforced when the frame is recorded (backfill.mjs --record). A later pass
+        // that reopens step 1 must not invalidate frames built while it was closed, so this warns.
+        warn(
+          `${base(i)}.figma`,
+          'built while production does not match the design: scorecard.loopClosed is false and backfill.gate.override is null (step 1 is open again, or the frame was recorded by hand; finish step 1 or record an override with backfill.mjs --override --reason)',
+        );
+      }
+      const rt = item.figma.roundTrip;
+      if (isPlainObject(rt) && typeof rt.percent === 'number' && BANDS.includes(rt.band)) {
+        const expected = bandFor(rt.percent, o.tolerances);
+        if (expected !== rt.band) {
+          warn(`${base(i)}.figma.roundTrip.band`, `is "${rt.band}" but ${rt.percent}% is "${expected}" (pass < ${o.tolerances.pass}, review <= ${o.tolerances.review})`);
+        }
+      }
+    }
+  });
+}
+
+function checkTriage(report, findings, err) {
   const byId = new Map();
   for (const f of findings) if (isPlainObject(f) && typeof f.id === 'string' && !byId.has(f.id)) byId.set(f.id, f);
   const items = Array.isArray(report.triage.items) ? report.triage.items : [];
@@ -368,7 +538,7 @@ function checkTriage(report, findings, err, warn) {
     if (!isTriageable(f)) {
       err(
         `triage.items[${i}].findingId`,
-        `${f.id} is not triageable (${f.severity} / ${f.resolution}): only FIX_CODE and SYNC_FIGMA findings with severity BLOCKER, WARNING or DS_CANDIDATE get a decision`,
+        `${f.id} is not triageable (${f.severity} / ${f.resolution}): only FIX_CODE findings with severity BLOCKER, WARNING or DS_CANDIDATE get a decision`,
       );
     } else if (item.decision === 'debt' && f.severity === 'BLOCKER') {
       err(`triage.items[${i}].decision`, `${f.id} is a BLOCKER: blockers cannot be deferred; fix it or sign it off as INTENTIONAL`);
@@ -376,9 +546,8 @@ function checkTriage(report, findings, err, warn) {
   });
   const missing = findings.filter((f) => isPlainObject(f) && isTriageable(f) && !seen.has(f.id)).map((f) => f.id);
   if (missing.length) {
-    err('triage.items', `no decision for ${missing.join(', ')}: every FIX_CODE and SYNC_FIGMA finding with severity BLOCKER, WARNING or DS_CANDIDATE needs "fix-now" or "debt"`);
+    err('triage.items', `no decision for ${missing.join(', ')}: every FIX_CODE finding with severity BLOCKER, WARNING or DS_CANDIDATE needs "fix-now" or "debt"`);
   }
-  if (report.schemaVersion === '1.0') warn('triage', 'triage is a schemaVersion 1.1 feature; set "schemaVersion": "1.1"');
 }
 
 function compareScorecard(report, o, err) {
@@ -410,9 +579,26 @@ function compareScorecard(report, o, err) {
   if (typeof sc.loopClosed === 'boolean' && derived.loopClosed !== undefined && sc.loopClosed !== derived.loopClosed) {
     err('scorecard.loopClosed', `expected ${derived.loopClosed} (unexplained ${derived.unexplained}, open decisions ${(report.openDecisions || []).length}), got ${sc.loopClosed}`);
   }
+  if (Number.isInteger(sc.dismissed) && sc.dismissed !== derived.dismissed) {
+    err('scorecard.dismissed', `expected ${derived.dismissed} (findings with resolution DISMISSED), got ${sc.dismissed}`);
+  }
+  if (isPlainObject(sc.designSystem)) {
+    const what = { tokens: 'open style findings with an expected token the code does not use', components: 'open component findings', motion: 'open motion findings' };
+    for (const k of ['tokens', 'components', 'motion']) {
+      if (Number.isInteger(sc.designSystem[k]) && sc.designSystem[k] !== derived.designSystem[k]) {
+        err(`scorecard.designSystem.${k}`, `expected ${derived.designSystem[k]} (${what[k]}), got ${sc.designSystem[k]}`);
+      }
+    }
+  }
+  checkBackfillScorecard(report, sc, derived, err);
   if (typeof sc.parity === 'number' && sc.parity !== derived.parity) {
     const open = findings.filter(isOpen).length;
-    err('scorecard.parity', `expected ${derived.parity} (${open} open of ${findings.length} findings), got ${sc.parity}`);
+    const dismissed = findings.filter(isDismissed).length;
+    const counted = findings.length - dismissed;
+    err(
+      'scorecard.parity',
+      `expected ${derived.parity} (${open} open of ${counted} findings${dismissed ? `; ${dismissed} dismissed not counted` : ''}), got ${sc.parity}`,
+    );
   }
   if (VERDICTS.includes(sc.verdict) && sc.verdict !== derived.verdict) {
     const { reasons } = explainVerdict(report, o);
@@ -422,14 +608,45 @@ function compareScorecard(report, o, err) {
   if (isPlainObject(sc.pixelDiff)) {
     for (const [state, entry] of Object.entries(sc.pixelDiff)) {
       if (!isPlainObject(entry) || typeof entry.percent !== 'number' || !BANDS.includes(entry.band)) continue;
-      const expected = bandFor(entry.percent, o.tolerances);
+      const expected = pixelDiffBand(entry, o.tolerances);
       if (expected !== entry.band) {
+        const structural = entry.structuralBand === 'review' ? ', raised to review by structuralBand' : '';
         err(
           formatPath(['scorecard', 'pixelDiff', state, 'band']),
-          `expected "${expected}" for ${entry.percent}% (pass < ${o.tolerances.pass}, review <= ${o.tolerances.review}), got "${entry.band}"`,
+          `expected "${expected}" for ${entry.percent}% (pass < ${o.tolerances.pass}, review <= ${o.tolerances.review}${structural}), got "${entry.band}"`,
         );
       }
     }
+  }
+}
+
+/** scorecard.backfill exists exactly when report.backfill does, with the derived counts. */
+function checkBackfillScorecard(report, sc, derived, err) {
+  const given = sc.backfill;
+  if (!hasBackfill(report)) {
+    if (given !== undefined && given !== null) err('scorecard.backfill', 'must be omitted: the report has no backfill block');
+    return;
+  }
+  if (given === undefined || given === null) {
+    err('scorecard.backfill', 'is required when report.backfill is set ({ candidates, toBuild, built, notNeeded, pending, ready }; see render-report.mjs --recompute)');
+    return;
+  }
+  if (!isPlainObject(given)) return;
+  const what = {
+    candidates: 'backfill items',
+    toBuild: 'items decided "build" without a Figma frame yet',
+    built: 'items with a Figma frame recorded',
+    notNeeded: 'items decided "not-needed"',
+    pending: 'items still "pending"',
+  };
+  for (const k of Object.keys(what)) {
+    if (Number.isInteger(given[k]) && given[k] !== derived.backfill[k]) {
+      err(`scorecard.backfill.${k}`, `expected ${derived.backfill[k]} (${what[k]}), got ${given[k]}`);
+    }
+  }
+  if (typeof given.ready === 'boolean' && given.ready !== derived.backfill.ready) {
+    const override = report.backfill.gate?.override ? 'set' : 'null';
+    err('scorecard.backfill.ready', `expected ${derived.backfill.ready} (loopClosed ${isLoopClosed(report)}, backfill.gate.override ${override}), got ${given.ready}`);
   }
 }
 

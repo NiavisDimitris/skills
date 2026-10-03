@@ -6,9 +6,9 @@ The reference workflow is `examples/github-actions/design-qa.yml` in the skill r
 
 ## The flow
 
-1. **Trigger**: pull request opened, updated or marked ready for review; optionally a manual run with ticket, Figma and target inputs.
+1. **Trigger**: pull request opened, updated or marked ready for review; optionally a manual run with ticket, design (Figma or prototype) and target inputs.
 2. **Resolve the target**: an explicit input first; else the `environment_url` of the latest deployment status for the PR's head commit (preview hosts post one); else start the app with `app.start` and poll `app.baseUrl`.
-3. **Resolve the ticket**: a key like `ABC-123` from the branch name, then the PR title. None is fine; Figma can come from config.
+3. **Resolve the ticket**: a key like `ABC-123` from the branch name, then the PR title. None is fine; the design can come from config (`surfaces.<name>.figma` or `surfaces.<name>.prototype`).
 4. **Run the skill** in ci mode:
 
    ```bash
@@ -32,12 +32,14 @@ The gate is unchanged by triage. FAIL means an open 🔴 BLOCKER, a designed sta
 ## What ci mode does differently
 
 - **Never asks.** A missing input (no target, no design) stops the run with a message naming it; the validation step then fails the job.
-- **Never writes to Figma or tickets.** No fix loop and no sync: ci is an audit.
+- **Never writes to Figma or tickets.** No fix loop: ci is an audit.
 - **Targets**: a URL passed in by the workflow is trusted. A preview URL found only in the ticket is used only when `ticket.trustPreviewUrl` is true.
-- **Sign-off**: `INTENTIONAL` only through a known drift or a sign-off recorded in an earlier report. Everything else that looks intentional is `UNCLASSIFIED` with an open decision, which makes the verdict REVIEW.
+- **Sign-off and dismissals**: `INTENTIONAL` only through a known drift or a sign-off recorded in an earlier report. `DISMISSED` only through the dismissals log: the run executes `dismiss.mjs --report <dir>/report.json --apply-log` before ranking, so dismissals people made in earlier passes hold in CI (an entry of kind `intentional` comes back as `INTENTIONAL` with its original signoff), and changed-value notices go into the PR comment. `--apply-log` writes `report.json` only, never the log. Commit `qa-reports/dismissed.json` so CI can read it. Everything else that looks intentional is `UNCLASSIFIED` with an open decision, which makes the verdict REVIEW.
+- **Prototype source**: a coded prototype URL is captured with `capture.mjs --side design` like the app and compared with `compare.mjs`; it must be reachable from the runner (a public or bypass-protected deployment, not someone's localhost; a `file:` prototype must be checked out in the job).
 - **Pixel diff** runs for every state that has both PNGs.
-- **Triage**: the run records the default split with `node scripts/triage.mjs --report <dir>/report.json --default --source ci-default` (fix now: the fix-now bucket, every blocker and every `SYNC_FIGMA` finding; debt: the debt bucket). It never creates tickets, so that debt stays unexplained and the verdict at best REVIEW. A person closes the loop later: the report's "Choose what to fix" board, or `/design-qa triage <slug> --fix <ids>` locally, then the tickets.
-- **Tools**: MCP servers are usually not available in CI, so the ladders start lower: Figma through `scripts/figma-fetch.mjs` (`FIGMA_TOKEN`), tickets through `scripts/jira-fetch.mjs`, capture through `scripts/capture.mjs`.
+- **Triage**: the run records the default split with `node scripts/triage.mjs --report <dir>/report.json --default --source ci-default` (fix now: the fix-now bucket and every blocker; debt: the debt bucket). It never creates tickets, so that debt stays unexplained and the verdict at best REVIEW. A person closes the loop later: the report's "Choose what to fix" board, or `/design-qa triage <slug> --fix <ids>` locally, then the tickets.
+- **Tools**: MCP servers are usually not available in CI, so the ladders start lower: Figma through `scripts/figma-fetch.mjs` (`FIGMA_TOKEN`), motion from reaction transitions (`compare.mjs --figma-spec`) rather than `get_motion_context`, tickets through `scripts/jira-fetch.mjs`, capture through `scripts/capture.mjs`.
+- **Design backfill (step 2)**: discovers and records only. The run writes `backfill-candidates.json`, captures candidates with a driver app-only into `evidence/backfill/`, records them with `backfill.mjs --candidates` and `--captured`, and renders `report-backfill.md`. They never affect the verdict or the gate. It never decides, never overrides the gate, never builds and never writes to Figma; a person runs `/design-qa backfill <slug>` locally once the loop is closed.
 - **Output**: the directory the workflow names (for example `qa-reports/ci`).
 
 ## Secrets
@@ -45,7 +47,7 @@ The gate is unchanged by triage. FAIL means an open 🔴 BLOCKER, a designed sta
 | Secret | Needed when |
 |---|---|
 | `ANTHROPIC_API_KEY` | Always: runs the skill headless. |
-| `FIGMA_TOKEN` | Almost always: CI has no Figma MCP. |
+| `FIGMA_TOKEN` | Whenever the design is in Figma: CI has no Figma MCP. Not needed for a coded prototype source. |
 | `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` | Tickets are read. |
 | `<P>_USER`, `<P>_PASS` | App auth `basic` or `login` (`<P>` = `app.auth.envPrefix`, default `DESIGN_QA_APP`). |
 | `<P>_COOKIE` | App auth `cookie`. |
@@ -75,6 +77,8 @@ Everything tunable lives in `design-qa.config.json`: `tolerances.px`, `tolerance
 
 - Ask a question or wait for input.
 - Write to Figma, to tickets, or to source code.
+- Dismiss a finding on its own judgement.
+- Decide, override or build a design backfill item.
 - Type or log credentials.
 - Use an unconfirmed preview URL from a ticket.
 - Drop a state it could not reach. It is ℹ️ CANNOT_VERIFY, named in the report.

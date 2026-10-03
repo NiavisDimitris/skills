@@ -1,0 +1,11 @@
+{
+  "feature": "Items list",
+  "slug": "ABC-12",
+  "reportGeneratedAt": "2026-10-01T09:00:00Z",
+  "decidedBy": "Maya",
+  "items": [
+    { "findingId": "DQ-002", "kind": "not-an-issue", "reason": "1px anti-aliasing difference, not visible at 100%", "by": null, "date": "2026-10-01T10:15:00Z" },
+    { "findingId": "DQ-003", "kind": "remove", "reason": "Hover motion belongs to the shared Row component, audited separately", "by": "Dana", "date": "2026-10-01T10:16:00Z" },
+    { "findingId": "DQ-004", "kind": "intentional", "reason": "Muted grey approved for the meta line until the token sweep", "by": null, "date": "2026-10-01T10:17:00Z" }
+  ]
+}

@@ -222,14 +222,23 @@
       ],
       "reactions": [
         {
-          "trigger": "ON_HOVER",
-          "action": "CHANGE_TO",
-          "destinationId": "1204:3431",
-          "transition": {
-            "type": "SMART_ANIMATE",
-            "duration": 160,
-            "easing": "EASE_OUT"
-          }
+          "trigger": {
+            "type": "ON_HOVER"
+          },
+          "actions": [
+            {
+              "type": "NODE",
+              "navigation": "CHANGE_TO",
+              "destinationId": "1204:3431",
+              "transition": {
+                "type": "SMART_ANIMATE",
+                "duration": 0.16,
+                "easing": {
+                  "type": "EASE_OUT"
+                }
+              }
+            }
+          ]
         }
       ]
     },
@@ -308,6 +317,28 @@
         0,
         1440,
         900
+      ],
+      "reactions": [
+        {
+          "trigger": {
+            "type": "AFTER_TIMEOUT",
+            "timeout": 2
+          },
+          "actions": [
+            {
+              "type": "NODE",
+              "navigation": "NAVIGATE",
+              "destinationId": "1204:3310",
+              "transition": {
+                "type": "DISSOLVE",
+                "duration": 0.2,
+                "easing": {
+                  "type": "EASE_OUT"
+                }
+              }
+            }
+          ]
+        }
       ]
     },
     {

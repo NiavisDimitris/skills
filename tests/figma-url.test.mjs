@@ -16,8 +16,15 @@ test('file links with an encoded node id, proto links, figma.com without www', (
   assert.equal(parseFigmaUrl('https://www.figma.com/file/KEY123/Name?node-id=1%3A23').nodeId, '1:23');
   const proto = parseFigmaUrl('https://figma.com/proto/KEY123/Name?node-id=4-5&starting-point-node-id=1-2');
   assert.equal(proto.kind, 'proto');
+  assert.equal(proto.isPrototype, true);
   assert.equal(proto.nodeId, '4:5');
-  assert.equal(parseFigmaUrl('https://www.figma.com/proto/KEY123/Name?starting-point-node-id=1-2').nodeId, '1:2');
+  assert.equal(proto.startingNodeId, '1:2');
+  const start = parseFigmaUrl('https://www.figma.com/proto/KEY123/Name?starting-point-node-id=1-2');
+  assert.equal(start.nodeId, '1:2');
+  assert.equal(start.startingNodeId, '1:2');
+  assert.equal(parseFigmaUrl('https://www.figma.com/design/KEY123/Name?node-id=1-2').startingNodeId, null);
+  assert.equal(parseFigmaUrl('https://www.figma.com/design/KEY123/Name?node-id=1-2').isPrototype, false);
+  assert.equal(parseFigmaUrl('https://www.figma.com/make/KEY123/Name'), null, 'Figma Make links are coded prototypes (target-url), not REST files');
 });
 
 test('branch links use the branch key for the API', () => {

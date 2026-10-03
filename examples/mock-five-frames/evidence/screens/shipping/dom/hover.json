@@ -1,0 +1,156 @@
+{
+  "url": "http://localhost:5179/checkout/shipping",
+  "title": "Acme · Shipping",
+  "ariaSnapshot": "- banner:\n  - text: acme Secure checkout\n  - list \"Checkout progress\":\n    - listitem: ✓ Cart\n    - listitem: 2 Shipping\n    - listitem: 3 Payment\n    - listitem: 4 Review\n    - listitem: 5 Done\n- main:\n  - heading \"Shipping\" [level=1]\n  - paragraph: Where should we send your order?\n  - region \"Shipping details\":\n    - heading \"Contact and address\" [level=2]\n    - text: Full name\n    - textbox \"Full name\": Dana Whitfield\n    - text: Email\n    - textbox \"Email\": dana@example.com\n    - text: Street address\n    - textbox \"Street address\": 18 Harbour Street, Apt 4\n    - text: City\n    - textbox \"City\": Rotterdam\n    - text: Postcode\n    - textbox \"Postcode\": 3011 TA\n    - text: Country\n    - combobox \"Country\":\n      - option \"Netherlands\" [selected]\n      - option \"Belgium\"\n      - option \"Germany\"\n    - heading \"Delivery method\" [level=3]\n    - radiogroup \"Delivery method\":\n      - radio \"Standard 3–5 business days Free\" [checked]\n      - radio \"Express Next business day €9.90\"\n    - button \"Back to cart\"\n    - button \"Continue to payment\"\n  - complementary \"Order summary\":\n    - heading \"Order summary\" [level=2]\n    - text: 3 items €229.00 Shipping Free Estimated tax €19.40 Total €248.40\n    - paragraph: You can review everything before you pay.",
+  "elements": [
+    {
+      "role": "heading",
+      "name": "Shipping",
+      "text": "Shipping",
+      "visible": true,
+      "level": 1
+    },
+    {
+      "role": "heading",
+      "name": "Contact and address",
+      "text": "Contact and address",
+      "visible": true,
+      "level": 2
+    },
+    {
+      "role": "label",
+      "name": "Full name",
+      "text": "Full name",
+      "visible": true
+    },
+    {
+      "role": "textbox",
+      "name": "Full name",
+      "text": "",
+      "visible": true
+    },
+    {
+      "role": "label",
+      "name": "Email",
+      "text": "Email",
+      "visible": true
+    },
+    {
+      "role": "textbox",
+      "name": "Email",
+      "text": "",
+      "visible": true
+    },
+    {
+      "role": "label",
+      "name": "Street address",
+      "text": "Street address",
+      "visible": true
+    },
+    {
+      "role": "textbox",
+      "name": "Street address",
+      "text": "",
+      "visible": true
+    },
+    {
+      "role": "label",
+      "name": "City",
+      "text": "City",
+      "visible": true
+    },
+    {
+      "role": "textbox",
+      "name": "City",
+      "text": "",
+      "visible": true
+    },
+    {
+      "role": "label",
+      "name": "Postcode",
+      "text": "Postcode",
+      "visible": true
+    },
+    {
+      "role": "textbox",
+      "name": "Postcode",
+      "text": "",
+      "visible": true
+    },
+    {
+      "role": "combobox",
+      "name": "Country",
+      "text": "Netherlands Belgium Germany",
+      "visible": true
+    },
+    {
+      "role": "heading",
+      "name": "Delivery method",
+      "text": "Delivery method",
+      "visible": true,
+      "level": 3
+    },
+    {
+      "role": "button",
+      "name": "Back to cart",
+      "text": "Back to cart",
+      "visible": true
+    },
+    {
+      "role": "button",
+      "name": "Continue to payment",
+      "text": "Continue to payment",
+      "visible": true
+    },
+    {
+      "role": "heading",
+      "name": "Order summary",
+      "text": "Order summary",
+      "visible": true,
+      "level": 2
+    }
+  ],
+  "texts": [
+    "acme",
+    "Secure checkout",
+    "✓",
+    "Cart",
+    "2",
+    "Shipping",
+    "3",
+    "Payment",
+    "4",
+    "Review",
+    "5",
+    "Done",
+    "Shipping",
+    "Where should we send your order?",
+    "Contact and address",
+    "Full name",
+    "Email",
+    "Street address",
+    "City",
+    "Postcode",
+    "Country",
+    "Delivery method",
+    "Standard",
+    "3–5 business days",
+    "Free",
+    "Express",
+    "Next business day",
+    "€9.90",
+    "Back to cart",
+    "Continue to payment",
+    "Order summary",
+    "3 items",
+    "€229.00",
+    "Shipping",
+    "Free",
+    "Estimated tax",
+    "€19.40",
+    "Total",
+    "€248.40",
+    "You can review everything before you pay."
+  ],
+  "truncated": false
+}

@@ -1,0 +1,70 @@
+{
+  "side": "design",
+  "source": {
+    "kind": "prototype",
+    "url": "http://localhost:5179/figma/shipping",
+    "label": "Prototype",
+    "tool": "other",
+    "frame": {
+      "width": 1440,
+      "height": 900
+    }
+  },
+  "url": "http://localhost:5179/figma/shipping",
+  "kind": "local",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "dpr": 1,
+  "fullPage": false,
+  "commit": "b7e41c9a20f3d58e6c1a4f07d92e3b18c5a6f2d4",
+  "branch": "feat/checkout-v3",
+  "timestamp": "2026-10-03T15:29:24.947Z",
+  "states": {
+    "with-data": {
+      "driver": {},
+      "url": "http://localhost:5179/figma/shipping",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "screenshot": "design/with-data.png",
+      "computed": "design-computed/with-data.json",
+      "dom": "design-dom/with-data.json",
+      "motion": "design-motion/with-data.json",
+      "settleMs": 250,
+      "durationMs": 917,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": [],
+      "degradations": []
+    },
+    "hover": {
+      "driver": {
+        "action": "hover",
+        "selector": "[data-testid=primary-cta]"
+      },
+      "url": "http://localhost:5179/figma/shipping",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "screenshot": "design/hover.png",
+      "computed": "design-computed/hover.json",
+      "dom": "design-dom/hover.json",
+      "motion": "design-motion/hover.json",
+      "settleMs": 250,
+      "durationMs": 972,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": [],
+      "degradations": []
+    }
+  },
+  "degradations": []
+}

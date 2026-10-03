@@ -8,7 +8,7 @@ import { CliError, displayPath, parseCli, readJsonFile, runMain, usageError, wri
 import { DASH, sourceLocation } from './lib/fixplan.mjs';
 import { compareIds, isOpen, triageIndex } from './lib/ranking.mjs';
 import { validateConfig, validateReport } from './lib/schema-check.mjs';
-import { kebab, ownerOf, reportSlug } from './lib/triage.mjs';
+import { DEBT_OWNER, kebab, reportSlug } from './lib/triage.mjs';
 
 const HELP = `Update the design-debt log from a triaged report.
 
@@ -28,8 +28,8 @@ Options:
   -h, --help        show this help
 
 Every triage item decided "debt" is upserted as { since, slug, parentTicket, findingId,
-severity, resolution, owner, title, where, ticket, status: "open", reportPath }, keyed
-by slug + findingId. An open entry of the same slug whose finding is no longer open
+severity, resolution, owner ("engineering": the code must match the design), title,
+where, ticket, status: "open", reportPath }, keyed by slug + findingId. An open entry of the same slug whose finding is no longer open
 in this (newer) report becomes status "resolved" with resolvedAt. Reports older than
 an entry's last update never change it, and re-running with the same report changes
 nothing. The Markdown log is a table: Status, Since, Feature, Finding, Severity, Owner,
@@ -42,11 +42,10 @@ const time = (iso) => {
   return Number.isNaN(t) ? null : t;
 };
 
-/** Where to look: the Figma layer for design debt, file:line and selector for code debt. */
+/** Where to look: file:line and selector in the code, else the design layer. */
 export function whereOf(finding) {
   const figma = finding?.element?.figmaLayerPath || finding?.element?.figmaNodeId || null;
   const code = [sourceLocation(finding), finding?.element?.selector].filter((v) => v && v !== DASH).join(' · ');
-  if (ownerOf(finding) === 'design') return figma ? `Figma: ${figma}` : code || DASH;
   return code || (figma ? `Figma: ${figma}` : DASH);
 }
 
@@ -95,7 +94,7 @@ export function updateDebtLog(previous, report, { reportPath = null } = {}) {
       findingId,
       severity: f.severity,
       resolution: f.resolution,
-      owner: ownerOf(f),
+      owner: DEBT_OWNER,
       title: f.title,
       where: whereOf(f),
       ticket: item.ticket ?? existing?.ticket ?? null,

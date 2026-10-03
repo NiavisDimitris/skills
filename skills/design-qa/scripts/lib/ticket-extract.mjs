@@ -145,6 +145,7 @@ export function buildJiraTicket(issue, { baseUrl = '', remoteLinks = [], now = n
     acceptanceCriteria,
     expectedBehaviors: extractExpectedBehaviors(acceptanceCriteria),
     figmaUrls: urls.figmaUrls,
+    prototypeUrls: urls.prototypeUrls,
     previewUrls: urls.previewUrls,
     prUrls: urls.prUrls,
     otherUrls: urls.otherUrls,

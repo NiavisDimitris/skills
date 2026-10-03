@@ -13,6 +13,7 @@ import {
   discoverConfigStates,
   discoverFigmaStates,
   discoverTicketStates,
+  discoverUndesigned,
   matchStateSynonym,
   normalizeStateName,
   stateFromName,
@@ -147,7 +148,7 @@ test('discoverConfigStates: driver kinds, implicit with-data, empty drivers are 
   assert.equal(describeDriver({}), 'default render');
 });
 
-test('buildStateMatrix: provisional results follow the rule table', () => {
+test('buildStateMatrix: one row per designed state; provisional results follow the rule table', () => {
   const figmaSpec = {
     states: [
       { state: 'with-data', nodeId: '1:2', name: 'Items', source: 'frame-name' },
@@ -189,32 +190,19 @@ test('buildStateMatrix: provisional results follow the rule table', () => {
     {
       'with-data': 'CANNOT_VERIFY', // designed + runtime driver (+ AC-1): pending capture
       empty: 'CANNOT_VERIFY', // designed + mock + AC-2: pending capture
-      loading: 'CANNOT_VERIFY', // AC-4 + mock, no design frame
       error: 'CANNOT_VERIFY', // designed, "source" only
       hover: 'CANNOT_VERIFY', // designed + action, not in the ticket: still pending capture
-      focus: 'MISSING_IN_CODE', // AC-3 only: the ticket requires it
       selected: 'MISSING_IN_CODE', // designed (and AC-6) but not implemented
-      disabled: 'MISSING_IN_DESIGN', // implemented only
-      success: 'CANNOT_VERIFY', // AC-5 + "source" only, no design frame
     },
+    'loading (ticket + mock), focus (ticket only), success (ticket + source) and disabled (code only) have no design: not rows',
   );
   assert.equal(byState['with-data'].note, 'Pending capture; compare replaces this with PASS/FAIL.');
   assert.equal(byState.hover.note, 'Pending capture; compare replaces this with PASS/FAIL. Not in the ticket.');
   assert.equal(byState.hover.specified, null);
-  assert.equal(
-    byState.focus.note,
-    'Specified in AC-3 but not implemented; no design frame either — open a decision for design.',
-  );
-  assert.equal(byState.focus.designed, null);
-  assert.equal(byState.focus.implemented, null);
-  assert.equal(
-    byState.loading.note,
-    'No design frame; behaviour is checked against AC-4 instead of a visual reference — open a decision for design.',
-  );
   assert.match(byState.error.note, /nothing can drive it at runtime: add a fixture, query, mock, storage or action driver at surfaces\.items\.states\.error\.$/);
-  assert.match(byState.success.note, /^No design frame; behaviour is checked against AC-5 once a driver exists at surfaces\.items\.states\.toast-success/);
   assert.match(byState.selected.note, /^Designed \(Row selected\) and specified in AC-6 but not implemented: if the code has it, add a driver at surfaces\.items\.states\.selected/);
-  assert.match(byState.disabled.note, /The app has this state \(query \?readonly=1\) but the design does not/);
+  assert.ok(rows.every((r) => r.designed), 'every row is designed');
+  assert.ok(!rows.some((r) => /decision for design|design does not/.test(r.note)), 'notes never point back at the design');
   assert.deepEqual(byState.selected.designed, { nodeId: '1:11', name: 'Row selected' });
   assert.deepEqual(byState.empty.specified, { acRef: 'AC-2', text: 'When there are no items, show an empty state' });
   assert.ok(!rows.some((r) => r.result === 'NOT_SPECIFIED'), 'NOT_SPECIFIED is never a provisional result');
@@ -225,15 +213,31 @@ test('buildStateMatrix: provisional results follow the rule table', () => {
   assert.deepEqual(validateStateMatrix(rows).errors, []);
 });
 
-test('buildStateMatrix: a ticket-only state is MISSING_IN_CODE, so the verdict fails', () => {
-  const rows = buildStateMatrix({ ticket: { expectedBehaviors: [{ acRef: 'AC-2', text: 'Show an empty state', state: 'empty' }] } });
-  const empty = rows.find((r) => r.state === 'empty');
-  assert.equal(empty.result, 'MISSING_IN_CODE');
-  assert.equal(empty.note, 'Specified in AC-2 but not implemented; no design frame either — open a decision for design.');
+test('buildStateMatrix: states only in the ticket or only in code are not rows', () => {
+  const ticket = { expectedBehaviors: [{ acRef: 'AC-2', text: 'Show an empty state', state: 'empty' }] };
+  const config = { surfaces: { items: { route: '/items', states: { disabled: { query: 'readonly=1' }, loading: { source: 'src/Items.tsx:12' } } } } };
+  assert.deepEqual(buildStateMatrix({ ticket }), [], 'no design: no rows');
+  assert.deepEqual(buildStateMatrix({ ticket, config, surface: 'items' }), []);
+  const rows = buildStateMatrix({ figmaSpec: { nodeId: '1:2', name: 'Items', states: [] }, ticket, config, surface: 'items' });
+  assert.deepEqual(rows.map((r) => [r.state, r.result]), [['with-data', 'CANNOT_VERIFY']]);
+  assert.equal(deriveVerdict({ findings: [], stateMatrix: rows, openDecisions: [], scorecard: { pixelDiff: {} } }), 'REVIEW', 'pending capture only');
+  assert.ok(!JSON.stringify(rows).includes('MISSING_IN_DESIGN'));
+});
+
+test('buildStateMatrix: a designed state missing in code fails the verdict', () => {
+  const rows = buildStateMatrix({ figmaSpec: { nodeId: '1:2', name: 'Items', states: [{ state: 'empty', nodeId: '1:40', name: 'Items / Empty' }] } });
+  assert.equal(rows.find((r) => r.state === 'empty').result, 'MISSING_IN_CODE');
   assert.equal(deriveVerdict({ findings: [], stateMatrix: rows, openDecisions: [], scorecard: { pixelDiff: {} } }), 'FAIL');
-  const withData = rows.find((r) => r.state === 'with-data');
-  assert.equal(withData.result, 'MISSING_IN_DESIGN', 'no Figma spec: the default render has no design');
-  assert.equal(withData.note, 'The app has this state (default render of the route) but the design does not; ask design or mark it intentional.');
+});
+
+test('buildStateMatrix: screen prefixes state ids for multi-screen passes', () => {
+  const figmaSpec = { nodeId: '1:2', name: 'Cart', states: [{ state: 'empty', nodeId: '1:40', name: 'Cart / Empty' }] };
+  const rows = buildStateMatrix({ figmaSpec, screen: 'cart' });
+  assert.deepEqual(rows.map((r) => [r.state, r.screen, r.label]), [['cart/with-data', 'cart', 'With data'], ['cart/empty', 'cart', 'Empty']]);
+  assert.deepEqual(Object.keys(rows[0]).slice(0, 3), ['state', 'screen', 'label']);
+  assert.match(rows[1].note, /add a driver at surfaces\.<surface>\.states\.empty/, 'config hooks keep the plain state name');
+  assert.deepEqual(validateStateMatrix(rows).errors, []);
+  assert.equal('screen' in buildStateMatrix({ figmaSpec })[0], false, 'single-screen rows carry no screen');
 });
 
 test('buildStateMatrix: the main frame is the with-data design when figmaSpec.states does not cover it', () => {
@@ -267,9 +271,7 @@ test('buildStateMatrix: the main frame designs the state its own name maps to, a
   // "Orders / Empty" maps to empty: the main frame designs empty, not with-data.
   const emptyMain = buildStateMatrix({ figmaSpec: { nodeId: '1:2', name: 'Orders / Empty', states: [] } });
   assert.deepEqual(emptyMain.find((r) => r.state === 'empty').designed, { nodeId: '1:2', name: 'Orders / Empty' });
-  const withData = emptyMain.find((r) => r.state === 'with-data');
-  assert.equal(withData.designed, null);
-  assert.equal(withData.result, 'MISSING_IN_DESIGN');
+  assert.equal(emptyMain.find((r) => r.state === 'with-data'), undefined, 'with-data has no design, so it is not a row');
 
   // An explicit with-data entry wins over the main frame.
   const explicit = buildStateMatrix({ figmaSpec: { nodeId: '1:2', name: 'Orders', states: [{ state: 'Default', nodeId: '1:9', name: 'Row / Default' }] } });
@@ -277,12 +279,12 @@ test('buildStateMatrix: the main frame designs the state its own name maps to, a
 
   // A main frame already assigned to another state is not reused for with-data.
   const assigned = buildStateMatrix({ figmaSpec: { nodeId: '1:2', name: 'Orders', states: [{ state: 'empty', nodeId: '1:2', name: 'Orders' }] } });
-  assert.equal(assigned.find((r) => r.state === 'with-data').designed, null);
+  assert.equal(assigned.find((r) => r.state === 'with-data'), undefined);
   assert.deepEqual(assigned.find((r) => r.state === 'empty').designed, { nodeId: '1:2', name: 'Orders' });
 
   // A component set is a library of variants, not a with-data design.
   const set = buildStateMatrix({ figmaSpec: { nodeId: '5:0', name: 'Button', type: 'COMPONENT_SET', states: [] } });
-  assert.equal(set.find((r) => r.state === 'with-data').designed, null);
+  assert.equal(set.find((r) => r.state === 'with-data'), undefined);
 
   assert.deepEqual(designedStates(null), []);
 });
@@ -295,7 +297,7 @@ test('CLI: builds and writes a valid state matrix', async () => {
   const out = path.join(dir, 'state-matrix.json');
   const res = await run(script('lib/state-discovery.mjs'), ['--figma-spec', specFile, '--config', fixture('config.json'), '--surface', 'items', '--out', out]);
   assert.equal(res.code, 0, res.stderr);
-  assert.match(res.stdout, /with-data\s+yes/);
+  assert.match(res.stdout, /with-data\s+–\s+fixture\s+CANNOT_VERIFY/);
   const rows = JSON.parse(readFileSync(out, 'utf8'));
   assert.equal(rows[0].state, 'with-data');
   assert.equal(rows.find((r) => r.state === 'loading').result, 'CANNOT_VERIFY');
@@ -303,5 +305,87 @@ test('CLI: builds and writes a valid state matrix', async () => {
   const v = await run(script('validate.mjs'), [out]);
   assert.equal(v.code, 0, v.stderr);
   assert.equal((await run(script('lib/state-discovery.mjs'), ['--out', out])).code, 2);
+  const ticketOnly = await run(script('lib/state-discovery.mjs'), ['--ticket', fixture('config.json'), '--out', out]);
+  assert.equal(ticketOnly.code, 2);
+  assert.match(ticketOnly.stderr, /--figma-spec is required: the rows are the states the design defines/);
+  const screened = path.join(dir, 'screen.json');
+  const res2 = await run(script('lib/state-discovery.mjs'), ['--figma-spec', specFile, '--screen', 'items', '--out', screened, '--quiet']);
+  assert.equal(res2.code, 0, res2.stderr);
+  assert.ok(JSON.parse(readFileSync(screened, 'utf8')).every((r) => r.state.startsWith('items/') && r.screen === 'items'));
+  assert.equal((await run(script('lib/state-discovery.mjs'), ['--figma-spec', specFile, '--screen', 'Items Page', '--out', screened])).code, 2);
   assert.equal((await run(script('lib/state-discovery.mjs'), ['--figma-spec', specFile, '--config', fixture('config.json'), '--surface', 'nope', '--out', out])).code, 2);
+});
+
+test('discoverUndesigned: config and ticket states the design does not define; never matrix rows', () => {
+  const ticket = {
+    expectedBehaviors: [
+      { acRef: 'AC-1', text: 'List the items', state: null },
+      { acRef: 'AC-2', text: 'Show an empty state', state: 'empty' },
+      { acRef: 'AC-7', text: 'Show a toast after saving', state: 'success' },
+      { acRef: 'AC-8', text: 'Read-only users see a disabled list', state: 'disabled' },
+    ],
+  };
+  const config = loadFixture('config.json');
+  config.surfaces.items.states.selected = { source: 'src/Items.tsx:40' };
+  const figmaSpec = spec();
+  const candidates = discoverUndesigned({ figmaSpec, ticket, config, surface: 'items' });
+  assert.deepEqual(candidates, [
+    {
+      state: 'selected',
+      screen: null,
+      label: 'Selected',
+      discoveredBy: 'config',
+      detail: 'config surfaces.items.states.selected: source src/Items.tsx:40 (no runtime driver)',
+      driver: null,
+    },
+    {
+      state: 'disabled',
+      screen: null,
+      label: 'Disabled',
+      discoveredBy: 'config',
+      detail: 'config surfaces.items.states.disabled: fixture three-items; query ?readonly=1; ticket AC-8: Read-only users see a disabled list',
+      driver: { fixture: 'three-items', query: 'readonly=1' },
+    },
+    { state: 'success', screen: null, label: 'Success', discoveredBy: 'ticket', detail: 'ticket AC-7: Show a toast after saving', driver: null },
+  ], 'canonical state order');
+  const rows = buildStateMatrix({ figmaSpec, ticket, config, surface: 'items' });
+  const rowStates = new Set(rows.map((r) => r.state));
+  assert.ok(candidates.every((c) => !rowStates.has(c.state)), 'candidates and matrix rows never overlap');
+  assert.ok(!rows.some((r) => ['disabled', 'success', 'selected'].includes(r.state)), 'the matrix stays designed-only');
+  assert.equal(candidates.find((c) => c.state === 'disabled').driver === config.surfaces.items.states.disabled, false, 'drivers are copies');
+
+  const screened = discoverUndesigned({ figmaSpec, ticket, config, surface: 'items', screen: 'items' });
+  assert.ok(screened.every((c) => c.state.startsWith('items/') && c.screen === 'items'));
+  assert.deepEqual(discoverUndesigned({ figmaSpec }), [], 'nothing beyond the design: no candidates');
+  // An undrivable empty config entry is listed without a driver; with-data with an empty driver is the default render.
+  const empty = discoverUndesigned({ figmaSpec: { nodeId: '1:2', name: 'Items / Empty', states: [] }, config: { surfaces: { a: { states: { 'with-data': {}, toast: {} } } } } });
+  assert.deepEqual(empty.map((c) => [c.state, c.detail, c.driver]), [['toast', 'config surfaces.a.states.toast: listed without a runtime driver', null]]);
+});
+
+test('CLI --backfill-out writes backfill-candidates.json beside (or instead of) the matrix', async () => {
+  const dir = tmpDir();
+  const { writeFileSync } = await import('node:fs');
+  const specFile = path.join(dir, 'figma-spec.json');
+  writeFileSync(specFile, JSON.stringify(spec()));
+  const ticketFile = path.join(dir, 'ticket.json');
+  writeFileSync(ticketFile, JSON.stringify({ expectedBehaviors: [{ acRef: 'AC-7', text: 'Show a toast after saving', state: 'success' }] }));
+  const out = path.join(dir, 'state-matrix.json');
+  const bf = path.join(dir, 'backfill-candidates.json');
+  const res = await run(script('lib/state-discovery.mjs'), ['--figma-spec', specFile, '--ticket', ticketFile, '--config', fixture('config.json'), '--surface', 'items', '--out', out, '--backfill-out', bf]);
+  assert.equal(res.code, 0, res.stderr);
+  assert.match(res.stdout, /Wrote .*backfill-candidates\.json \(2 undesigned state\(s\) — design backfill, step 2, after parity; not in the matrix\)/);
+  const data = JSON.parse(readFileSync(bf, 'utf8'));
+  assert.deepEqual(Object.keys(data), ['generatedAt', 'surface', 'candidates']);
+  assert.equal(data.surface, 'items');
+  assert.deepEqual(data.candidates.map((c) => [c.state, c.discoveredBy]), [['disabled', 'config'], ['success', 'ticket']]);
+  const rows = JSON.parse(readFileSync(out, 'utf8'));
+  assert.ok(!rows.some((r) => ['disabled', 'success'].includes(r.state)));
+
+  const only = path.join(dir, 'only.json');
+  const res2 = await run(script('lib/state-discovery.mjs'), ['--figma-spec', specFile, '--backfill-out', only, '--quiet']);
+  assert.equal(res2.code, 0, res2.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(only, 'utf8')).candidates, []);
+  const none = await run(script('lib/state-discovery.mjs'), ['--figma-spec', specFile]);
+  assert.equal(none.code, 2);
+  assert.match(none.stderr, /--out <state-matrix\.json> is required \(and\/or --backfill-out/);
 });

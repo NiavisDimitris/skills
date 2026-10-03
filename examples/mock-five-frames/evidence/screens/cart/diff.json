@@ -1,0 +1,40 @@
+{
+  "results": {
+    "with-data": {
+      "state": "with-data",
+      "width": 1440,
+      "height": 900,
+      "diffPixels": 5061,
+      "totalPixels": 1296000,
+      "percent": 0.39,
+      "band": "pass",
+      "pixelBand": "pass",
+      "structuralPercent": 0,
+      "structuralBand": "pass",
+      "structuralRegions": [],
+      "maskedPercent": 0,
+      "out": "examples/mock-five-frames/evidence/screens/cart/diff/with-data.png"
+    },
+    "empty": {
+      "state": "empty",
+      "width": 1440,
+      "height": 900,
+      "diffPixels": 0,
+      "totalPixels": 1296000,
+      "percent": 0,
+      "band": "pass",
+      "pixelBand": "pass",
+      "structuralPercent": 0,
+      "structuralBand": "pass",
+      "structuralRegions": [],
+      "maskedPercent": 0,
+      "out": "examples/mock-five-frames/evidence/screens/cart/diff/empty.png"
+    }
+  },
+  "worst": {
+    "state": "with-data",
+    "percent": 0.39,
+    "band": "pass",
+    "structuralPercent": 0
+  }
+}

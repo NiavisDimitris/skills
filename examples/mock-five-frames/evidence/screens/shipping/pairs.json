@@ -1,0 +1,10 @@
+{
+  "with-data": {
+    "a": "figma/with-data.png",
+    "b": "app/with-data.png"
+  },
+  "hover": {
+    "a": "figma/hover.png",
+    "b": "app/hover.png"
+  }
+}

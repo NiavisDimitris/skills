@@ -1,0 +1,135 @@
+{
+  "url": "http://localhost:5179/checkout/payment",
+  "title": "Acme · Payment",
+  "ariaSnapshot": "- banner:\n  - text: acme Secure checkout\n  - list \"Checkout progress\":\n    - listitem: ✓ Cart\n    - listitem: ✓ Shipping\n    - listitem: 3 Payment\n    - listitem: 4 Review\n    - listitem: 5 Done\n- main:\n  - heading \"Payment\" [level=1]\n  - paragraph: All transactions are secure and encrypted.\n  - region \"Payment details\":\n    - heading \"Card details\" [level=2]\n    - text: Cardholder name\n    - textbox \"Cardholder name\": Dana Whitfield\n    - text: Card number\n    - textbox \"Card number\": 4242 4242 4242 4242\n    - text: Expiry\n    - textbox \"Expiry\": 08 / 29\n    - text: CVC\n    - textbox \"CVC\": •••\n    - paragraph: Payments are processed by Stripe. We never store your card details.\n    - button \"Back to shipping\"\n    - button \"Pay €248.40\"\n  - complementary \"Order summary\":\n    - heading \"Order summary\" [level=2]\n    - text: 3 items €229.00 Shipping · Standard Free Estimated tax €19.40 Total €248.40\n    - paragraph: Ships to Dana Whitfield, Rotterdam",
+  "elements": [
+    {
+      "role": "heading",
+      "name": "Payment",
+      "text": "Payment",
+      "visible": true,
+      "level": 1
+    },
+    {
+      "role": "alert",
+      "name": "Your card was declined Try another card, or contact your bank to approve the payment. Try again",
+      "text": "Your card was declined Try another card, or contact your bank to approve the payment. Try again",
+      "visible": false
+    },
+    {
+      "role": "button",
+      "name": "Try again",
+      "text": "Try again",
+      "visible": false
+    },
+    {
+      "role": "heading",
+      "name": "Card details",
+      "text": "Card details",
+      "visible": true,
+      "level": 2
+    },
+    {
+      "role": "label",
+      "name": "Cardholder name",
+      "text": "Cardholder name",
+      "visible": true
+    },
+    {
+      "role": "textbox",
+      "name": "Cardholder name",
+      "text": "",
+      "visible": true
+    },
+    {
+      "role": "label",
+      "name": "Card number",
+      "text": "Card number",
+      "visible": true
+    },
+    {
+      "role": "textbox",
+      "name": "Card number",
+      "text": "",
+      "visible": true
+    },
+    {
+      "role": "label",
+      "name": "Expiry",
+      "text": "Expiry",
+      "visible": true
+    },
+    {
+      "role": "textbox",
+      "name": "Expiry",
+      "text": "",
+      "visible": true
+    },
+    {
+      "role": "label",
+      "name": "CVC",
+      "text": "CVC",
+      "visible": true
+    },
+    {
+      "role": "textbox",
+      "name": "CVC",
+      "text": "",
+      "visible": true
+    },
+    {
+      "role": "button",
+      "name": "Back to shipping",
+      "text": "Back to shipping",
+      "visible": true
+    },
+    {
+      "role": "button",
+      "name": "Pay €248.40",
+      "text": "Pay €248.40",
+      "visible": true
+    },
+    {
+      "role": "heading",
+      "name": "Order summary",
+      "text": "Order summary",
+      "visible": true,
+      "level": 2
+    }
+  ],
+  "texts": [
+    "acme",
+    "Secure checkout",
+    "✓",
+    "Cart",
+    "✓",
+    "Shipping",
+    "3",
+    "Payment",
+    "4",
+    "Review",
+    "5",
+    "Done",
+    "Payment",
+    "All transactions are secure and encrypted.",
+    "Card details",
+    "Cardholder name",
+    "Card number",
+    "Expiry",
+    "CVC",
+    "Payments are processed by Stripe. We never store your card details.",
+    "Back to shipping",
+    "Pay €248.40",
+    "Order summary",
+    "3 items",
+    "€229.00",
+    "Shipping · Standard",
+    "Free",
+    "Estimated tax",
+    "€19.40",
+    "Total",
+    "€248.40",
+    "Ships to Dana Whitfield, Rotterdam"
+  ],
+  "truncated": false
+}

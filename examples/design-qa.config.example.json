@@ -21,6 +21,28 @@
         "selected":  { "action": "click", "selector": "[data-testid=order-row]:first-child" },
         "focus":     { "action": "keyboard", "keys": "Tab Tab Tab" }
       }
+    },
+    "checkout": {
+      "route": "/checkout",
+      "fixture": "rich-cart",
+      "prototype": "https://acme-checkout.framer.website",
+      "screens": {
+        "cart":         { "figma": null, "prototype": "https://acme-checkout.framer.website/cart", "route": "/checkout/cart" },
+        "payment":      { "figma": null, "prototype": "https://acme-checkout.framer.website/payment", "route": "/checkout/payment" },
+        "confirmation": { "figma": null, "prototype": "https://acme-checkout.framer.website/done", "route": "/checkout/done" }
+      },
+      "states": {
+        "with-data": { "fixture": "rich-cart" },
+        "hover":     { "action": "hover", "selector": "[data-testid=cart-item]:first-child", "settleMs": 300 }
+      }
+    },
+    "onboarding": {
+      "route": "/welcome",
+      "figma": { "fileKey": "AbCdEfGhIjKlMnOp", "nodeId": "40:1" },
+      "screens": {
+        "welcome": { "figma": "https://www.figma.com/design/AbCdEfGhIjKlMnOp/Acme?node-id=40-2", "prototype": null, "route": "/welcome" },
+        "profile": { "figma": "https://www.figma.com/design/AbCdEfGhIjKlMnOp/Acme?node-id=40-3", "prototype": null, "route": "/welcome/profile" }
+      }
     }
   },
   "designSystem": {
@@ -38,7 +60,7 @@
     "embedImages": true,
     "ranking": {
       "severity": { "BLOCKER": 3, "WARNING": 2, "DS_CANDIDATE": 1 },
-      "ledger": { "structure": 3, "component": 3, "state": 3, "style": 2, "behavior": 2 }
+      "ledger": { "structure": 3, "component": 3, "state": 3, "style": 2, "behavior": 2, "motion": 2 }
     }
   },
   "ticket": { "provider": "jira", "baseUrl": "https://acme.atlassian.net", "writeBack": false, "trustPreviewUrl": false },

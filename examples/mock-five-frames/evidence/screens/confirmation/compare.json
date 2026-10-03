@@ -1,0 +1,801 @@
+{
+  "generatedAt": "2026-10-03T15:29:42.178Z",
+  "design": {
+    "dir": "examples/mock-five-frames/evidence/screens/confirmation",
+    "url": "http://localhost:5179/figma/confirmation",
+    "source": {
+      "kind": "prototype",
+      "url": "http://localhost:5179/figma/confirmation",
+      "label": "Prototype",
+      "tool": "other",
+      "frame": {
+        "width": 1440,
+        "height": 900
+      }
+    }
+  },
+  "app": {
+    "dir": "examples/mock-five-frames/evidence/screens/confirmation",
+    "url": "http://localhost:5179/checkout/confirmation"
+  },
+  "figmaSpec": null,
+  "options": {
+    "tolerancePx": 1,
+    "durationToleranceMs": 20,
+    "tokenMap": null,
+    "catalog": null
+  },
+  "states": {
+    "with-data": {
+      "style": [
+        {
+          "state": "with-data",
+          "elementClass": "body",
+          "index": 0,
+          "selector": "body",
+          "property": "font-family",
+          "design": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+          "app": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "body",
+          "index": 0,
+          "selector": "body",
+          "property": "color",
+          "design": "rgb(17, 24, 39)",
+          "app": "rgb(17, 24, 39)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "body",
+          "index": 0,
+          "selector": "body",
+          "property": "background-color",
+          "design": "rgb(246, 247, 249)",
+          "app": "rgb(246, 247, 249)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "topbar",
+          "index": 0,
+          "selector": "header.topbar",
+          "property": "background-color",
+          "design": "rgb(255, 255, 255)",
+          "app": "rgb(255, 255, 255)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "topbar",
+          "index": 0,
+          "selector": "header.topbar",
+          "property": "height",
+          "design": "64px",
+          "app": "64px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "topbar",
+          "index": 0,
+          "selector": "header.topbar",
+          "property": "border-bottom-color",
+          "design": "rgb(229, 231, 235)",
+          "app": "rgb(229, 231, 235)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "stepper",
+          "index": 0,
+          "selector": "ol.ads-stepper",
+          "property": "gap",
+          "design": "24px",
+          "app": "24px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "stepper",
+          "index": 0,
+          "selector": "ol.ads-stepper",
+          "property": "font-size",
+          "design": "13px",
+          "app": "13px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "stepCurrent",
+          "index": 0,
+          "selector": "li",
+          "property": "color",
+          "design": "rgb(17, 24, 39)",
+          "app": "rgb(17, 24, 39)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "stepCurrent",
+          "index": 0,
+          "selector": "li",
+          "property": "font-weight",
+          "design": "600",
+          "app": "600",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "pageTitle",
+          "index": 0,
+          "selector": "h1",
+          "property": "font-size",
+          "design": "26px",
+          "app": "26px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "pageTitle",
+          "index": 0,
+          "selector": "h1",
+          "property": "font-weight",
+          "design": "650",
+          "app": "650",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "pageTitle",
+          "index": 0,
+          "selector": "h1",
+          "property": "line-height",
+          "design": "34px",
+          "app": "34px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "pageTitle",
+          "index": 0,
+          "selector": "h1",
+          "property": "color",
+          "design": "rgb(17, 24, 39)",
+          "app": "rgb(17, 24, 39)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "card",
+          "index": 0,
+          "selector": "section.ads-card.confirm",
+          "property": "background-color",
+          "design": "rgb(255, 255, 255)",
+          "app": "rgb(255, 255, 255)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "card",
+          "index": 0,
+          "selector": "section.ads-card.confirm",
+          "property": "border-radius",
+          "design": "14px",
+          "app": "14px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "card",
+          "index": 0,
+          "selector": "section.ads-card.confirm",
+          "property": "padding-top",
+          "design": "40px",
+          "app": "40px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "card",
+          "index": 0,
+          "selector": "section.ads-card.confirm",
+          "property": "padding-left",
+          "design": "32px",
+          "app": "32px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "card",
+          "index": 0,
+          "selector": "section.ads-card.confirm",
+          "property": "box-shadow",
+          "design": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+          "app": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "primaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--primary",
+          "property": "background-color",
+          "design": "rgb(79, 70, 229)",
+          "app": "rgb(79, 70, 229)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "primaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--primary",
+          "property": "color",
+          "design": "rgb(255, 255, 255)",
+          "app": "rgb(255, 255, 255)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "primaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--primary",
+          "property": "border-radius",
+          "design": "10px",
+          "app": "10px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "primaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--primary",
+          "property": "height",
+          "design": "44px",
+          "app": "44px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "primaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--primary",
+          "property": "padding-left",
+          "design": "20px",
+          "app": "20px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "primaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--primary",
+          "property": "font-size",
+          "design": "15px",
+          "app": "15px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "primaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--primary",
+          "property": "font-weight",
+          "design": "600",
+          "app": "600",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "secondaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--secondary",
+          "property": "background-color",
+          "design": "rgb(255, 255, 255)",
+          "app": "rgb(255, 255, 255)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "secondaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--secondary",
+          "property": "color",
+          "design": "rgb(17, 24, 39)",
+          "app": "rgb(17, 24, 39)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "secondaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--secondary",
+          "property": "border-radius",
+          "design": "10px",
+          "app": "10px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "secondaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--secondary",
+          "property": "height",
+          "design": "44px",
+          "app": "44px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "secondaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--secondary",
+          "property": "border-top-color",
+          "design": "rgb(201, 206, 214)",
+          "app": "rgb(201, 206, 214)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "confirmIcon",
+          "index": 0,
+          "selector": "div.confirm-icon",
+          "property": "width",
+          "design": "72px",
+          "app": "72px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "confirmIcon",
+          "index": 0,
+          "selector": "div.confirm-icon",
+          "property": "height",
+          "design": "72px",
+          "app": "72px",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "confirmIcon",
+          "index": 0,
+          "selector": "div.confirm-icon",
+          "property": "background-color",
+          "design": "rgb(220, 252, 231)",
+          "app": "rgb(220, 252, 231)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "orderNumber",
+          "index": 0,
+          "selector": "span.order-number",
+          "property": "font-weight",
+          "design": "600",
+          "app": "600",
+          "delta": 0,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "orderNumber",
+          "index": 0,
+          "selector": "span.order-number",
+          "property": "color",
+          "design": "rgb(17, 24, 39)",
+          "app": "rgb(17, 24, 39)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "toast",
+          "index": 0,
+          "selector": "div.ads-toast",
+          "property": "background-color",
+          "design": "rgb(15, 23, 42)",
+          "app": "rgb(15, 23, 42)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "toast",
+          "index": 0,
+          "selector": "div.ads-toast",
+          "property": "color",
+          "design": "rgb(249, 250, 251)",
+          "app": "rgb(249, 250, 251)",
+          "delta": null,
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "toast",
+          "index": 0,
+          "selector": "div.ads-toast",
+          "property": "border-radius",
+          "design": "10px",
+          "app": "10px",
+          "delta": 0,
+          "result": "PASS"
+        }
+      ],
+      "tokens": [],
+      "components": [
+        {
+          "state": "with-data",
+          "elementClass": "stepper",
+          "index": 0,
+          "selector": "ol.ads-stepper",
+          "design": {
+            "component": "Stepper",
+            "variant": null,
+            "source": "data-component"
+          },
+          "app": {
+            "component": "Stepper",
+            "variant": null,
+            "source": "data-component"
+          },
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "card",
+          "index": 0,
+          "selector": "section.ads-card.confirm",
+          "design": {
+            "component": "Card",
+            "variant": null,
+            "source": "data-component"
+          },
+          "app": {
+            "component": "Card",
+            "variant": null,
+            "source": "data-component"
+          },
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "primaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--primary",
+          "design": {
+            "component": "Button",
+            "variant": "primary",
+            "source": "data-component"
+          },
+          "app": {
+            "component": "Button",
+            "variant": "primary",
+            "source": "data-component"
+          },
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "secondaryCta",
+          "index": 0,
+          "selector": "button.ads-btn.ads-btn--secondary",
+          "design": {
+            "component": "Button",
+            "variant": "secondary",
+            "source": "data-component"
+          },
+          "app": {
+            "component": "Button",
+            "variant": "secondary",
+            "source": "data-component"
+          },
+          "result": "PASS"
+        },
+        {
+          "state": "with-data",
+          "elementClass": "toast",
+          "index": 0,
+          "selector": "div.ads-toast",
+          "design": {
+            "component": "Toast",
+            "variant": null,
+            "source": "data-component"
+          },
+          "app": {
+            "component": "Toast",
+            "variant": null,
+            "source": "data-component"
+          },
+          "result": "PASS"
+        }
+      ],
+      "motion": [
+        {
+          "state": "with-data",
+          "selector": "button.ads-btn.ads-btn--primary",
+          "figmaNodeId": null,
+          "trigger": "state-change",
+          "property": "background-color",
+          "expected": {
+            "type": "transition",
+            "durationMs": 160,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": null
+          },
+          "observed": {
+            "type": "transition",
+            "durationMs": 160,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": null
+          },
+          "result": "PASS",
+          "findingIds": [],
+          "_compare": {
+            "elementClass": "primaryCta",
+            "index": 0,
+            "key": "primaryCta#0|button.ads-btn.ads-btn--primary|background-color",
+            "reasons": [],
+            "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+            "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+          }
+        },
+        {
+          "state": "with-data",
+          "selector": "button.ads-btn.ads-btn--primary",
+          "figmaNodeId": null,
+          "trigger": "state-change",
+          "property": "border-color",
+          "expected": {
+            "type": "transition",
+            "durationMs": 160,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": null
+          },
+          "observed": {
+            "type": "transition",
+            "durationMs": 160,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": null
+          },
+          "result": "PASS",
+          "findingIds": [],
+          "_compare": {
+            "elementClass": "primaryCta",
+            "index": 0,
+            "key": "primaryCta#0|button.ads-btn.ads-btn--primary|border-color",
+            "reasons": [],
+            "expectedText": "160ms cubic-bezier(0,0,0.58,1) on border-color",
+            "observedText": "160ms cubic-bezier(0,0,0.58,1) on border-color"
+          }
+        },
+        {
+          "state": "with-data",
+          "selector": "button.ads-btn.ads-btn--secondary",
+          "figmaNodeId": null,
+          "trigger": "state-change",
+          "property": "background-color",
+          "expected": {
+            "type": "transition",
+            "durationMs": 160,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": null
+          },
+          "observed": {
+            "type": "transition",
+            "durationMs": 160,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": null
+          },
+          "result": "PASS",
+          "findingIds": [],
+          "_compare": {
+            "elementClass": "secondaryCta",
+            "index": 0,
+            "key": "secondaryCta#0|button.ads-btn.ads-btn--secondary|background-color",
+            "reasons": [],
+            "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+            "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+          }
+        },
+        {
+          "state": "with-data",
+          "selector": "button.ads-btn.ads-btn--secondary",
+          "figmaNodeId": null,
+          "trigger": "state-change",
+          "property": "border-color",
+          "expected": {
+            "type": "transition",
+            "durationMs": 160,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": null
+          },
+          "observed": {
+            "type": "transition",
+            "durationMs": 160,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": null
+          },
+          "result": "PASS",
+          "findingIds": [],
+          "_compare": {
+            "elementClass": "secondaryCta",
+            "index": 0,
+            "key": "secondaryCta#0|button.ads-btn.ads-btn--secondary|border-color",
+            "reasons": [],
+            "expectedText": "160ms cubic-bezier(0,0,0.58,1) on border-color",
+            "observedText": "160ms cubic-bezier(0,0,0.58,1) on border-color"
+          }
+        },
+        {
+          "state": "with-data",
+          "selector": "div.confirm-icon",
+          "figmaNodeId": null,
+          "trigger": "load",
+          "property": "animation",
+          "expected": {
+            "type": "animation",
+            "durationMs": 320,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": "animation ads-pop-in"
+          },
+          "observed": {
+            "type": "animation",
+            "durationMs": 600,
+            "easing": "linear",
+            "delayMs": 0,
+            "detail": "animation pop"
+          },
+          "result": "FAIL",
+          "findingIds": [],
+          "_compare": {
+            "elementClass": "confirmIcon",
+            "index": 0,
+            "key": "confirmIcon#0|div.confirm-icon|animation",
+            "reasons": [
+              "duration 600ms, expected 320ms",
+              "easing linear, expected cubic-bezier(0,0,0.58,1)"
+            ],
+            "expectedText": "320ms cubic-bezier(0,0,0.58,1) animation ads-pop-in",
+            "observedText": "600ms linear animation pop"
+          }
+        },
+        {
+          "state": "with-data",
+          "selector": "div.ads-toast",
+          "figmaNodeId": null,
+          "trigger": "load",
+          "property": "animation",
+          "expected": {
+            "type": "animation",
+            "durationMs": 240,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": "animation ads-toast-in"
+          },
+          "observed": {
+            "type": "animation",
+            "durationMs": 240,
+            "easing": "cubic-bezier(0,0,0.58,1)",
+            "delayMs": 0,
+            "detail": "animation ads-toast-in"
+          },
+          "result": "PASS",
+          "findingIds": [],
+          "_compare": {
+            "elementClass": "toast",
+            "index": 0,
+            "key": "toast#0|div.ads-toast|animation",
+            "reasons": [],
+            "expectedText": "240ms cubic-bezier(0,0,0.58,1) animation ads-toast-in",
+            "observedText": "240ms cubic-bezier(0,0,0.58,1) animation ads-toast-in"
+          }
+        }
+      ],
+      "structure": [
+        {
+          "state": "with-data",
+          "source": "dom",
+          "elementClass": null,
+          "index": null,
+          "selector": null,
+          "role": "heading",
+          "name": "Thanks, Dana! Your order is confirmed",
+          "design": "present",
+          "app": "missing",
+          "result": "FAIL",
+          "note": "missing in app: heading \"Thanks, Dana! Your order is confirmed\""
+        },
+        {
+          "state": "with-data",
+          "source": "dom",
+          "elementClass": null,
+          "index": null,
+          "selector": null,
+          "role": "heading",
+          "name": "Thank you, your order is confirmed",
+          "design": "missing",
+          "app": "present",
+          "result": "FAIL",
+          "note": "extra in app: heading \"Thank you, your order is confirmed\" is not in the design"
+        }
+      ]
+    }
+  },
+  "figmaMotion": [],
+  "missingInApp": [],
+  "summary": {
+    "states": 1,
+    "style": {
+      "pass": 39,
+      "fail": 0
+    },
+    "tokens": {
+      "fail": 0,
+      "hardcoded": 0
+    },
+    "components": {
+      "pass": 5,
+      "fail": 0
+    },
+    "motion": {
+      "pass": 5,
+      "fail": 1,
+      "missing": 0,
+      "extra": 0,
+      "cannotVerify": 0,
+      "unique": 1
+    },
+    "structure": {
+      "fail": 2,
+      "missingInApp": 1,
+      "extraInApp": 1
+    },
+    "repeatsDropped": 0
+  }
+}

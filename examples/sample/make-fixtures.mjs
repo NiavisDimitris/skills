@@ -3,12 +3,14 @@
 //
 // Regenerates the synthetic evidence behind the design-qa sample report and
 // patches every image-derived value back into sample-report.json:
-//   evidence/figma/<state>.png   "design" mock-ups (flat wireframes, 1440×900)
+//   evidence/figma/<state>.png   "design" mock-ups (flat wireframes, 1440×900; the report's `design` key)
 //   evidence/app/<state>.png     "implementation" mock-ups with deliberate deltas
 //   evidence/diff/<state>.png    pixelmatch output for states that have both
-//   evidence/{computed,dom}/<state>.json, figma-spec.json, ticket.json, capture.json
+//   evidence/{computed,dom,motion}/<state>.json, figma-spec.json, ticket.json, capture.json
+//   evidence/backfill/…          app-only capture of the undesigned "bulk-selected" state (step 2; the report's `backfill` block)
 // Then it fills scorecard.pixelDiff, stateMatrix[].captured, evidence.states,
 // fixLoop pixelDiffAfter and findings[].rank, recomputes the derived scorecard
+// (schemaVersion 2.0: parity without dismissed findings, dismissed, designSystem)
 // and throws if the hand-written counts, parity or verdict disagree.
 //
 // Deterministic: no randomness, no clock. Run: node examples/sample/make-fixtures.mjs
@@ -165,7 +167,7 @@ const VARIANTS = {
     pad: 20, // DQ-004 card padding 20px vs --ads-space-6
     titleWeight: 500, // DQ-006
     header: 'native', // DQ-002 native <th> styling
-    cols: [...COLS, { key: 'updated', label: 'Updated', w: 136 }], // DQ-010
+    cols: [...COLS, { key: 'updated', label: 'Updated', w: 136 }], // DQ-010 (extra column the design does not have)
     rows: APP_ROWS, // DQ-012 / DQ-013
     pager: 'toolbar', // DQ-011 (signed off)
     hoverBg: '#CFD8E6', // DQ-003 hardcoded hex
@@ -410,7 +412,7 @@ function figmaSpec() {
       layer('1204:3323', 'Table.HeaderCell / Total', 'INSTANCE', { component: 'Table.HeaderCell', variantProperties: { Sortable: 'True', Align: 'End' } }),
       layer('1204:3324', 'Row 1', 'INSTANCE', {
         component: 'Table.Row', variantProperties: { State: 'Default' }, bounds: [288, 268, 1096, 48],
-        reactions: [{ trigger: 'ON_HOVER', action: 'CHANGE_TO', destinationId: '1204:3431', transition: { type: 'SMART_ANIMATE', duration: 160, easing: 'EASE_OUT' } }],
+        reactions: [{ trigger: { type: 'ON_HOVER' }, actions: [{ type: 'NODE', navigation: 'CHANGE_TO', destinationId: '1204:3431', transition: { type: 'SMART_ANIMATE', duration: 0.16, easing: { type: 'EASE_OUT' } } }] }],
       }),
       layer('1204:3325', 'Status badge', 'INSTANCE', { component: 'Badge', variantProperties: { Status: 'Success' } }),
       layer('1204:3326', 'Total', 'TEXT', { characters: '$1,240.00', style: { fontFeatureSettings: { tnum: true } } }),
@@ -418,7 +420,10 @@ function figmaSpec() {
       layer('1204:3388', 'Orders / Empty', 'FRAME', { bounds: [0, 0, 1440, 900] }),
       layer('1204:3391', 'EmptyState', 'INSTANCE', { component: 'EmptyState', variantProperties: { Size: 'md' }, characters: 'No orders yet' }),
       layer('1204:3392', 'Create order', 'INSTANCE', { component: 'Button', variantProperties: { Variant: 'Primary', Size: 'md' } }),
-      layer('1204:3402', 'Orders / Loading', 'FRAME', { bounds: [0, 0, 1440, 900] }),
+      layer('1204:3402', 'Orders / Loading', 'FRAME', {
+        bounds: [0, 0, 1440, 900],
+        reactions: [{ trigger: { type: 'AFTER_TIMEOUT', timeout: 2 }, actions: [{ type: 'NODE', navigation: 'NAVIGATE', destinationId: '1204:3310', transition: { type: 'DISSOLVE', duration: 0.2, easing: { type: 'EASE_OUT' } } }] }],
+      }),
       layer('1204:3405', 'Skeleton / Row', 'INSTANCE', { component: 'Skeleton', variantProperties: { Shape: 'Text' }, tokens: { radius: '--ads-radius-md', fill: '--ads-color-skeleton' } }),
       layer('1204:3417', 'Orders / Error', 'FRAME', { bounds: [0, 0, 1440, 900] }),
       layer('1204:3419', 'Alert', 'INSTANCE', { component: 'Alert', variantProperties: { Variant: 'Critical' }, characters: "Couldn't load orders" }),
@@ -461,19 +466,35 @@ const CAPTURE_STATES = {
   error: { driver: { mock: { urlPattern: '**/api/orders*', status: 500, body: '{"error":"internal"}', contentType: 'application/json' } }, settleMs: 250, durationMs: 2105 },
   hover: { driver: { action: 'hover', selector: '[data-testid=orders-table] tbody tr:nth-child(2)' }, settleMs: 250, durationMs: 2688 },
   focus: { driver: { action: 'keyboard', keys: 'Tab Tab Tab Tab Tab Tab' }, settleMs: 250, durationMs: 2540 },
+};
+// Step 2 (design backfill): the app has this state, the design does not. Captured app-only into evidence/backfill/.
+const BACKFILL_STATES = {
   'bulk-selected': { driver: { action: 'click', selector: '[data-testid=orders-select-all]' }, settleMs: 250, durationMs: 2731 },
 };
+function backfillCapture() {
+  const states = {};
+  for (const [state, d] of Object.entries(BACKFILL_STATES)) {
+    states[state] = {
+      driver: d.driver, url: APP_URL, screenshot: `app/${state}.png`, computed: `computed/${state}.json`, dom: `dom/${state}.json`, motion: `motion/${state}.json`,
+      settleMs: d.settleMs, durationMs: d.durationMs, scroll: { x: 0, y: 0 }, warnings: [],
+    };
+  }
+  return {
+    url: APP_URL, kind: 'preview', viewport: { width: W, height: H }, dpr: 1, fullPage: false, commit: COMMIT, branch: 'feat/orders-list',
+    timestamp: '2026-09-22T14:29:41Z', states, degradations: [],
+  };
+}
 function capture(apps) {
   const states = {};
   for (const [state, d] of Object.entries(CAPTURE_STATES)) {
     states[state] = {
       driver: d.driver, url: d.driver.fixture ? `${APP_URL}?fixture=${d.driver.fixture}` : APP_URL,
-      screenshot: apps.includes(state) ? `app/${state}.png` : null, computed: `computed/${state}.json`, dom: `dom/${state}.json`,
+      screenshot: apps.includes(state) ? `app/${state}.png` : null, computed: `computed/${state}.json`, dom: `dom/${state}.json`, motion: `motion/${state}.json`,
       settleMs: d.settleMs, durationMs: d.durationMs, scroll: { x: 0, y: 0 }, warnings: [],
     };
   }
   const reason = 'no runtime driver (needs a fixture, query, mock, storage, action or viewport)';
-  states.selected = { driver: {}, url: null, screenshot: null, computed: null, dom: null, settleMs: null, durationMs: 0, warnings: [`not captured: ${reason}`], skipped: true };
+  states.selected = { driver: {}, url: null, screenshot: null, computed: null, dom: null, motion: null, settleMs: null, durationMs: 0, warnings: [`not captured: ${reason}`], skipped: true };
   return {
     url: APP_URL, kind: 'preview', viewport: { width: W, height: H }, dpr: 1, fullPage: false, commit: COMMIT, branch: 'feat/orders-list',
     timestamp: '2026-09-22T14:29:41Z', states,
@@ -528,6 +549,8 @@ const COMPUTED = {
     'Page title': TITLE,
     'Row focus ring': entry('.orders-row:focus-visible', 1, [sample({ outline: '2px solid rgb(37, 99, 235)', 'outline-offset': '-2px' }, rowBox(0))]),
   },
+};
+const BACKFILL_COMPUTED = {
   'bulk-selected': {
     'Page title': TITLE,
     'Bulk-action bar': entry('[data-testid=orders-bulk-bar]', 1, [sample({ 'background-color': 'rgb(17, 24, 39)', 'border-radius': '10px', position: 'fixed' }, box(400, 808, 640, 56))]),
@@ -537,9 +560,9 @@ const COMPUTED = {
 // Evidence crops come from these boxes (app side) and from the Figma layer bounds (design side).
 const CROP_FROM = {
   'DQ-002': ['with-data', 'Table header'], 'DQ-003': ['hover', 'Table row (hover)'], 'DQ-004': ['with-data', 'Card'], 'DQ-005': ['with-data', 'Status badge'],
-  'DQ-006': ['with-data', 'Page title'], 'DQ-007': ['loading', 'Skeleton bar'], 'DQ-008': ['hover', 'Table row'], 'DQ-009': ['bulk-selected', 'Bulk-action bar'],
+  'DQ-006': ['with-data', 'Page title'], 'DQ-007': ['loading', 'Skeleton bar'], 'DQ-008': ['hover', 'Table row'],
   'DQ-010': ['with-data', 'Updated header cell'], 'DQ-011': ['with-data', 'Pagination'], 'DQ-013': ['with-data', 'Total cell'], 'DQ-015': ['error', 'Retry button'],
-  'DQ-016': ['loading', 'Skeleton'], 'DQ-017': ['focus', 'Row focus ring'], 'DQ-018': ['with-data', 'Search input'], 'DQ-019': ['error', 'Alert'], 'DQ-020': ['with-data', 'Page header'],
+  'DQ-016': ['loading', 'Skeleton'], 'DQ-017': ['focus', 'Row focus ring'], 'DQ-018': ['with-data', 'Search input'], 'DQ-019': ['error', 'Alert'], 'DQ-020': ['with-data', 'Page header'], 'DQ-021': ['loading', 'Skeleton'], 'DQ-022': ['with-data', 'Status badge'],
 };
 const FIGMA_CROP = {
   'DQ-001': [264, 204, 1144, 400], 'DQ-002': [288, 228, 1096, 40], 'DQ-003': [288, 316, 1096, 48], 'DQ-004': [264, 204, 1144, 520], 'DQ-006': [264, 78, 82, 32],
@@ -571,7 +594,29 @@ const DOM = {
   error: { regions: REGIONS.slice(0, 2).concat({ region: 'Error banner', selector: '[data-testid=orders-error]', role: 'alert', text: "Couldn't load orders · Retry" }), retry: { clicked: true, requestsAfterClick: ['GET /api/orders'] } },
   hover: { regions: REGIONS, target: '.orders-row:nth-child(2)', matches: [':hover'] },
   focus: { regions: REGIONS, activeElement: '.orders-row:nth-child(1) a.order-link', focusVisible: true },
+};
+
+// What capture.mjs records per state in motion/<state>.json: the computed transition / animation
+// longhands of the grabbed elements and document.getAnimations() right after the state's action.
+const NO_MOTION = { 'transition-property': 'none', 'transition-duration': '0s', 'transition-timing-function': 'ease', 'transition-delay': '0s', 'animation-name': 'none', 'animation-duration': '0s', 'animation-timing-function': 'ease', 'animation-delay': '0s', 'animation-iteration-count': '1' };
+const mEntry = (selector, count, props) => ({ selector, count, samples: [{ ...NO_MOTION, ...props }] });
+const ROW_MOTION = { 'transition-property': 'background-color', 'transition-duration': '0.4s', 'transition-timing-function': 'ease' };
+const MOTION = {
+  'with-data': { elements: { 'Table row': mEntry('.orders-row', APP_ROWS.length, ROW_MOTION) }, animations: [], keyframes: {} },
+  loading: { elements: { Skeleton: mEntry('[data-testid=orders-skeleton]', 1, {}) }, animations: [], keyframes: {} },
+  error: { elements: { Alert: mEntry('[data-testid=orders-error]', 1, {}) }, animations: [], keyframes: {} },
+  hover: {
+    elements: { 'Table row': mEntry('.orders-row', APP_ROWS.length, ROW_MOTION) },
+    animations: [{ type: 'CSSTransition', target: '.orders-row:nth-child(2)', transitionProperty: 'background-color', durationMs: 400, delayMs: 0, easing: 'ease', iterations: 1 }],
+    keyframes: {},
+  },
+  focus: { elements: { 'Row focus ring': mEntry('.orders-row:focus-visible', 1, {}) }, animations: [], keyframes: {} },
+};
+const BACKFILL_DOM = {
   'bulk-selected': { regions: REGIONS.concat({ region: 'Bulk-action bar', selector: '[data-testid=orders-bulk-bar]', text: '12 selected · Clear selection · Export · Cancel orders' }), table: { rows: 12, selectedRows: 12 } },
+};
+const BACKFILL_MOTION = {
+  'bulk-selected': { elements: { 'Bulk-action bar': mEntry('[data-testid=orders-bulk-bar]', 1, {}) }, animations: [], keyframes: {} },
 };
 
 function writeJson(file, obj) {
@@ -582,33 +627,30 @@ function writeJson(file, obj) {
 // ---------------------------------------------------------------------------
 // 5. Derived rules (mirrors the validator) — rank, bands, scorecard checks
 // ---------------------------------------------------------------------------
-const OPEN = ['FIX_CODE', 'SYNC_FIGMA', 'UNCLASSIFIED'];
+const OPEN = ['FIX_CODE', 'UNCLASSIFIED'];
 const SEV_W = { BLOCKER: 3, WARNING: 2, DS_CANDIDATE: 1 };
-const LEDGER_W = { structure: 3, component: 3, state: 3, style: 2, behavior: 2 };
+const LEDGER_W = { structure: 3, component: 3, state: 3, style: 2, behavior: 2, motion: 2 };
 const TOP_N = 5;
 const band = (pct) => (pct < 1 ? 'pass' : pct <= 5 ? 'review' : 'fail');
 const round2 = (n) => Math.round(n * 100) / 100;
 
-// Buckets: FIX_CODE → first TOP_N by score "fix-now", the rest "debt" (the engineer's lists);
-// SYNC_FIGMA → "sync-figma" (the designer's list); everything else { score: 0, bucket: "none" }.
+// Buckets: FIX_CODE → first TOP_N by score "fix-now", the rest "debt"; everything else
+// (dismissed, intentional, data, pass, cannot-verify) { score: 0, bucket: "none" }.
 // Ties: id ascending, numeric part first.
 const idNum = (id) => { const m = /(\d+)$/.exec(String(id)); return m ? Number(m[1]) : Infinity; };
 const byId = (a, b) => (idNum(a.id) - idNum(b.id)) || String(a.id).localeCompare(String(b.id));
 function rankAll(findings) {
   const scored = findings
-    .filter((f) => ['FIX_CODE', 'SYNC_FIGMA'].includes(f.resolution) && SEV_W[f.severity])
+    .filter((f) => f.resolution === 'FIX_CODE' && SEV_W[f.severity])
     .map((f) => ({ f, score: SEV_W[f.severity] * 100 + LEDGER_W[f.ledger] * 10 + (6 - (f.fix?.effort ?? 3)) }))
     .sort((a, b) => b.score - a.score || byId(a.f, b.f));
   for (const f of findings) f.rank = { score: 0, bucket: 'none' };
-  const code = scored.filter((s) => s.f.resolution === 'FIX_CODE');
-  const figma = scored.filter((s) => s.f.resolution === 'SYNC_FIGMA');
-  code.forEach((s, i) => { s.f.rank = { score: s.score, bucket: i < TOP_N ? 'fix-now' : 'debt' }; });
-  figma.forEach((s) => { s.f.rank = { score: s.score, bucket: 'sync-figma' }; });
+  scored.forEach((s, i) => { s.f.rank = { score: s.score, bucket: i < TOP_N ? 'fix-now' : 'debt' }; });
   const ids = (list) => list.map((s) => s.f.id);
-  return { fixNow: ids(code.slice(0, TOP_N)), debt: ids(code.slice(TOP_N)), syncFigma: ids(figma) };
+  return { fixNow: ids(scored.slice(0, TOP_N)), debt: ids(scored.slice(TOP_N)) };
 }
 
-// Triage (report 1.1): what Maya chose to fix now; everything else became ticketed debt.
+// Triage: what Maya chose to fix now; everything else became ticketed debt.
 const TRIAGE = {
   decidedBy: 'Maya Chen', decidedAt: '2026-09-22T15:05:00Z', source: 'report-ui',
   fixNow: ['DQ-001', 'DQ-002', 'DQ-003', 'DQ-010'],
@@ -618,10 +660,10 @@ const TRIAGE = {
     'DQ-007': ['ACME-513', 'Only visible while loading; low impact.'],
     'DQ-008': ['ACME-514', 'Motion-token clean-up is planned for the next sprint.'],
     'DQ-016': ['ACME-515', 'Needs the shared delayed-flag hook; scheduled with it.'],
-    'DQ-009': ['ACME-516', 'Waiting on OD-1: design the bulk pattern or remove it.'],
+    'DQ-021': ['ACME-516', 'Motion polish; ships with the shared fade utility.'],
   },
 };
-const triageable = (x) => ['FIX_CODE', 'SYNC_FIGMA'].includes(x.resolution) && ['BLOCKER', 'WARNING', 'DS_CANDIDATE'].includes(x.severity);
+const triageable = (x) => x.resolution === 'FIX_CODE' && ['BLOCKER', 'WARNING', 'DS_CANDIDATE'].includes(x.severity);
 function buildTriage(r) {
   const items = r.findings.filter(triageable)
     .sort((a, b) => b.rank.score - a.rank.score || byId(a, b))
@@ -635,7 +677,7 @@ function buildTriage(r) {
     });
   return { decidedBy: TRIAGE.decidedBy, decidedAt: TRIAGE.decidedAt, source: TRIAGE.source, items };
 }
-// Scorecard 1.1 extras: unexplained = open findings that are not ticketed debt; debt counts; loop closed when none is unexplained.
+// Scorecard extras: unexplained = open findings that are not ticketed debt; debt counts; loop closed when none is unexplained.
 function triageScore(r) {
   const items = r.triage ? r.triage.items : [];
   const ticketed = new Set(items.filter((i) => i.decision === 'debt' && i.ticket).map((i) => i.findingId));
@@ -650,6 +692,9 @@ function derivedScorecard(r) {
   const open = f.filter((x) => OPEN.includes(x.resolution));
   const rows = r.stateMatrix;
   const bands = Object.values(r.scorecard.pixelDiff).map((p) => p.band);
+  const dismissed = f.filter((x) => x.resolution === 'DISMISSED').length;
+  const denom = Math.max(1, f.length - dismissed);
+  const dsMismatch = f.filter((x) => OPEN.includes(x.resolution));
   const ts = triageScore(r), unexplainedIds = new Set(ts.unexplained.map((x) => x.id));
   const failStates = Object.entries(r.scorecard.pixelDiff).filter(([, p]) => p.band === 'fail').map(([s]) => s);
   const failBand = failStates.some((s) => f.some((x) => x.state === s && unexplainedIds.has(x.id)) || !f.some((x) => x.state === s));
@@ -657,12 +702,12 @@ function derivedScorecard(r) {
   let verdict = 'PASS';
   if (open.some((x) => x.severity === 'BLOCKER') || rows.some((x) => x.result === 'MISSING_IN_CODE') || failBand) verdict = 'FAIL';
   else if (ts.unexplained.length || explainedFail || f.some((x) => x.severity === 'CANNOT_VERIFY') || r.openDecisions.length || bands.includes('review')
-    || rows.some((x) => ['CANNOT_VERIFY', 'MISSING_IN_DESIGN'].includes(x.result))) verdict = 'REVIEW';
+    || rows.some((x) => x.result === 'CANNOT_VERIFY')) verdict = 'REVIEW';
   return {
-    parity: open.length ? Math.min(99, Math.round(100 * (1 - open.length / Math.max(1, f.length)))) : Math.round(100 * (1 - open.length / Math.max(1, f.length))),
+    parity: open.length ? Math.min(99, Math.round(100 * (1 - open.length / denom))) : Math.round(100 * (1 - open.length / denom)),
     verdict,
     bySeverity: count('severity', ['BLOCKER', 'WARNING', 'PASS', 'CANNOT_VERIFY', 'DS_CANDIDATE']),
-    byResolution: count('resolution', ['FIX_CODE', 'SYNC_FIGMA', 'INTENTIONAL', 'DATA', 'NONE', 'UNCLASSIFIED']),
+    byResolution: count('resolution', ['FIX_CODE', 'INTENTIONAL', 'DATA', 'DISMISSED', 'NONE', 'UNCLASSIFIED']),
     stateCoverage: {
       total: rows.length,
       designed: rows.filter((x) => x.designed).length,
@@ -673,13 +718,19 @@ function derivedScorecard(r) {
     unexplained: ts.unexplained.length,
     debt: ts.debt,
     loopClosed: ts.loopClosed,
+    dismissed,
+    designSystem: {
+      tokens: dsMismatch.filter((x) => x.ledger === 'style' && x.expected.token && x.actual.token !== x.expected.token).length,
+      components: dsMismatch.filter((x) => x.ledger === 'component').length,
+      motion: dsMismatch.filter((x) => x.ledger === 'motion').length,
+    },
   };
 }
 
 function check(r) {
   const errors = [];
   const d = derivedScorecard(r);
-  for (const key of ['parity', 'verdict', 'bySeverity', 'byResolution', 'stateCoverage', 'unexplained', 'debt', 'loopClosed']) {
+  for (const key of ['parity', 'verdict', 'bySeverity', 'byResolution', 'stateCoverage', 'unexplained', 'debt', 'loopClosed', 'dismissed', 'designSystem']) {
     if (JSON.stringify(d[key]) !== JSON.stringify(r.scorecard[key])) {
       errors.push(`scorecard.${key}: written ${JSON.stringify(r.scorecard[key])}, derived ${JSON.stringify(d[key])}`);
     }
@@ -689,6 +740,7 @@ function check(r) {
   for (const f of r.findings) {
     const passLike = ['PASS', 'CANNOT_VERIFY'].includes(f.severity);
     if (passLike !== (f.resolution === 'NONE')) errors.push(`${f.id}: severity ${f.severity} with resolution ${f.resolution}`);
+    if ((f.resolution === 'DISMISSED') !== Boolean(f.dismissal)) errors.push(`${f.id}: DISMISSED and dismissal must go together`);
     for (const e of f.evidence) {
       if (!fs.existsSync(path.join(HERE, e.path))) errors.push(`${f.id}: missing evidence ${e.path}`);
       if (e.crop && (e.crop.x + e.crop.w > W || e.crop.y + e.crop.h > H)) errors.push(`${f.id}: crop outside frame ${e.path}`);
@@ -719,9 +771,9 @@ function check(r) {
 // 6. Main
 // ---------------------------------------------------------------------------
 const FIGMA_STATES = ['with-data', 'empty', 'loading', 'error', 'hover', 'focus', 'selected'];
-const APP_STATES = ['with-data', 'loading', 'error', 'hover', 'focus', 'bulk-selected']; // no app/empty.png: not implemented
+const APP_STATES = ['with-data', 'loading', 'error', 'hover', 'focus']; // no app/empty.png: not implemented
 
-for (const dir of ['figma', 'app', 'diff', 'computed', 'dom']) fs.rmSync(path.join(EV, dir), { recursive: true, force: true });
+for (const dir of ['figma', 'app', 'diff', 'computed', 'dom', 'motion', 'backfill']) fs.rmSync(path.join(EV, dir), { recursive: true, force: true });
 
 const images = { figma: {}, app: {} };
 for (const s of FIGMA_STATES) savePng((images.figma[s] = drawScene('figma', s)).png, path.join(EV, 'figma', `${s}.png`));
@@ -735,12 +787,22 @@ for (const s of FIGMA_STATES.filter((x) => APP_STATES.includes(x))) {
   diffs[s] = round2((n / (W * H)) * 100);
 }
 
+// Step 2 evidence: states the app has and the design lacks (app-only: no design side, no diff). The report's `backfill` block points here.
+for (const s of Object.keys(BACKFILL_STATES)) {
+  savePng(drawScene('app', s).png, path.join(EV, 'backfill', 'app', `${s}.png`));
+  writeJson(path.join(EV, 'backfill', 'computed', `${s}.json`), BACKFILL_COMPUTED[s]);
+  writeJson(path.join(EV, 'backfill', 'dom', `${s}.json`), { state: s, root: '[data-testid=orders-page]', ...BACKFILL_DOM[s] });
+  writeJson(path.join(EV, 'backfill', 'motion', `${s}.json`), { state: s, ...BACKFILL_MOTION[s] });
+}
+writeJson(path.join(EV, 'backfill', 'capture.json'), backfillCapture());
+
 writeJson(path.join(EV, 'figma-spec.json'), figmaSpec());
 writeJson(path.join(EV, 'ticket.json'), ticket());
 writeJson(path.join(EV, 'capture.json'), capture(APP_STATES));
 for (const s of APP_STATES) {
   writeJson(path.join(EV, 'computed', `${s}.json`), COMPUTED[s]);
   writeJson(path.join(EV, 'dom', `${s}.json`), { state: s, root: '[data-testid=orders-page]', ...DOM[s] });
+  writeJson(path.join(EV, 'motion', `${s}.json`), { state: s, ...MOTION[s] });
 }
 
 const report = JSON.parse(fs.readFileSync(REPORT_FILE, 'utf8'));
@@ -752,25 +814,25 @@ report.scorecard.pixelDiff = {};
 for (const row of report.stateMatrix) {
   const s = row.state;
   if (s in diffs) report.scorecard.pixelDiff[s] = { percent: diffs[s], band: band(diffs[s]), image: rel('diff', `${s}.png`) };
-  const cap = { figma: orNull(rel('figma', `${s}.png`)), app: orNull(rel('app', `${s}.png`)), diff: orNull(rel('diff', `${s}.png`)) };
-  row.captured = cap.figma || cap.app ? cap : null;
+  const cap = { design: orNull(rel('figma', `${s}.png`)), app: orNull(rel('app', `${s}.png`)), diff: orNull(rel('diff', `${s}.png`)) };
+  row.captured = cap.design || cap.app ? cap : null;
 }
 report.evidence.states = Object.fromEntries(report.stateMatrix.map(({ state: s }) => [s, {
-  figma: orNull(rel('figma', `${s}.png`)), app: orNull(rel('app', `${s}.png`)), diff: orNull(rel('diff', `${s}.png`)),
-  computed: orNull(rel('computed', `${s}.json`)), dom: orNull(rel('dom', `${s}.json`)),
+  design: orNull(rel('figma', `${s}.png`)), app: orNull(rel('app', `${s}.png`)), diff: orNull(rel('diff', `${s}.png`)),
+  computed: orNull(rel('computed', `${s}.json`)), dom: orNull(rel('dom', `${s}.json`)), motion: orNull(rel('motion', `${s}.json`)),
 }]));
 for (const it of report.fixLoop) {
   if (it.pixelDiffAfter) for (const s of Object.keys(it.pixelDiffAfter)) it.pixelDiffAfter[s] = diffs[s];
 }
 applyCrops(report);
-report.schemaVersion = '1.1';
+report.schemaVersion = '2.0';
 const order = rankAll(report.findings);
 report.triage = buildTriage(report);
 const ts = triageScore(report);
-Object.assign(report.scorecard, { unexplained: ts.unexplained.length, debt: ts.debt, loopClosed: ts.loopClosed });
+Object.assign(report.scorecard, { unexplained: ts.unexplained.length, debt: ts.debt, loopClosed: ts.loopClosed, dismissed: derivedScorecard(report).dismissed, designSystem: derivedScorecard(report).designSystem });
 const derived = check(report);
 fs.writeFileSync(REPORT_FILE, `${JSON.stringify(report, null, 2)}\n`);
 
 console.log('pixel diff:', Object.entries(report.scorecard.pixelDiff).map(([s, p]) => `${s} ${p.percent}% (${p.band})`).join(' · '));
-console.log(`ranked: fix-now ${order.fixNow.join(', ')} · debt ${order.debt.join(', ')} · sync-figma ${order.syncFigma.join(', ')}`);
-console.log(`parity ${derived.parity}% · verdict ${derived.verdict} · states verified ${derived.stateCoverage.verified}/${derived.stateCoverage.total} · unexplained ${derived.unexplained} · debt ${derived.debt.ticketed}/${derived.debt.count} ticketed`);
+console.log(`ranked: fix-now ${order.fixNow.join(', ')} · debt ${order.debt.join(', ')}`);
+console.log(`parity ${derived.parity}% · verdict ${derived.verdict} · states verified ${derived.stateCoverage.verified}/${derived.stateCoverage.total} · unexplained ${derived.unexplained} · dismissed ${derived.dismissed} · design system ${JSON.stringify(derived.designSystem)} · debt ${derived.debt.ticketed}/${derived.debt.count} ticketed`);

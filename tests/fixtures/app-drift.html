@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Profile settings</title>
+<style>
+  /* The build under test: drifts from prototype.html on purpose. */
+  :root {
+    --color-primary: #2563eb;
+    --color-primary-hover: #1e40af;
+    --color-text: #1a1a1a;
+    --color-surface: #ffffff;
+    --radius-md: 8px;
+    --space-4: 16px;
+  }
+  body { margin: 0; font: 16px/1.5 Arial, Helvetica, sans-serif; color: var(--color-text); background: var(--color-surface); }
+  main { padding: 24px; }
+  h1 { font-size: 24px; margin: 0 0 8px; }
+  p { margin: 0 0 16px; }
+  .legacy-btn {
+    border: 0; border-radius: var(--radius-md); padding: 8px var(--space-4); font: inherit;
+    background-color: #1d4ed8; /* hardcoded instead of var(--color-primary) */
+    color: #ffffff;
+    transition: transform 300ms ease-out; /* background-color transition missing; 300ms instead of 150ms */
+  }
+  .legacy-btn:hover { background-color: #1e3a8a; transform: translateY(-1px); }
+  .spinner { width: 24px; height: 24px; margin: 16px 0; border: 3px solid #cccccc; border-top-color: #333333; border-radius: 50%; animation: spin 800ms linear infinite; }
+  .toast { margin-top: 16px; padding: 8px 12px; border-radius: var(--radius-md); background: #111827; color: #ffffff; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Profile</h1>
+  <p>Manage how others see you.</p>
+  <button class="legacy-btn" type="button" data-component="LegacyButton">Save</button>
+  <div class="spinner" role="status" aria-label="Loading"></div>
+  <div class="toast" role="status">Saved</div>
+</main>
+</body>
+</html>

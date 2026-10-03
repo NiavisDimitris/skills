@@ -1,0 +1,59 @@
+{
+  "side": "app",
+  "url": "http://localhost:5179/checkout/payment",
+  "kind": "local",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "dpr": 1,
+  "fullPage": false,
+  "commit": "b7e41c9a20f3d58e6c1a4f07d92e3b18c5a6f2d4",
+  "branch": "feat/checkout-v3",
+  "timestamp": "2026-10-03T15:29:31.993Z",
+  "states": {
+    "with-data": {
+      "driver": {},
+      "url": "http://localhost:5179/checkout/payment",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "screenshot": "app/with-data.png",
+      "computed": "computed/with-data.json",
+      "dom": "dom/with-data.json",
+      "motion": "motion/with-data.json",
+      "settleMs": 250,
+      "durationMs": 922,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": [],
+      "degradations": []
+    },
+    "error": {
+      "driver": {
+        "query": "?error=1"
+      },
+      "url": "http://localhost:5179/checkout/payment?error=1",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "screenshot": "app/error.png",
+      "computed": "computed/error.json",
+      "dom": "dom/error.json",
+      "motion": "motion/error.json",
+      "settleMs": 250,
+      "durationMs": 894,
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "warnings": [],
+      "degradations": []
+    }
+  },
+  "degradations": []
+}

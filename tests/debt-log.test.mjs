@@ -10,7 +10,7 @@ import { loadFixture, run, script, tmpDir } from './_helpers.mjs';
 const DEBT_LOG = script('debt-log.mjs');
 const TICKET = { provider: 'jira', key: 'ABC-99', url: 'https://example.atlassian.net/browse/ABC-99', createdAt: '2026-09-24T09:05:00Z' };
 
-/** The fixture report triaged: DQ-001/DQ-002 fixed now, DQ-003 (design) and DQ-004 (engineering, ticketed) debt. */
+/** The fixture report triaged: DQ-001/DQ-002 fixed now, DQ-003, DQ-004 (ticketed) and DQ-008 debt. */
 function triaged(generatedAt = '2026-09-24T09:00:00Z') {
   const r = loadFixture('report-valid.json');
   r.meta.generatedAt = generatedAt;
@@ -33,14 +33,15 @@ test('first run: one open entry per debt item, next to the feature folder, and a
   const file = place(root, triaged());
   const res = await run(DEBT_LOG, ['--report', file]);
   assert.equal(res.code, 0, res.stderr);
-  assert.match(res.stdout, /Debt log for ABC-12: 2 added, 0 updated, 0 reopened, 0 resolved — open 2 · resolved 0/);
+  assert.match(res.stdout, /Debt log for ABC-12: 3 added, 0 updated, 0 reopened, 0 resolved — open 3 · resolved 0/);
   const logFile = path.join(root, 'qa-reports', 'design-debt.json');
   const log = JSON.parse(readFileSync(logFile, 'utf8'));
   assert.equal(log.version, 1);
   assert.deepEqual(log.entries.map((e) => [e.findingId, e.owner, e.status, e.ticket?.key ?? null]), [
-    ['DQ-003', 'design', 'open', null],
+    ['DQ-003', 'engineering', 'open', null],
     ['DQ-004', 'engineering', 'open', 'ABC-99'],
-  ]);
+    ['DQ-008', 'engineering', 'open', null],
+  ], 'debt is always owned by engineering; dismissed and intentional findings are never debt');
   const e = log.entries[1];
   assert.deepEqual(
     { since: e.since, slug: e.slug, parentTicket: e.parentTicket, severity: e.severity, resolution: e.resolution, title: e.title, where: e.where, reportPath: e.reportPath },
@@ -55,13 +56,13 @@ test('first run: one open entry per debt item, next to the feature folder, and a
       reportPath: 'ABC-12/report.json',
     },
   );
-  assert.equal(log.entries[0].where, 'Figma: Row / Hover');
+  assert.equal(log.entries[0].where, 'src/Items.tsx:61 · .row:hover');
   const md = readFileSync(path.join(root, 'qa-reports', 'design-debt.md'), 'utf8');
   const lines = md.split('\n');
   assert.deepEqual(lines.slice(0, 6), [
     '# Design debt log',
     '',
-    'open 2 · resolved 0',
+    'open 3 · resolved 0',
     '',
     '| Status | Since | Feature | Finding | Severity | Owner | Title | Where | Ticket |',
     '|---|---|---|---|---|---|---|---|---|',
@@ -99,7 +100,7 @@ test('a newer report resolves debt that is no longer open; an older report chang
   place(root, newer);
   const res = await run(DEBT_LOG, ['--report', file]);
   assert.equal(res.code, 0, res.stderr);
-  assert.match(res.stdout, /0 added, 0 updated, 0 reopened, 1 resolved — open 1 · resolved 1/);
+  assert.match(res.stdout, /0 added, 0 updated, 0 reopened, 1 resolved — open 2 · resolved 1/);
   const log = JSON.parse(readFileSync(path.join(root, 'qa-reports', 'design-debt.json'), 'utf8'));
   const resolved = log.entries.find((e) => e.findingId === 'DQ-004');
   assert.equal(resolved.status, 'resolved');
@@ -129,7 +130,8 @@ test('updateDebtLog: reopen, config and explicit paths, reports without triage',
   assert.equal(reopened.since, '2026-09-24T09:00:00Z', 'since is kept');
   assert.equal(back.log.updatedAt, '2026-09-26T09:00:00Z');
   assert.match(renderDebtLog({ entries: [] }), /open 0 · resolved 0/);
-  assert.equal(whereOf({ resolution: 'SYNC_FIGMA', element: { figmaNodeId: '1:2' }, actual: { source: {} } }), 'Figma: 1:2');
+  assert.equal(whereOf({ resolution: 'FIX_CODE', element: { figmaNodeId: '1:2' }, actual: { source: {} } }), 'Figma: 1:2', 'the design layer when there is no code location');
+  assert.equal(whereOf({ resolution: 'FIX_CODE', element: { selector: '.a', figmaLayerPath: 'A/B' }, actual: { source: { file: 'a.css', line: 3 } } }), 'a.css:3 · .a');
   assert.equal(whereOf({ resolution: 'FIX_CODE', element: {}, actual: { source: {} } }), '–');
 
   const root = tmpDir();

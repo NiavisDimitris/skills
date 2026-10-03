@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Profile settings (prototype)</title>
+<style>
+  /* Coded prototype: the design source of truth. Tokens on :root. */
+  :root {
+    --color-primary: #2563eb;
+    --color-primary-hover: #1e40af;
+    --color-text: #1a1a1a;
+    --color-surface: #ffffff;
+    --radius-md: 8px;
+    --space-4: 16px;
+    --duration-fast: 200ms;
+  }
+  body { margin: 0; font: 16px/1.5 Arial, Helvetica, sans-serif; color: var(--color-text); background: var(--color-surface); }
+  main { padding: 24px; }
+  h1 { font-size: 24px; margin: 0 0 8px; }
+  p { margin: 0 0 16px; }
+  .btn {
+    border: 0; border-radius: var(--radius-md); padding: 8px var(--space-4); font: inherit;
+    background-color: var(--color-primary); color: #ffffff;
+    transition: background-color var(--duration-fast) ease-out, transform 150ms ease-out;
+  }
+  .btn:hover { background-color: var(--color-primary-hover); transform: translateY(-1px); }
+  .spinner { width: 24px; height: 24px; margin: 16px 0; border: 3px solid #cccccc; border-top-color: #333333; border-radius: 50%; animation: spin 800ms linear infinite; }
+  .toast { margin-top: 16px; padding: 8px 12px; border-radius: var(--radius-md); background: #111827; color: #ffffff; animation: toast-in 300ms ease-out both; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Profile</h1>
+  <p>Manage how others see you.</p>
+  <button class="btn" type="button" data-component="Button" data-variant="primary">Save</button>
+  <div class="spinner" role="status" aria-label="Loading"></div>
+  <div class="toast" role="status">Saved</div>
+</main>
+</body>
+</html>

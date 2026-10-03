@@ -1,7 +1,9 @@
 // Triage: the person's "fix-now" / "debt" decision for every triageable finding
-// (FIX_CODE or SYNC_FIGMA with severity BLOCKER, WARNING or DS_CANDIDATE), so every
-// diff is either fixed now or tracked as debt with a ticket.
+// (FIX_CODE with severity BLOCKER, WARNING or DS_CANDIDATE), so every diff is
+// either fixed now or tracked as debt with a ticket. Dismissed and INTENTIONAL
+// findings are never triaged.
 import {
+  SCHEMA_VERSION,
   compareRanked,
   computeScorecard,
   findingsInBucket,
@@ -23,10 +25,8 @@ export function reportSlug(report) {
   return report?.meta?.ticket?.key || kebab(report?.meta?.feature) || 'report';
 }
 
-/** Who fixes a finding: design for SYNC_FIGMA, engineering otherwise. */
-export function ownerOf(finding) {
-  return finding?.resolution === 'SYNC_FIGMA' ? 'design' : 'engineering';
-}
+/** Who owns debt: always engineering (the code must match the design). */
+export const DEBT_OWNER = 'engineering';
 
 /** The findings with ranks (ranked with rankFindings when any rank is missing). */
 export function withRanks(findings, opts = {}) {
@@ -34,10 +34,11 @@ export function withRanks(findings, opts = {}) {
   return list.every((f) => f && f.rank) ? list : rankFindings(list, opts);
 }
 
-/** Recommended fix-now ids: the fix-now bucket, then the sync-figma bucket, in rank order. */
+/** Recommended fix-now ids: the fix-now bucket, then every blocker left in the debt bucket, in rank order. */
 export function recommendedFixIds(report, opts = {}) {
   const ranked = withRanks(report?.findings, opts);
-  return [...findingsInBucket(ranked, 'fix-now'), ...findingsInBucket(ranked, 'sync-figma')].map((f) => f.id);
+  const blockers = findingsInBucket(ranked, 'debt').filter((f) => f.severity === 'BLOCKER');
+  return [...findingsInBucket(ranked, 'fix-now'), ...blockers].map((f) => f.id);
 }
 
 /** "/design-qa triage <slug> --fix DQ-001,DQ-002" ("--fix none" when nothing is fixed now). */
@@ -48,17 +49,17 @@ export function triageCommand(report, fixIds = []) {
 
 /**
  * Split the triageable findings by decision, each list in rank order:
- * { triaged, fixNow (FIX_CODE), syncFigma (SYNC_FIGMA), debt (both) }.
- * Without a triage block the rank buckets are the recommendation.
+ * { triaged, fixNow, debt }. Without a triage block the recommendation applies:
+ * the fix-now bucket plus every blocker is fix now, the rest of the debt bucket is debt.
  */
 export function triageLists(report, opts = {}) {
   const findings = withRanks(report?.findings, opts);
   if (!report?.triage || !Array.isArray(report.triage.items)) {
+    const debtBucket = findingsInBucket(findings, 'debt');
     return {
       triaged: false,
-      fixNow: findingsInBucket(findings, 'fix-now'),
-      syncFigma: findingsInBucket(findings, 'sync-figma'),
-      debt: findingsInBucket(findings, 'debt'),
+      fixNow: [...findingsInBucket(findings, 'fix-now'), ...debtBucket.filter((f) => f.severity === 'BLOCKER')],
+      debt: debtBucket.filter((f) => f.severity !== 'BLOCKER'),
     };
   }
   const index = triageIndex(report);
@@ -66,8 +67,7 @@ export function triageLists(report, opts = {}) {
   const decided = (f, decision) => index.get(f.id).decision === decision;
   return {
     triaged: true,
-    fixNow: sorted.filter((f) => decided(f, 'fix-now') && f.resolution === 'FIX_CODE'),
-    syncFigma: sorted.filter((f) => decided(f, 'fix-now') && f.resolution === 'SYNC_FIGMA'),
+    fixNow: sorted.filter((f) => decided(f, 'fix-now')),
     debt: sorted.filter((f) => decided(f, 'debt')),
   };
 }
@@ -109,10 +109,10 @@ function orderKeys(obj) {
   return out;
 }
 
-/** The report with a triage block applied: schemaVersion 1.1, ranks filled, scorecard recomputed. */
+/** The report with a triage block applied: ranks filled, scorecard recomputed. */
 export function applyTriage(report, triage, opts = {}) {
   const o = resolveOptions(opts);
-  const next = orderKeys({ ...report, schemaVersion: '1.1', findings: withRanks(report.findings, o), triage });
+  const next = orderKeys({ ...report, schemaVersion: SCHEMA_VERSION, findings: withRanks(report.findings, o), triage });
   next.scorecard = computeScorecard(next, o);
   return next;
 }

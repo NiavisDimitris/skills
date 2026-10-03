@@ -1,0 +1,414 @@
+{
+  "schemaVersion": "2.0",
+  "meta": {
+    "feature": "Checkout flow",
+    "generatedAt": "2026-10-02T08:00:00Z",
+    "skillVersion": "0.2.0",
+    "mode": "audit",
+    "ticket": null,
+    "source": {
+      "kind": "prototype",
+      "url": "https://checkout-proto.framer.website/",
+      "label": "Checkout prototype",
+      "tool": "framer",
+      "frame": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    "screens": [
+      {
+        "id": "cart",
+        "name": "Cart",
+        "designRef": "https://checkout-proto.framer.website/cart",
+        "appRoute": "/cart",
+        "frame": {
+          "width": 1440,
+          "height": 900
+        }
+      },
+      {
+        "id": "checkout",
+        "name": "Checkout",
+        "designRef": "https://checkout-proto.framer.website/checkout",
+        "appRoute": "/checkout",
+        "frame": {
+          "width": 1440,
+          "height": 900
+        }
+      }
+    ],
+    "app": {
+      "url": "http://localhost:3000/cart",
+      "kind": "local",
+      "route": "/cart",
+      "commit": null,
+      "branch": null,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1
+    },
+    "fixture": null,
+    "tools": {
+      "figmaAccess": "none",
+      "capture": "script",
+      "ticket": "none",
+      "prototypeCapture": "script"
+    },
+    "degradations": []
+  },
+  "scorecard": {
+    "parity": 25,
+    "verdict": "FAIL",
+    "bySeverity": {
+      "BLOCKER": 1,
+      "WARNING": 2,
+      "PASS": 1,
+      "CANNOT_VERIFY": 0,
+      "DS_CANDIDATE": 0
+    },
+    "byResolution": {
+      "FIX_CODE": 3,
+      "INTENTIONAL": 0,
+      "DATA": 0,
+      "DISMISSED": 0,
+      "NONE": 1,
+      "UNCLASSIFIED": 0
+    },
+    "pixelDiff": {},
+    "stateCoverage": {
+      "total": 4,
+      "designed": 4,
+      "specified": 0,
+      "implemented": 4,
+      "verified": 4
+    },
+    "unexplained": 3,
+    "debt": {
+      "count": 0,
+      "ticketed": 0
+    },
+    "loopClosed": false,
+    "dismissed": 0,
+    "designSystem": {
+      "tokens": 0,
+      "components": 0,
+      "motion": 1
+    }
+  },
+  "stateMatrix": [
+    {
+      "state": "cart/with-items",
+      "label": "With items",
+      "screen": "cart",
+      "designed": {
+        "nodeId": "proto:/cart",
+        "name": "/cart"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "fixture",
+        "detail": "3 items"
+      },
+      "captured": {
+        "design": "evidence/design/with-data.png",
+        "app": "evidence/app/with-data.png",
+        "diff": "evidence/diff/with-data.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-001",
+        "DQ-002"
+      ]
+    },
+    {
+      "state": "cart/empty",
+      "label": "Empty",
+      "screen": "cart",
+      "designed": {
+        "nodeId": "proto:/cart?empty",
+        "name": "/cart?empty"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "mock",
+        "detail": "[]"
+      },
+      "captured": {
+        "design": "evidence/design/empty.png",
+        "app": null,
+        "diff": null
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": []
+    },
+    {
+      "state": "checkout/form",
+      "label": "Form",
+      "screen": "checkout",
+      "designed": {
+        "nodeId": "proto:/checkout",
+        "name": "/checkout"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "fixture",
+        "detail": "default"
+      },
+      "captured": {
+        "design": "evidence/design/hover.png",
+        "app": "evidence/app/hover.png",
+        "diff": "evidence/diff/hover.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-003"
+      ]
+    },
+    {
+      "state": "checkout/error",
+      "label": "Error",
+      "screen": "checkout",
+      "designed": {
+        "nodeId": "proto:/checkout?error",
+        "name": "/checkout?error"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "mock",
+        "detail": "500"
+      },
+      "captured": {
+        "design": "evidence/design/error.png",
+        "app": "evidence/app/error.png",
+        "diff": "evidence/diff/error.png"
+      },
+      "result": "PASS",
+      "note": null,
+      "findings": [
+        "DQ-004"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "DQ-001",
+      "title": "Cart total uses a hardcoded colour",
+      "ledger": "style",
+      "state": "cart/with-items",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Main",
+      "element": {
+        "selector": ".x",
+        "figmaLayerPath": null,
+        "figmaNodeId": null
+      },
+      "property": "color",
+      "expected": {
+        "value": "a",
+        "token": null,
+        "source": "prototype"
+      },
+      "actual": {
+        "value": "b",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 41,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "fix",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 2
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": {
+            "x": 904,
+            "y": 264,
+            "w": 150,
+            "h": 48
+          },
+          "state": "cart/with-items"
+        }
+      ],
+      "rank": null,
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
+      "screen": "cart"
+    },
+    {
+      "id": "DQ-002",
+      "title": "Cart line items miss the remove button",
+      "ledger": "structure",
+      "state": "cart/with-items",
+      "severity": "BLOCKER",
+      "resolution": "FIX_CODE",
+      "region": "Main",
+      "element": {
+        "selector": ".x",
+        "figmaLayerPath": null,
+        "figmaNodeId": null
+      },
+      "property": "color",
+      "expected": {
+        "value": "a",
+        "token": null,
+        "source": "prototype"
+      },
+      "actual": {
+        "value": "b",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 42,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "fix",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 2
+      },
+      "evidence": [],
+      "rank": null,
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
+      "screen": "cart"
+    },
+    {
+      "id": "DQ-003",
+      "title": "Pay button press has no scale animation",
+      "ledger": "motion",
+      "state": "checkout/form",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Main",
+      "element": {
+        "selector": ".x",
+        "figmaLayerPath": null,
+        "figmaNodeId": null
+      },
+      "property": "color",
+      "expected": {
+        "value": "a",
+        "token": null,
+        "source": "prototype"
+      },
+      "actual": {
+        "value": "b",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 43,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": {
+        "summary": "fix",
+        "patchHint": null,
+        "files": [
+          "src/orders/Orders.tsx"
+        ],
+        "effort": 2
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/hover.png",
+          "crop": {
+            "x": 284,
+            "y": 312,
+            "w": 1104,
+            "h": 48
+          },
+          "state": "checkout/form"
+        }
+      ],
+      "rank": null,
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
+      "screen": "checkout"
+    },
+    {
+      "id": "DQ-004",
+      "title": "Error banner matches the prototype",
+      "ledger": "component",
+      "state": "checkout/error",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Main",
+      "element": {
+        "selector": ".x",
+        "figmaLayerPath": null,
+        "figmaNodeId": null
+      },
+      "property": "color",
+      "expected": {
+        "value": "a",
+        "token": null,
+        "source": "prototype"
+      },
+      "actual": {
+        "value": "b",
+        "token": null,
+        "source": {
+          "file": "src/orders/Orders.tsx",
+          "line": 44,
+          "snippet": null
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "fix": null,
+      "evidence": [],
+      "rank": null,
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
+      "screen": "checkout"
+    }
+  ],
+  "ledgers": {
+    "structure": [],
+    "component": [],
+    "style": [],
+    "state": [],
+    "behavior": [],
+    "motion": []
+  },
+  "openDecisions": [],
+  "fixLoop": [],
+  "triage": null,
+  "evidence": {
+    "figmaSpec": null,
+    "ticket": null,
+    "capture": "evidence/screens/cart/capture.json",
+    "states": {}
+  }
+}

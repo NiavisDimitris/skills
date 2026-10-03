@@ -33,6 +33,15 @@ Unknown keys are warnings, not errors. The JSON Schema is `schemas/config.schema
         "hover":     { "action": "hover", "selector": "[data-testid=row]:first-child" },
         "selected":  { "action": "click", "selector": "[data-testid=row]:first-child" }
       }
+    },
+    "checkout": {
+      "route": "/checkout",
+      "prototype": "https://checkout-proto.framer.website",
+      "screens": {
+        "cart":     { "figma": null, "prototype": "https://checkout-proto.framer.website/cart", "route": "/checkout/cart" },
+        "payment":  { "figma": null, "prototype": "https://checkout-proto.framer.website/payment", "route": "/checkout/payment" }
+      },
+      "states": { "with-data": {} }
     }
   },
   "designSystem": {
@@ -50,7 +59,7 @@ Unknown keys are warnings, not errors. The JSON Schema is `schemas/config.schema
     "embedImages": true,
     "ranking": {
       "severity": { "BLOCKER": 3, "WARNING": 2, "DS_CANDIDATE": 1 },
-      "ledger": { "structure": 3, "component": 3, "state": 3, "style": 2, "behavior": 2 }
+      "ledger": { "structure": 3, "component": 3, "state": 3, "style": 2, "behavior": 2, "motion": 2 }
     },
     "debtLog": "qa-reports/design-debt.md"
   },
@@ -72,9 +81,11 @@ Which scripts read the config:
 
 | Script | Reads |
 |---|---|
-| `capture.mjs --config design-qa.config.json [--surface <name>]` | The URL (`app.baseUrl` + the surface route), the surface's states, `app.auth` (type, env prefix, login), `app.headers`, `fullPage`, `capture.reducedMotion`. Explicit flags win; `--state <name>` alone picks that state's configured driver. `--surface` is optional when there is only one. |
-| `state-discovery.mjs --config … --surface <name>` | The surface's states, as the implemented side of the matrix. |
+| `capture.mjs --config design-qa.config.json [--surface <name>]` | The URL (`app.baseUrl` + the surface route), the surface's states, `app.auth` (type, env prefix, login), `app.headers`, `fullPage`, `capture.reducedMotion`. Explicit flags win; `--state <name>` alone picks that state's configured driver. `--surface` is optional when there is only one. With `--side design`, pass the prototype's `--url` explicitly. |
+| `state-discovery.mjs --config … --surface <name>` | The surface's states, as the implemented side of the matrix. With `--backfill-out`, configured states (with a driver) that the design does not define become backfill candidates (`discoveredBy: "config"`); they are never rows. |
+| The agent, for design backfill (step 2) | `designSystem.name`, `designSystem.componentCatalog` and `designSystem.tokenMap`, to map what the app renders to library components and variables (design-backfill.md). No other key: step 2 needs no config of its own. |
 | `render-report.mjs --config …`, `validate.mjs --config …` | `tolerances.pixelDiff`, `report.topN`, `report.ranking`, `report.embedImages`. |
+| The agent, for the design input | `surfaces.<name>.prototype`, `surfaces.<name>.figma` and `surfaces.<name>.screens` (SKILL.md section 2). |
 | The agent, for triage | `ticket.debt` (passed to `jira-fetch.mjs --tickets-from`) and `report.debtLog` (passed to `debt-log.mjs --md`). |
 | `validate.mjs design-qa.config.json` | The whole file, against the schema. |
 
@@ -103,8 +114,10 @@ A surface is one screen or view you compare, keyed by a short name you can pass 
 | `surfaces.<name>.route` | string | required | Route on `app.baseUrl`. `{id}` or `{fixture}` is replaced by a state's fixture value. |
 | `surfaces.<name>.fixture` | string or null | null | Default fixture for the with-data render. |
 | `surfaces.<name>.fullPage` | boolean | false | Also capture the full scrollable page. |
-| `surfaces.<name>.figma` | `{ fileKey, nodeId }` | none | The frame this surface is compared with. |
-| `surfaces.<name>.states` | object | `{}` | State id → driver: `fixture`, `query`, `mock`, `storage`, `action` (+ `selector`, `keys`, `settleMs`), `viewport`, `reducedMotion`, `wait` (the element that proves the state rendered), `source`. A state other than `with-data` whose driver has none of `fixture`, `query`, `mock`, `storage`, `action` or `viewport` is not captured (logged in `capture.json` degradations). See state-matrix.md. |
+| `surfaces.<name>.figma` | `{ fileKey, nodeId }` | none | The Figma frame, page or section this surface is compared with. A prototype link's file key and starting node work too. |
+| `surfaces.<name>.prototype` | URL or null | null | A coded prototype (Figma Make, Framer, v0, Lovable, HTML, localhost) that is this surface's source of truth. When set, it wins over `figma` (SKILL.md section 2). See prototype-source.md. |
+| `surfaces.<name>.screens` | object | none | Multi-screen surfaces: screen id → `{ "figma": url or null, "prototype": url or null, "route": "<app route>" }`. Each screen is captured at its own route and compared with its own design reference; state ids become `<screen>/<state>`. |
+| `surfaces.<name>.states` | object | `{}` | State id → driver (a state the design does not define is a backfill candidate for step 2, not a matrix row): `fixture`, `query`, `mock`, `storage`, `action` (+ `selector`, `keys`, `settleMs`), `viewport`, `reducedMotion`, `wait` (the element that proves the state rendered), `source`. A state other than `with-data` whose driver has none of `fixture`, `query`, `mock`, `storage`, `action` or `viewport` is not captured (logged in `capture.json` degradations). See state-matrix.md. |
 
 ### designSystem
 
@@ -143,8 +156,8 @@ Paths are relative to the repository root. The files are the project's private o
 | `report.topN` | integer | 5 | Fix-now size. The skill's `--top N` overrides it. |
 | `report.embedImages` | boolean | true | Inline images so `report.html` is one self-contained file. |
 | `report.ranking.severity` | object | `{ "BLOCKER": 3, "WARNING": 2, "DS_CANDIDATE": 1 }` | Severity weights in the ranking score. |
-| `report.ranking.ledger` | object | `{ "structure": 3, "component": 3, "state": 3, "style": 2, "behavior": 2 }` | Ledger weights in the ranking score. |
-| `report.debtLog` | path | `qa-reports/design-debt.md` | The readable, cumulative design-debt log. Pass it to `debt-log.mjs --md`; the JSON log sits next to it (`qa-reports/design-debt.json`). |
+| `report.ranking.ledger` | object | `{ "structure": 3, "component": 3, "state": 3, "style": 2, "behavior": 2, "motion": 2 }` | Ledger weights in the ranking score. |
+| `report.debtLog` | path | `qa-reports/design-debt.md` | The readable, cumulative design-debt log. Pass it to `debt-log.mjs --md`; the JSON log sits next to it (`qa-reports/design-debt.json`). The dismissals log (`dismissed.json` and `.md`) is not configured here: `dismiss.mjs` writes it in the parent of the report folder (`qa-reports/` with the default `report.outDir`), or where `--log` and `--md` say. |
 
 ### ticket
 
@@ -165,7 +178,7 @@ Paths are relative to the repository root. The files are the project's private o
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `figma.access` | array of `mcp` · `devmode-mcp` · `rest` · `manual` | `["mcp", "rest"]` | The Figma ladder rungs this project allows, in order. |
+| `figma.access` | array of `mcp` · `devmode-mcp` · `rest` · `manual` | `["mcp", "rest"]` | The Figma ladder rungs this project allows, in order. Not used for a coded prototype source. |
 
 ### capture
 
@@ -211,7 +224,7 @@ When `design-qa.config.json` is missing, create it instead of stopping.
    1. Where does the app run? (base URL)
    2. How do you start it locally? (command, or "it is already running")
    3. What is the design system called?
-3. **Write the config** with one surface built from the current inputs (route from the URL path, `figma` from the link, `states` with `with-data` only; Phase 3 adds more), `designSystem` paths pointing at `design-qa/`, and defaults for the rest.
+3. **Write the config** with one surface built from the current inputs (route from the URL path, `figma` or `prototype` from the design input, `screens` when the design has several, `states` with `with-data` only; Phase 3 adds more), `designSystem` paths pointing at `design-qa/`, and defaults for the rest.
 4. **Create the overlay** from the templates and fill what can be discovered (tokens from the Figma variables and the code's token files, catalog entries for the components on this screen). Mark unknown rows as such rather than guessing.
 5. **Validate** it with `scripts/validate.mjs`, and tell the user which defaults were assumed.
 
@@ -219,7 +232,7 @@ In ci mode nothing is asked: write a minimal config into the output directory fr
 
 ## Helper modules
 
-`scripts/lib/` holds small modules the agent can call directly. Only `state-discovery.mjs` has a command line (state-matrix.md); import the others with Node, using the absolute path of this skill's folder:
+`scripts/lib/` holds small modules the agent can call directly. Only `state-discovery.mjs` has a command line (state-matrix.md; `scripts/backfill.mjs` is the command for `lib/backfill.mjs`); import the others with Node, using the absolute path of this skill's folder:
 
 ```bash
 node --input-type=module -e "
@@ -230,13 +243,23 @@ console.log(JSON.stringify(classifyInput(process.argv[1])));
 
 | Module | Exports | Returns |
 |---|---|---|
-| `target-url.mjs` | `classifyInput(input)` | `{ kind: "figma-url" \| "ticket-key" \| "pr-url" \| "app-url" \| "surface-name", … }` |
-| | `appKind(url)` | `local`, `preview`, `staging` or `prod` |
-| | `extractUrls(text)` | `{ figmaUrls, previewUrls, prUrls, otherUrls }` |
+| `target-url.mjs` | `classifyInput(input, { prototype })` | `{ kind, … }`: `figma-url` `{ fileKey, nodeId, url }` · `figma-prototype` `{ fileKey, nodeId, startingNodeId, url }` (a `figma.com/proto/…` link) · `prototype` `{ url, tool, appKind }` (Figma Make `figma.com/make/…` or `*.figma.site`, Framer, v0 or Lovable host, or a `file:` URL; with `{ prototype: true }`, i.e. a URL passed with `--prototype`, any http(s) or `file:` URL) · `ticket-key` `{ key, provider?, url? }` (`ABC-123`, a Jira or Linear issue link) · `pr-url` · `app-url` `{ url, appKind }` · `surface-name` `{ name }` |
+| | `prototypeTool(url, { assume })`, `designSource(url, { label, frame })` | The tool from the host (`figma-make`, `framer`, `v0`, `lovable`, `html` for `file:` URLs and `*.html` pages; with `assume: true` any other URL is `other`; else null). `designSource` returns a ready `meta.source` object `{ kind: "figma" \| "figma-prototype" \| "prototype", url, label, tool, frame }`, null when the value is not a URL |
+| | `appKind(url)` | `local`, `preview`, `staging` or `prod` (`file:` is `local`) |
+| | `extractUrls(text)` | `{ figmaUrls, prototypeUrls, previewUrls, prUrls, otherUrls }`: what `ticket.json` stores |
 | | `resolveTarget({ explicitUrl, ticket, config, surface })` | `{ url, kind, source, needsConfirmation }` or null, in the order of SKILL.md section 2 |
-| `figma-url.mjs` | `parseFigmaUrl(url)` | `{ fileKey, mainFileKey, branchKey, nodeId, kind, fileName, url }` |
-| | `normalizeNodeId(id)`, `toUrlNodeId(id)` | `1-23` ↔ `1:23` |
+| `figma-url.mjs` | `parseFigmaUrl(url)` | `{ fileKey, mainFileKey, branchKey, nodeId, startingNodeId, kind, isPrototype, fileName, url }` |
+| | `normalizeNodeId(id)`, `toUrlNodeId(id)`, `figmaDesignUrl(fileKey, nodeId)` | `1-23` ↔ `1:23`; a design link for a node |
 | `ranking.mjs` | `scoreFinding`, `rankFindings`, `computeScorecard`, `band` | The derived rules of classification.md |
 | | `explainVerdict(report, options)` | `{ verdict, reasons }`: use the reasons when you report the verdict |
 | `adf.mjs` | `adfToText(doc)`, `textToAdf(text)` | Jira rich text ↔ plain text |
+| `figma-motion.mjs` | `figmaMotionSpecs(spec)` | Expected motion from reaction transitions: `[ { nodeId, nodeName, layerPath, trigger, figmaTrigger, destinationId, destinationName, navigation, type, direction, durationMs, easing, figmaEasing, delayMs, property, approximate, detail, source } ]` (figma-extraction.md, "Motion") |
+| | `motionMatches(expected, observedList, { durationToleranceMs })` | `{ result, observed, reasons }`: whether an observed transition or animation matches the expected one |
+| | `normalizeEasing`, `easingEqual`, `figmaEasingToCss`, `springToCubicBezier`, `parseDurationMs`, `describeMotion` | Easing and duration helpers behind the mapping |
+| `screens.mjs` | `discoverScreens(spec)` | `[ { id, name, nodeId, frame, states } ]` for a multi-screen page, section or flow |
+| `compare.mjs` | `compareState`, `compareFigmaMotion`, `dedupeMotion`, `dedupeRepeats`, `summarize`, `parseTokenMap`, `parseTokenCategories`, `tokenForValue`, `componentIdentity` | The core of `scripts/compare.mjs`: design-capture versus app-capture rows (browser-capture.md) |
+| `dismissals.mjs` | `applyDismissal`, `undoDismissal`, `applyPriorDismissals`, `upsertLogEntries`, `fingerprint`, `parseDismissalsFile`, `renderDismissedMarkdown` | The core of `scripts/dismiss.mjs`: fingerprints, applying and re-applying dismissals, the log (report.md, "Dismissals") |
 | `state-discovery.mjs` | `normalizeStateName(name)`, `buildStateMatrix(…)` | Normalised state ids; matrix rows |
+| | `discoverUndesigned({ figmaSpec, ticket, config, surface, screen })` | Backfill candidates: config and ticket states the design does not define, the `candidates` of `backfill-candidates.json` (design-backfill.md) |
+| `backfill.mjs` | `mergeCandidates`, `attachCaptures`, `decideItems`, `setOverride`, `recordBuilt`, `gateStatus`, `parseBackfillFile`, `parseBackfillMessage`, `formatBackfillMessage` | The core of `scripts/backfill.mjs`: the `backfill` block, the gate and the two import formats (report.md, "Design backfill") |
+| `backfill-plan.mjs` | `renderBackfillPlan`, `backfillPointer`, `designAgentPrompt` | `report-backfill.md`, the fix plan's closing pointer line, the design-agent prompt per item |

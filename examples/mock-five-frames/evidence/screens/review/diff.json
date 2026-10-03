@@ -1,0 +1,34 @@
+{
+  "results": {
+    "with-data": {
+      "state": "with-data",
+      "width": 1440,
+      "height": 900,
+      "diffPixels": 5670,
+      "totalPixels": 1296000,
+      "percent": 0.44,
+      "band": "review",
+      "pixelBand": "pass",
+      "structuralPercent": 3.11,
+      "structuralBand": "review",
+      "structuralRegions": [
+        {
+          "x": 120,
+          "y": 440,
+          "w": 800,
+          "h": 248,
+          "pixels": 40343,
+          "percent": 3.11
+        }
+      ],
+      "maskedPercent": 0,
+      "out": "examples/mock-five-frames/evidence/screens/review/diff/with-data.png"
+    }
+  },
+  "worst": {
+    "state": "with-data",
+    "percent": 0.44,
+    "band": "review",
+    "structuralPercent": 3.11
+  }
+}

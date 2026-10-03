@@ -6,7 +6,7 @@ import path from 'node:path';
 import { CliError, displayPath, parseCli, readJsonFile, runMain, usageError, writeJson } from './lib/args.mjs';
 import { TRIAGE_SOURCES, isTriageable, resolveOptions } from './lib/ranking.mjs';
 import { validateConfig, validateReport } from './lib/schema-check.mjs';
-import { applyTriage, buildTriage, ownerOf, recommendedFixIds, reportSlug, triageLists } from './lib/triage.mjs';
+import { applyTriage, buildTriage, recommendedFixIds, reportSlug, triageLists } from './lib/triage.mjs';
 
 const HELP = `Record which findings get fixed now; everything else becomes debt.
 
@@ -21,8 +21,8 @@ Choose exactly one of:
   --selection <file>       selection.json exported by report.html:
                            { feature, slug, reportGeneratedAt, fixNow: [ids], debt: [ids],
                              decidedBy, decidedAt }
-  --default                the recommendation: the fix-now and sync-figma rank buckets are
-                           fixed now, the debt bucket becomes debt (use in CI)
+  --default                the recommendation: the fix-now rank bucket and every blocker are
+                           fixed now, the rest of the debt bucket becomes debt (use in CI)
 
 Options:
   --by <name>              who decided (default: the selection's decidedBy, else none)
@@ -34,12 +34,12 @@ Options:
   --quiet                  only print warnings and errors
   -h, --help               show this help
 
-Triageable findings are FIX_CODE and SYNC_FIGMA findings with severity BLOCKER, WARNING
-or DS_CANDIDATE. Listed ids become "fix-now", every other triageable finding "debt".
-A BLOCKER can never be debt: unlisted blockers stay fix-now (with a warning). Tickets
-already recorded for a finding are kept. report.json is rewritten in place with the
-triage block, schemaVersion 1.1 and a recomputed scorecard (unexplained, debt,
-loopClosed), then validated. Next: ticket the debt with
+Triageable findings are FIX_CODE findings with severity BLOCKER, WARNING or
+DS_CANDIDATE (DISMISSED and INTENTIONAL findings never are). Listed ids become
+"fix-now", every other triageable finding "debt". A BLOCKER can never be debt: unlisted
+blockers stay fix-now (with a warning). Tickets already recorded for a finding are
+kept. report.json (schemaVersion 2.0) is rewritten in place with the triage block and
+a recomputed scorecard (unexplained, debt, loopClosed), then validated. Next: ticket the debt with
 jira-fetch.mjs --tickets-from <report.json>, log it with debt-log.mjs, and re-render.
 
 Exit codes: 0 ok · 1 invalid report or write failure · 2 bad arguments`;
@@ -163,15 +163,14 @@ async function main(argv) {
   const sc = next.scorecard;
   log(`Triage for ${slug} (${report.meta.feature}) — source ${source}${decidedBy ? `, decided by ${decidedBy}` : ''}, ${decidedAt.slice(0, 10)}`);
   log(`  Fix now (${lists.fixNow.length}): ${ids(lists.fixNow)}`);
-  log(`  Sync to Figma (${lists.syncFigma.length}): ${ids(lists.syncFigma)}`);
-  log(`  Debt (${lists.debt.length}): ${lists.debt.map((f) => `${f.id} [${ownerOf(f)}]`).join(', ') || 'none'} — ${debtItems.length - needTickets} ticketed, ${needTickets} need a ticket`);
+  log(`  Debt (${lists.debt.length}): ${ids(lists.debt)} — ${debtItems.length - needTickets} ticketed, ${needTickets} need a ticket`);
   log(`  Verdict ${sc.verdict} · parity ${sc.parity}% · unexplained ${sc.unexplained} · loop ${sc.loopClosed ? 'closed' : 'open'}`);
   if (values['dry-run']) {
     log('[dry run] report.json not written');
     return 0;
   }
   writeJson(reportFile, next);
-  log(`Wrote ${displayPath(reportFile)} (schemaVersion 1.1)`);
+  log(`Wrote ${displayPath(reportFile)}`);
   if (needTickets) log(`Next: node scripts/jira-fetch.mjs --tickets-from ${displayPath(reportFile)} (dry run first), then debt-log.mjs and render-report.mjs`);
   return 0;
 }

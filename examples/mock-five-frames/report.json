@@ -1,0 +1,6551 @@
+{
+  "schemaVersion": "2.0",
+  "meta": {
+    "feature": "Checkout v3",
+    "generatedAt": "2026-10-03T09:40:00Z",
+    "skillVersion": "0.2.0",
+    "mode": "audit",
+    "source": {
+      "kind": "figma",
+      "url": "https://www.figma.com/design/Ck3fQ9xYzA1/Checkout-v3?node-id=2140-118",
+      "label": "Checkout v3 (Figma)",
+      "tool": null,
+      "frame": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    "screens": [
+      {
+        "id": "cart",
+        "name": "Cart",
+        "designRef": "2140:120",
+        "appRoute": "/checkout/cart",
+        "frame": {
+          "width": 1440,
+          "height": 900
+        }
+      },
+      {
+        "id": "shipping",
+        "name": "Shipping",
+        "designRef": "2140:410",
+        "appRoute": "/checkout/shipping",
+        "frame": {
+          "width": 1440,
+          "height": 900
+        }
+      },
+      {
+        "id": "payment",
+        "name": "Payment",
+        "designRef": "2140:690",
+        "appRoute": "/checkout/payment",
+        "frame": {
+          "width": 1440,
+          "height": 900
+        }
+      },
+      {
+        "id": "review",
+        "name": "Review",
+        "designRef": "2140:955",
+        "appRoute": "/checkout/review",
+        "frame": {
+          "width": 1440,
+          "height": 900
+        }
+      },
+      {
+        "id": "confirmation",
+        "name": "Confirmation",
+        "designRef": "2140:1230",
+        "appRoute": "/checkout/confirmation",
+        "frame": {
+          "width": 1440,
+          "height": 900
+        }
+      }
+    ],
+    "ticket": {
+      "provider": "jira",
+      "key": "CHK-214",
+      "url": "https://acme.atlassian.net/browse/CHK-214",
+      "title": "Checkout v3: five-step checkout from cart to confirmation"
+    },
+    "figma": {
+      "fileKey": "Ck3fQ9xYzA1",
+      "nodeId": "2140:118",
+      "url": "https://www.figma.com/design/Ck3fQ9xYzA1/Checkout-v3?node-id=2140-118",
+      "frame": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    "app": {
+      "url": "http://localhost:5179/checkout/cart",
+      "kind": "local",
+      "route": "/checkout/cart",
+      "commit": "b7e41c9a20f3d58e6c1a4f07d92e3b18c5a6f2d4",
+      "branch": "feat/checkout-v3",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1
+    },
+    "fixture": "fixtures/checkout/three-items.json",
+    "tools": {
+      "figmaAccess": "rest",
+      "capture": "script",
+      "prototypeCapture": null,
+      "ticket": "rest"
+    },
+    "degradations": [
+      {
+        "step": "capture:payment/focus",
+        "reason": "No focus driver for the card number field (surfaces.checkout.screens.payment.states.focus is not defined).",
+        "impact": "The Input focus ring is reported as CANNOT_VERIFY (DQ-014)."
+      },
+      {
+        "step": "pixel diff:review/promo-applied",
+        "reason": "The promo-applied state is not implemented, so there is no app capture.",
+        "impact": "No pixel diff for review/promo-applied; reported as MISSING_IN_CODE (DQ-017)."
+      }
+    ]
+  },
+  "scorecard": {
+    "parity": 41,
+    "verdict": "FAIL",
+    "bySeverity": {
+      "BLOCKER": 4,
+      "WARNING": 12,
+      "PASS": 6,
+      "CANNOT_VERIFY": 1,
+      "DS_CANDIDATE": 0
+    },
+    "byResolution": {
+      "FIX_CODE": 12,
+      "INTENTIONAL": 1,
+      "DATA": 1,
+      "DISMISSED": 1,
+      "NONE": 7,
+      "UNCLASSIFIED": 1
+    },
+    "pixelDiff": {
+      "cart/with-data": {
+        "percent": 0.39,
+        "band": "pass",
+        "structuralPercent": 0,
+        "structuralBand": "pass",
+        "image": "evidence/screens/cart/diff/with-data.png"
+      },
+      "cart/empty": {
+        "percent": 0,
+        "band": "pass",
+        "structuralPercent": 0,
+        "structuralBand": "pass",
+        "image": "evidence/screens/cart/diff/empty.png"
+      },
+      "shipping/with-data": {
+        "percent": 0.04,
+        "band": "pass",
+        "structuralPercent": 0,
+        "structuralBand": "pass",
+        "image": "evidence/screens/shipping/diff/with-data.png"
+      },
+      "shipping/hover": {
+        "percent": 0.04,
+        "band": "pass",
+        "structuralPercent": 0,
+        "structuralBand": "pass",
+        "image": "evidence/screens/shipping/diff/hover.png"
+      },
+      "payment/with-data": {
+        "percent": 0.14,
+        "band": "pass",
+        "structuralPercent": 0,
+        "structuralBand": "pass",
+        "image": "evidence/screens/payment/diff/with-data.png"
+      },
+      "payment/error": {
+        "percent": 1.98,
+        "band": "review",
+        "structuralPercent": 4.31,
+        "structuralBand": "review",
+        "image": "evidence/screens/payment/diff/error.png"
+      },
+      "review/with-data": {
+        "percent": 0.44,
+        "band": "review",
+        "structuralPercent": 3.11,
+        "structuralBand": "review",
+        "image": "evidence/screens/review/diff/with-data.png"
+      },
+      "confirmation/with-data": {
+        "percent": 0.37,
+        "band": "pass",
+        "structuralPercent": 0,
+        "structuralBand": "pass",
+        "image": "evidence/screens/confirmation/diff/with-data.png"
+      }
+    },
+    "stateCoverage": {
+      "total": 9,
+      "designed": 9,
+      "specified": 8,
+      "implemented": 8,
+      "verified": 8
+    },
+    "unexplained": 13,
+    "debt": {
+      "count": 0,
+      "ticketed": 0
+    },
+    "loopClosed": false,
+    "dismissed": 1,
+    "designSystem": {
+      "tokens": 4,
+      "components": 2,
+      "motion": 2
+    },
+    "backfill": {
+      "candidates": 3,
+      "toBuild": 1,
+      "built": 0,
+      "notNeeded": 1,
+      "pending": 1,
+      "ready": false
+    }
+  },
+  "stateMatrix": [
+    {
+      "state": "cart/with-data",
+      "screen": "cart",
+      "label": "With data",
+      "designed": {
+        "nodeId": "2140:120",
+        "name": "Cart / With data"
+      },
+      "specified": {
+        "acRef": "AC-1",
+        "text": "The cart lists each item with its variant, stock status, quantity stepper and price, and an order summary with a Go to checkout button."
+      },
+      "implemented": {
+        "driver": "fixture",
+        "detail": "fixtures/checkout/three-items.json (3 line items)"
+      },
+      "captured": {
+        "design": "evidence/screens/cart/figma/with-data.png",
+        "app": "evidence/screens/cart/app/with-data.png",
+        "diff": "evidence/screens/cart/diff/with-data.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-001",
+        "DQ-002",
+        "DQ-003",
+        "DQ-004",
+        "DQ-005"
+      ]
+    },
+    {
+      "state": "cart/empty",
+      "screen": "cart",
+      "label": "Empty",
+      "designed": {
+        "nodeId": "2140:288",
+        "name": "Cart / Empty"
+      },
+      "specified": {
+        "acRef": "AC-2",
+        "text": "An empty cart shows the empty state with a 'Continue shopping' action."
+      },
+      "implemented": {
+        "driver": "query",
+        "detail": "query ?empty=1 (cart with no items)"
+      },
+      "captured": {
+        "design": "evidence/screens/cart/figma/empty.png",
+        "app": "evidence/screens/cart/app/empty.png",
+        "diff": "evidence/screens/cart/diff/empty.png"
+      },
+      "result": "PASS",
+      "note": null,
+      "findings": [
+        "DQ-006"
+      ]
+    },
+    {
+      "state": "shipping/with-data",
+      "screen": "shipping",
+      "label": "With data",
+      "designed": {
+        "nodeId": "2140:410",
+        "name": "Shipping / With data"
+      },
+      "specified": {
+        "acRef": "AC-3",
+        "text": "Shipping collects contact details, the address and the country, and offers Standard (free) and Express delivery."
+      },
+      "implemented": {
+        "driver": "fixture",
+        "detail": "fixtures/checkout/three-items.json, saved address"
+      },
+      "captured": {
+        "design": "evidence/screens/shipping/figma/with-data.png",
+        "app": "evidence/screens/shipping/app/with-data.png",
+        "diff": "evidence/screens/shipping/diff/with-data.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-007",
+        "DQ-009",
+        "DQ-010"
+      ]
+    },
+    {
+      "state": "shipping/hover",
+      "screen": "shipping",
+      "label": "Hover",
+      "designed": {
+        "nodeId": "2140:548",
+        "name": "Shipping / Continue to payment, State=Hover"
+      },
+      "specified": null,
+      "implemented": {
+        "driver": "action",
+        "detail": "hover [data-testid=primary-cta]"
+      },
+      "captured": {
+        "design": "evidence/screens/shipping/figma/hover.png",
+        "app": "evidence/screens/shipping/app/hover.png",
+        "diff": "evidence/screens/shipping/diff/hover.png"
+      },
+      "result": "FAIL",
+      "note": "Driven by hovering Continue to payment; the hover colour matches, the transition is missing (DQ-008).",
+      "findings": [
+        "DQ-008"
+      ]
+    },
+    {
+      "state": "payment/with-data",
+      "screen": "payment",
+      "label": "With data",
+      "designed": {
+        "nodeId": "2140:690",
+        "name": "Payment / With data"
+      },
+      "specified": {
+        "acRef": "AC-4",
+        "text": "Payment collects the card details and shows the amount on the Pay button."
+      },
+      "implemented": {
+        "driver": "fixture",
+        "detail": "fixtures/checkout/three-items.json, test card 4242"
+      },
+      "captured": {
+        "design": "evidence/screens/payment/figma/with-data.png",
+        "app": "evidence/screens/payment/app/with-data.png",
+        "diff": "evidence/screens/payment/diff/with-data.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-011",
+        "DQ-012",
+        "DQ-014"
+      ]
+    },
+    {
+      "state": "payment/error",
+      "screen": "payment",
+      "label": "Error",
+      "designed": {
+        "nodeId": "2140:812",
+        "name": "Payment / Error"
+      },
+      "specified": {
+        "acRef": "AC-5",
+        "text": "If the card is declined, show an error above the card fields so the customer can correct the card and pay again."
+      },
+      "implemented": {
+        "driver": "query",
+        "detail": "query ?error=1 (card_declined from the payment API mock)"
+      },
+      "captured": {
+        "design": "evidence/screens/payment/figma/error.png",
+        "app": "evidence/screens/payment/app/error.png",
+        "diff": "evidence/screens/payment/diff/error.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-013",
+        "DQ-015"
+      ]
+    },
+    {
+      "state": "review/with-data",
+      "screen": "review",
+      "label": "With data",
+      "designed": {
+        "nodeId": "2140:955",
+        "name": "Review / With data"
+      },
+      "specified": {
+        "acRef": "AC-6",
+        "text": "Review shows the address, delivery method, payment method and the items in the order before the order is placed."
+      },
+      "implemented": {
+        "driver": "fixture",
+        "detail": "fixtures/checkout/three-items.json"
+      },
+      "captured": {
+        "design": "evidence/screens/review/figma/with-data.png",
+        "app": "evidence/screens/review/app/with-data.png",
+        "diff": "evidence/screens/review/diff/with-data.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-016",
+        "DQ-018",
+        "DQ-019"
+      ]
+    },
+    {
+      "state": "review/promo-applied",
+      "screen": "review",
+      "label": "Promo applied",
+      "designed": {
+        "nodeId": "2140:1104",
+        "name": "Review / Promo applied"
+      },
+      "specified": {
+        "acRef": "AC-7",
+        "text": "A valid promo code shows a discount line with the code and the updated total."
+      },
+      "implemented": null,
+      "captured": {
+        "design": "evidence/screens/review/figma/promo-applied.png",
+        "app": null,
+        "diff": null
+      },
+      "result": "MISSING_IN_CODE",
+      "note": "Designed (Review / Promo applied) and specified (AC-7), not implemented: Apply has no handler, so no app capture or pixel diff.",
+      "findings": [
+        "DQ-017"
+      ]
+    },
+    {
+      "state": "confirmation/with-data",
+      "screen": "confirmation",
+      "label": "With data",
+      "designed": {
+        "nodeId": "2140:1230",
+        "name": "Confirmation / With data"
+      },
+      "specified": {
+        "acRef": "AC-8",
+        "text": "After payment, show the order number, the delivery estimate and a receipt toast."
+      },
+      "implemented": {
+        "driver": "fixture",
+        "detail": "fixtures/checkout/placed-order.json"
+      },
+      "captured": {
+        "design": "evidence/screens/confirmation/figma/with-data.png",
+        "app": "evidence/screens/confirmation/app/with-data.png",
+        "diff": "evidence/screens/confirmation/diff/with-data.png"
+      },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-020",
+        "DQ-021",
+        "DQ-022",
+        "DQ-023"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "DQ-001",
+      "title": "Stock status is a hand-styled span.pill, not the Acme DS Badge (success)",
+      "ledger": "component",
+      "state": "cart/with-data",
+      "screen": "cart",
+      "severity": "BLOCKER",
+      "resolution": "FIX_CODE",
+      "region": "Line items",
+      "element": {
+        "selector": "[data-testid=stock-badge]",
+        "figmaLayerPath": "Cart / With data / Line items / Line item / Badge",
+        "figmaNodeId": "2140:162"
+      },
+      "property": "component",
+      "expected": {
+        "value": "Badge variant=success: 6px radius, --ads-color-success-bg on --ads-color-success-fg, weight 600",
+        "token": "Badge",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "<span class=\"pill pill-green\">: 999px pill, #D1FAE5 on #065F46, weight 500",
+        "token": null,
+        "source": {
+          "file": "src/features/cart/CartLineItem.tsx",
+          "line": 42,
+          "snippet": "<span className=\"pill pill-green\">{t('cart.inStock')}</span>"
+        }
+      },
+      "delta": "Recreated component: radius 999px vs 6px, colours and weight differ (15 style rows)",
+      "tolerance": "Same DS component",
+      "fix": {
+        "summary": "Render <Badge variant=\"success\"> for the stock status and delete .pill / .pill-green from cart.css.",
+        "patchHint": "<Badge variant=\"success\">{t('cart.inStock')}</Badge>",
+        "files": [
+          "src/features/cart/CartLineItem.tsx",
+          "src/features/cart/cart.css"
+        ],
+        "effort": 2
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/cart/figma/with-data.png",
+          "crop": {
+            "x": 292,
+            "y": 241,
+            "w": 63,
+            "h": 23
+          },
+          "state": "cart/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/cart/app/with-data.png",
+          "crop": {
+            "x": 292,
+            "y": 241,
+            "w": 66,
+            "h": 23
+          },
+          "state": "cart/with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/cart/computed/with-data.json",
+          "crop": null,
+          "state": "cart/with-data"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/screens/cart/dom/with-data.json",
+          "crop": null,
+          "state": "cart/with-data"
+        }
+      ],
+      "rank": {
+        "score": 334,
+        "bucket": "fix-now"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-1"
+    },
+    {
+      "id": "DQ-002",
+      "title": "Order total uses a hardcoded #1F2937 instead of --ads-color-text-primary",
+      "ledger": "style",
+      "state": "cart/with-data",
+      "screen": "cart",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Order summary",
+      "element": {
+        "selector": "[data-testid=summary-total]",
+        "figmaLayerPath": "Cart / With data / Order summary / Total",
+        "figmaNodeId": "2140:201"
+      },
+      "property": "color",
+      "expected": {
+        "value": "#111827",
+        "token": "--ads-color-text-primary",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "#1F2937",
+        "token": null,
+        "source": {
+          "file": "src/features/cart/cart.css",
+          "line": 31,
+          "snippet": ".summary-total { color: #1f2937; }"
+        }
+      },
+      "delta": "Different colour (ΔE 4.1); raw hex in code",
+      "tolerance": "Exact token",
+      "fix": {
+        "summary": "Drop the colour override so the total inherits --ads-color-text-primary from the DS summary.",
+        "patchHint": ".summary-total { color: var(--ads-color-text-primary); }",
+        "files": [
+          "src/features/cart/cart.css"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/cart/figma/with-data.png",
+          "crop": {
+            "x": 965,
+            "y": 357,
+            "w": 330,
+            "h": 44
+          },
+          "state": "cart/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/cart/app/with-data.png",
+          "crop": {
+            "x": 965,
+            "y": 357,
+            "w": 330,
+            "h": 44
+          },
+          "state": "cart/with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/cart/computed/with-data.json",
+          "crop": null,
+          "state": "cart/with-data"
+        }
+      ],
+      "rank": {
+        "score": 225,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-003",
+      "title": "Line items are padded with a hardcoded 22px, not --ads-space-5 (20px)",
+      "ledger": "style",
+      "state": "cart/with-data",
+      "screen": "cart",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Line items",
+      "element": {
+        "selector": "[data-testid=line-item]",
+        "figmaLayerPath": "Cart / With data / Line items / Line item",
+        "figmaNodeId": "2140:158"
+      },
+      "property": "padding-top, padding-bottom",
+      "expected": {
+        "value": "20px",
+        "token": "--ads-space-5",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "22px",
+        "token": null,
+        "source": {
+          "file": "src/features/cart/cart.css",
+          "line": 12,
+          "snippet": ".line-item { padding-top: 22px; padding-bottom: 22px; }"
+        }
+      },
+      "delta": "+2px per side (+12px over the list)",
+      "tolerance": "±1px",
+      "fix": {
+        "summary": "Remove the padding override; the DS line item already uses --ads-space-5.",
+        "patchHint": ".line-item { padding-block: var(--ads-space-5); }",
+        "files": [
+          "src/features/cart/cart.css"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/cart/figma/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 292,
+            "w": 746,
+            "h": 106
+          },
+          "state": "cart/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/cart/app/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 294,
+            "w": 746,
+            "h": 110
+          },
+          "state": "cart/with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/cart/computed/with-data.json",
+          "crop": null,
+          "state": "cart/with-data"
+        }
+      ],
+      "rank": {
+        "score": 225,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-004",
+      "title": "Line-item thumbnail corner is 8px; the design binds --ads-radius-md (10px)",
+      "ledger": "style",
+      "state": "cart/with-data",
+      "screen": "cart",
+      "severity": "WARNING",
+      "resolution": "DISMISSED",
+      "region": "Line items",
+      "element": {
+        "selector": "[data-testid=line-item-thumb]",
+        "figmaLayerPath": "Cart / With data / Line items / Line item / Thumbnail",
+        "figmaNodeId": "2140:160"
+      },
+      "property": "border-radius",
+      "expected": {
+        "value": "10px",
+        "token": "--ads-radius-md",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "8px",
+        "token": null,
+        "source": {
+          "file": "src/components/ProductImage.module.css",
+          "line": 4,
+          "snippet": ".image { border-radius: 8px; }"
+        }
+      },
+      "delta": "−2px",
+      "tolerance": "±1px",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/cart/figma/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 207,
+            "w": 64,
+            "h": 65
+          },
+          "state": "cart/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/cart/app/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 207,
+            "w": 64,
+            "h": 65
+          },
+          "state": "cart/with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/cart/computed/with-data.json",
+          "crop": null,
+          "state": "cart/with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "dismissal": {
+        "kind": "not-an-issue",
+        "reason": "The thumbnail is the shared ProductImage, whose 8px corner is the catalogue-wide standard (grid, product page, mini-cart). On a 64px photo the 2px difference is not visible at 1x or 2x; checked on device.",
+        "by": "Maya Chen",
+        "date": "2026-10-03T10:05:00Z",
+        "source": "report-ui",
+        "priorRef": null
+      },
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-005",
+      "title": "Order summary uses Acme DS Card, rows and Button (primary) as designed",
+      "ledger": "component",
+      "state": "cart/with-data",
+      "screen": "cart",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Order summary",
+      "element": {
+        "selector": "aside[aria-label=\"Order summary\"]",
+        "figmaLayerPath": "Cart / With data / Order summary",
+        "figmaNodeId": "2140:190"
+      },
+      "property": "component",
+      "expected": {
+        "value": "Card · Button variant=primary (block)",
+        "token": "Card, Button",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Card · Button variant=primary (block)",
+        "token": "Card, Button",
+        "source": {
+          "file": "src/features/checkout/OrderSummary.tsx",
+          "line": 18,
+          "snippet": null
+        }
+      },
+      "delta": "background, radius, padding, shadow, button colour, height and type match",
+      "tolerance": "Same DS component",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/cart/figma/with-data.png",
+          "crop": {
+            "x": 965,
+            "y": 421,
+            "w": 330,
+            "h": 44
+          },
+          "state": "cart/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/cart/app/with-data.png",
+          "crop": {
+            "x": 965,
+            "y": 421,
+            "w": 330,
+            "h": 44
+          },
+          "state": "cart/with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/cart/computed/with-data.json",
+          "crop": null,
+          "state": "cart/with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-006",
+      "title": "Empty cart matches the design: Acme DS EmptyState with Continue shopping",
+      "ledger": "state",
+      "state": "cart/empty",
+      "screen": "cart",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Empty state",
+      "element": {
+        "selector": "[data-component=EmptyState]",
+        "figmaLayerPath": "Cart / Empty / EmptyState",
+        "figmaNodeId": "2140:291"
+      },
+      "property": "state",
+      "expected": {
+        "value": "EmptyState: illustration, “Your cart is empty”, body copy, Button (primary) “Continue shopping”",
+        "token": "EmptyState",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "EmptyState with the same copy and Button (primary)",
+        "token": "EmptyState",
+        "source": {
+          "file": "src/features/cart/CartLineItem.tsx",
+          "line": 12,
+          "snippet": null
+        }
+      },
+      "delta": "Pixel diff 0%; copy and styles match",
+      "tolerance": "Exact",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/cart/figma/empty.png",
+          "crop": {
+            "x": 120,
+            "y": 96,
+            "w": 1200,
+            "h": 393
+          },
+          "state": "cart/empty"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/cart/app/empty.png",
+          "crop": {
+            "x": 120,
+            "y": 96,
+            "w": 1200,
+            "h": 393
+          },
+          "state": "cart/empty"
+        },
+        {
+          "type": "diff",
+          "path": "evidence/screens/cart/diff/empty.png",
+          "crop": null,
+          "state": "cart/empty"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-2"
+    },
+    {
+      "id": "DQ-007",
+      "title": "Country is a native <select>, not the Acme DS Select",
+      "ledger": "component",
+      "state": "shipping/with-data",
+      "screen": "shipping",
+      "severity": "BLOCKER",
+      "resolution": "FIX_CODE",
+      "region": "Contact and address",
+      "element": {
+        "selector": "[data-testid=country]",
+        "figmaLayerPath": "Shipping / With data / Address / Country / Select",
+        "figmaNodeId": "2140:436"
+      },
+      "property": "component",
+      "expected": {
+        "value": "Select (size md): 10px radius, 12px inset, DS chevron and listbox",
+        "token": "Select",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Native <select class=\"country-select\">: 8px radius, 10px inset, OS chevron and menu",
+        "token": null,
+        "source": {
+          "file": "src/features/shipping/ShippingForm.tsx",
+          "line": 64,
+          "snippet": "<select className=\"country-select\" value={country} onChange={…}>"
+        }
+      },
+      "delta": "Raw element where a DS component exists; radius −2px, padding −2px",
+      "tolerance": "Same DS component",
+      "fix": {
+        "summary": "Use <Select> from @acme/ds with the country options; delete .country-select.",
+        "patchHint": "<Select label=\"Country\" value={country} onChange={setCountry} options={countries} />",
+        "files": [
+          "src/features/shipping/ShippingForm.tsx",
+          "src/features/shipping/shipping.css"
+        ],
+        "effort": 2
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/shipping/figma/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 531,
+            "w": 746,
+            "h": 45
+          },
+          "state": "shipping/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/shipping/app/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 531,
+            "w": 746,
+            "h": 45
+          },
+          "state": "shipping/with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/shipping/computed/with-data.json",
+          "crop": null,
+          "state": "shipping/with-data"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/screens/shipping/dom/with-data.json",
+          "crop": null,
+          "state": "shipping/with-data"
+        }
+      ],
+      "rank": {
+        "score": 334,
+        "bucket": "fix-now"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-3"
+    },
+    {
+      "id": "DQ-008",
+      "title": "Continue to payment has no hover transition (design: 160ms ease-out, --ads-motion-base)",
+      "ledger": "motion",
+      "state": "shipping/hover",
+      "screen": "shipping",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Actions",
+      "element": {
+        "selector": "[data-testid=primary-cta]",
+        "figmaLayerPath": "Shipping / Actions / Button (Primary)",
+        "figmaNodeId": "2140:470"
+      },
+      "property": "transition",
+      "expected": {
+        "value": "160ms ease-out on background-color and border-color",
+        "token": "--ads-motion-base",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "none: the background switches instantly",
+        "token": null,
+        "source": {
+          "file": "src/features/shipping/shipping.css",
+          "line": 9,
+          "snippet": ".continue-btn { transition: none; }"
+        }
+      },
+      "delta": "Missing motion",
+      "tolerance": "±20ms",
+      "fix": {
+        "summary": "Delete the .continue-btn override so the DS Button keeps its hover transition.",
+        "patchHint": "/* remove */ .continue-btn { transition: none; }",
+        "files": [
+          "src/features/shipping/shipping.css"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/shipping/figma/hover.png",
+          "crop": {
+            "x": 697,
+            "y": 734,
+            "w": 194,
+            "h": 44
+          },
+          "state": "shipping/hover"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/shipping/app/hover.png",
+          "crop": {
+            "x": 697,
+            "y": 734,
+            "w": 194,
+            "h": 44
+          },
+          "state": "shipping/hover"
+        },
+        {
+          "type": "motion",
+          "path": "evidence/screens/shipping/motion/hover.json",
+          "crop": null,
+          "state": "shipping/hover"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/shipping/computed/hover.json",
+          "crop": null,
+          "state": "shipping/hover"
+        }
+      ],
+      "rank": {
+        "score": 225,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-009",
+      "title": "Unselected delivery option border is a hardcoded #D1D5DB, not --ads-color-border",
+      "ledger": "style",
+      "state": "shipping/with-data",
+      "screen": "shipping",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Delivery method",
+      "element": {
+        "selector": "[data-testid=delivery-option][aria-checked=false]",
+        "figmaLayerPath": "Shipping / With data / Delivery / RadioCard (Unselected)",
+        "figmaNodeId": "2140:452"
+      },
+      "property": "border-color",
+      "expected": {
+        "value": "#E5E7EB",
+        "token": "--ads-color-border",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "#D1D5DB",
+        "token": null,
+        "source": {
+          "file": "src/features/shipping/shipping.css",
+          "line": 8,
+          "snippet": ".ads-radio-card { border-color: #d1d5db; }"
+        }
+      },
+      "delta": "Darker border (ΔE 5.6)",
+      "tolerance": "Exact token",
+      "fix": {
+        "summary": "Remove the border-color override on .ads-radio-card.",
+        "patchHint": null,
+        "files": [
+          "src/features/shipping/shipping.css"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/shipping/figma/with-data.png",
+          "crop": {
+            "x": 524,
+            "y": 634,
+            "w": 367,
+            "h": 76
+          },
+          "state": "shipping/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/shipping/app/with-data.png",
+          "crop": {
+            "x": 524,
+            "y": 634,
+            "w": 367,
+            "h": 76
+          },
+          "state": "shipping/with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/shipping/computed/with-data.json",
+          "crop": null,
+          "state": "shipping/with-data"
+        }
+      ],
+      "rank": {
+        "score": 225,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-010",
+      "title": "Stepper, inputs and delivery RadioCards use Acme DS components as designed",
+      "ledger": "component",
+      "state": "shipping/with-data",
+      "screen": "shipping",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Top bar",
+      "element": {
+        "selector": "[data-component=Stepper]",
+        "figmaLayerPath": "Shipping / Top bar / Stepper",
+        "figmaNodeId": "2140:414"
+      },
+      "property": "component",
+      "expected": {
+        "value": "Stepper (step 2 current) · Input ×5 · RadioCard ×2",
+        "token": "Stepper, Input, RadioCard",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Stepper (step 2 current) · Input ×5 · RadioCard ×2",
+        "token": "Stepper, Input, RadioCard",
+        "source": {
+          "file": "src/features/shipping/ShippingForm.tsx",
+          "line": 22,
+          "snippet": null
+        }
+      },
+      "delta": "component, variant, current step, gap and type match",
+      "tolerance": "Same DS component",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/shipping/figma/with-data.png",
+          "crop": {
+            "x": 860,
+            "y": 20,
+            "w": 460,
+            "h": 23
+          },
+          "state": "shipping/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/shipping/app/with-data.png",
+          "crop": {
+            "x": 860,
+            "y": 20,
+            "w": 460,
+            "h": 23
+          },
+          "state": "shipping/with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/shipping/computed/with-data.json",
+          "crop": null,
+          "state": "shipping/with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-011",
+      "title": "Card name field is labelled “Cardholder name”; the design says “Name on card”",
+      "ledger": "structure",
+      "state": "payment/with-data",
+      "screen": "payment",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Card details",
+      "element": {
+        "selector": "label[for=f-cardname]",
+        "figmaLayerPath": "Payment / With data / Card details / Name on card / Label",
+        "figmaNodeId": "2140:702"
+      },
+      "property": "label",
+      "expected": {
+        "value": "Name on card",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Cardholder name",
+        "token": null,
+        "source": {
+          "file": "src/i18n/en/checkout.json",
+          "line": 57,
+          "snippet": "\"payment.cardName\": \"Cardholder name\""
+        }
+      },
+      "delta": "Copy differs",
+      "tolerance": "Exact copy",
+      "fix": {
+        "summary": "Set payment.cardName to “Name on card”.",
+        "patchHint": "\"payment.cardName\": \"Name on card\"",
+        "files": [
+          "src/i18n/en/checkout.json"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/payment/figma/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 249,
+            "w": 746,
+            "h": 20
+          },
+          "state": "payment/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/payment/app/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 249,
+            "w": 746,
+            "h": 20
+          },
+          "state": "payment/with-data"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/screens/payment/dom/with-data.json",
+          "crop": null,
+          "state": "payment/with-data"
+        }
+      ],
+      "rank": {
+        "score": 235,
+        "bucket": "fix-now"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-4"
+    },
+    {
+      "id": "DQ-012",
+      "title": "Security note copy differs from the design",
+      "ledger": "structure",
+      "state": "payment/with-data",
+      "screen": "payment",
+      "severity": "WARNING",
+      "resolution": "UNCLASSIFIED",
+      "region": "Card details",
+      "element": {
+        "selector": "[data-testid=secure-note]",
+        "figmaLayerPath": "Payment / With data / Card details / Security note",
+        "figmaNodeId": "2140:731"
+      },
+      "property": "text",
+      "expected": {
+        "value": "Your payment is encrypted and secure.",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Payments are processed by Stripe. We never store your card details.",
+        "token": null,
+        "source": {
+          "file": "src/features/payment/PaymentForm.tsx",
+          "line": 88,
+          "snippet": "<p className=\"opt-sub\">{t('payment.processorNote')}</p>"
+        }
+      },
+      "delta": "Copy differs; the app names the payment processor",
+      "tolerance": "Exact copy",
+      "fix": {
+        "summary": "Waiting on OD-1: restore the designed copy, or sign the processor disclosure off as intentional.",
+        "patchHint": null,
+        "files": [
+          "src/i18n/en/checkout.json"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/payment/figma/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 506,
+            "w": 746,
+            "h": 20
+          },
+          "state": "payment/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/payment/app/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 506,
+            "w": 746,
+            "h": 20
+          },
+          "state": "payment/with-data"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/screens/payment/dom/with-data.json",
+          "crop": null,
+          "state": "payment/with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-013",
+      "title": "App renders an extra “Try again” button inside the declined-card Alert, not in the design",
+      "ledger": "structure",
+      "state": "payment/error",
+      "screen": "payment",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Declined-card alert",
+      "element": {
+        "selector": "[data-testid=alert-action]",
+        "figmaLayerPath": "Payment / Error / Alert (Danger)",
+        "figmaNodeId": "2140:815"
+      },
+      "property": "presence",
+      "expected": {
+        "value": "absent: the Alert has a title and body only; the customer fixes the card fields and presses Pay again",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Button (secondary, 32px) “Try again” under the Alert body",
+        "token": null,
+        "source": {
+          "file": "src/features/payment/PaymentError.tsx",
+          "line": 19,
+          "snippet": "<Button variant=\"secondary\" size=\"sm\" onClick={retry}>Try again</Button>"
+        }
+      },
+      "delta": "Extra element in a designed state",
+      "tolerance": "Exact structure",
+      "fix": {
+        "summary": "Remove the Try again button from PaymentError; keep the Alert title and body only.",
+        "patchHint": null,
+        "files": [
+          "src/features/payment/PaymentError.tsx"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/payment/figma/error.png",
+          "crop": {
+            "x": 145,
+            "y": 207,
+            "w": 746,
+            "h": 77
+          },
+          "state": "payment/error"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/payment/app/error.png",
+          "crop": {
+            "x": 194,
+            "y": 276,
+            "w": 85,
+            "h": 33
+          },
+          "state": "payment/error"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/screens/payment/dom/error.json",
+          "crop": null,
+          "state": "payment/error"
+        },
+        {
+          "type": "diff",
+          "path": "evidence/screens/payment/diff/error.png",
+          "crop": null,
+          "state": "payment/error"
+        }
+      ],
+      "rank": {
+        "score": 235,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-5"
+    },
+    {
+      "id": "DQ-014",
+      "title": "Card number focus ring cannot be verified (no focus driver)",
+      "ledger": "style",
+      "state": "payment/with-data",
+      "screen": "payment",
+      "severity": "CANNOT_VERIFY",
+      "resolution": "NONE",
+      "region": "Card details",
+      "element": {
+        "selector": "#f-cardnumber:focus-visible",
+        "figmaLayerPath": "Components / Input / State=Focus",
+        "figmaNodeId": "311:2046"
+      },
+      "property": "outline",
+      "expected": {
+        "value": "2px --ads-color-brand ring, 2px offset (Input, State=Focus)",
+        "token": "--ads-color-brand",
+        "source": "figma"
+      },
+      "actual": {
+        "value": null,
+        "token": null,
+        "source": {
+          "file": "src/features/payment/PaymentForm.tsx",
+          "line": 41,
+          "snippet": null
+        }
+      },
+      "delta": "Not captured: add surfaces.checkout.screens.payment.states.focus",
+      "tolerance": "Exact token",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/payment/figma/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 360,
+            "w": 746,
+            "h": 45
+          },
+          "state": "payment/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/payment/app/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 360,
+            "w": 746,
+            "h": 45
+          },
+          "state": "payment/with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-015",
+      "title": "Declined-card banner uses Acme DS Alert (danger) as designed",
+      "ledger": "component",
+      "state": "payment/error",
+      "screen": "payment",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Declined-card alert",
+      "element": {
+        "selector": "[data-component=Alert]",
+        "figmaLayerPath": "Payment / Error / Alert (Danger)",
+        "figmaNodeId": "2140:815"
+      },
+      "property": "component",
+      "expected": {
+        "value": "Alert variant=danger",
+        "token": "Alert",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Alert variant=danger",
+        "token": "Alert",
+        "source": {
+          "file": "src/features/payment/PaymentError.tsx",
+          "line": 12,
+          "snippet": "<Alert variant=\"danger\" title={t('payment.declined.title')}>"
+        }
+      },
+      "delta": "background, text colour, radius and padding match",
+      "tolerance": "Same DS component",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/payment/figma/error.png",
+          "crop": {
+            "x": 194,
+            "y": 224,
+            "w": 169,
+            "h": 23
+          },
+          "state": "payment/error"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/payment/app/error.png",
+          "crop": {
+            "x": 194,
+            "y": 224,
+            "w": 169,
+            "h": 23
+          },
+          "state": "payment/error"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/payment/computed/error.json",
+          "crop": null,
+          "state": "payment/error"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-016",
+      "title": "Review page does not render the “Items in this order” region",
+      "ledger": "structure",
+      "state": "review/with-data",
+      "screen": "review",
+      "severity": "BLOCKER",
+      "resolution": "FIX_CODE",
+      "region": "Items in this order",
+      "element": {
+        "selector": "[data-testid=review-items]",
+        "figmaLayerPath": "Review / With data / Order details / Items in this order",
+        "figmaNodeId": "2140:982"
+      },
+      "property": "presence",
+      "expected": {
+        "value": "Items in this order (3): thumbnail, name, variant and price per line, under the Payment block",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "absent: the card ends after the Payment block",
+        "token": null,
+        "source": {
+          "file": "src/features/review/ReviewPage.tsx",
+          "line": 54,
+          "snippet": "{/* TODO(CHK-219): order items */}"
+        }
+      },
+      "delta": "Missing region",
+      "tolerance": "Exact structure",
+      "fix": {
+        "summary": "Render <ReviewItems items={cart.items} /> after the Payment block (Acme DS surface-muted panel, 40px thumbnails).",
+        "patchHint": "<ReviewItems items={cart.items} />",
+        "files": [
+          "src/features/review/ReviewPage.tsx"
+        ],
+        "effort": 3
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/review/figma/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 436,
+            "w": 746,
+            "h": 221
+          },
+          "state": "review/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/review/app/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 417,
+            "w": 746,
+            "h": 24
+          },
+          "state": "review/with-data"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/screens/review/dom/with-data.json",
+          "crop": null,
+          "state": "review/with-data"
+        },
+        {
+          "type": "diff",
+          "path": "evidence/screens/review/diff/with-data.png",
+          "crop": null,
+          "state": "review/with-data"
+        }
+      ],
+      "rank": {
+        "score": 333,
+        "bucket": "fix-now"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-6"
+    },
+    {
+      "id": "DQ-017",
+      "title": "Promo-applied state is not implemented: applying a code shows no discount line or new total",
+      "ledger": "state",
+      "state": "review/promo-applied",
+      "screen": "review",
+      "severity": "BLOCKER",
+      "resolution": "FIX_CODE",
+      "region": "Order summary",
+      "element": {
+        "selector": "[data-testid=promo-row]",
+        "figmaLayerPath": "Review / Promo applied / Order summary / Promo row",
+        "figmaNodeId": "2140:1121"
+      },
+      "property": "state",
+      "expected": {
+        "value": "Promo row “Promo SPRING10 −€22.90” with Badge (success), total €225.50, promo field hidden",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Not implemented: Apply has no handler and the total stays €248.40",
+        "token": null,
+        "source": {
+          "file": "src/features/review/PromoCode.tsx",
+          "line": 14,
+          "snippet": "<Button variant=\"secondary\">Apply</Button>"
+        }
+      },
+      "delta": "Designed state missing in code",
+      "tolerance": "State exists",
+      "fix": {
+        "summary": "Wire Apply to POST /api/cart/promo and render the promo row (Badge success) and the discounted total; hide the field once applied.",
+        "patchHint": null,
+        "files": [
+          "src/features/review/PromoCode.tsx",
+          "src/features/checkout/OrderSummary.tsx"
+        ],
+        "effort": 3
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/review/figma/promo-applied.png",
+          "crop": {
+            "x": 965,
+            "y": 353,
+            "w": 330,
+            "h": 23
+          },
+          "state": "review/promo-applied"
+        }
+      ],
+      "rank": {
+        "score": 333,
+        "bucket": "fix-now"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-7"
+    },
+    {
+      "id": "DQ-018",
+      "title": "Place order button radius is a hardcoded 8px, not --ads-radius-md (10px)",
+      "ledger": "style",
+      "state": "review/with-data",
+      "screen": "review",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Order summary",
+      "element": {
+        "selector": "[data-testid=primary-cta]",
+        "figmaLayerPath": "Review / With data / Order summary / Button (Primary)",
+        "figmaNodeId": "2140:1010"
+      },
+      "property": "border-radius",
+      "expected": {
+        "value": "10px",
+        "token": "--ads-radius-md",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "8px",
+        "token": null,
+        "source": {
+          "file": "src/features/review/review.css",
+          "line": 3,
+          "snippet": ".place-order { border-radius: 8px; }"
+        }
+      },
+      "delta": "−2px",
+      "tolerance": "±1px",
+      "fix": {
+        "summary": "Delete .place-order; the DS Button already uses --ads-radius-md.",
+        "patchHint": null,
+        "files": [
+          "src/features/review/review.css"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/review/figma/with-data.png",
+          "crop": {
+            "x": 965,
+            "y": 481,
+            "w": 330,
+            "h": 44
+          },
+          "state": "review/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/review/app/with-data.png",
+          "crop": {
+            "x": 965,
+            "y": 481,
+            "w": 330,
+            "h": 44
+          },
+          "state": "review/with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/screens/review/computed/with-data.json",
+          "crop": null,
+          "state": "review/with-data"
+        }
+      ],
+      "rank": {
+        "score": 225,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-019",
+      "title": "Ship to, Delivery and Payment blocks match the design (order, labels, Edit links)",
+      "ledger": "structure",
+      "state": "review/with-data",
+      "screen": "review",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Order details",
+      "element": {
+        "selector": "[data-testid=review-block]",
+        "figmaLayerPath": "Review / With data / Order details",
+        "figmaNodeId": "2140:960"
+      },
+      "property": "structure",
+      "expected": {
+        "value": "Ship to · Delivery · Payment, each with Edit",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Ship to · Delivery · Payment, each with Edit",
+        "token": null,
+        "source": {
+          "file": "src/features/review/ReviewPage.tsx",
+          "line": 31,
+          "snippet": null
+        }
+      },
+      "delta": "order, labels, dividers and link styles match",
+      "tolerance": "Exact structure",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/review/figma/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 207,
+            "w": 746,
+            "h": 210
+          },
+          "state": "review/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/review/app/with-data.png",
+          "crop": {
+            "x": 145,
+            "y": 207,
+            "w": 746,
+            "h": 210
+          },
+          "state": "review/with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-020",
+      "title": "Confirmation check animates over 600ms linear instead of 320ms ease-out (--ads-motion-slow)",
+      "ledger": "motion",
+      "state": "confirmation/with-data",
+      "screen": "confirmation",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Confirmation",
+      "element": {
+        "selector": "[data-testid=confirm-icon]",
+        "figmaLayerPath": "Confirmation / With data / Success icon",
+        "figmaNodeId": "2140:1236"
+      },
+      "property": "animation",
+      "expected": {
+        "value": "ads-pop-in 320ms ease-out (cubic-bezier(0, 0, 0.58, 1)) on load",
+        "token": "--ads-motion-slow",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "pop 600ms linear on load",
+        "token": null,
+        "source": {
+          "file": "src/features/confirmation/confirmation.css",
+          "line": 3,
+          "snippet": ".confirm-icon { animation: pop 600ms linear both; }"
+        }
+      },
+      "delta": "+280ms, easing differs",
+      "tolerance": "±20ms",
+      "fix": {
+        "summary": "Use the DS keyframes and motion tokens for the success icon.",
+        "patchHint": ".confirm-icon { animation: ads-pop-in var(--ads-motion-slow) var(--ads-ease-out) both; }",
+        "files": [
+          "src/features/confirmation/confirmation.css"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/confirmation/figma/with-data.png",
+          "crop": {
+            "x": 684,
+            "y": 161,
+            "w": 72,
+            "h": 72
+          },
+          "state": "confirmation/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/confirmation/app/with-data.png",
+          "crop": {
+            "x": 684,
+            "y": 161,
+            "w": 72,
+            "h": 72
+          },
+          "state": "confirmation/with-data"
+        },
+        {
+          "type": "motion",
+          "path": "evidence/screens/confirmation/motion/with-data.json",
+          "crop": null,
+          "state": "confirmation/with-data"
+        }
+      ],
+      "rank": {
+        "score": 225,
+        "bucket": "debt"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-8"
+    },
+    {
+      "id": "DQ-021",
+      "title": "Confirmation heading drops the customer’s first name",
+      "ledger": "structure",
+      "state": "confirmation/with-data",
+      "screen": "confirmation",
+      "severity": "WARNING",
+      "resolution": "INTENTIONAL",
+      "region": "Confirmation",
+      "element": {
+        "selector": "h1",
+        "figmaLayerPath": "Confirmation / With data / Heading",
+        "figmaNodeId": "2140:1238"
+      },
+      "property": "text",
+      "expected": {
+        "value": "Thanks, Dana! Your order is confirmed",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Thank you, your order is confirmed",
+        "token": null,
+        "source": {
+          "file": "src/features/confirmation/ConfirmationPage.tsx",
+          "line": 27,
+          "snippet": "<h1>{t('confirmation.title')}</h1>"
+        }
+      },
+      "delta": "Copy differs (no first name)",
+      "tolerance": "Exact copy",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/confirmation/figma/with-data.png",
+          "crop": {
+            "x": 433,
+            "y": 253,
+            "w": 574,
+            "h": 34
+          },
+          "state": "confirmation/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/confirmation/app/with-data.png",
+          "crop": {
+            "x": 433,
+            "y": 253,
+            "w": 574,
+            "h": 34
+          },
+          "state": "confirmation/with-data"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/screens/confirmation/dom/with-data.json",
+          "crop": null,
+          "state": "confirmation/with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": {
+        "by": "Priya Raman (Product)",
+        "date": "2026-09-29",
+        "reason": "Confirmation pages are often left open on shared and in-store screens; Legal asked to keep the customer’s name off the heading. Approved in the Checkout v3 design review."
+      },
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-022",
+      "title": "Order number differs (#AC-10517 in the app, #AC-10482 in the frame)",
+      "ledger": "structure",
+      "state": "confirmation/with-data",
+      "screen": "confirmation",
+      "severity": "WARNING",
+      "resolution": "DATA",
+      "region": "Confirmation",
+      "element": {
+        "selector": "[data-testid=order-number]",
+        "figmaLayerPath": "Confirmation / With data / Order number",
+        "figmaNodeId": "2140:1240"
+      },
+      "property": "text",
+      "expected": {
+        "value": "#AC-10482",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "#AC-10517",
+        "token": null,
+        "source": {
+          "file": "src/features/confirmation/ConfirmationPage.tsx",
+          "line": 31,
+          "snippet": "<span className=\"order-number\">#{order.number}</span>"
+        }
+      },
+      "delta": "Data value (order id from the API); masked in the pixel diff",
+      "tolerance": "Data may differ",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/confirmation/figma/with-data.png",
+          "crop": {
+            "x": 513,
+            "y": 296,
+            "w": 84,
+            "h": 19
+          },
+          "state": "confirmation/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/confirmation/app/with-data.png",
+          "crop": {
+            "x": 515,
+            "y": 296,
+            "w": 80,
+            "h": 19
+          },
+          "state": "confirmation/with-data"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/screens/confirmation/dom/with-data.json",
+          "crop": null,
+          "state": "confirmation/with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-023",
+      "title": "Receipt toast slides in over 240ms ease-out as designed",
+      "ledger": "motion",
+      "state": "confirmation/with-data",
+      "screen": "confirmation",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Toast",
+      "element": {
+        "selector": "[data-component=Toast]",
+        "figmaLayerPath": "Confirmation / With data / Toast",
+        "figmaNodeId": "2140:1252"
+      },
+      "property": "animation",
+      "expected": {
+        "value": "ads-toast-in 240ms ease-out on load",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "ads-toast-in 240ms ease-out on load",
+        "token": null,
+        "source": {
+          "file": "src/features/confirmation/ConfirmationPage.tsx",
+          "line": 52,
+          "snippet": "<Toast tone=\"inverse\">…</Toast>"
+        }
+      },
+      "delta": "type, duration, easing and delay match",
+      "tolerance": "±20ms",
+      "fix": null,
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/screens/confirmation/figma/with-data.png",
+          "crop": {
+            "x": 1125,
+            "y": 824,
+            "w": 283,
+            "h": 44
+          },
+          "state": "confirmation/with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/screens/confirmation/app/with-data.png",
+          "crop": {
+            "x": 1125,
+            "y": 824,
+            "w": 283,
+            "h": 44
+          },
+          "state": "confirmation/with-data"
+        },
+        {
+          "type": "motion",
+          "path": "evidence/screens/confirmation/motion/with-data.json",
+          "crop": null,
+          "state": "confirmation/with-data"
+        }
+      ],
+      "rank": {
+        "score": 0,
+        "bucket": "none"
+      },
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    }
+  ],
+  "ledgers": {
+    "structure": [
+      {
+        "region": "Cart · Page header",
+        "figma": {
+          "present": true,
+          "order": 1,
+          "label": "Your cart · 3 items · Ships in 2–3 business days"
+        },
+        "app": {
+          "present": true,
+          "order": 1,
+          "label": "Your cart · 3 items · Ships in 2–3 business days"
+        },
+        "result": "PASS",
+        "findingIds": []
+      },
+      {
+        "region": "Cart · Line items",
+        "figma": {
+          "present": true,
+          "order": 2,
+          "label": "Thumbnail · Name · Variant · Badge · Quantity · Price · Remove"
+        },
+        "app": {
+          "present": true,
+          "order": 2,
+          "label": "Thumbnail · Name · Variant · pill · Quantity · Price · Remove"
+        },
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-001"
+        ]
+      },
+      {
+        "region": "Cart · Order summary",
+        "figma": {
+          "present": true,
+          "order": 3,
+          "label": "Order summary · Subtotal · Shipping · Estimated tax · Total · Go to checkout"
+        },
+        "app": {
+          "present": true,
+          "order": 3,
+          "label": "Order summary · Subtotal · Shipping · Estimated tax · Total · Go to checkout"
+        },
+        "result": "PASS",
+        "findingIds": [
+          "DQ-005"
+        ]
+      },
+      {
+        "region": "Cart · Empty state",
+        "figma": {
+          "present": true,
+          "order": 1,
+          "label": "Your cart is empty · Continue shopping"
+        },
+        "app": {
+          "present": true,
+          "order": 1,
+          "label": "Your cart is empty · Continue shopping"
+        },
+        "result": "PASS",
+        "findingIds": [
+          "DQ-006"
+        ]
+      },
+      {
+        "region": "Shipping · Contact and address",
+        "figma": {
+          "present": true,
+          "order": 1,
+          "label": "Full name · Email · Street address · City · Postcode · Country"
+        },
+        "app": {
+          "present": true,
+          "order": 1,
+          "label": "Full name · Email · Street address · City · Postcode · Country"
+        },
+        "result": "PASS",
+        "findingIds": []
+      },
+      {
+        "region": "Shipping · Delivery method",
+        "figma": {
+          "present": true,
+          "order": 2,
+          "label": "Standard (Free) · Express (€9.90)"
+        },
+        "app": {
+          "present": true,
+          "order": 2,
+          "label": "Standard (Free) · Express (€9.90)"
+        },
+        "result": "PASS",
+        "findingIds": []
+      },
+      {
+        "region": "Shipping · Actions",
+        "figma": {
+          "present": true,
+          "order": 3,
+          "label": "Back to cart · Continue to payment"
+        },
+        "app": {
+          "present": true,
+          "order": 3,
+          "label": "Back to cart · Continue to payment"
+        },
+        "result": "PASS",
+        "findingIds": []
+      },
+      {
+        "region": "Payment · Card details",
+        "figma": {
+          "present": true,
+          "order": 1,
+          "label": "Name on card · Card number · Expiry · CVC · Your payment is encrypted and secure."
+        },
+        "app": {
+          "present": true,
+          "order": 1,
+          "label": "Cardholder name · Card number · Expiry · CVC · Payments are processed by Stripe…"
+        },
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-011",
+          "DQ-012"
+        ]
+      },
+      {
+        "region": "Payment · Declined-card alert",
+        "figma": {
+          "present": true,
+          "order": 1,
+          "label": "Your card was declined · Try another card…"
+        },
+        "app": {
+          "present": true,
+          "order": 1,
+          "label": "Your card was declined · Try another card… · Try again"
+        },
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-013"
+        ]
+      },
+      {
+        "region": "Payment · Actions",
+        "figma": {
+          "present": true,
+          "order": 3,
+          "label": "Back to shipping · Pay €248.40"
+        },
+        "app": {
+          "present": true,
+          "order": 3,
+          "label": "Back to shipping · Pay €248.40"
+        },
+        "result": "PASS",
+        "findingIds": []
+      },
+      {
+        "region": "Review · Order details",
+        "figma": {
+          "present": true,
+          "order": 1,
+          "label": "Ship to · Delivery · Payment"
+        },
+        "app": {
+          "present": true,
+          "order": 1,
+          "label": "Ship to · Delivery · Payment"
+        },
+        "result": "PASS",
+        "findingIds": [
+          "DQ-019"
+        ]
+      },
+      {
+        "region": "Review · Items in this order",
+        "figma": {
+          "present": true,
+          "order": 2,
+          "label": "Items in this order · 3 lines"
+        },
+        "app": {
+          "present": false,
+          "order": null,
+          "label": null
+        },
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-016"
+        ]
+      },
+      {
+        "region": "Review · Order summary",
+        "figma": {
+          "present": true,
+          "order": 3,
+          "label": "Promo code · Subtotal · Shipping · Estimated tax · Total · Place order"
+        },
+        "app": {
+          "present": true,
+          "order": 2,
+          "label": "Promo code · Subtotal · Shipping · Estimated tax · Total · Place order"
+        },
+        "result": "PASS",
+        "findingIds": []
+      },
+      {
+        "region": "Confirmation · Heading",
+        "figma": {
+          "present": true,
+          "order": 1,
+          "label": "Thanks, Dana! Your order is confirmed"
+        },
+        "app": {
+          "present": true,
+          "order": 1,
+          "label": "Thank you, your order is confirmed"
+        },
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-021"
+        ]
+      },
+      {
+        "region": "Confirmation · Order line",
+        "figma": {
+          "present": true,
+          "order": 2,
+          "label": "Order #AC-10482 · A confirmation is on its way…"
+        },
+        "app": {
+          "present": true,
+          "order": 2,
+          "label": "Order #AC-10517 · A confirmation is on its way…"
+        },
+        "result": "DATA",
+        "findingIds": [
+          "DQ-022"
+        ]
+      },
+      {
+        "region": "Confirmation · Actions and toast",
+        "figma": {
+          "present": true,
+          "order": 3,
+          "label": "Track order · Continue shopping · Receipt toast"
+        },
+        "app": {
+          "present": true,
+          "order": 3,
+          "label": "Track order · Continue shopping · Receipt toast"
+        },
+        "result": "PASS",
+        "findingIds": [
+          "DQ-023"
+        ]
+      }
+    ],
+    "component": [
+      {
+        "figmaComponent": "Stepper",
+        "variant": null,
+        "expectedComponent": "Stepper",
+        "actualComponent": "Stepper",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-010"
+        ],
+        "_screens": [
+          "cart",
+          "shipping",
+          "payment",
+          "review",
+          "confirmation"
+        ]
+      },
+      {
+        "figmaComponent": "Card",
+        "variant": null,
+        "expectedComponent": "Card",
+        "actualComponent": "Card",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-005"
+        ],
+        "_screens": [
+          "cart",
+          "shipping",
+          "payment",
+          "review",
+          "confirmation"
+        ]
+      },
+      {
+        "figmaComponent": "Badge",
+        "variant": "Variant=Success",
+        "expectedComponent": "Badge",
+        "actualComponent": null,
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-001"
+        ],
+        "_screens": [
+          "cart"
+        ]
+      },
+      {
+        "figmaComponent": "Button",
+        "variant": "Variant=Primary",
+        "expectedComponent": "Button",
+        "actualComponent": "Button",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-005"
+        ],
+        "_screens": [
+          "cart",
+          "shipping",
+          "payment",
+          "review",
+          "confirmation"
+        ]
+      },
+      {
+        "figmaComponent": "EmptyState",
+        "variant": null,
+        "expectedComponent": "EmptyState",
+        "actualComponent": "EmptyState",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-006"
+        ],
+        "_screens": [
+          "cart"
+        ]
+      },
+      {
+        "figmaComponent": "Button",
+        "variant": "Variant=Secondary",
+        "expectedComponent": "Button",
+        "actualComponent": "Button",
+        "result": "PASS",
+        "findingIds": [],
+        "_screens": [
+          "shipping",
+          "payment",
+          "review",
+          "confirmation"
+        ]
+      },
+      {
+        "figmaComponent": "Input",
+        "variant": null,
+        "expectedComponent": "Input",
+        "actualComponent": "Input",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-010"
+        ],
+        "_screens": [
+          "shipping",
+          "payment",
+          "review"
+        ]
+      },
+      {
+        "figmaComponent": "Select",
+        "variant": null,
+        "expectedComponent": "Select",
+        "actualComponent": null,
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-007"
+        ],
+        "_screens": [
+          "shipping"
+        ]
+      },
+      {
+        "figmaComponent": "RadioCard",
+        "variant": null,
+        "expectedComponent": "RadioCard",
+        "actualComponent": "RadioCard",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-010"
+        ],
+        "_screens": [
+          "shipping"
+        ]
+      },
+      {
+        "figmaComponent": "Alert",
+        "variant": "Variant=Danger",
+        "expectedComponent": "Alert",
+        "actualComponent": "Alert",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-015"
+        ],
+        "_screens": [
+          "payment"
+        ]
+      },
+      {
+        "figmaComponent": "Toast",
+        "variant": null,
+        "expectedComponent": "Toast",
+        "actualComponent": "Toast",
+        "result": "PASS",
+        "findingIds": [],
+        "_screens": [
+          "confirmation"
+        ]
+      }
+    ],
+    "style": [
+      {
+        "elementClass": "Cart · body",
+        "selector": "body",
+        "property": "font-family",
+        "figma": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "token": null,
+        "computed": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · body",
+        "selector": "body",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · body",
+        "selector": "body",
+        "property": "background-color",
+        "figma": "rgb(246, 247, 249)",
+        "token": "--ads-color-bg",
+        "computed": "rgb(246, 247, 249)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · topbar",
+        "selector": "header.topbar",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · topbar",
+        "selector": "header.topbar",
+        "property": "height",
+        "figma": "64px",
+        "token": null,
+        "computed": "64px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · topbar",
+        "selector": "header.topbar",
+        "property": "border-bottom-color",
+        "figma": "rgb(229, 231, 235)",
+        "token": "--ads-color-border",
+        "computed": "rgb(229, 231, 235)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · stepper",
+        "selector": "ol.ads-stepper",
+        "property": "gap",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · stepper",
+        "selector": "ol.ads-stepper",
+        "property": "font-size",
+        "figma": "13px",
+        "token": "--ads-font-size-sm",
+        "computed": "13px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · stepCurrent",
+        "selector": "li",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · stepCurrent",
+        "selector": "li",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · pageTitle",
+        "selector": "h1",
+        "property": "font-size",
+        "figma": "28px",
+        "token": "--ads-font-size-xl",
+        "computed": "28px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · pageTitle",
+        "selector": "h1",
+        "property": "font-weight",
+        "figma": "650",
+        "token": null,
+        "computed": "650",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · pageTitle",
+        "selector": "h1",
+        "property": "line-height",
+        "figma": "36px",
+        "token": null,
+        "computed": "36px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · pageTitle",
+        "selector": "h1",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · sectionTitle",
+        "selector": "h2",
+        "property": "font-size",
+        "figma": "18px",
+        "token": "--ads-font-size-lg",
+        "computed": "18px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · sectionTitle",
+        "selector": "h2",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · sectionTitle",
+        "selector": "h2",
+        "property": "line-height",
+        "figma": "26px",
+        "token": null,
+        "computed": "26px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · sectionTitle",
+        "selector": "h2",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · card",
+        "selector": "section.ads-card",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · card",
+        "selector": "section.ads-card",
+        "property": "border-radius",
+        "figma": "14px",
+        "token": "--ads-radius-lg",
+        "computed": "14px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · card",
+        "selector": "section.ads-card",
+        "property": "padding-top",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · card",
+        "selector": "section.ads-card",
+        "property": "padding-left",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · card",
+        "selector": "section.ads-card",
+        "property": "box-shadow",
+        "figma": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "token": null,
+        "computed": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · lineItem",
+        "selector": "div.line-item",
+        "property": "padding-top",
+        "figma": "0px",
+        "token": null,
+        "computed": "0px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · lineItem",
+        "selector": "div.line-item",
+        "property": "padding-bottom",
+        "figma": "20px",
+        "token": "--ads-space-5",
+        "computed": "22px",
+        "sourceValue": "22px",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-003"
+        ],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · lineItem",
+        "selector": "div.line-item",
+        "property": "column-gap",
+        "figma": "16px",
+        "token": "--ads-space-4",
+        "computed": "16px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · lineItem",
+        "selector": "div.line-item",
+        "property": "border-bottom-color",
+        "figma": "rgb(229, 231, 235)",
+        "token": "--ads-color-border",
+        "computed": "rgb(229, 231, 235)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · lineItem",
+        "selector": "div.line-item",
+        "property": "padding-top",
+        "figma": "20px",
+        "token": "--ads-space-5",
+        "computed": "22px",
+        "sourceValue": "22px",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-003"
+        ],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · lineItem",
+        "selector": "div.line-item",
+        "property": "padding-bottom",
+        "figma": "0px",
+        "token": null,
+        "computed": "0px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · lineItem",
+        "selector": "div.line-item",
+        "property": "border-bottom-color",
+        "figma": "rgba(0, 0, 0, 0)",
+        "token": null,
+        "computed": "rgba(0, 0, 0, 0)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · thumb",
+        "selector": "div.thumb.thumb--a",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "8px",
+        "sourceValue": "8px",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-004"
+        ],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · thumb",
+        "selector": "div.thumb.thumb--a",
+        "property": "width",
+        "figma": "64px",
+        "token": null,
+        "computed": "64px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · thumb",
+        "selector": "div.thumb.thumb--a",
+        "property": "height",
+        "figma": "64px",
+        "token": null,
+        "computed": "64px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · stockBadge",
+        "selector": "span.pill.pill-green",
+        "property": "background-color",
+        "figma": "rgb(220, 252, 231)",
+        "token": "--ads-color-success-bg",
+        "computed": "rgb(209, 250, 229)",
+        "sourceValue": "rgb(209, 250, 229)",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-001"
+        ],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · stockBadge",
+        "selector": "span.pill.pill-green",
+        "property": "color",
+        "figma": "rgb(22, 101, 52)",
+        "token": "--ads-color-success-fg",
+        "computed": "rgb(6, 95, 70)",
+        "sourceValue": "rgb(6, 95, 70)",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-001"
+        ],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · stockBadge",
+        "selector": "span.pill.pill-green",
+        "property": "border-radius",
+        "figma": "6px",
+        "token": "--ads-radius-sm",
+        "computed": "999px",
+        "sourceValue": "999px",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-001"
+        ],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · stockBadge",
+        "selector": "span.pill.pill-green",
+        "property": "font-size",
+        "figma": "12px",
+        "token": "--ads-font-size-xs",
+        "computed": "12px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · stockBadge",
+        "selector": "span.pill.pill-green",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "500",
+        "sourceValue": "500",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-001"
+        ],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · stockBadge",
+        "selector": "span.pill.pill-green",
+        "property": "padding-left",
+        "figma": "8px",
+        "token": "--ads-space-2",
+        "computed": "10px",
+        "sourceValue": "10px",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-001"
+        ],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · summaryRow",
+        "selector": "div.summary-row",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · summaryRow",
+        "selector": "div.summary-row",
+        "property": "color",
+        "figma": "rgb(75, 85, 99)",
+        "token": "--ads-color-text-secondary",
+        "computed": "rgb(75, 85, 99)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "font-size",
+        "figma": "18px",
+        "token": "--ads-font-size-lg",
+        "computed": "18px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "font-weight",
+        "figma": "700",
+        "token": null,
+        "computed": "700",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(31, 41, 55)",
+        "sourceValue": "rgb(31, 41, 55)",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-002"
+        ],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "background-color",
+        "figma": "rgb(79, 70, 229)",
+        "token": "--ads-color-brand",
+        "computed": "rgb(79, 70, 229)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "padding-left",
+        "figma": "20px",
+        "token": "--ads-space-5",
+        "computed": "20px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/with-data"
+      },
+      {
+        "elementClass": "Cart · emptyState",
+        "selector": "section.ads-card.ads-empty",
+        "property": "padding-top",
+        "figma": "72px",
+        "token": null,
+        "computed": "72px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/empty"
+      },
+      {
+        "elementClass": "Cart · emptyState",
+        "selector": "section.ads-card.ads-empty",
+        "property": "text-align",
+        "figma": "center",
+        "token": null,
+        "computed": "center",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "cart/empty"
+      },
+      {
+        "elementClass": "Shipping · body",
+        "selector": "body",
+        "property": "font-family",
+        "figma": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "token": null,
+        "computed": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · body",
+        "selector": "body",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · body",
+        "selector": "body",
+        "property": "background-color",
+        "figma": "rgb(246, 247, 249)",
+        "token": "--ads-color-bg",
+        "computed": "rgb(246, 247, 249)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · topbar",
+        "selector": "header.topbar",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · topbar",
+        "selector": "header.topbar",
+        "property": "height",
+        "figma": "64px",
+        "token": null,
+        "computed": "64px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · topbar",
+        "selector": "header.topbar",
+        "property": "border-bottom-color",
+        "figma": "rgb(229, 231, 235)",
+        "token": "--ads-color-border",
+        "computed": "rgb(229, 231, 235)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · stepper",
+        "selector": "ol.ads-stepper",
+        "property": "gap",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · stepper",
+        "selector": "ol.ads-stepper",
+        "property": "font-size",
+        "figma": "13px",
+        "token": "--ads-font-size-sm",
+        "computed": "13px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · stepCurrent",
+        "selector": "li",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · stepCurrent",
+        "selector": "li",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · pageTitle",
+        "selector": "h1",
+        "property": "font-size",
+        "figma": "28px",
+        "token": "--ads-font-size-xl",
+        "computed": "28px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · pageTitle",
+        "selector": "h1",
+        "property": "font-weight",
+        "figma": "650",
+        "token": null,
+        "computed": "650",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · pageTitle",
+        "selector": "h1",
+        "property": "line-height",
+        "figma": "36px",
+        "token": null,
+        "computed": "36px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · pageTitle",
+        "selector": "h1",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · sectionTitle",
+        "selector": "h2",
+        "property": "font-size",
+        "figma": "18px",
+        "token": "--ads-font-size-lg",
+        "computed": "18px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · sectionTitle",
+        "selector": "h2",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · sectionTitle",
+        "selector": "h2",
+        "property": "line-height",
+        "figma": "26px",
+        "token": null,
+        "computed": "26px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · sectionTitle",
+        "selector": "h2",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · card",
+        "selector": "section.ads-card",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · card",
+        "selector": "section.ads-card",
+        "property": "border-radius",
+        "figma": "14px",
+        "token": "--ads-radius-lg",
+        "computed": "14px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · card",
+        "selector": "section.ads-card",
+        "property": "padding-top",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · card",
+        "selector": "section.ads-card",
+        "property": "padding-left",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · card",
+        "selector": "section.ads-card",
+        "property": "box-shadow",
+        "figma": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "token": null,
+        "computed": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · summaryRow",
+        "selector": "div.summary-row",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · summaryRow",
+        "selector": "div.summary-row",
+        "property": "color",
+        "figma": "rgb(75, 85, 99)",
+        "token": "--ads-color-text-secondary",
+        "computed": "rgb(75, 85, 99)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "font-size",
+        "figma": "18px",
+        "token": "--ads-font-size-lg",
+        "computed": "18px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "font-weight",
+        "figma": "700",
+        "token": null,
+        "computed": "700",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.continue-btn",
+        "property": "background-color",
+        "figma": "rgb(79, 70, 229)",
+        "token": "--ads-color-brand",
+        "computed": "rgb(79, 70, 229)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.continue-btn",
+        "property": "color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.continue-btn",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.continue-btn",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.continue-btn",
+        "property": "padding-left",
+        "figma": "20px",
+        "token": "--ads-space-5",
+        "computed": "20px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.continue-btn",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.continue-btn",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "border-top-color",
+        "figma": "rgb(201, 206, 214)",
+        "token": "--ads-color-border-strong",
+        "computed": "rgb(201, 206, 214)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · fieldLabel",
+        "selector": "label.ads-label",
+        "property": "font-size",
+        "figma": "13px",
+        "token": "--ads-font-size-sm",
+        "computed": "13px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · fieldLabel",
+        "selector": "label.ads-label",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · fieldLabel",
+        "selector": "label.ads-label",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · fieldControl",
+        "selector": "input#f-name.ads-input",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · fieldControl",
+        "selector": "input#f-name.ads-input",
+        "property": "border-top-color",
+        "figma": "rgb(201, 206, 214)",
+        "token": "--ads-color-border-strong",
+        "computed": "rgb(201, 206, 214)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · fieldControl",
+        "selector": "input#f-name.ads-input",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · fieldControl",
+        "selector": "input#f-name.ads-input",
+        "property": "padding-left",
+        "figma": "12px",
+        "token": "--ads-space-3",
+        "computed": "12px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · fieldControl",
+        "selector": "input#f-name.ads-input",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · fieldControl",
+        "selector": "input#f-name.ads-input",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · countrySelect",
+        "selector": "select.country-select",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · countrySelect",
+        "selector": "select.country-select",
+        "property": "border-top-color",
+        "figma": "rgb(201, 206, 214)",
+        "token": "--ads-color-border-strong",
+        "computed": "rgb(201, 206, 214)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · countrySelect",
+        "selector": "select.country-select",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "8px",
+        "sourceValue": "8px",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-007"
+        ],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · countrySelect",
+        "selector": "select.country-select",
+        "property": "padding-left",
+        "figma": "12px",
+        "token": "--ads-space-3",
+        "computed": "10px",
+        "sourceValue": "10px",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-007"
+        ],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · countrySelect",
+        "selector": "select.country-select",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · deliveryOption",
+        "selector": "div.ads-radio-card",
+        "property": "border-top-color",
+        "figma": "rgb(79, 70, 229)",
+        "token": "--ads-color-brand",
+        "computed": "rgb(79, 70, 229)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · deliveryOption",
+        "selector": "div.ads-radio-card",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · deliveryOption",
+        "selector": "div.ads-radio-card",
+        "property": "padding-top",
+        "figma": "16px",
+        "token": "--ads-space-4",
+        "computed": "16px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · deliveryOption",
+        "selector": "div.ads-radio-card",
+        "property": "background-color",
+        "figma": "rgb(238, 242, 255)",
+        "token": "--ads-color-brand-subtle",
+        "computed": "rgb(238, 242, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · deliveryOption",
+        "selector": "div.ads-radio-card",
+        "property": "border-top-color",
+        "figma": "rgb(229, 231, 235)",
+        "token": "--ads-color-border",
+        "computed": "rgb(209, 213, 219)",
+        "sourceValue": "rgb(209, 213, 219)",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-009"
+        ],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · deliveryOption",
+        "selector": "div.ads-radio-card",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/with-data"
+      },
+      {
+        "elementClass": "Shipping · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.continue-btn",
+        "property": "background-color",
+        "figma": "rgb(67, 56, 202)",
+        "token": "--ads-color-brand-hover",
+        "computed": "rgb(67, 56, 202)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "shipping/hover"
+      },
+      {
+        "elementClass": "Payment · body",
+        "selector": "body",
+        "property": "font-family",
+        "figma": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "token": null,
+        "computed": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · body",
+        "selector": "body",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · body",
+        "selector": "body",
+        "property": "background-color",
+        "figma": "rgb(246, 247, 249)",
+        "token": "--ads-color-bg",
+        "computed": "rgb(246, 247, 249)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · topbar",
+        "selector": "header.topbar",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · topbar",
+        "selector": "header.topbar",
+        "property": "height",
+        "figma": "64px",
+        "token": null,
+        "computed": "64px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · topbar",
+        "selector": "header.topbar",
+        "property": "border-bottom-color",
+        "figma": "rgb(229, 231, 235)",
+        "token": "--ads-color-border",
+        "computed": "rgb(229, 231, 235)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · stepper",
+        "selector": "ol.ads-stepper",
+        "property": "gap",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · stepper",
+        "selector": "ol.ads-stepper",
+        "property": "font-size",
+        "figma": "13px",
+        "token": "--ads-font-size-sm",
+        "computed": "13px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · stepCurrent",
+        "selector": "li",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · stepCurrent",
+        "selector": "li",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · pageTitle",
+        "selector": "h1",
+        "property": "font-size",
+        "figma": "28px",
+        "token": "--ads-font-size-xl",
+        "computed": "28px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · pageTitle",
+        "selector": "h1",
+        "property": "font-weight",
+        "figma": "650",
+        "token": null,
+        "computed": "650",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · pageTitle",
+        "selector": "h1",
+        "property": "line-height",
+        "figma": "36px",
+        "token": null,
+        "computed": "36px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · pageTitle",
+        "selector": "h1",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · sectionTitle",
+        "selector": "h2",
+        "property": "font-size",
+        "figma": "18px",
+        "token": "--ads-font-size-lg",
+        "computed": "18px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · sectionTitle",
+        "selector": "h2",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · sectionTitle",
+        "selector": "h2",
+        "property": "line-height",
+        "figma": "26px",
+        "token": null,
+        "computed": "26px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · sectionTitle",
+        "selector": "h2",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · card",
+        "selector": "section.ads-card",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · card",
+        "selector": "section.ads-card",
+        "property": "border-radius",
+        "figma": "14px",
+        "token": "--ads-radius-lg",
+        "computed": "14px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · card",
+        "selector": "section.ads-card",
+        "property": "padding-top",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · card",
+        "selector": "section.ads-card",
+        "property": "padding-left",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · card",
+        "selector": "section.ads-card",
+        "property": "box-shadow",
+        "figma": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "token": null,
+        "computed": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · summaryRow",
+        "selector": "div.summary-row",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · summaryRow",
+        "selector": "div.summary-row",
+        "property": "color",
+        "figma": "rgb(75, 85, 99)",
+        "token": "--ads-color-text-secondary",
+        "computed": "rgb(75, 85, 99)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "font-size",
+        "figma": "18px",
+        "token": "--ads-font-size-lg",
+        "computed": "18px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "font-weight",
+        "figma": "700",
+        "token": null,
+        "computed": "700",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.pay-btn",
+        "property": "background-color",
+        "figma": "rgb(79, 70, 229)",
+        "token": "--ads-color-brand",
+        "computed": "rgb(79, 70, 229)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.pay-btn",
+        "property": "color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.pay-btn",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.pay-btn",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.pay-btn",
+        "property": "padding-left",
+        "figma": "20px",
+        "token": "--ads-space-5",
+        "computed": "20px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.pay-btn",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.pay-btn",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "border-top-color",
+        "figma": "rgb(201, 206, 214)",
+        "token": "--ads-color-border-strong",
+        "computed": "rgb(201, 206, 214)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · fieldLabel",
+        "selector": "label.ads-label",
+        "property": "font-size",
+        "figma": "13px",
+        "token": "--ads-font-size-sm",
+        "computed": "13px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · fieldLabel",
+        "selector": "label.ads-label",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · fieldLabel",
+        "selector": "label.ads-label",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · fieldControl",
+        "selector": "input#f-cardname.ads-input",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · fieldControl",
+        "selector": "input#f-cardname.ads-input",
+        "property": "border-top-color",
+        "figma": "rgb(201, 206, 214)",
+        "token": "--ads-color-border-strong",
+        "computed": "rgb(201, 206, 214)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · fieldControl",
+        "selector": "input#f-cardname.ads-input",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · fieldControl",
+        "selector": "input#f-cardname.ads-input",
+        "property": "padding-left",
+        "figma": "12px",
+        "token": "--ads-space-3",
+        "computed": "12px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · fieldControl",
+        "selector": "input#f-cardname.ads-input",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · fieldControl",
+        "selector": "input#f-cardname.ads-input",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · secureNote",
+        "selector": "p.opt-sub",
+        "property": "font-size",
+        "figma": "13px",
+        "token": "--ads-font-size-sm",
+        "computed": "13px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · secureNote",
+        "selector": "p.opt-sub",
+        "property": "color",
+        "figma": "rgb(75, 85, 99)",
+        "token": "--ads-color-text-secondary",
+        "computed": "rgb(75, 85, 99)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/with-data"
+      },
+      {
+        "elementClass": "Payment · alert",
+        "selector": "div.ads-alert",
+        "property": "background-color",
+        "figma": "rgb(254, 242, 242)",
+        "token": "--ads-color-danger-bg",
+        "computed": "rgb(254, 242, 242)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/error"
+      },
+      {
+        "elementClass": "Payment · alert",
+        "selector": "div.ads-alert",
+        "property": "color",
+        "figma": "rgb(153, 27, 27)",
+        "token": "--ads-color-danger-fg",
+        "computed": "rgb(153, 27, 27)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/error"
+      },
+      {
+        "elementClass": "Payment · alert",
+        "selector": "div.ads-alert",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/error"
+      },
+      {
+        "elementClass": "Payment · alert",
+        "selector": "div.ads-alert",
+        "property": "padding-top",
+        "figma": "16px",
+        "token": "--ads-space-4",
+        "computed": "16px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/error"
+      },
+      {
+        "elementClass": "Payment · alertTitle",
+        "selector": "strong",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/error"
+      },
+      {
+        "elementClass": "Payment · alertTitle",
+        "selector": "strong",
+        "property": "color",
+        "figma": "rgb(153, 27, 27)",
+        "token": "--ads-color-danger-fg",
+        "computed": "rgb(153, 27, 27)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "payment/error"
+      },
+      {
+        "elementClass": "Review · body",
+        "selector": "body",
+        "property": "font-family",
+        "figma": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "token": null,
+        "computed": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · body",
+        "selector": "body",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · body",
+        "selector": "body",
+        "property": "background-color",
+        "figma": "rgb(246, 247, 249)",
+        "token": "--ads-color-bg",
+        "computed": "rgb(246, 247, 249)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · topbar",
+        "selector": "header.topbar",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · topbar",
+        "selector": "header.topbar",
+        "property": "height",
+        "figma": "64px",
+        "token": null,
+        "computed": "64px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · topbar",
+        "selector": "header.topbar",
+        "property": "border-bottom-color",
+        "figma": "rgb(229, 231, 235)",
+        "token": "--ads-color-border",
+        "computed": "rgb(229, 231, 235)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · stepper",
+        "selector": "ol.ads-stepper",
+        "property": "gap",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · stepper",
+        "selector": "ol.ads-stepper",
+        "property": "font-size",
+        "figma": "13px",
+        "token": "--ads-font-size-sm",
+        "computed": "13px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · stepCurrent",
+        "selector": "li",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · stepCurrent",
+        "selector": "li",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · pageTitle",
+        "selector": "h1",
+        "property": "font-size",
+        "figma": "28px",
+        "token": "--ads-font-size-xl",
+        "computed": "28px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · pageTitle",
+        "selector": "h1",
+        "property": "font-weight",
+        "figma": "650",
+        "token": null,
+        "computed": "650",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · pageTitle",
+        "selector": "h1",
+        "property": "line-height",
+        "figma": "36px",
+        "token": null,
+        "computed": "36px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · pageTitle",
+        "selector": "h1",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · sectionTitle",
+        "selector": "h2",
+        "property": "font-size",
+        "figma": "18px",
+        "token": "--ads-font-size-lg",
+        "computed": "18px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · sectionTitle",
+        "selector": "h2",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · sectionTitle",
+        "selector": "h2",
+        "property": "line-height",
+        "figma": "26px",
+        "token": null,
+        "computed": "26px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · sectionTitle",
+        "selector": "h2",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · card",
+        "selector": "section.ads-card",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · card",
+        "selector": "section.ads-card",
+        "property": "border-radius",
+        "figma": "14px",
+        "token": "--ads-radius-lg",
+        "computed": "14px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · card",
+        "selector": "section.ads-card",
+        "property": "padding-top",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · card",
+        "selector": "section.ads-card",
+        "property": "padding-left",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · card",
+        "selector": "section.ads-card",
+        "property": "box-shadow",
+        "figma": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "token": null,
+        "computed": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · summaryRow",
+        "selector": "div.summary-row",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · summaryRow",
+        "selector": "div.summary-row",
+        "property": "color",
+        "figma": "rgb(75, 85, 99)",
+        "token": "--ads-color-text-secondary",
+        "computed": "rgb(75, 85, 99)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "font-size",
+        "figma": "18px",
+        "token": "--ads-font-size-lg",
+        "computed": "18px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "font-weight",
+        "figma": "700",
+        "token": null,
+        "computed": "700",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · summaryTotal",
+        "selector": "div.summary-total",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "background-color",
+        "figma": "rgb(79, 70, 229)",
+        "token": "--ads-color-brand",
+        "computed": "rgb(79, 70, 229)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "8px",
+        "sourceValue": "8px",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-018"
+        ],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "padding-left",
+        "figma": "20px",
+        "token": "--ads-space-5",
+        "computed": "20px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "border-top-color",
+        "figma": "rgb(201, 206, 214)",
+        "token": "--ads-color-border-strong",
+        "computed": "rgb(201, 206, 214)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · fieldControl",
+        "selector": "input#f-promo.ads-input",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · fieldControl",
+        "selector": "input#f-promo.ads-input",
+        "property": "border-top-color",
+        "figma": "rgb(201, 206, 214)",
+        "token": "--ads-color-border-strong",
+        "computed": "rgb(201, 206, 214)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · fieldControl",
+        "selector": "input#f-promo.ads-input",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · fieldControl",
+        "selector": "input#f-promo.ads-input",
+        "property": "padding-left",
+        "figma": "12px",
+        "token": "--ads-space-3",
+        "computed": "12px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · fieldControl",
+        "selector": "input#f-promo.ads-input",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · fieldControl",
+        "selector": "input#f-promo.ads-input",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · reviewBlock",
+        "selector": "div.review-block",
+        "property": "padding-top",
+        "figma": "0px",
+        "token": null,
+        "computed": "0px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · reviewBlock",
+        "selector": "div.review-block",
+        "property": "border-bottom-color",
+        "figma": "rgb(229, 231, 235)",
+        "token": "--ads-color-border",
+        "computed": "rgb(229, 231, 235)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · reviewBlock",
+        "selector": "div.review-block",
+        "property": "padding-top",
+        "figma": "16px",
+        "token": "--ads-space-4",
+        "computed": "16px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · editLink",
+        "selector": "a.ads-link",
+        "property": "color",
+        "figma": "rgb(79, 70, 229)",
+        "token": "--ads-color-brand",
+        "computed": "rgb(79, 70, 229)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · editLink",
+        "selector": "a.ads-link",
+        "property": "font-weight",
+        "figma": "500",
+        "token": null,
+        "computed": "500",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Review · editLink",
+        "selector": "a.ads-link",
+        "property": "font-size",
+        "figma": "13px",
+        "token": "--ads-font-size-sm",
+        "computed": "13px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "review/with-data"
+      },
+      {
+        "elementClass": "Confirmation · body",
+        "selector": "body",
+        "property": "font-family",
+        "figma": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "token": null,
+        "computed": "Inter, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · body",
+        "selector": "body",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · body",
+        "selector": "body",
+        "property": "background-color",
+        "figma": "rgb(246, 247, 249)",
+        "token": "--ads-color-bg",
+        "computed": "rgb(246, 247, 249)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · topbar",
+        "selector": "header.topbar",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · topbar",
+        "selector": "header.topbar",
+        "property": "height",
+        "figma": "64px",
+        "token": null,
+        "computed": "64px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · topbar",
+        "selector": "header.topbar",
+        "property": "border-bottom-color",
+        "figma": "rgb(229, 231, 235)",
+        "token": "--ads-color-border",
+        "computed": "rgb(229, 231, 235)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · stepper",
+        "selector": "ol.ads-stepper",
+        "property": "gap",
+        "figma": "24px",
+        "token": "--ads-space-6",
+        "computed": "24px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · stepper",
+        "selector": "ol.ads-stepper",
+        "property": "font-size",
+        "figma": "13px",
+        "token": "--ads-font-size-sm",
+        "computed": "13px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · stepCurrent",
+        "selector": "li",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · stepCurrent",
+        "selector": "li",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · pageTitle",
+        "selector": "h1",
+        "property": "font-size",
+        "figma": "26px",
+        "token": null,
+        "computed": "26px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · pageTitle",
+        "selector": "h1",
+        "property": "font-weight",
+        "figma": "650",
+        "token": null,
+        "computed": "650",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · pageTitle",
+        "selector": "h1",
+        "property": "line-height",
+        "figma": "34px",
+        "token": null,
+        "computed": "34px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · pageTitle",
+        "selector": "h1",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · card",
+        "selector": "section.ads-card.confirm",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · card",
+        "selector": "section.ads-card.confirm",
+        "property": "border-radius",
+        "figma": "14px",
+        "token": "--ads-radius-lg",
+        "computed": "14px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · card",
+        "selector": "section.ads-card.confirm",
+        "property": "padding-top",
+        "figma": "40px",
+        "token": "--ads-space-10",
+        "computed": "40px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · card",
+        "selector": "section.ads-card.confirm",
+        "property": "padding-left",
+        "figma": "32px",
+        "token": "--ads-space-8",
+        "computed": "32px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · card",
+        "selector": "section.ads-card.confirm",
+        "property": "box-shadow",
+        "figma": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "token": null,
+        "computed": "rgba(17, 24, 39, 0.04) 0px 1px 2px 0px, rgba(17, 24, 39, 0.05) 0px 4px 12px 0px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary",
+        "property": "background-color",
+        "figma": "rgb(79, 70, 229)",
+        "token": "--ads-color-brand",
+        "computed": "rgb(79, 70, 229)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary",
+        "property": "color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary",
+        "property": "padding-left",
+        "figma": "20px",
+        "token": "--ads-space-5",
+        "computed": "20px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary",
+        "property": "font-size",
+        "figma": "15px",
+        "token": "--ads-font-size-md",
+        "computed": "15px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · primaryCta",
+        "selector": "button.ads-btn.ads-btn--primary",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "background-color",
+        "figma": "rgb(255, 255, 255)",
+        "token": "--ads-color-on-brand",
+        "computed": "rgb(255, 255, 255)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "height",
+        "figma": "44px",
+        "token": null,
+        "computed": "44px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · secondaryCta",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "property": "border-top-color",
+        "figma": "rgb(201, 206, 214)",
+        "token": "--ads-color-border-strong",
+        "computed": "rgb(201, 206, 214)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · confirmIcon",
+        "selector": "div.confirm-icon",
+        "property": "width",
+        "figma": "72px",
+        "token": null,
+        "computed": "72px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · confirmIcon",
+        "selector": "div.confirm-icon",
+        "property": "height",
+        "figma": "72px",
+        "token": null,
+        "computed": "72px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · confirmIcon",
+        "selector": "div.confirm-icon",
+        "property": "background-color",
+        "figma": "rgb(220, 252, 231)",
+        "token": "--ads-color-success-bg",
+        "computed": "rgb(220, 252, 231)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · orderNumber",
+        "selector": "span.order-number",
+        "property": "font-weight",
+        "figma": "600",
+        "token": null,
+        "computed": "600",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · orderNumber",
+        "selector": "span.order-number",
+        "property": "color",
+        "figma": "rgb(17, 24, 39)",
+        "token": "--ads-color-text-primary",
+        "computed": "rgb(17, 24, 39)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · toast",
+        "selector": "div.ads-toast",
+        "property": "background-color",
+        "figma": "rgb(15, 23, 42)",
+        "token": "--ads-color-inverse-bg",
+        "computed": "rgb(15, 23, 42)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · toast",
+        "selector": "div.ads-toast",
+        "property": "color",
+        "figma": "rgb(249, 250, 251)",
+        "token": "--ads-color-inverse-fg",
+        "computed": "rgb(249, 250, 251)",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      },
+      {
+        "elementClass": "Confirmation · toast",
+        "selector": "div.ads-toast",
+        "property": "border-radius",
+        "figma": "10px",
+        "token": "--ads-radius-md",
+        "computed": "10px",
+        "sourceValue": null,
+        "result": "PASS",
+        "findingIds": [],
+        "_state": "confirmation/with-data"
+      }
+    ],
+    "state": [
+      {
+        "state": "cart/with-data",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-001",
+          "DQ-002",
+          "DQ-003",
+          "DQ-004",
+          "DQ-005"
+        ]
+      },
+      {
+        "state": "cart/empty",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-006"
+        ]
+      },
+      {
+        "state": "shipping/with-data",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-007",
+          "DQ-009",
+          "DQ-010"
+        ]
+      },
+      {
+        "state": "shipping/hover",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-008"
+        ]
+      },
+      {
+        "state": "payment/with-data",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-011",
+          "DQ-012",
+          "DQ-014"
+        ]
+      },
+      {
+        "state": "payment/error",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-013",
+          "DQ-015"
+        ]
+      },
+      {
+        "state": "review/with-data",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-016",
+          "DQ-018",
+          "DQ-019"
+        ]
+      },
+      {
+        "state": "review/promo-applied",
+        "result": "MISSING_IN_CODE",
+        "findingIds": [
+          "DQ-017"
+        ]
+      },
+      {
+        "state": "confirmation/with-data",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-020",
+          "DQ-021",
+          "DQ-022",
+          "DQ-023"
+        ]
+      }
+    ],
+    "behavior": [
+      {
+        "state": "cart/empty",
+        "trigger": "Cart has no items (?empty=1)",
+        "expected": "EmptyState with a 'Continue shopping' button",
+        "observed": "EmptyState with 'Continue shopping'",
+        "acRef": "AC-2",
+        "result": "PASS",
+        "findingIds": [
+          "DQ-006"
+        ]
+      },
+      {
+        "state": "shipping/hover",
+        "trigger": "Pointer over Continue to payment",
+        "expected": "Background eases to --ads-color-brand-hover over 160ms",
+        "observed": "Background switches to #4338CA instantly",
+        "acRef": null,
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-008"
+        ]
+      },
+      {
+        "state": "payment/with-data",
+        "trigger": "Tab to the card number field",
+        "expected": "Input focus ring (2px --ads-color-brand)",
+        "observed": "Not captured: no focus driver",
+        "acRef": "AC-4",
+        "result": "CANNOT_VERIFY",
+        "findingIds": [
+          "DQ-014"
+        ]
+      },
+      {
+        "state": "payment/error",
+        "trigger": "Payment API returns card_declined (?error=1)",
+        "expected": "Alert (danger) above the card fields; the customer corrects the card and presses Pay again",
+        "observed": "Alert (danger) with an extra Try again button",
+        "acRef": "AC-5",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-013"
+        ]
+      },
+      {
+        "state": "review/promo-applied",
+        "trigger": "Enter SPRING10 and press Apply",
+        "expected": "Promo row with the SPRING10 badge and total €225.50",
+        "observed": "Nothing happens; the total stays €248.40",
+        "acRef": "AC-7",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-017"
+        ]
+      },
+      {
+        "state": "confirmation/with-data",
+        "trigger": "Order placed",
+        "expected": "Success icon pops in (320ms ease-out), receipt toast slides in (240ms ease-out)",
+        "observed": "Icon pops in over 600ms linear; toast as designed",
+        "acRef": "AC-8",
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-020",
+          "DQ-023"
+        ]
+      }
+    ],
+    "motion": [
+      {
+        "state": "cart/with-data",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "figmaNodeId": null,
+        "trigger": "state-change",
+        "property": "background-color, border-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": [],
+        "_compare": {
+          "elementClass": "primaryCta",
+          "index": 0,
+          "key": "primaryCta#0|button.ads-btn.ads-btn--primary.ads-btn--block|background-color",
+          "reasons": [],
+          "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+          "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+        }
+      },
+      {
+        "state": "cart/empty",
+        "selector": "button.ads-btn.ads-btn--primary",
+        "figmaNodeId": null,
+        "trigger": "state-change",
+        "property": "background-color, border-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": [],
+        "_compare": {
+          "elementClass": "primaryCta",
+          "index": 1,
+          "key": "primaryCta#1|button.ads-btn.ads-btn--primary|background-color",
+          "reasons": [],
+          "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+          "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+        }
+      },
+      {
+        "state": "shipping/hover",
+        "selector": "button.ads-btn.ads-btn--primary.continue-btn",
+        "figmaNodeId": null,
+        "trigger": "hover",
+        "property": "background-color, border-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "observed": null,
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-008"
+        ],
+        "_compare": {
+          "elementClass": "primaryCta",
+          "index": 0,
+          "key": "primaryCta#0|button.ads-btn.ads-btn--primary.continue-btn|background-color",
+          "reasons": [
+            "missing motion: the app has no transition on background-color"
+          ],
+          "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+          "observedText": "none"
+        }
+      },
+      {
+        "state": "shipping/hover",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "figmaNodeId": null,
+        "trigger": "hover",
+        "property": "background-color, border-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": [],
+        "_compare": {
+          "elementClass": "secondaryCta",
+          "index": 0,
+          "key": "secondaryCta#0|button.ads-btn.ads-btn--secondary|background-color",
+          "reasons": [],
+          "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+          "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+        }
+      },
+      {
+        "state": "payment/with-data",
+        "selector": "button.ads-btn.ads-btn--primary.pay-btn",
+        "figmaNodeId": null,
+        "trigger": "state-change",
+        "property": "background-color, border-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": [],
+        "_compare": {
+          "elementClass": "primaryCta",
+          "index": 0,
+          "key": "primaryCta#0|button.ads-btn.ads-btn--primary.pay-btn|background-color",
+          "reasons": [],
+          "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+          "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+        }
+      },
+      {
+        "state": "payment/with-data",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "figmaNodeId": null,
+        "trigger": "state-change",
+        "property": "background-color, border-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": [],
+        "_compare": {
+          "elementClass": "secondaryCta",
+          "index": 0,
+          "key": "secondaryCta#0|button.ads-btn.ads-btn--secondary|background-color",
+          "reasons": [],
+          "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+          "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+        }
+      },
+      {
+        "state": "review/with-data",
+        "selector": "button.ads-btn.ads-btn--primary.ads-btn--block",
+        "figmaNodeId": null,
+        "trigger": "state-change",
+        "property": "background-color, border-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": [],
+        "_compare": {
+          "elementClass": "primaryCta",
+          "index": 0,
+          "key": "primaryCta#0|button.ads-btn.ads-btn--primary.ads-btn--block|background-color",
+          "reasons": [],
+          "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+          "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+        }
+      },
+      {
+        "state": "review/with-data",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "figmaNodeId": null,
+        "trigger": "state-change",
+        "property": "background-color, border-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": [],
+        "_compare": {
+          "elementClass": "secondaryCta",
+          "index": 0,
+          "key": "secondaryCta#0|button.ads-btn.ads-btn--secondary|background-color",
+          "reasons": [],
+          "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+          "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+        }
+      },
+      {
+        "state": "confirmation/with-data",
+        "selector": "button.ads-btn.ads-btn--primary",
+        "figmaNodeId": null,
+        "trigger": "state-change",
+        "property": "background-color, border-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": [],
+        "_compare": {
+          "elementClass": "primaryCta",
+          "index": 0,
+          "key": "primaryCta#0|button.ads-btn.ads-btn--primary|background-color",
+          "reasons": [],
+          "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+          "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+        }
+      },
+      {
+        "state": "confirmation/with-data",
+        "selector": "button.ads-btn.ads-btn--secondary",
+        "figmaNodeId": null,
+        "trigger": "state-change",
+        "property": "background-color, border-color",
+        "expected": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "observed": {
+          "type": "transition",
+          "durationMs": 160,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": null
+        },
+        "result": "PASS",
+        "findingIds": [],
+        "_compare": {
+          "elementClass": "secondaryCta",
+          "index": 0,
+          "key": "secondaryCta#0|button.ads-btn.ads-btn--secondary|background-color",
+          "reasons": [],
+          "expectedText": "160ms cubic-bezier(0,0,0.58,1) on background-color",
+          "observedText": "160ms cubic-bezier(0,0,0.58,1) on background-color"
+        }
+      },
+      {
+        "state": "confirmation/with-data",
+        "selector": "div.confirm-icon",
+        "figmaNodeId": null,
+        "trigger": "load",
+        "property": "animation",
+        "expected": {
+          "type": "animation",
+          "durationMs": 320,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": "animation ads-pop-in"
+        },
+        "observed": {
+          "type": "animation",
+          "durationMs": 600,
+          "easing": "linear",
+          "delayMs": 0,
+          "detail": "animation pop"
+        },
+        "result": "FAIL",
+        "findingIds": [
+          "DQ-020"
+        ],
+        "_compare": {
+          "elementClass": "confirmIcon",
+          "index": 0,
+          "key": "confirmIcon#0|div.confirm-icon|animation",
+          "reasons": [
+            "duration 600ms, expected 320ms",
+            "easing linear, expected cubic-bezier(0,0,0.58,1)"
+          ],
+          "expectedText": "320ms cubic-bezier(0,0,0.58,1) animation ads-pop-in",
+          "observedText": "600ms linear animation pop"
+        }
+      },
+      {
+        "state": "confirmation/with-data",
+        "selector": "div.ads-toast",
+        "figmaNodeId": null,
+        "trigger": "load",
+        "property": "animation",
+        "expected": {
+          "type": "animation",
+          "durationMs": 240,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": "animation ads-toast-in"
+        },
+        "observed": {
+          "type": "animation",
+          "durationMs": 240,
+          "easing": "cubic-bezier(0,0,0.58,1)",
+          "delayMs": 0,
+          "detail": "animation ads-toast-in"
+        },
+        "result": "PASS",
+        "findingIds": [
+          "DQ-023"
+        ],
+        "_compare": {
+          "elementClass": "toast",
+          "index": 0,
+          "key": "toast#0|div.ads-toast|animation",
+          "reasons": [],
+          "expectedText": "240ms cubic-bezier(0,0,0.58,1) animation ads-toast-in",
+          "observedText": "240ms cubic-bezier(0,0,0.58,1) animation ads-toast-in"
+        }
+      }
+    ]
+  },
+  "openDecisions": [
+    {
+      "id": "OD-1",
+      "question": "Payment security note: the app names the payment processor (“Payments are processed by Stripe. We never store your card details.”); the design says “Your payment is encrypted and secure.” Which ships?",
+      "options": [
+        {
+          "label": "Restore the designed copy (fix code)",
+          "consequence": "Matches the frame; the processor disclosure added for CHK-198 disappears from the payment step."
+        },
+        {
+          "label": "Keep the processor disclosure (sign off as intentional)",
+          "consequence": "The app keeps the Stripe sentence; DQ-012 is recorded as an accepted divergence with Legal as the approver."
+        }
+      ],
+      "recommendation": "Ask Legal whether CHK-198 requires the processor name on this step. If it does, sign DQ-012 off as intentional; otherwise restore the designed copy.",
+      "relatedFindings": [
+        "DQ-012"
+      ]
+    }
+  ],
+  "fixLoop": [],
+  "evidence": {
+    "figmaSpec": null,
+    "ticket": "evidence/ticket.json",
+    "capture": "evidence/screens/cart/capture.json",
+    "prototypeCapture": null,
+    "compare": "evidence/screens/cart/compare.json",
+    "states": {
+      "cart/with-data": {
+        "design": "evidence/screens/cart/figma/with-data.png",
+        "app": "evidence/screens/cart/app/with-data.png",
+        "diff": "evidence/screens/cart/diff/with-data.png",
+        "computed": "evidence/screens/cart/computed/with-data.json",
+        "dom": "evidence/screens/cart/dom/with-data.json",
+        "motion": "evidence/screens/cart/motion/with-data.json"
+      },
+      "cart/empty": {
+        "design": "evidence/screens/cart/figma/empty.png",
+        "app": "evidence/screens/cart/app/empty.png",
+        "diff": "evidence/screens/cart/diff/empty.png",
+        "computed": "evidence/screens/cart/computed/empty.json",
+        "dom": "evidence/screens/cart/dom/empty.json",
+        "motion": "evidence/screens/cart/motion/empty.json"
+      },
+      "shipping/with-data": {
+        "design": "evidence/screens/shipping/figma/with-data.png",
+        "app": "evidence/screens/shipping/app/with-data.png",
+        "diff": "evidence/screens/shipping/diff/with-data.png",
+        "computed": "evidence/screens/shipping/computed/with-data.json",
+        "dom": "evidence/screens/shipping/dom/with-data.json",
+        "motion": "evidence/screens/shipping/motion/with-data.json"
+      },
+      "shipping/hover": {
+        "design": "evidence/screens/shipping/figma/hover.png",
+        "app": "evidence/screens/shipping/app/hover.png",
+        "diff": "evidence/screens/shipping/diff/hover.png",
+        "computed": "evidence/screens/shipping/computed/hover.json",
+        "dom": "evidence/screens/shipping/dom/hover.json",
+        "motion": "evidence/screens/shipping/motion/hover.json"
+      },
+      "payment/with-data": {
+        "design": "evidence/screens/payment/figma/with-data.png",
+        "app": "evidence/screens/payment/app/with-data.png",
+        "diff": "evidence/screens/payment/diff/with-data.png",
+        "computed": "evidence/screens/payment/computed/with-data.json",
+        "dom": "evidence/screens/payment/dom/with-data.json",
+        "motion": "evidence/screens/payment/motion/with-data.json"
+      },
+      "payment/error": {
+        "design": "evidence/screens/payment/figma/error.png",
+        "app": "evidence/screens/payment/app/error.png",
+        "diff": "evidence/screens/payment/diff/error.png",
+        "computed": "evidence/screens/payment/computed/error.json",
+        "dom": "evidence/screens/payment/dom/error.json",
+        "motion": "evidence/screens/payment/motion/error.json"
+      },
+      "review/with-data": {
+        "design": "evidence/screens/review/figma/with-data.png",
+        "app": "evidence/screens/review/app/with-data.png",
+        "diff": "evidence/screens/review/diff/with-data.png",
+        "computed": "evidence/screens/review/computed/with-data.json",
+        "dom": "evidence/screens/review/dom/with-data.json",
+        "motion": "evidence/screens/review/motion/with-data.json"
+      },
+      "review/promo-applied": {
+        "design": "evidence/screens/review/figma/promo-applied.png",
+        "app": null,
+        "diff": null,
+        "computed": null,
+        "dom": null,
+        "motion": null
+      },
+      "confirmation/with-data": {
+        "design": "evidence/screens/confirmation/figma/with-data.png",
+        "app": "evidence/screens/confirmation/app/with-data.png",
+        "diff": "evidence/screens/confirmation/diff/with-data.png",
+        "computed": "evidence/screens/confirmation/computed/with-data.json",
+        "dom": "evidence/screens/confirmation/dom/with-data.json",
+        "motion": "evidence/screens/confirmation/motion/with-data.json"
+      }
+    }
+  },
+  "backfill": {
+    "gate": {
+      "override": null
+    },
+    "items": [
+      {
+        "id": "BF-001",
+        "state": "payment/processing",
+        "screen": "payment",
+        "label": "Processing payment",
+        "discoveredBy": "source",
+        "detail": "src/features/payment/PayButton.tsx:31 swaps the label for a spinner and “Processing payment…” and dims the card fields while confirmPayment() is pending",
+        "driver": {
+          "query": "?processing=1"
+        },
+        "captured": {
+          "app": "evidence/backfill/payment/app/processing.png",
+          "computed": "evidence/backfill/payment/computed/processing.json",
+          "dom": "evidence/backfill/payment/dom/processing.json",
+          "motion": "evidence/backfill/payment/motion/processing.json"
+        },
+        "anchor": {
+          "nodeId": "2140:690",
+          "name": "Payment / With data"
+        },
+        "components": [
+          {
+            "name": "Button",
+            "variant": "Primary, Loading",
+            "selector": "[data-testid=primary-cta]",
+            "inLibrary": true
+          },
+          {
+            "name": "Input",
+            "variant": "Disabled",
+            "selector": "[data-testid=field-control]",
+            "inLibrary": true
+          }
+        ],
+        "tokens": [
+          "--ads-color-brand",
+          "--ads-color-surface-muted",
+          "--ads-color-text-muted",
+          "--ads-radius-md"
+        ],
+        "decision": "build",
+        "decidedBy": "Maya Chen",
+        "decidedAt": "2026-10-03T10:12:00Z",
+        "reason": null,
+        "figma": null,
+        "dsGaps": []
+      },
+      {
+        "id": "BF-002",
+        "state": "cart/item-removed",
+        "screen": "cart",
+        "label": "Item removed (undo toast)",
+        "discoveredBy": "source",
+        "detail": "src/features/cart/useRemoveItem.ts:22 removes the line and shows <Toast> “… removed from your cart” with Undo for 6 s",
+        "driver": {
+          "query": "?removed=1"
+        },
+        "captured": {
+          "app": "evidence/backfill/cart/app/item-removed.png",
+          "computed": "evidence/backfill/cart/computed/item-removed.json",
+          "dom": "evidence/backfill/cart/dom/item-removed.json",
+          "motion": "evidence/backfill/cart/motion/item-removed.json"
+        },
+        "anchor": {
+          "nodeId": "2140:120",
+          "name": "Cart / With data"
+        },
+        "components": [
+          {
+            "name": "Toast",
+            "variant": "Inverse, With action",
+            "selector": "[data-component=Toast]",
+            "inLibrary": true
+          },
+          {
+            "name": "Link",
+            "variant": "On dark",
+            "selector": "[data-component=Toast] a",
+            "inLibrary": false
+          }
+        ],
+        "tokens": [
+          "--ads-color-inverse-bg",
+          "--ads-color-inverse-fg",
+          "--ads-radius-md",
+          "--ads-shadow-toast"
+        ],
+        "decision": "pending",
+        "decidedBy": null,
+        "decidedAt": null,
+        "reason": null,
+        "figma": null,
+        "dsGaps": [
+          "Link variant for inverse surfaces (the app hardcodes #A5B4FC)"
+        ]
+      },
+      {
+        "id": "BF-003",
+        "state": "shipping/saving-address",
+        "screen": "shipping",
+        "label": "Saving address",
+        "discoveredBy": "source",
+        "detail": "src/features/shipping/ShippingForm.tsx:88 puts Continue to payment in the Button loading variant while the address is validated",
+        "driver": null,
+        "captured": null,
+        "anchor": {
+          "nodeId": "2140:410",
+          "name": "Shipping / With data"
+        },
+        "components": [
+          {
+            "name": "Button",
+            "variant": "Primary, Loading",
+            "selector": "[data-testid=primary-cta]",
+            "inLibrary": true
+          }
+        ],
+        "tokens": [
+          "--ads-color-brand"
+        ],
+        "decision": "not-needed",
+        "decidedBy": "Maya Chen",
+        "decidedAt": "2026-10-03T10:12:00Z",
+        "reason": "Transient (under 300 ms on the address API): the DS Button loading variant already specifies it, so a separate Shipping frame adds nothing.",
+        "figma": null,
+        "dsGaps": []
+      }
+    ]
+  }
+}

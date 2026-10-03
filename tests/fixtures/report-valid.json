@@ -1,11 +1,18 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "2.0",
   "meta": {
     "feature": "Items list",
     "generatedAt": "2026-09-23T10:00:00Z",
-    "skillVersion": "0.1.0",
+    "skillVersion": "0.2.0",
     "mode": "audit",
     "ticket": { "provider": "jira", "key": "ABC-12", "url": "https://example.atlassian.net/browse/ABC-12", "title": "Items list" },
+    "source": {
+      "kind": "figma",
+      "url": "https://www.figma.com/design/AbCdEf123456/Items?node-id=1-2",
+      "label": "Items (Figma)",
+      "tool": null,
+      "frame": { "width": 1440, "height": 900 }
+    },
     "figma": {
       "fileKey": "AbCdEf123456",
       "nodeId": "1:2",
@@ -22,20 +29,25 @@
       "dpr": 1
     },
     "fixture": null,
-    "tools": { "figmaAccess": "rest", "capture": "script", "ticket": "rest" },
+    "tools": { "figmaAccess": "rest", "capture": "script", "ticket": "rest", "prototypeCapture": null },
     "degradations": []
   },
   "scorecard": {
-    "parity": 43,
+    "parity": 38,
     "verdict": "FAIL",
-    "bySeverity": { "BLOCKER": 1, "WARNING": 3, "PASS": 1, "CANNOT_VERIFY": 1, "DS_CANDIDATE": 1 },
-    "byResolution": { "FIX_CODE": 3, "SYNC_FIGMA": 1, "INTENTIONAL": 1, "DATA": 0, "NONE": 2, "UNCLASSIFIED": 0 },
+    "bySeverity": { "BLOCKER": 1, "WARNING": 5, "PASS": 1, "CANNOT_VERIFY": 1, "DS_CANDIDATE": 1 },
+    "byResolution": { "FIX_CODE": 5, "INTENTIONAL": 1, "DATA": 0, "DISMISSED": 1, "NONE": 2, "UNCLASSIFIED": 0 },
     "pixelDiff": {
       "with-data": { "percent": 0.4, "band": "pass", "image": "diff/with-data.png" },
       "empty": { "percent": 7.2, "band": "fail", "image": "diff/empty.png" },
       "hover": { "percent": 1.3, "band": "review", "image": null }
     },
-    "stateCoverage": { "total": 5, "designed": 4, "specified": 3, "implemented": 5, "verified": 3 }
+    "stateCoverage": { "total": 5, "designed": 5, "specified": 3, "implemented": 4, "verified": 3 },
+    "unexplained": 5,
+    "debt": { "count": 0, "ticketed": 0 },
+    "loopClosed": false,
+    "dismissed": 1,
+    "designSystem": { "tokens": 2, "components": 1, "motion": 1 }
   },
   "stateMatrix": [
     {
@@ -44,10 +56,10 @@
       "designed": { "nodeId": "1:2", "name": "Items" },
       "specified": { "acRef": "AC-1", "text": "Shows one row per item" },
       "implemented": { "driver": "fixture", "detail": "default route" },
-      "captured": { "figma": "figma/with-data.png", "app": "app/with-data.png", "diff": "diff/with-data.png" },
+      "captured": { "design": "figma/with-data.png", "app": "app/with-data.png", "diff": "diff/with-data.png" },
       "result": "FAIL",
       "note": null,
-      "findings": ["DQ-002", "DQ-004", "DQ-005"]
+      "findings": ["DQ-002", "DQ-004", "DQ-005", "DQ-007", "DQ-009"]
     },
     {
       "state": "empty",
@@ -55,21 +67,21 @@
       "designed": { "nodeId": "1:40", "name": "Items / Empty" },
       "specified": { "acRef": "AC-2", "text": "Show an empty state when there are no items" },
       "implemented": { "driver": "mock", "detail": "**/api/items → 200 []" },
-      "captured": { "figma": "figma/empty.png", "app": "app/empty.png", "diff": "diff/empty.png" },
+      "captured": { "design": "figma/empty.png", "app": "app/empty.png", "diff": "diff/empty.png" },
       "result": "FAIL",
       "note": null,
       "findings": ["DQ-001"]
     },
     {
-      "state": "hover",
-      "label": "Hover",
-      "designed": { "nodeId": "1:77", "name": "Row / Hover" },
+      "state": "loading",
+      "label": "Loading",
+      "designed": { "nodeId": "1:31", "name": "Loading skeleton" },
       "specified": null,
-      "implemented": { "driver": "action", "detail": "hover .row" },
-      "captured": { "figma": "figma/hover.png", "app": "app/hover.png", "diff": null },
-      "result": "PASS",
-      "note": null,
-      "findings": ["DQ-003"]
+      "implemented": null,
+      "captured": null,
+      "result": "MISSING_IN_CODE",
+      "note": "Designed (Loading skeleton) but not implemented: if the code has it, add a driver at surfaces.items.states.loading; otherwise build it.",
+      "findings": []
     },
     {
       "state": "error",
@@ -83,15 +95,15 @@
       "findings": ["DQ-006"]
     },
     {
-      "state": "disabled",
-      "label": "Disabled",
-      "designed": null,
+      "state": "hover",
+      "label": "Hover",
+      "designed": { "nodeId": "1:77", "name": "Row / Hover" },
       "specified": null,
-      "implemented": { "driver": "query", "detail": "?readonly=1" },
-      "captured": null,
-      "result": "MISSING_IN_DESIGN",
-      "note": "Read-only mode exists in code but has no design",
-      "findings": []
+      "implemented": { "driver": "action", "detail": "hover .row" },
+      "captured": { "design": "figma/hover.png", "app": "app/hover.png", "diff": null },
+      "result": "FAIL",
+      "note": null,
+      "findings": ["DQ-003", "DQ-008"]
     }
   ],
   "findings": [
@@ -112,7 +124,7 @@
       "fix": { "summary": "Render the EmptyState component when the list is empty", "patchHint": "return <EmptyState title=\"No items yet\" />", "files": ["src/Items.tsx"], "effort": 2 },
       "evidence": [
         { "type": "screenshot", "path": "app/empty.png", "crop": null, "state": "empty" },
-        { "type": "figma", "path": "figma/empty.png", "crop": { "x": 0, "y": 120, "w": 1440, "h": 400 }, "state": "empty" }
+        { "type": "design", "path": "figma/empty.png", "crop": { "x": 0, "y": 120, "w": 1440, "h": 400 }, "state": "empty" }
       ],
       "rank": null,
       "signoff": null,
@@ -142,20 +154,20 @@
     },
     {
       "id": "DQ-003",
-      "title": "Hover row uses the old highlight colour in Figma",
+      "title": "Hover row renders ListItem instead of TableRow",
       "ledger": "component",
       "state": "hover",
       "severity": "WARNING",
-      "resolution": "SYNC_FIGMA",
+      "resolution": "FIX_CODE",
       "region": "Items table",
       "element": { "selector": ".row:hover", "figmaLayerPath": "Row / Hover", "figmaNodeId": "1:77" },
-      "property": "background-color",
-      "expected": { "value": "#EEF2FF", "token": "color.row.hover", "source": "figma" },
-      "actual": { "value": "#F0F4FF", "token": "color.surface.hover", "source": { "file": null, "line": null, "snippet": null } },
-      "delta": "different token",
-      "tolerance": "ΔE 1.5",
-      "fix": { "summary": "Update the Row/Hover variant to color.surface.hover", "patchHint": null, "files": [], "effort": 3 },
-      "evidence": [],
+      "property": "component",
+      "expected": { "value": "TableRow (State=Hover)", "token": null, "source": "figma" },
+      "actual": { "value": "ListItem", "token": null, "source": { "file": "src/Items.tsx", "line": 61, "snippet": "<ListItem item={item} />" } },
+      "delta": "different component",
+      "tolerance": null,
+      "fix": { "summary": "Render the design-system TableRow for each item", "patchHint": "<TableRow item={item} />", "files": ["src/Items.tsx"], "effort": 3 },
+      "evidence": [{ "type": "screenshot", "path": "app/hover.png", "crop": { "x": 24, "y": 240, "w": 1392, "h": 56 }, "state": "hover" }],
       "rank": null,
       "signoff": null,
       "knownDrift": null,
@@ -226,7 +238,7 @@
     },
     {
       "id": "DQ-007",
-      "title": "Table header is sticky in code but not in Figma",
+      "title": "Table header is sticky in the app, static in the design",
       "ledger": "style",
       "state": "with-data",
       "severity": "WARNING",
@@ -244,6 +256,56 @@
       "signoff": { "by": "design lead", "date": "2026-09-20", "reason": "Sticky header approved for long lists" },
       "knownDrift": "sticky-table-header",
       "acRef": null
+    },
+    {
+      "id": "DQ-008",
+      "title": "Row hover has no background transition",
+      "ledger": "motion",
+      "state": "hover",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Items table",
+      "element": { "selector": ".row", "figmaLayerPath": "Row / Hover", "figmaNodeId": "1:10" },
+      "property": "transition",
+      "expected": { "value": "150ms ease-out on background-color", "token": "motion.duration.fast", "source": "figma" },
+      "actual": { "value": "none", "token": null, "source": { "file": "src/Row.css", "line": 7, "snippet": null } },
+      "delta": "missing motion",
+      "tolerance": "±20ms",
+      "fix": { "summary": "Add the fast background-color transition to .row", "patchHint": "transition: background-color var(--motion-duration-fast) ease-out;", "files": ["src/Row.css"], "effort": 1 },
+      "evidence": [{ "type": "motion", "path": "motion/hover.json", "crop": null, "state": "hover" }],
+      "rank": null,
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null
+    },
+    {
+      "id": "DQ-009",
+      "title": "Table header text renders 1px lower",
+      "ledger": "style",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "DISMISSED",
+      "region": "Items table",
+      "element": { "selector": "thead th", "figmaLayerPath": "Items/Table/Header/Label", "figmaNodeId": "1:11" },
+      "property": "top",
+      "expected": { "value": "12px", "token": null, "source": "figma" },
+      "actual": { "value": "13px", "token": null, "source": { "file": null, "line": null, "snippet": null } },
+      "delta": "+1px",
+      "tolerance": "±0px",
+      "fix": null,
+      "evidence": [{ "type": "screenshot", "path": "app/with-data.png", "crop": { "x": 24, "y": 160, "w": 600, "h": 32 }, "state": "with-data" }],
+      "rank": null,
+      "signoff": null,
+      "dismissal": {
+        "kind": "not-an-issue",
+        "reason": "Font rasterisation difference between the Figma export and Chrome; the line boxes are identical.",
+        "by": "Dana",
+        "date": "2026-09-23T11:15:00Z",
+        "source": "report-ui",
+        "priorRef": null
+      },
+      "knownDrift": null,
+      "acRef": null
     }
   ],
   "ledgers": {
@@ -257,7 +319,7 @@
       }
     ],
     "component": [
-      { "figmaComponent": "Row", "variant": "State=Hover", "expectedComponent": "TableRow", "actualComponent": "TableRow", "result": "FAIL", "findingIds": ["DQ-003"] }
+      { "figmaComponent": "Row", "variant": "State=Hover", "expectedComponent": "TableRow", "actualComponent": "ListItem", "result": "FAIL", "findingIds": ["DQ-003"] }
     ],
     "style": [
       { "elementClass": "row", "selector": ".row", "property": "padding-top", "figma": "16px", "token": "space.4", "computed": "12px", "sourceValue": "12px", "result": "FAIL", "findingIds": ["DQ-002"] },
@@ -266,22 +328,37 @@
     "state": [
       { "state": "with-data", "result": "FAIL", "findingIds": ["DQ-002", "DQ-004"] },
       { "state": "empty", "result": "FAIL", "findingIds": ["DQ-001"] },
-      { "state": "error", "result": "CANNOT_VERIFY", "findingIds": ["DQ-006"] }
+      { "state": "loading", "result": "MISSING_IN_CODE", "findingIds": [] },
+      { "state": "error", "result": "CANNOT_VERIFY", "findingIds": ["DQ-006"] },
+      { "state": "hover", "result": "FAIL", "findingIds": ["DQ-003", "DQ-008"] }
     ],
     "behavior": [
       { "state": "error", "trigger": "click Retry", "expected": "list is refetched", "observed": null, "acRef": "AC-3", "result": "CANNOT_VERIFY", "findingIds": ["DQ-006"] }
+    ],
+    "motion": [
+      {
+        "state": "hover",
+        "selector": ".row",
+        "figmaNodeId": "1:10",
+        "trigger": "hover",
+        "property": "background-color",
+        "expected": { "type": "transition", "durationMs": 150, "easing": "ease-out", "delayMs": 0, "detail": "Row/Hover variant, smart animate" },
+        "observed": null,
+        "result": "FAIL",
+        "findingIds": ["DQ-008"]
+      }
     ]
   },
   "openDecisions": [
     {
       "id": "OD-1",
-      "question": "Should read-only mode get its own design?",
+      "question": "Ship the empty state before the illustration asset is final?",
       "options": [
-        { "label": "Design it", "consequence": "One more frame to maintain" },
-        { "label": "Reuse the disabled style", "consequence": "No design work; slightly less clear" }
+        { "label": "Ship with the placeholder illustration", "consequence": "Empty state matches the layout now; the asset is swapped later" },
+        { "label": "Wait for the final asset", "consequence": "DQ-001 stays open until the asset lands" }
       ],
-      "recommendation": "Reuse the disabled style",
-      "relatedFindings": []
+      "recommendation": "Ship with the placeholder illustration",
+      "relatedFindings": ["DQ-001"]
     }
   ],
   "fixLoop": [
@@ -291,9 +368,12 @@
     "figmaSpec": "figma-spec.json",
     "ticket": "ticket.json",
     "capture": "capture.json",
+    "compare": null,
+    "prototypeCapture": null,
     "states": {
-      "with-data": { "figma": "figma/with-data.png", "app": "app/with-data.png", "diff": "diff/with-data.png", "computed": "computed/with-data.json", "dom": "dom/with-data.json" },
-      "empty": { "figma": "figma/empty.png", "app": "app/empty.png", "diff": "diff/empty.png", "computed": null, "dom": null }
+      "with-data": { "design": "figma/with-data.png", "app": "app/with-data.png", "diff": "diff/with-data.png", "computed": "computed/with-data.json", "dom": "dom/with-data.json", "motion": "motion/with-data.json" },
+      "empty": { "design": "figma/empty.png", "app": "app/empty.png", "diff": "diff/empty.png", "computed": null, "dom": null },
+      "hover": { "design": "figma/hover.png", "app": "app/hover.png", "diff": null, "computed": "computed/hover.json", "dom": null, "motion": "motion/hover.json" }
     }
   }
 }

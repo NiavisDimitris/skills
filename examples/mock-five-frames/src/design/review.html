@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkout v3 / Review (Figma frame stand-in)</title>
+<link rel="stylesheet" href="../acme-ds.css">
+</head>
+<body>
+<header data-topbar="4"></header>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Review your order</h1>
+    <p>Check the details below, then place your order.</p>
+  </div>
+
+  <div class="cols">
+    <section class="ads-card" data-component="Card" aria-label="Order details">
+      <div class="review-block" data-testid="review-block">
+        <span class="rb-label">Ship to</span>
+        <div class="rb-body">Dana Whitfield<small>18 Harbour Street, Apt 4, 3011 TA Rotterdam, Netherlands</small></div>
+        <a class="ads-link" href="#edit-address" data-testid="edit-link">Edit</a>
+      </div>
+      <div class="review-block" data-testid="review-block">
+        <span class="rb-label">Delivery</span>
+        <div class="rb-body">Standard · Free<small>Arrives Thu 15 Oct – Mon 19 Oct</small></div>
+        <a class="ads-link" href="#edit-delivery" data-testid="edit-link">Edit</a>
+      </div>
+      <div class="review-block" data-testid="review-block">
+        <span class="rb-label">Payment</span>
+        <div class="rb-body">Visa ending in 4242<small>Expires 08/29</small></div>
+        <a class="ads-link" href="#edit-payment" data-testid="edit-link">Edit</a>
+      </div>
+
+      <div class="review-items" data-testid="review-items">
+        <h2 class="ri-head" style="font-size: 13px; line-height: 20px"><span>Items in this order</span><span>3</span></h2>
+        <div class="ri-row"><div class="thumb thumb--a"></div><span>Aero wireless earbuds · Graphite</span><span>€129.00</span></div>
+        <div class="ri-row"><div class="thumb thumb--b"></div><span>Canvas tote, large · Sand × 2</span><span>€64.00</span></div>
+        <div class="ri-row"><div class="thumb thumb--c"></div><span>Trail bottle, 750 ml · Moss</span><span>€36.00</span></div>
+      </div>
+    </section>
+
+    <aside class="ads-card" data-component="Card" aria-label="Order summary">
+      <h2>Order summary</h2>
+      <div class="promo" data-unless="promo">
+        <input class="ads-input" id="f-promo" aria-label="Promo code" placeholder="Promo code" data-component="Input" data-testid="field-control">
+        <button type="button" class="ads-btn ads-btn--secondary" data-component="Button" data-variant="secondary" data-testid="secondary-cta">Apply</button>
+      </div>
+      <div class="summary-rows">
+        <div class="summary-row" data-testid="summary-row"><span>Subtotal</span><span>€229.00</span></div>
+        <div class="summary-row" data-testid="summary-row"><span>Shipping</span><span>Free</span></div>
+        <div class="summary-row" data-testid="summary-row"><span>Estimated tax</span><span>€19.40</span></div>
+        <div class="promo-row" data-testid="promo-row" data-when="promo">
+          <span>Promo <span class="ads-badge ads-badge--success" data-component="Badge" data-variant="success">SPRING10</span></span><span>−€22.90</span>
+        </div>
+      </div>
+      <div class="summary-total" data-testid="summary-total"><span>Total</span><span data-unless="promo">€248.40</span><span data-when="promo">€225.50</span></div>
+      <button type="button" class="ads-btn ads-btn--primary ads-btn--block" data-component="Button" data-variant="primary" data-testid="primary-cta">Place order</button>
+      <p class="summary-note">By placing your order you agree to the Terms of sale.</p>
+    </aside>
+  </div>
+</main>
+<script src="../chrome.js"></script>
+</body>
+</html>

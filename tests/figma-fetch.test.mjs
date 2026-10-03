@@ -127,3 +127,108 @@ test('figma-fetch: exit 6 when the token is missing or rejected, 2 for bad argum
   assert.equal((await run(FETCH, ['--url', LINK], { env })).code, 2, '--out is required');
   assert.equal((await run(FETCH, ['--url', LINK, '--out', tmpDir(), '--format', 'gif'], { env })).code, 2);
 });
+
+test('figma-fetch: figma-spec.json keeps prototype reactions and lists them as motion', async () => {
+  const server = await figmaServer();
+  try {
+    const out = tmpDir();
+    const res = await run(FETCH, ['--url', LINK, '--out', out], { env: { FIGMA_TOKEN: TOKEN, FIGMA_API_BASE: server.url } });
+    assert.equal(res.code, 0, res.stderr);
+    const spec = JSON.parse(readFileSync(path.join(out, 'figma-spec.json'), 'utf8'));
+    const row = spec.layers.find((l) => l.id === '1:10');
+    assert.equal(row.reactions[0].trigger.type, 'ON_HOVER');
+    assert.ok(Array.isArray(spec.motion));
+    const hover = spec.motion.find((m) => m.nodeId === '1:10');
+    assert.deepEqual([hover.trigger, hover.type, hover.durationMs], ['hover', 'instant', 0], 'a reaction without a transition is an instant change');
+  } finally {
+    await server.close();
+  }
+});
+
+// A page with three frames: "Cart" + "Cart – Empty" (one screen, two states) and "Profile".
+const PAGE_KEY = 'PaGe123';
+const frame = (id, name, x, children = []) => ({ id, name, type: 'FRAME', absoluteBoundingBox: { x, y: 0, width: 390, height: 844 }, children });
+const CART = frame('1:1', 'Cart', 0, [
+  {
+    id: '1:5',
+    name: 'Checkout button',
+    type: 'INSTANCE',
+    reactions: [
+      {
+        trigger: { type: 'ON_HOVER' },
+        actions: [{ type: 'NODE', destinationId: '9:2', navigation: 'CHANGE_TO', transition: { type: 'SMART_ANIMATE', easing: { type: 'EASE_OUT' }, duration: 0.2 } }],
+      },
+    ],
+  },
+]);
+const CART_EMPTY = frame('1:2', 'Cart – Empty', 400);
+const PROFILE = frame('3:1', 'Profile', 800);
+const PAGE = { id: '0:1', name: 'Checkout', type: 'CANVAS', children: [CART, CART_EMPTY, PROFILE] };
+
+async function pageServer() {
+  const png = encodePng(createPng(390, 844, [255, 255, 255, 255]));
+  const docs = { '0:1': PAGE, '1:1': CART, '1:2': CART_EMPTY, '3:1': PROFILE };
+  const server = await startServer((req, res) => {
+    const url = new URL(req.url, 'http://x');
+    if (url.pathname.startsWith('/cdn/')) {
+      res.writeHead(200, { 'content-type': 'image/png' });
+      res.end(png);
+      return;
+    }
+    if (req.headers['x-figma-token'] !== TOKEN) return sendJson(res, 403, { status: 403 });
+    if (url.pathname === `/v1/files/${PAGE_KEY}/nodes`) {
+      const ids = url.searchParams.get('ids').split(',');
+      return sendJson(res, 200, { name: 'Shop', nodes: Object.fromEntries(ids.map((id) => [id, docs[id] ? { document: docs[id], components: {}, componentSets: {}, styles: {} } : null])) });
+    }
+    if (url.pathname === `/v1/files/${PAGE_KEY}/variables/local`) return sendJson(res, 403, { status: 403 });
+    if (url.pathname === `/v1/files/${PAGE_KEY}`) return sendJson(res, 200, { name: 'Shop', document: { id: '0:0', type: 'DOCUMENT', children: [PAGE] } });
+    if (url.pathname === `/v1/images/${PAGE_KEY}`) {
+      const ids = url.searchParams.get('ids').split(',');
+      const base = `http://127.0.0.1:${server.port}`;
+      return sendJson(res, 200, { err: null, images: Object.fromEntries(ids.map((id) => [id, `${base}/cdn/${id.replace(/\W/g, '_')}.png`])) });
+    }
+    return sendJson(res, 404, { status: 404 });
+  });
+  return server;
+}
+
+test('figma-fetch --screens auto: screens.json plus a spec and images per screen', async () => {
+  const server = await pageServer();
+  try {
+    const out = tmpDir();
+    const link = `https://www.figma.com/design/${PAGE_KEY}/Shop?node-id=0-1`;
+    const res = await run(FETCH, ['--url', link, '--screens', 'auto', '--out', out], { env: { FIGMA_TOKEN: TOKEN, FIGMA_API_BASE: server.url } });
+    assert.equal(res.code, 0, res.stderr);
+    assert.match(res.stdout, /2 screen\(s\)/);
+    assert.match(res.stdout, /--out <dir>\/evidence\/screens\/cart/);
+
+    const index = JSON.parse(readFileSync(path.join(out, 'screens.json'), 'utf8'));
+    assert.deepEqual(
+      index.screens.map((s) => [s.id, s.name, s.nodeId, s.states, s.frame]),
+      [
+        ['cart', 'Cart', '1:1', ['with-data', 'empty', 'hover'], { width: 390, height: 844 }],
+        ['profile', 'Profile', '3:1', ['with-data'], { width: 390, height: 844 }],
+      ],
+    );
+    assert.equal(index.screens[0].spec, 'screens/cart/figma-spec.json');
+    // hover comes from the button's ON_HOVER reaction (state discovery, as for one frame).
+    assert.deepEqual(index.screens[0].images, ['screens/cart/figma/with-data.png', 'screens/cart/figma/empty.png', 'screens/cart/figma/hover.png']);
+    for (const img of [...index.screens[0].images, ...index.screens[1].images]) assert.equal(readPng(path.join(out, img)).width, 390, img);
+
+    const cart = JSON.parse(readFileSync(path.join(out, 'screens', 'cart', 'figma-spec.json'), 'utf8'));
+    assert.equal(cart.nodeId, '1:1');
+    assert.deepEqual(cart.screen, { id: 'cart', name: 'Cart' });
+    assert.deepEqual(cart.motion.map((m) => [m.trigger, m.type, m.durationMs, m.easing]), [['hover', 'smart-animate', 200, 'cubic-bezier(0,0,0.58,1)']]);
+    assert.ok(existsSync(path.join(out, 'figma-spec.json')), 'the page spec is kept too');
+
+    const screenNodes = server.requests.filter((r) => r.url.startsWith(`/v1/files/${PAGE_KEY}/nodes`));
+    assert.equal(screenNodes.length, 2, 'the page, then every screen frame in one call');
+    assert.match(decodeURIComponent(screenNodes[1].url), /ids=1:1,3:1/);
+    assert.equal(server.requests.filter((r) => r.url.startsWith(`/v1/images/${PAGE_KEY}`)).length, 1, 'one export call for every screen');
+  } finally {
+    await server.close();
+  }
+  const env = { FIGMA_TOKEN: TOKEN, FIGMA_API_BASE: 'http://127.0.0.1:9' };
+  assert.equal((await run(FETCH, ['--url', LINK, '--out', tmpDir(), '--screens', 'all'], { env })).code, 2);
+  assert.equal((await run(FETCH, ['--url', LINK, '--out', tmpDir(), '--screens', 'auto', '--states', '1:20'], { env })).code, 2);
+});

@@ -74,33 +74,12 @@
       "severity": "WARNING",
       "resolution": "FIX_CODE",
       "owner": "engineering",
-      "title": "Row hover transition is a hardcoded 400ms instead of --ads-motion-base (160ms)",
+      "title": "Row hover transition is 400ms ease instead of 160ms ease-out (--ads-motion-base)",
       "where": "src/features/orders/orders.css:31 · .orders-row",
       "ticket": {
         "provider": "jira",
         "key": "ACME-514",
         "url": "https://acme.atlassian.net/browse/ACME-514",
-        "createdAt": "2026-09-22T14:32:08Z"
-      },
-      "status": "open",
-      "reportPath": "sample-report.json",
-      "updatedAt": "2026-09-22T14:32:08Z"
-    },
-    {
-      "since": "2026-09-22T15:05:00Z",
-      "slug": "ACME-482",
-      "feature": "Orders list",
-      "parentTicket": "ACME-482",
-      "findingId": "DQ-009",
-      "severity": "DS_CANDIDATE",
-      "resolution": "SYNC_FIGMA",
-      "owner": "design",
-      "title": "Bulk-action bar has no design (Acme DS candidate)",
-      "where": "src/features/orders/BulkActionBar.tsx:1 · [data-testid=orders-bulk-bar]",
-      "ticket": {
-        "provider": "jira",
-        "key": "ACME-516",
-        "url": "https://acme.atlassian.net/browse/ACME-516",
         "createdAt": "2026-09-22T14:32:08Z"
       },
       "status": "open",
@@ -122,6 +101,27 @@
         "provider": "jira",
         "key": "ACME-515",
         "url": "https://acme.atlassian.net/browse/ACME-515",
+        "createdAt": "2026-09-22T14:32:08Z"
+      },
+      "status": "open",
+      "reportPath": "sample-report.json",
+      "updatedAt": "2026-09-22T14:32:08Z"
+    },
+    {
+      "since": "2026-09-22T15:05:00Z",
+      "slug": "ACME-482",
+      "feature": "Orders list",
+      "parentTicket": "ACME-482",
+      "findingId": "DQ-021",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "owner": "engineering",
+      "title": "Skeleton is swapped for the rows with no fade (missing 200ms dissolve)",
+      "where": "src/features/orders/OrdersPage.tsx:41 · [data-testid=orders-skeleton]",
+      "ticket": {
+        "provider": "jira",
+        "key": "ACME-516",
+        "url": "https://acme.atlassian.net/browse/ACME-516",
         "createdAt": "2026-09-22T14:32:08Z"
       },
       "status": "open",

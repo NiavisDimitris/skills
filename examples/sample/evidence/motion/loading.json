@@ -1,0 +1,24 @@
+{
+  "state": "loading",
+  "elements": {
+    "Skeleton": {
+      "selector": "[data-testid=orders-skeleton]",
+      "count": 1,
+      "samples": [
+        {
+          "transition-property": "none",
+          "transition-duration": "0s",
+          "transition-timing-function": "ease",
+          "transition-delay": "0s",
+          "animation-name": "none",
+          "animation-duration": "0s",
+          "animation-timing-function": "ease",
+          "animation-delay": "0s",
+          "animation-iteration-count": "1"
+        }
+      ]
+    }
+  },
+  "animations": [],
+  "keyframes": {}
+}

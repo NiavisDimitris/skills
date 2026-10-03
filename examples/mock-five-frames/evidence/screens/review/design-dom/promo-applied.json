@@ -1,0 +1,115 @@
+{
+  "url": "http://localhost:5179/figma/review?promo=1",
+  "title": "Checkout v3 / Review (Figma frame stand-in)",
+  "ariaSnapshot": "- banner:\n  - text: acme Secure checkout\n  - list \"Checkout progress\":\n    - listitem: ✓ Cart\n    - listitem: ✓ Shipping\n    - listitem: ✓ Payment\n    - listitem: 4 Review\n    - listitem: 5 Done\n- main:\n  - heading \"Review your order\" [level=1]\n  - paragraph: Check the details below, then place your order.\n  - region \"Order details\":\n    - text: Ship to Dana Whitfield 18 Harbour Street, Apt 4, 3011 TA Rotterdam, Netherlands\n    - link \"Edit\":\n      - /url: \"#edit-address\"\n    - text: Delivery Standard · Free Arrives Thu 15 Oct – Mon 19 Oct\n    - link \"Edit\":\n      - /url: \"#edit-delivery\"\n    - text: Payment Visa ending in 4242 Expires 08/29\n    - link \"Edit\":\n      - /url: \"#edit-payment\"\n    - heading \"Items in this order 3\" [level=2]\n    - text: Aero wireless earbuds · Graphite €129.00 Canvas tote, large · Sand × 2 €64.00 Trail bottle, 750 ml · Moss €36.00\n  - complementary \"Order summary\":\n    - heading \"Order summary\" [level=2]\n    - text: Subtotal €229.00 Shipping Free Estimated tax €19.40 Promo SPRING10 −€22.90 Total €225.50\n    - button \"Place order\"\n    - paragraph: By placing your order you agree to the Terms of sale.",
+  "elements": [
+    {
+      "role": "heading",
+      "name": "Review your order",
+      "text": "Review your order",
+      "visible": true,
+      "level": 1
+    },
+    {
+      "role": "link",
+      "name": "Edit",
+      "text": "Edit",
+      "visible": true
+    },
+    {
+      "role": "link",
+      "name": "Edit",
+      "text": "Edit",
+      "visible": true
+    },
+    {
+      "role": "link",
+      "name": "Edit",
+      "text": "Edit",
+      "visible": true
+    },
+    {
+      "role": "heading",
+      "name": "Items in this order3",
+      "text": "Items in this order 3",
+      "visible": true,
+      "level": 2
+    },
+    {
+      "role": "heading",
+      "name": "Order summary",
+      "text": "Order summary",
+      "visible": true,
+      "level": 2
+    },
+    {
+      "role": "textbox",
+      "name": "Promo code",
+      "text": "",
+      "visible": false
+    },
+    {
+      "role": "button",
+      "name": "Apply",
+      "text": "Apply",
+      "visible": false
+    },
+    {
+      "role": "button",
+      "name": "Place order",
+      "text": "Place order",
+      "visible": true
+    }
+  ],
+  "texts": [
+    "acme",
+    "Secure checkout",
+    "✓",
+    "Cart",
+    "✓",
+    "Shipping",
+    "✓",
+    "Payment",
+    "4",
+    "Review",
+    "5",
+    "Done",
+    "Review your order",
+    "Check the details below, then place your order.",
+    "Ship to",
+    "Dana Whitfield",
+    "18 Harbour Street, Apt 4, 3011 TA Rotterdam, Netherlands",
+    "Edit",
+    "Delivery",
+    "Standard · Free",
+    "Arrives Thu 15 Oct – Mon 19 Oct",
+    "Edit",
+    "Payment",
+    "Visa ending in 4242",
+    "Expires 08/29",
+    "Edit",
+    "Items in this order",
+    "3",
+    "Aero wireless earbuds · Graphite",
+    "€129.00",
+    "Canvas tote, large · Sand × 2",
+    "€64.00",
+    "Trail bottle, 750 ml · Moss",
+    "€36.00",
+    "Order summary",
+    "Subtotal",
+    "€229.00",
+    "Shipping",
+    "Free",
+    "Estimated tax",
+    "€19.40",
+    "Promo",
+    "SPRING10",
+    "−€22.90",
+    "Total",
+    "€225.50",
+    "Place order",
+    "By placing your order you agree to the Terms of sale."
+  ],
+  "truncated": false
+}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acme · Order confirmed</title>
+<link rel="stylesheet" href="../acme-ds.css">
+<style>
+  /* src/features/confirmation/confirmation.css */
+  @keyframes pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .confirm-icon { animation: pop 600ms linear both; }
+</style>
+</head>
+<body>
+<header data-topbar="5"></header>
+
+<main>
+  <div class="confirm-wrap">
+    <section class="ads-card confirm" data-component="Card" aria-label="Order confirmed">
+      <div class="confirm-icon" data-testid="confirm-icon" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+      </div>
+      <h1>Thank you, your order is confirmed</h1>
+      <p class="lede">Order <span class="order-number" data-testid="order-number">#AC-10517</span> · A confirmation is on its way to dana@example.com</p>
+
+      <div class="confirm-meta">
+        <div><small>Arriving</small>Thu 15 Oct – Mon 19 Oct</div>
+        <div><small>Total paid</small>€248.40 · Visa 4242</div>
+      </div>
+
+      <div class="confirm-actions">
+        <button type="button" class="ads-btn ads-btn--primary" data-component="Button" data-variant="primary" data-testid="primary-cta">Track order</button>
+        <button type="button" class="ads-btn ads-btn--secondary" data-component="Button" data-variant="secondary" data-testid="secondary-cta">Continue shopping</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="ads-toast" data-component="Toast" role="status">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+    <span>Receipt sent to dana@example.com</span>
+  </div>
+</main>
+<script src="../chrome.js"></script>
+</body>
+</html>
