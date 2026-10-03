@@ -2,7 +2,6 @@
 // Setup check: Node version, the npm packages the scripts need, and Playwright's
 // Chromium. Prints what is missing and the exact commands that fix it.
 import { existsSync } from 'node:fs';
-import path from 'node:path';
 import { parseCli, runMain } from './lib/args.mjs';
 import { DEPENDENCIES, SKILL_DIR, isMissingModule } from './lib/deps.mjs';
 
@@ -79,7 +78,7 @@ async function main(argv) {
   }
   const fixes = [...new Set(result.checks.filter((c) => !c.ok && c.fix).map((c) => c.fix))];
   if (fixes.length) {
-    process.stdout.write(`\nFix (skill folder: ${path.relative(process.cwd(), SKILL_DIR) || '.'}):\n${fixes.map((f) => `  ${f}`).join('\n')}\n`);
+    process.stdout.write(`\nFix (skill folder: ${SKILL_DIR}):\n${fixes.map((f) => `  ${f}`).join('\n')}\n`);
   } else if (!values.quiet) {
     process.stdout.write('\nReady.\n');
   }
