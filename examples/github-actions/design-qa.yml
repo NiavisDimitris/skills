@@ -61,10 +61,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: NiavisDimitris/skills
-          # Pin to a commit SHA (or a release tag once one exists) rather than
-          # a moving branch, so this workflow's behavior doesn't change out
-          # from under you between runs. Bump deliberately for newer scripts.
-          ref: main
+          # Pinned to a commit SHA (design-qa 0.2.1): this job runs the skill's
+          # scripts with your secrets, so never point it at a moving branch.
+          # Bump the SHA deliberately when you want newer scripts.
+          ref: 58ee37cb4120eb4305ae29236cc2aed8744f68bf
+          persist-credentials: false
           path: .design-qa-skill
           # If the repo you check out here is private to you (e.g. a
           # private fork), uncomment and set a PAT (classic, repo scope) or
