@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-10-03
+
+### Changed
+- The plugin is the `skills/design-qa` folder only (about 1 MB), not the whole repo: the marketplace entry points at it and its manifest moved to `skills/design-qa/.claude-plugin/plugin.json`. Examples, tests and docs no longer ship with an install.
+- The skill folder has its own `package.json` and `package-lock.json`, so Claude Code installs the scripts' packages on plugin install, and `npm install` inside the folder works for a plain copy too.
+
+### Added
+- `scripts/doctor.mjs`: checks Node, the packages and Playwright's Chromium and prints the exact fix. Phase 0 runs it first.
+- A missing package now stops a script with a message naming the folder to run `npm install` in (exit 4), instead of a module-not-found stack trace.
+- A screenshot of the report in the README.
+
 ## [0.2.0] - 2026-10-03
 
 One direction only in the parity pass: the design is the source of truth, and the build is compared with it. Prototypes can be that source, motion is checked, and findings can be dismissed with a reason that later passes remember. States the app has and the design lacks come back as a separate, later step: design backfill.

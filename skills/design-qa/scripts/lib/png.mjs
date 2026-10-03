@@ -2,8 +2,10 @@
 // a header-only size reader. Unreadable PNGs raise CliError with exit code 3.
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { PNG } from 'pngjs';
 import { CliError, ensureDir } from './args.mjs';
+import { importDependency } from './deps.mjs';
+
+const { PNG } = await importDependency('pngjs');
 
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 

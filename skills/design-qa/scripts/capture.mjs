@@ -23,6 +23,7 @@ import {
   redact,
   resolveAuth,
 } from './lib/capture-helpers.mjs';
+import { isMissingModule, missingDependencyMessage } from './lib/deps.mjs';
 import { pngSize } from './lib/png.mjs';
 import { appKind, designSource } from './lib/target-url.mjs';
 
@@ -468,10 +469,8 @@ async function loadPlaywright() {
   try {
     return await import('playwright');
   } catch (err) {
-    throw new CliError(
-      `Playwright is not installed (${firstLine(err.message)}). Run \`npm install\` in the skill folder, then \`npx playwright install chromium\`.`,
-      4,
-    );
+    if (!isMissingModule(err, 'playwright')) throw err;
+    throw new CliError(missingDependencyMessage('playwright', err), 4);
   }
 }
 

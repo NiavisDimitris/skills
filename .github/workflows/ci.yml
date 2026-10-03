@@ -41,6 +41,14 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
+      - name: The plugin installs from its own lockfile
+        # What Claude Code runs on plugin install: the skill folder's package.json
+        # and package-lock.json, registry packages only, no install scripts.
+        working-directory: skills/design-qa
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node scripts/doctor.mjs
+
       - name: Run tests
         run: npm test
 

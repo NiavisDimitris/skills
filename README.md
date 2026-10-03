@@ -56,34 +56,40 @@ The design can be a Figma file, frame, page or section (one screen or many), a F
 - **`report-backfill.md`** — step 2: the states the app has and the design lacks, which ones to build in Figma, and a paste-to-design-agent block that builds them from the design-system library. See [Two steps](#two-steps-parity-then-design-backfill).
 - **`report.html`** — a single-file interactive report for humans. The annotated capture is the page: the design and the app screenshot side by side, overlaid, wiped or diffed, per screen and state, with numbered pins on the capture coloured by severity that open each finding's detail with its design-versus-app crop. Below it: a "Choose what to fix" board, the fix-now list with copyable agent prompts, a Dismiss button on every finding, a Design system view (token, component and motion mismatches), collapsed debt and dismissed lists, a findings table with facet filters, state coverage and decisions. Styled on shadcn/ui (Neutral theme, Geist embedded under its OFL licence), implemented in plain CSS so the file opens offline with no network calls.
 
-See a rendered example at [`examples/sample/report.html`](examples/sample/report.html). *(Screenshot: `docs/report-preview.png` — TODO, not yet added.)*
+See a rendered example at [`examples/sample/report.html`](examples/sample/report.html), and a five-screen one at [`examples/mock-five-frames/report.html`](examples/mock-five-frames/report.html).
+
+![The design-qa report: the annotated capture with numbered pins, the annotations rail with Fix now / Debt and Dismiss on each finding](docs/report-preview.png)
 
 ## Install
 
-**As a plugin:**
+**As a plugin** (Claude Code):
 
 ```bash
 claude plugin marketplace add NiavisDimitris/skills
 claude plugin install design-qa@niavis-skills
 ```
 
-`niavis-skills` is this repo's marketplace name (see [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)); `design-qa` is the plugin inside it.
+This repo is its own plugin marketplace: the first command registers it under the name `niavis-skills` (see [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)); it is not listed in Anthropic's marketplace. The second installs the `design-qa` plugin, which is just the [`skills/design-qa`](skills/design-qa) folder (about 1 MB; the examples, tests and docs stay out). Claude Code runs `npm install` for it automatically, from the folder's own `package.json` and lockfile.
+
+Capture needs Playwright's Chromium, a one-time download of about 100 MB that the plugin install does not do. On first use the skill runs `node scripts/doctor.mjs`, which checks Node, the packages and Chromium and prints the exact command for anything missing; it asks you before downloading the browser. To do it up front, run the doctor yourself from the installed skill folder (Claude Code keeps it under `~/.claude/plugins/cache/niavis-skills/design-qa/<version>/`):
+
+```bash
+node ~/.claude/plugins/cache/niavis-skills/design-qa/*/scripts/doctor.mjs
+```
 
 **As a plain skill copy**, no plugin system involved:
 
 ```bash
 git clone https://github.com/NiavisDimitris/skills.git && cd skills
 cp -r skills/design-qa ~/.claude/skills/design-qa
-# or, project-scoped:
-cp -r skills/design-qa /path/to/your-project/.claude/skills/design-qa
+cd ~/.claude/skills/design-qa && npm install && npx playwright install chromium
 ```
 
-**To use the scripts directly** (capture, diff, render, validate):
+For a project-scoped copy, use `/path/to/your-project/.claude/skills/design-qa` instead, and run the same `npm install` and `npx playwright install chromium` inside it.
 
-```bash
-npm install
-npx playwright install chromium
-```
+The skill folder carries its own `package.json`, so the scripts' dependencies (Playwright, pngjs, pixelmatch) are always installed **inside the skill folder**. Validation, rendering, triage, dismiss and backfill need only Node 20+; capture and pixel diff need the packages. `node scripts/doctor.mjs` in the skill folder says what is missing.
+
+**To work on this repo** (tests, samples): `npm install && npx playwright install chromium` at the repo root.
 
 ## Quickstart
 

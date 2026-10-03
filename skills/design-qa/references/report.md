@@ -156,7 +156,7 @@ The JSON Schema is `schemas/report.schema.json`. Keys whose value may be null ca
 
 ### Field notes
 
-- `meta.feature`: the slug used in the folder name. `meta.skillVersion`: the skill's release version (plugin manifest or package).
+- `meta.feature`: the slug used in the folder name. `meta.skillVersion`: the skill's release version (`version` in the skill folder's `.claude-plugin/plugin.json` or `package.json`; they are kept equal).
 - `meta.source`: the one source of truth for the pass. `kind` `figma` for a file, frame, page or section; `figma-prototype` for a `figma.com/proto/…` link; `prototype` for a coded prototype passed with `--prototype`, with `tool` set to `figma-make`, `framer`, `v0`, `lovable`, `html` or `other`. `label` names it for people. `frame` is the viewport the design is compared at.
 - `meta.figma`: required when `source.kind` is `figma` or `figma-prototype`; `meta.figma.frame` must equal `meta.source.frame`.
 - `meta.source.frame` and `meta.app.viewport` must be equal, and `meta.app.dpr` must be 1, or every pixel claim is void. When they differ (a component-level comparison, a degraded capture), say why in `meta.degradations`.

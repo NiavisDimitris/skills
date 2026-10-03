@@ -115,9 +115,10 @@ by: <name>
 
 ### Phase 0 — Setup
 
-1. Validate the config: `node scripts/validate.mjs design-qa.config.json`. No config: bootstrap it.
-2. Read the project's design rules, token map, known drifts and component catalog (`designSystem.*`). Check the known drifts before reporting anything that looks like one.
-3. Check the app answers: `curl -sf <baseUrl><readyUrl>`. A local app that is down: run `app.start` in the background and poll. Never run migrations, seeds or other destructive setup without asking.
+1. Check the scripts can run: `node scripts/doctor.mjs`. Anything missing comes with the exact command, always run in this skill's folder: `npm install` (the packages; a plugin install normally did it already) and `npx playwright install chromium` (a one-time download of about 100 MB: ask before running it). Validation, rendering, triage, dismiss and backfill need Node only, so a missing browser blocks capture, not the rest. ci mode installs both in the workflow (references/ci.md).
+2. Validate the config: `node scripts/validate.mjs design-qa.config.json`. No config: bootstrap it.
+3. Read the project's design rules, token map, known drifts and component catalog (`designSystem.*`). Check the known drifts before reporting anything that looks like one.
+4. Check the app answers: `curl -sf <baseUrl><readyUrl>`. A local app that is down: run `app.start` in the background and poll. Never run migrations, seeds or other destructive setup without asking.
 
 → references/config.md
 

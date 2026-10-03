@@ -4,11 +4,13 @@
 // Figma export scale 1 ↔ deviceScaleFactor 1).
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import pixelmatch from 'pixelmatch';
-import { PNG } from 'pngjs';
 import { CliError, displayPath, parseCli, readJsonFile, runMain, toNumber, usageError, writeJson } from './lib/args.mjs';
+import { importDependency } from './lib/deps.mjs';
 import { clipRect, fillRect, readPng, writePng } from './lib/png.mjs';
 import { band } from './lib/ranking.mjs';
+
+const { default: pixelmatch } = await importDependency('pixelmatch');
+const { PNG } = await importDependency('pngjs');
 
 const HELP = `Pixel-diff the design image (a Figma export or a prototype capture) against an app screenshot.
 
@@ -52,7 +54,7 @@ Batch: { results: { "<state>": {…} }, worst: { state, percent, band, structura
 { error, exitCode } instead.
 
 Exit codes: 0 pass (or review, with a warning on stderr) · 1 fail · 2 dimension mismatch
-or bad arguments · 3 unreadable PNG. In batch mode the most serious outcome wins (3, 2, 1, 0).
+or bad arguments · 3 unreadable PNG · 4 a missing npm package (pngjs, pixelmatch). In batch mode the most serious outcome wins (3, 2, 1, 0).
 Images of different sizes are never resized: never compare screenshots taken at different
 scales — capture at the Figma frame size with deviceScaleFactor 1 and export Figma at scale 1.`;
 
