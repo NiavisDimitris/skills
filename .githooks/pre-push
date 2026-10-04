@@ -1,0 +1,45 @@
+#!/bin/sh
+# Refuse to push any commit or tag whose author, committer or tagger email is
+# not a GitHub noreply address. This repo is public: personal and work emails
+# must never reach it.
+#
+# Enable once per clone (an absolute path covers every worktree):
+#   git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
+# Bypass only on purpose: git push --no-verify
+
+remote="$1"
+zero=0000000000000000000000000000000000000000
+allowed='(@users\.noreply\.github\.com|^noreply@github\.com)$'
+bad=""
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in *[!0]*) ;; *) continue ;; esac # deleting a ref
+  case "$remote_sha" in
+    *[!0]*) range="$remote_sha..$local_sha" ;;
+    *) range="$local_sha --not --remotes=$remote" ;; # new ref: what the remote doesn't have yet
+  esac
+  # shellcheck disable=SC2086
+  found=$(git log --format='%h %ae %ce' $range 2>/dev/null |
+    while read -r sha ae ce; do
+      printf '%s\n' "$ae" | grep -Eq "$allowed" || { echo "  $sha author $ae"; continue; }
+      printf '%s\n' "$ce" | grep -Eq "$allowed" || echo "  $sha committer $ce"
+    done)
+  [ -n "$found" ] && bad="$bad$local_ref:
+$found
+"
+  if [ "$(git cat-file -t "$local_sha" 2>/dev/null)" = "tag" ]; then
+    te=$(git cat-file tag "$local_sha" | sed -n 's/^tagger .*<\(.*\)>.*/\1/p')
+    printf '%s\n' "$te" | grep -Eq "$allowed" || bad="$bad$local_ref:
+  tagger $te
+"
+  fi
+done
+
+if [ -n "$bad" ]; then
+  echo "pre-push: refusing to push. These carry an email that is not a GitHub noreply address:" >&2
+  printf '%s' "$bad" >&2
+  echo "Commit and tag with your GitHub noreply address (git config user.email), then push again." >&2
+  echo "Bypass on purpose only: git push --no-verify" >&2
+  exit 1
+fi
+exit 0

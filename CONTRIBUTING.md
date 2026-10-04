@@ -14,6 +14,7 @@
 - **Node >= 20.** Don't rely on syntax or APIs newer than that without a fallback. CI tests 20, 22 and 24.
 - **No big files.** Keep every tracked file under 1 MB; `tests/packaging.test.mjs` fails on a larger one unless it is on that test's allowlist with a reason.
 - **Pinned CI.** Workflow actions are pinned to full commit SHAs with the tag in a comment, and the Claude Code CLI to an exact version. Bump them on purpose, in their own commit.
+- **Noreply emails only.** This repo is public, so every commit and tag uses a GitHub noreply address. `.githooks/pre-push` refuses a push that carries any other author, committer or tagger email. Turn it on once per clone, and it covers every worktree: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"`.
 - **Agent-readable output is load-bearing.** Changes to `report.json`'s shape are a breaking change for anyone driving this from a script or another agent — call it out in the PR description and bump the schema/version accordingly.
 
 ## Adding a ticket adapter
