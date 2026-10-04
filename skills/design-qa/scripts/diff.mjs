@@ -4,7 +4,7 @@
 // Figma export scale 1 ↔ deviceScaleFactor 1).
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { CliError, displayPath, parseCli, readJsonFile, runMain, toNumber, usageError, writeJson } from './lib/args.mjs';
+import { CliError, displayPath, oneLine, parseCli, readJsonFile, runMain, toNumber, usageError, writeJson } from './lib/args.mjs';
 import { importDependency } from './lib/deps.mjs';
 import { clipRect, fillRect, readPng, writePng } from './lib/png.mjs';
 import { band } from './lib/ranking.mjs';
@@ -33,7 +33,8 @@ Options:
   --mask <file>       JSON array of { "x", "y", "w", "h", "label"? } rectangles painted the
                       same neutral grey on both images before comparing (dynamic data,
                       avatars, timestamps). Applies to every pair in batch mode.
-  --pass <pct>        percent below which the band is "pass" (default 1)
+  --pass <pct>        percent below which the band is "pass" (default 1); 0% always passes,
+                      so --pass 0 passes only images that do not differ
   --review <pct>      percent up to which the band is "review" (default 5); above is "fail"
   --json              JSON only on stdout (no human summary on stderr)
   -h, --help          show this help
@@ -51,7 +52,9 @@ structuralRegions: [ { x, y, w, h, pixels, percent } ], largest first (max 10): 
 contiguous areas that differ below --threshold, painted magenta in the diff image.
 Batch: { results: { "<state>": {…} }, worst: { state, percent, band, structuralPercent } }
 (worst = most serious band, then highest percent); a pair that cannot be compared gets
-{ error, exitCode } instead.
+{ error, exitCode } instead. With --out-dir, two states whose file names collide
+(cart/empty and cart-empty both write cart-empty.png; names compare case-insensitively)
+are a usage error (exit 2) before anything is compared.
 
 Exit codes: 0 pass (or review, with a warning on stderr) · 1 fail · 2 dimension mismatch
 or bad arguments · 3 unreadable PNG · 4 a missing npm package (pngjs, pixelmatch). In batch mode the most serious outcome wins (3, 2, 1, 0).
@@ -215,6 +218,15 @@ export function structuralRegions(dataA, dataB, width, height, opts = {}) {
   };
 }
 
+/**
+ * Band of a diff percent (2 decimals): "pass" below `pass`, "review" up to `review`,
+ * else "fail". 0% is always "pass": with --pass 0 nothing is "below 0", but an image that
+ * does not differ cannot need review.
+ */
+export function pixelBand(percent, tolerances) {
+  return percent === 0 ? 'pass' : band(percent, tolerances);
+}
+
 /** The more serious of two bands. */
 export function worseBand(x, y) {
   return (BAND_ORDER[y] ?? 0) > (BAND_ORDER[x] ?? 0) ? y : x;
@@ -244,7 +256,7 @@ export function diffImages(a, b, { threshold = 0.1, mask = [], tolerances, withD
   const diffPixels = pixelmatch(dataA, dataB, diffPng ? diffPng.data : null, width, height, { threshold, includeAA: false });
   const totalPixels = width * height;
   const percent = round2((diffPixels / totalPixels) * 100);
-  const pixelBand = band(percent, tolerances);
+  const percentBand = pixelBand(percent, tolerances);
   const s = structural === false ? { percent: 0, regions: [], pixelMask: null } : structuralRegions(dataA, dataB, width, height, { ...structural, mainThreshold: threshold });
   if (diffPng && s.pixelMask) {
     for (let p = 0; p < totalPixels; p++) {
@@ -262,8 +274,8 @@ export function diffImages(a, b, { threshold = 0.1, mask = [], tolerances, withD
     diffPixels,
     totalPixels,
     percent,
-    band: worseBand(pixelBand, structuralBand),
-    pixelBand,
+    band: worseBand(percentBand, structuralBand),
+    pixelBand: percentBand,
     structuralPercent: s.percent,
     structuralBand,
     structuralRegions: s.regions,
@@ -293,7 +305,7 @@ export function normalisePairs(raw) {
     if (!p || typeof p.state !== 'string' || !p.state || typeof p.a !== 'string' || typeof p.b !== 'string') {
       throw usageError(`pairs.json entry ${i}: expected { state, a, b } with string values`);
     }
-    if (seen.has(p.state)) throw usageError(`pairs.json: duplicate state "${p.state}"`);
+    if (seen.has(p.state)) throw usageError(`pairs.json: duplicate state "${oneLine(p.state)}"`);
     seen.add(p.state);
     return { state: p.state, a: p.a, b: p.b, mask: typeof p.mask === 'string' ? p.mask : null };
   });
@@ -303,12 +315,30 @@ function fileSafe(name) {
   return String(name).replace(/[^A-Za-z0-9._-]+/g, '-');
 }
 
+/**
+ * Batch output names: <state>.png per pair. Throws a usage error when two states map to
+ * the same file (cart/empty and cart-empty → cart-empty.png; compared case-insensitively,
+ * as on macOS and Windows file systems), so no diff image silently overwrites another.
+ */
+export function outputNames(pairs) {
+  const byName = new Map();
+  for (const p of pairs) {
+    const file = `${fileSafe(p.state)}.png`;
+    const key = file.toLowerCase();
+    if (byName.has(key)) {
+      throw usageError(`pairs.json: states "${oneLine(byName.get(key))}" and "${oneLine(p.state)}" would both write ${file} in --out-dir; rename one of them`);
+    }
+    byName.set(key, p.state);
+  }
+  return Object.fromEntries(pairs.map((p) => [p.state, `${fileSafe(p.state)}.png`]));
+}
+
 function summary(r) {
-  const label = r.state ? `${r.state}: ` : '';
+  const label = r.state ? `${oneLine(r.state)}: ` : '';
   const masked = r.maskedPercent ? `, ${r.maskedPercent}% masked` : '';
   const n = r.structuralRegions?.length ?? 0;
   const structural = n ? `; structural: ${r.structuralPercent}% in ${n} low-contrast region(s), largest ${regionText(r.structuralRegions[0])}` : '';
-  return `${label}${r.percent}% different (${r.band}) — ${r.diffPixels}/${r.totalPixels} px${masked}${structural}${r.out ? ` → ${displayPath(r.out)}` : ''}`;
+  return `${label}${r.percent}% different (${r.band}) — ${r.diffPixels}/${r.totalPixels} px${masked}${structural}${r.out ? ` → ${oneLine(displayPath(r.out))}` : ''}`;
 }
 
 function regionText(r) {
@@ -355,6 +385,7 @@ async function main(argv) {
     const pairsFile = path.resolve(values.pairs);
     const baseDir = path.dirname(pairsFile);
     const pairs = normalisePairs(readJsonFile(pairsFile, 'pairs', 2));
+    const outNames = values['out-dir'] ? outputNames(pairs) : null;
     const results = {};
     let worst = null;
     // Exit codes are ordered by seriousness: 3 unreadable > 2 mismatch > 1 fail > 0.
@@ -374,7 +405,7 @@ async function main(argv) {
         });
         let out = null;
         if (values['out-dir'] && r.diffPng) {
-          out = path.resolve(values['out-dir'], `${fileSafe(p.state)}.png`);
+          out = path.resolve(values['out-dir'], outNames[p.state]);
           writePng(out, r.diffPng);
         }
         const { diffPng, ...rest } = r;
@@ -386,14 +417,14 @@ async function main(argv) {
       } catch (err) {
         if (!(err instanceof CliError)) throw err;
         results[p.state] = { state: p.state, error: err.message, exitCode: err.exitCode };
-        console.error(`${p.state}: ${err.message}`);
+        console.error(`${oneLine(p.state)}: ${oneLine(err.message)}`);
         exitCode = Math.max(exitCode, err.exitCode);
       }
     }
     console.log(JSON.stringify({ results, worst }, null, 2));
     if (exitCode === 0 && worst && worst.band === 'review') {
       const why = results[worst.state]?.pixelBand === 'review' ? `${worst.percent}%` : `structural difference, ${worst.structuralPercent}% faint regions`;
-      console.error(`warning: worst state "${worst.state}" is in the review band (${why})`);
+      console.error(`warning: worst state "${oneLine(worst.state)}" is in the review band (${why})`);
     }
     return exitCode;
   }

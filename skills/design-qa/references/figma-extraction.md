@@ -53,8 +53,10 @@ The desktop app has to be open with the file loaded. That makes this rung unusab
 
 ### 3. REST (`rest`)
 
+`FIGMA_TOKEN` must already be in the environment, exported from the user's secret store or the CI secret. Never type the token on the command line: it would land in shell history and in the transcript.
+
 ```bash
-FIGMA_TOKEN=… node scripts/figma-fetch.mjs --url <figma-url> [--node <id>] [--states auto|<id,id,…>] [--screens auto] [--scale 1] --out <dir>/evidence
+node scripts/figma-fetch.mjs --url <figma-url> [--node <id>] [--states auto|<id,id,…>] [--screens auto] [--scale 1] --out <dir>/evidence
 ```
 
 - Writes `<dir>/evidence/figma-spec.json` and `<dir>/evidence/figma/<state>.png`. The spec keeps every layer's `reactions`, transitions included.
@@ -65,7 +67,8 @@ FIGMA_TOKEN=… node scripts/figma-fetch.mjs --url <figma-url> [--node <id>] [--
 - `--scale 1` is the default and the only scale the pixel diff accepts. Keep the default PNG format.
 - `FIGMA_TOKEN` comes from the environment, never from config: a personal access token with the `file_content:read` scope whose owner can open the file.
 - Variables need `file_variables:read`, which only Enterprise plans grant. Without it, `boundVariables` carry alias ids only: resolve them through the token map where you can. The script records the gap in the spec's `degradations`; copy it into `meta.degradations`.
-- Exit codes: 0 ok, 1 error (node not found, render or download failure), 2 bad arguments, 6 token missing or rejected. HTTP 429 and 5xx responses are retried with backoff.
+- `FIGMA_API_BASE` (default `https://api.figma.com`) must be `https://` (`http://` only for localhost). The token is sent there only: a redirect to another host is refused.
+- Exit codes: 0 ok, 1 error (node not found, render or download failure), 2 bad arguments, 6 token missing or rejected. HTTP 429 and 5xx responses and network errors are retried with backoff. Each request times out after 30 s (`DESIGN_QA_HTTP_TIMEOUT_MS`). An image download that fails, times out or is over 50 MB becomes a `figma-export` degradation for that state.
 
 ### 4. Manual (`manual`)
 

@@ -11,6 +11,9 @@ test('screenFamily strips the state segment; screenId is kebab-case', () => {
   assert.deepEqual(screenFamily('Checkout / Payment – Error'), { family: 'checkout payment', state: 'error' });
   assert.deepEqual(screenFamily('Checkout / Payment'), { family: 'checkout payment', state: 'with-data' });
   assert.deepEqual(screenFamily('Loading'), { family: '', state: 'loading' });
+  // A negated segment is not the state it negates: "Not empty" is its own screen name.
+  assert.deepEqual(screenFamily('Cart – Not empty'), { family: 'cart not empty', state: 'with-data' });
+  assert.deepEqual(screenFamily('Orders – Data table'), { family: 'orders data table', state: 'with-data' });
   assert.equal(screenId('Checkout / Payment'), 'checkout-payment');
   assert.equal(screenId('  '), 'screen');
 });

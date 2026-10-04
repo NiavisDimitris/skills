@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "design-qa report (schemaVersion 2.0)",
-  "description": "Agent-readable design-to-code parity report, schemaVersion 2.0 (breaking: only \"2.0\" validates). The design (a Figma file, a Figma prototype or a coded prototype, see meta.source) is the source of truth; findings are fixed in code, signed off as INTENTIONAL, explained as DATA or DISMISSED with a reason. Keys whose value may be null can be omitted (treated as null). Cross-field rules that JSON Schema cannot express (unique finding ids, findingIds/relatedFindings references, triage coverage, dismissal reasons, meta.figma for Figma sources, meta.screens consistency, derived scorecard values, pixel-diff bands against configured tolerances, the design-backfill rules) are enforced by scripts/validate.mjs. The optional backfill block (design backfill, step 2) sits beside the parity pass and never changes it. Properties marked \"x-removed\" name 1.x values with the message shown when they are used.",
+  "description": "Agent-readable design-to-code parity report, schemaVersion 2.0 (breaking: only \"2.0\" validates). The design (a Figma file, a Figma prototype or a coded prototype, see meta.source) is the source of truth; findings are fixed in code, signed off as INTENTIONAL, explained as DATA or DISMISSED with a reason. Keys whose value may be null can be omitted (treated as null). Cross-field rules that JSON Schema cannot express (unique finding ids, findingIds/relatedFindings references, triage coverage, dismissal reasons, a signoff or knownDrift for INTENTIONAL, meta.figma for Figma sources, meta.screens consistency, derived scorecard values, pixel-diff bands against configured tolerances, the design-backfill rules) are enforced by scripts/validate.mjs. The optional backfill block (design backfill, step 2) sits beside the parity pass and never changes it. Properties marked \"x-removed\" name 1.x values with the message shown when they are used.",
   "type": "object",
   "required": ["schemaVersion", "meta", "scorecard", "stateMatrix", "findings", "ledgers", "openDecisions", "fixLoop", "evidence"],
   "properties": {
@@ -390,11 +390,17 @@
         },
         "signoff": {
           "type": ["object", "null"],
+          "description": "Required when resolution is INTENTIONAL, unless knownDrift cites a known drift (scripts/validate.mjs enforces it). by and reason are never blank.",
           "required": ["by", "date", "reason"],
           "properties": {
-            "by": { "type": "string" },
-            "date": { "type": "string" },
-            "reason": { "type": "string" }
+            "by": { "type": "string", "minLength": 1, "pattern": "\\S", "errorMessage": "must name who signed off (not blank)" },
+            "date": {
+              "type": "string",
+              "anyOf": [{ "format": "date" }, { "format": "date-time" }],
+              "errorMessage": "must be a date (2026-01-31) or an ISO-8601 date-time (2026-01-31T12:00:00Z)"
+            },
+            "reason": { "type": "string", "minLength": 1, "pattern": "\\S", "errorMessage": "must say why the divergence is accepted (not blank)" },
+            "previousResolution": { "enum": ["UNCLASSIFIED", "DATA"], "description": "The resolution before this sign-off or dismissal, restored by an undo (dismiss.mjs --undo). Absent means FIX_CODE." }
           }
         },
         "dismissal": {
@@ -407,10 +413,11 @@
             "by": { "$ref": "#/definitions/nullableString" },
             "date": { "type": "string", "format": "date-time" },
             "source": { "enum": ["report-ui", "chat", "cli", "prior-pass"] },
-            "priorRef": { "$ref": "#/definitions/nullableString", "description": "id of the dismissed-log entry when re-applied from an earlier pass" }
+            "priorRef": { "$ref": "#/definitions/nullableString", "description": "id of the dismissed-log entry when re-applied from an earlier pass" },
+            "previousResolution": { "enum": ["UNCLASSIFIED", "DATA"], "description": "The resolution before this sign-off or dismissal, restored by an undo (dismiss.mjs --undo). Absent means FIX_CODE." }
           }
         },
-        "knownDrift": { "$ref": "#/definitions/nullableString" },
+        "knownDrift": { "$ref": "#/definitions/nullableString", "description": "The known-drift id (e.g. \"KD-3\") an INTENTIONAL finding cites." },
         "acRef": { "$ref": "#/definitions/nullableString" }
       },
       "allOf": [
@@ -694,7 +701,7 @@
     },
     "backfill": {
       "type": ["object", "null"],
-      "description": "Design backfill (step 2 of 2): states the app has but the design does not, to be built back into Figma with the design-system library once production matches the design (step 1). Never part of stateMatrix, findings, parity, verdict, unexplained, loopClosed, triage or designSystem. Validator: item ids unique; screen rules as for findings; not-needed needs a reason; figma only with decision build; a figma frame while not ready (no loopClosed, no override) is an error; no item shares a state id with a stateMatrix row.",
+      "description": "Design backfill (step 2 of 2): states the app has but the design does not, to be built back into Figma with the design-system library once production matches the design (step 1). Never part of stateMatrix, findings, parity, verdict, unexplained, loopClosed, triage or designSystem. Validator: item ids unique; screen rules as for findings; not-needed needs a reason; figma only with decision build; a figma frame while not ready (no loopClosed, no override) is a warning (backfill.mjs --record refuses it; a later pass that reopens step 1 keeps frames built earlier); no item shares a state id with a stateMatrix row.",
       "required": ["gate", "items"],
       "properties": {
         "gate": {

@@ -4,7 +4,19 @@
 // dismissed log so later passes know about them.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { CliError, displayPath, parseCli, readJsonFile, runMain, usageError, writeJson, writeText } from './lib/args.mjs';
+import {
+  CliError,
+  checkLedgerPaths,
+  displayPath,
+  oneLine,
+  parseCli,
+  readJsonFile,
+  runMain,
+  usageError,
+  withFileLocks,
+  writeJson,
+  writeText,
+} from './lib/args.mjs';
 import {
   DISMISS_KINDS,
   applyDismissal,
@@ -15,6 +27,7 @@ import {
   undoDismissal,
   upsertLogEntries,
 } from './lib/dismissals.mjs';
+import { shellArg } from './lib/review-context.mjs';
 import { reportSlug } from './lib/triage.mjs';
 
 const HELP = `Dismiss findings with a written reason, undo a dismissal, or re-apply earlier passes' dismissals.
@@ -37,7 +50,8 @@ Choose exactly one of:
                            DQ-007 remove — <reason>
                            DQ-009 intentional — <reason>
                            by: <name>
-  --undo <ids>           restore dismissed / accepted finding(s) to FIX_CODE and mark their
+  --undo <ids>           restore dismissed / accepted finding(s) to the resolution they had
+                         (UNCLASSIFIED or DATA when recorded, else FIX_CODE) and mark their
                          log entries "undone"
   --apply-log            re-apply the log's active dismissals of this feature to open findings
                          with the same fingerprint and unchanged expected/actual values
@@ -65,8 +79,10 @@ Dismissing sets resolution DISMISSED with { kind, reason, by, date, source, prio
 (intentional: INTENTIONAL with signoff { by, date, reason }), rank { score: 0, bucket:
 "none" }, and removes the finding from triage.items. Only BLOCKER, WARNING and
 DS_CANDIDATE findings can be dismissed. Log entries are upserted by feature +
-fingerprint (ledger|state|selector|property) with stable ids DS-0001…. The scorecard
-is not recomputed here: re-render with
+fingerprint (ledger|state|selector|property) with stable ids DS-0001…. The JSON and
+Markdown log paths must differ (the Markdown one ends in .md); report.json and the log
+are locked while they are read and rewritten, replaced atomically and never written
+through a symlink. The scorecard is not recomputed here: re-render with
   node scripts/render-report.mjs --in <report.json> --recompute --write-back
 which also validates the report.
 
@@ -82,7 +98,7 @@ function parseIds(raw, flag) {
     .map((id) => id.toUpperCase());
   if (!ids.length) throw usageError(`--${flag}: give at least one finding id (e.g. DQ-004)`);
   const bad = ids.filter((id) => !ID_RE.test(id));
-  if (bad.length) throw usageError(`--${flag}: not finding ids: ${bad.join(', ')} (expected e.g. DQ-004)`);
+  if (bad.length) throw usageError(`--${flag}: not finding ids: ${bad.map(oneLine).join(', ')} (expected e.g. DQ-004)`);
   return [...new Set(ids)];
 }
 
@@ -90,7 +106,10 @@ function withExtension(file, ext) {
   return file.replace(/\.(json|md)$/i, '') + ext;
 }
 
-const quote = (s) => `"${String(s).length > 90 ? `${String(s).slice(0, 87)}…` : s}"`;
+const quote = (v) => {
+  const s = oneLine(v);
+  return `"${s.length > 90 ? `${s.slice(0, 87)}…` : s}"`;
+};
 
 async function main(argv) {
   const { values } = parseCli(argv, {
@@ -112,37 +131,43 @@ async function main(argv) {
     console.log(HELP);
     return 0;
   }
-  const log = values.quiet ? () => {} : (msg) => console.log(msg);
-  const warn = (msg) => console.error(`warning: ${msg}`);
-
   if (!values.report) throw usageError('--report <report.json> is required (see --help)');
   const modes = [values.id !== undefined, values.from !== undefined, values.undo !== undefined, Boolean(values['apply-log'])].filter(Boolean).length;
   if (modes !== 1) throw usageError('choose exactly one of --id <ids>, --from <file>, --undo <ids> or --apply-log');
   if (values.source && !CLI_SOURCES.includes(values.source)) {
-    throw usageError(`--source must be one of ${CLI_SOURCES.join(', ')} (got "${values.source}")`);
+    throw usageError(`--source must be one of ${CLI_SOURCES.join(', ')} (got "${oneLine(values.source)}")`);
   }
   if (values.id === undefined && (values.kind !== undefined || values.reason !== undefined)) {
     throw usageError('--kind and --reason go with --id (a --from file carries its own)');
   }
 
   const reportFile = path.resolve(values.report);
+  const mdFlag = values.md ? path.resolve(values.md) : null;
+  const logFile = path.resolve(values.log ?? (mdFlag ? withExtension(mdFlag, '.json') : path.join(path.dirname(path.dirname(reportFile)), 'dismissed.json')));
+  const mdFile = mdFlag ?? withExtension(logFile, '.md');
+  checkLedgerPaths(logFile, mdFile, 'dismissed log');
+  // report.json and the log stay locked from the read to the last write (parallel runs keep every entry).
+  return values['dry-run'] ? dismiss(values, { reportFile, logFile, mdFile }) : withFileLocks([reportFile, logFile], () => dismiss(values, { reportFile, logFile, mdFile }));
+}
+
+function dismiss(values, { reportFile, logFile, mdFile }) {
+  const log = values.quiet ? () => {} : (msg) => console.log(msg);
+  const warn = (msg) => console.error(`warning: ${msg}`);
+  const show = (file) => oneLine(displayPath(file));
   const report = readJsonFile(reportFile, 'report', 1);
   if (!report || typeof report !== 'object' || !Array.isArray(report.findings)) {
-    throw new CliError(`${displayPath(reportFile)} is not a design-qa report (no "findings" array)`, 1);
+    throw new CliError(`${show(reportFile)} is not a design-qa report (no "findings" array)`, 1);
   }
   if (report.schemaVersion !== '2.0') {
-    throw new CliError(`${displayPath(reportFile)}: schemaVersion 2.0 required (got "${report.schemaVersion}"); 1.x reports: re-run the pass`, 1);
+    throw new CliError(`${show(reportFile)}: schemaVersion 2.0 required (got "${oneLine(report.schemaVersion)}"); 1.x reports: re-run the pass`, 1);
   }
   const slug = reportSlug(report);
   const byId = new Map(report.findings.map((f) => [f.id, f]));
 
-  const mdFlag = values.md ? path.resolve(values.md) : null;
-  const logFile = path.resolve(values.log ?? (mdFlag ? withExtension(mdFlag, '.json') : path.join(path.dirname(path.dirname(reportFile)), 'dismissed.json')));
-  const mdFile = mdFlag ?? withExtension(logFile, '.md');
   let previousLog = null;
   if (existsSync(logFile)) {
     previousLog = readJsonFile(logFile, 'dismissed log', 1);
-    if (!previousLog || !Array.isArray(previousLog.entries)) throw new CliError(`${displayPath(logFile)} is not a dismissed log (no "entries" array)`, 1);
+    if (!previousLog || !Array.isArray(previousLog.entries)) throw new CliError(`${show(logFile)} is not a dismissed log (no "entries" array)`, 1);
   }
 
   let next = report;
@@ -151,16 +176,16 @@ async function main(argv) {
   if (values['apply-log']) {
     const result = applyPriorDismissals(report, previousLog);
     next = result.report;
-    log(`Prior dismissals for ${slug} (${report.meta?.feature ?? 'unknown feature'}) from ${displayPath(logFile)}:`);
+    log(`Prior dismissals for ${oneLine(slug)} (${oneLine(report.meta?.feature ?? 'unknown feature')}) from ${show(logFile)}:`);
     if (!previousLog) log('  no log yet; nothing to apply');
     for (const a of result.applied) {
       const f = next.findings.find((x) => x.id === a.findingId);
       const reason = a.kind === 'intentional' ? f.signoff?.reason : f.dismissal?.reason;
-      log(`  ${a.findingId} ${a.kind} (${a.entryId}) — ${quote(reason)}`);
+      log(`  ${oneLine(a.findingId)} ${oneLine(a.kind)} (${oneLine(a.entryId)}) — ${quote(reason)}`);
     }
     for (const c of result.changed) {
       log(
-        `  notice: ${c.findingId} matches ${c.entryId} (${c.kind}) but its values changed — ` +
+        `  notice: ${oneLine(c.findingId)} matches ${oneLine(c.entryId)} (${oneLine(c.kind)}) but its values changed — ` +
           `expected ${quote(c.was.expectedValue)} → ${quote(c.now.expectedValue)}, actual ${quote(c.was.actualValue)} → ${quote(c.now.actualValue)}; left open`,
       );
     }
@@ -171,13 +196,14 @@ async function main(argv) {
     }
   } else if (values.undo !== undefined) {
     for (const id of parseIds(values.undo, 'undo')) {
+      let restored;
       try {
-        ({ report: next } = undoDismissal(next, id));
+        ({ report: next, finding: restored } = undoDismissal(next, id));
       } catch (err) {
-        throw usageError(err.message);
+        throw usageError(oneLine(err.message));
       }
       changes.push({ findingId: id, action: 'undo' });
-      log(`Undone ${id}: back to FIX_CODE`);
+      log(`Undone ${oneLine(id)}: back to ${oneLine(restored.resolution)}`);
     }
   } else {
     let items;
@@ -185,7 +211,7 @@ async function main(argv) {
     if (values.id !== undefined) {
       const kind = normalizeKind(values.kind);
       if (!values.kind) throw usageError(`--kind is required with --id: ${DISMISS_KINDS.join(' | ')}`);
-      if (!kind) throw usageError(`--kind must be one of ${DISMISS_KINDS.join(', ')} (got "${values.kind}")`);
+      if (!kind) throw usageError(`--kind must be one of ${DISMISS_KINDS.join(', ')} (got "${oneLine(values.kind)}")`);
       items = parseIds(values.id, 'id').map((findingId) => ({ findingId, kind, reason: (values.reason ?? '').trim(), by: null, date: null }));
       defaultSource = 'cli';
       if (!items[0].reason) {
@@ -198,24 +224,24 @@ async function main(argv) {
       try {
         content = readFileSync(fromFile, 'utf8');
       } catch (err) {
-        throw usageError(`cannot read --from ${values.from}: ${err.code === 'ENOENT' ? 'file not found' : err.message}`);
+        throw usageError(`cannot read --from ${oneLine(values.from)}: ${err.code === 'ENOENT' ? 'file not found' : err.message}`);
       }
       try {
         parsed = parseDismissalsFile(content);
       } catch (err) {
-        throw usageError(`--from ${values.from}: ${err.message}`);
+        throw usageError(`--from ${oneLine(values.from)}: ${oneLine(err.message)}`);
       }
-      if (parsed.slug && parsed.slug !== slug) warn(`dismissals are for "${parsed.slug}" but this report is "${slug}"`);
+      if (parsed.slug && parsed.slug !== slug) warn(`dismissals are for "${oneLine(parsed.slug)}" but this report is "${oneLine(slug)}"`);
       if (parsed.reportGeneratedAt && parsed.reportGeneratedAt !== report.meta?.generatedAt) {
-        warn(`dismissals were made on the report generated ${parsed.reportGeneratedAt}; this report was generated ${report.meta?.generatedAt}`);
+        warn(`dismissals were made on the report generated ${oneLine(parsed.reportGeneratedAt)}; this report was generated ${oneLine(report.meta?.generatedAt)}`);
       }
       items = parsed.items.map((item) => ({ ...item, by: item.by ?? values.by ?? parsed.decidedBy ?? null }));
       defaultSource = parsed.format === 'json' ? 'report-ui' : 'chat';
       const blank = items.filter((i) => !i.reason).map((i) => i.findingId);
-      if (blank.length) throw usageError(`a reason is required for every dismissal; missing for ${blank.join(', ')}`);
+      if (blank.length) throw usageError(`a reason is required for every dismissal; missing for ${blank.map(oneLine).join(', ')}`);
     }
     const unknown = items.filter((i) => !byId.has(i.findingId)).map((i) => i.findingId);
-    if (unknown.length) throw usageError(`unknown finding id(s): ${unknown.join(', ')}`);
+    if (unknown.length) throw usageError(`unknown finding id(s): ${unknown.map(oneLine).join(', ')}`);
     const source = values.source ?? defaultSource;
     const now = new Date().toISOString();
     for (const item of items) {
@@ -229,11 +255,11 @@ async function main(argv) {
           source,
         }));
       } catch (err) {
-        throw usageError(err.message);
+        throw usageError(oneLine(err.message));
       }
       changes.push({ findingId: item.findingId, action: 'dismiss', source });
       const again = ['DISMISSED', 'INTENTIONAL'].includes(before.resolution) ? ' (updated)' : '';
-      log(`${item.kind === 'intentional' ? 'Accepted' : 'Dismissed'} ${item.findingId} ${item.kind}${again} — ${quote(item.reason)}`);
+      log(`${item.kind === 'intentional' ? 'Accepted' : 'Dismissed'} ${oneLine(item.findingId)} ${oneLine(item.kind)}${again} — ${quote(item.reason)}`);
     }
   }
 
@@ -247,11 +273,11 @@ async function main(argv) {
   if (changes.length) {
     writeJson(logFile, nextLog);
     writeText(mdFile, renderDismissedMarkdown(nextLog));
-    log(`Wrote ${displayPath(reportFile)}, ${displayPath(logFile)} and ${displayPath(mdFile)}`);
+    log(`Wrote ${show(reportFile)}, ${show(logFile)} and ${show(mdFile)}`);
   } else {
-    log(`Wrote ${displayPath(reportFile)}`);
+    log(`Wrote ${show(reportFile)}`);
   }
-  log(`Next: node scripts/render-report.mjs --in ${displayPath(reportFile)} --recompute --write-back (recomputes the scorecard and validates)`);
+  log(`Next: node scripts/render-report.mjs --in ${shellArg(displayPath(reportFile))} --recompute --write-back (recomputes the scorecard and validates)`);
   return 0;
 }
 

@@ -163,9 +163,28 @@ export function stateFromName(name) {
   return null;
 }
 
+// Negation: "not empty", "non-empty", "no errors", "without an error", "isn't loading",
+// "should not be empty" name the opposite state, so a phrase right after a negator
+// (with at most two filler words in between) is not a mention of that state.
+const NEGATORS = new Set([
+  'not', 'no', 'non', 'without', 'never', 'nor', 'nothing', 't', 'cannot', 'isnt', 'arent', 'wasnt', 'werent',
+  'dont', 'doesnt', 'didnt', 'hasnt', 'havent', 'wont', 'cant', 'shouldnt',
+]);
+const NEGATION_FILLERS = new Set(['a', 'an', 'any', 'the', 'be', 'been', 'being', 'yet', 'more', 'longer', 'show', 'shows', 'display', 'displays', 'have', 'has']);
+
+function isNegated(normalised, index) {
+  const before = normalised.slice(0, index).split(' ').filter(Boolean);
+  for (let i = before.length - 1, skipped = 0; i >= 0 && skipped <= 2; i--, skipped++) {
+    if (NEGATORS.has(before[i])) return true;
+    if (!NEGATION_FILLERS.has(before[i])) return false;
+  }
+  return false;
+}
+
 /**
  * First state mentioned in free text (earliest position wins, longer phrases
- * first; "with-data" only when nothing more specific is mentioned).
+ * first; "with-data" only when nothing more specific is mentioned). Matches are
+ * whole words, and a negated mention ("not empty", "no errors") does not count.
  * strict=true ignores synonyms that are too common in prose.
  */
 export function matchStateSynonym(text, { strict = true } = {}) {
@@ -174,9 +193,18 @@ export function matchStateSynonym(text, { strict = true } = {}) {
   let best = null;
   for (const [phrase, re] of PHRASE_RES) {
     if (strict && WEAK_IN_PROSE.has(phrase)) continue;
-    const m = re.exec(n);
-    if (!m) continue;
-    const index = m.index + m[1].length;
+    const global = new RegExp(re.source, 'g');
+    let m;
+    let index = -1;
+    while ((m = global.exec(n))) {
+      const at = m.index + m[1].length;
+      if (!isNegated(n, at)) {
+        index = at;
+        break;
+      }
+      global.lastIndex = at + phrase.length;
+    }
+    if (index === -1) continue;
     const state = LOOKUP.get(phrase);
     const rank = state === 'with-data' ? 1 : 0;
     if (!best || rank < best.rank || (rank === best.rank && (index < best.index || (index === best.index && phrase.length > best.phrase.length)))) {
@@ -186,14 +214,32 @@ export function matchStateSynonym(text, { strict = true } = {}) {
   return best ? best.state : null;
 }
 
-/** Normalised state id for any name: synonym if one matches, otherwise a slug. */
+/**
+ * Normalised state id for any name: the state the whole name (or one of its
+ * segments) is a label for; else a state named by a whole-word synonym that is
+ * neither negated ("Not empty", "no errors") nor a word too common to trust
+ * ("Data table" is not with-data); otherwise a slug of the name.
+ */
 export function normalizeStateName(name) {
   const n = normalisePhrase(name);
   if (!n) return null;
   if (CANONICAL_ORDER.includes(n.replace(/ /g, '-'))) return n.replace(/ /g, '-');
-  const hit = stateFromName(name) ?? matchStateSynonym(name, { strict: false });
+  const hit = stateFromName(name) ?? matchStateSynonym(name, { strict: true });
   if (hit) return hit;
   return n.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || null;
+}
+
+/**
+ * Exact state id for a name, or null: the whole name, or one of its segments
+ * ("Items / Loading"), must be a state label ("loading", "Skeleton", "Empty
+ * state"). No partial matches, so "Pending orders" or "Fetching done" is not
+ * loading. Capture uses it to decide how to treat a state.
+ */
+export function exactStateName(name) {
+  const n = normalisePhrase(name);
+  if (!n) return null;
+  if (CANONICAL_ORDER.includes(n.replace(/ /g, '-'))) return n.replace(/ /g, '-');
+  return stateFromName(name);
 }
 
 export function stateLabel(state) {
@@ -332,8 +378,12 @@ export function discoverTicketStates(ticket) {
 // Config
 // ---------------------------------------------------------------------------
 
-// The driver that distinguishes a state wins: { fixture, action: "hover" } is an action.
-const DRIVER_ORDER = ['action', 'mock', 'query', 'storage', 'fixture', 'source'];
+// Capture applies every key of a driver together (fixture/query in the URL, mock and
+// storage before load, the action after it); this order only names the primary one.
+// The key that distinguishes a state wins over the shared base data:
+// { fixture, action: "hover" } is an action, { fixture, mock } a mock. Keep in sync
+// with references/state-matrix.md ("Reachability drivers").
+export const DRIVER_ORDER = Object.freeze(['action', 'mock', 'query', 'storage', 'fixture', 'source']);
 
 /** The primary driver kind of a DRIVER object (null for an empty driver = default render). */
 export function driverKind(driver) {

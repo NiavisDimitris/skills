@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Validate a design-qa report.json, design-qa.config.json, state-matrix.json or decisions.json.
 // Zero dependencies; the structural rules come from ../schemas/*.schema.json.
+import { statSync } from 'node:fs';
 import path from 'node:path';
 import { CliError, displayPath, parseCli, readJsonFile, runMain, usageError } from './lib/args.mjs';
 import { DECISIONS_KIND, DecisionsError, normalizeDecisions } from './lib/decisions.mjs';
@@ -35,7 +36,7 @@ Usage:
 
 Options:
   --type <type>      report | config | state-matrix | decisions. Inferred when omitted:
-                     schemaVersion + findings → report; app + surfaces → config;
+                     schemaVersion or findings → report; app or surfaces → config;
                      an array of { state, result } rows → state-matrix;
                      kind "design-qa-decisions" → decisions (the review decisions
                      document, schemas/decisions.schema.json)
@@ -43,37 +44,58 @@ Options:
                      report.ranking from this design-qa.config.json
                      (defaults: pass < 1%, review <= 5%, top 5)
   --quiet            print errors only (no warnings, no success line)
-  --json             print { file, type, valid, errors, warnings } as JSON on stdout
+  --json             print { file, type, valid, errors, warnings } as JSON on stdout,
+                     always: a file that is missing, not JSON or of unknown type gives
+                     valid false with the error at path "(root)" (same exit codes)
   -h, --help         show this help
 
 Report rules (schemaVersion 2.0 only; a 1.x report fails with "re-run the pass"):
 required keys and enums (keys whose value may be null can be omitted); finding ids
-unique and matching DQ-001; every findingIds / relatedFindings / stateMatrix[].findings
-entry references an existing finding; severity PASS or CANNOT_VERIFY ⇒ resolution
-NONE; BLOCKER, WARNING or DS_CANDIDATE ⇒ FIX_CODE, INTENTIONAL, DATA, DISMISSED or
-UNCLASSIFIED; DISMISSED ⇒ a dismissal { kind, reason, by, date, source } with a
-non-empty reason; meta.source is required and meta.figma too when the source is
-figma or figma-prototype (same frame); with meta.screens every state is
-"<screen>/<state>" and every row / finding screen is a listed id; rank.bucket is
-"fix-now" or "debt" only for FIX_CODE findings (severity BLOCKER, WARNING or
-DS_CANDIDATE), "none" otherwise; with a triage block every triageable finding (the
-same FIX_CODE set) has exactly one "fix-now" or "debt" decision and no BLOCKER is
-debt; scorecard counts, parity (dismissed findings leave the denominator), verdict,
-pixel-diff bands, state coverage, unexplained, debt, loopClosed, dismissed and
-designSystem equal the values derived from the findings (see render-report.mjs
---recompute). Design backfill (step 2, optional "backfill" block): item ids unique
-and matching BF-001; screens as for findings; "not-needed" needs a reason; "figma"
-only with decision "build", and only once step 1 is closed (loopClosed) or
-backfill.gate.override is recorded; no item may share a state id with a stateMatrix
-row (that state is designed); scorecard.backfill exists exactly when backfill does,
-with derived candidates, toBuild, built, notNeeded, pending and ready. The backfill
-never changes parity, verdict, unexplained, loopClosed or designSystem. Removed 1.x values (SYNC_FIGMA, MISSING_IN_DESIGN, mode "sync",
-bucket "sync-figma", captured.figma) get a message saying what to use instead.
-Unknown keys, and a fix-now/debt split that differs from topN, are warnings.
+unique and matching DQ-001; every findingIds / relatedFindings /
+stateMatrix[].findings entry references an existing finding; severity PASS or
+CANNOT_VERIFY ⇒ resolution NONE; BLOCKER, WARNING or DS_CANDIDATE ⇒ FIX_CODE,
+INTENTIONAL, DATA, DISMISSED or UNCLASSIFIED; DISMISSED ⇒ a dismissal { kind, reason,
+by, date, source } with a non-empty reason; INTENTIONAL ⇒ a signoff { by, date, reason
+} with by and reason not blank (or a known drift cited in knownDrift); date-times are
+RFC 3339 (2026-01-31T12:00:00Z: seconds and a time zone required); meta.source is
+required and meta.figma too when the source is figma or figma-prototype (same frame);
+with meta.screens every state is "<screen>/<state>" and every row / finding screen is
+a listed id; rank.bucket is "fix-now" or "debt" only for FIX_CODE findings (severity
+BLOCKER, WARNING or DS_CANDIDATE), "none" otherwise; with a triage block every
+triageable finding (the same FIX_CODE set) has exactly one "fix-now" or "debt"
+decision and no BLOCKER is debt; scorecard counts, parity (dismissed findings leave
+the denominator), verdict, pixel-diff bands, state coverage, unexplained, debt,
+loopClosed, dismissed and designSystem equal the values derived from the findings (see
+render-report.mjs --recompute). Design backfill (step 2, optional "backfill" block):
+item ids unique and matching BF-001; screens as for findings; "not-needed" needs a
+reason; "figma" only with decision "build" (a frame recorded while step 1 is open,
+with no loopClosed and no backfill.gate.override, is a warning: backfill.mjs --record
+refuses it); no item may share a state id with a stateMatrix row (that state is
+designed); scorecard.backfill exists exactly when backfill does, with derived
+candidates, toBuild, built, notNeeded, pending and ready. The backfill never changes
+parity, verdict, unexplained, loopClosed or designSystem. Removed 1.x values
+(SYNC_FIGMA, MISSING_IN_DESIGN, mode "sync", bucket "sync-figma", captured.figma) get
+a message saying what to use instead. Unknown keys, a fix-now/debt split that differs
+from topN, scorecard.pixelDiff keys that are not stateMatrix states, and backfill
+states that differ from a designed state only by letter case are warnings.
 
-Exit codes: 0 valid · 1 invalid (or not JSON) · 2 bad arguments / file not found`;
+Exit codes: 0 valid · 1 invalid (or not JSON) · 2 bad arguments / file not found /
+type cannot be inferred`;
 
 async function main(argv) {
+  const seen = { file: null, type: null };
+  try {
+    return await validateCli(argv, seen);
+  } catch (err) {
+    // --json always prints a result on stdout, failures included (same exit codes).
+    if (!(err instanceof CliError) || !argv.includes('--json')) throw err;
+    console.log(JSON.stringify({ ...seen, valid: false, errors: [{ path: '(root)', message: err.message }], warnings: [] }, null, 2));
+    console.error(`validate.mjs: error: ${err.message}`);
+    return err.exitCode;
+  }
+}
+
+async function validateCli(argv, seen) {
   const { values, positionals } = parseCli(
     argv,
     {
@@ -92,15 +114,18 @@ async function main(argv) {
   if (values.type && !TYPES.includes(values.type)) throw usageError(`--type must be one of ${TYPES.join(', ')} (got "${values.type}")`);
 
   const file = path.resolve(positionals[0]);
-  let data;
+  seen.file = displayPath(file);
+  // A missing file (or a folder) is a usage error (2); unreadable or unparseable content is an invalid file (1).
+  let stat = null;
   try {
-    data = readJsonFile(file, 'file', 2);
-  } catch (err) {
-    // Unparseable JSON is an invalid file (1); a missing file is a usage error (2).
-    if (err instanceof CliError && /is not valid JSON/.test(err.message)) throw new CliError(err.message, 1);
-    throw err;
+    stat = statSync(file);
+  } catch {
+    stat = null;
   }
+  if (!stat || !stat.isFile()) throw usageError(`cannot read file ${file}: ${stat ? 'not a file' : 'file not found'}`);
+  const data = readJsonFile(file, 'file', 1);
   const type = values.type || inferType(data);
+  seen.type = type || null;
   if (!type) {
     throw usageError(`cannot infer the file type of ${displayPath(file)}; pass --type ${TYPES.join('|')}`);
   }

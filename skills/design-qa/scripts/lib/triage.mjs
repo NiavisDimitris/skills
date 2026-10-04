@@ -28,10 +28,20 @@ export function reportSlug(report) {
 /** Who owns debt: always engineering (the code must match the design). */
 export const DEBT_OWNER = 'engineering';
 
-/** The findings with ranks (ranked with rankFindings when any rank is missing). */
+/**
+ * The findings with ranks recomputed by rankFindings. Ranks are fully derived (from
+ * severity, resolution, ledger, effort, topN and weights), so stored ones are never
+ * trusted: they go stale when a finding is reclassified or the config changes topN.
+ */
 export function withRanks(findings, opts = {}) {
-  const list = Array.isArray(findings) ? findings : [];
-  return list.every((f) => f && f.rank) ? list : rankFindings(list, opts);
+  return rankFindings(Array.isArray(findings) ? findings : [], opts);
+}
+
+/** Two date-times name the same instant ("…T10:00:00Z" and "…T10:00:00.000Z" do). */
+export function sameInstant(a, b) {
+  if (a === b) return true;
+  const t = Date.parse(a);
+  return !Number.isNaN(t) && t === Date.parse(b);
 }
 
 /** Recommended fix-now ids: the fix-now bucket, then every blocker left in the debt bucket, in rank order. */

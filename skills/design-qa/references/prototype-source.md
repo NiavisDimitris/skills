@@ -35,7 +35,7 @@ Record the source:
 | Static HTML | A hosted page, a file served over http (`npx serve`), or a `file:` URL (only `--side design` accepts one). | A page opened from `file:` cannot read some stylesheets (keyframes may be missing); serve it when motion matters. |
 | localhost | The running prototype. | Must stay up for the capture; not reachable from CI. |
 
-A prototype behind a login or deployment protection uses the same auth options as the app (browser-capture.md, "Auth"): pass `--auth`, `--header` or a storage-state file for the design-side run. Never type credentials.
+A prototype behind a login or deployment protection uses the same auth options as the app (browser-capture.md, "Auth"): pass `--auth`, `--header` or a storage-state file for the design-side run. With `--config`, the app's `app.auth` and `app.headers` are never applied to the design side, so pass them explicitly; headers go only to the prototype's own origin. Never type credentials.
 
 ## Viewport
 
@@ -69,7 +69,9 @@ node scripts/capture.mjs --config design-qa.config.json --surface checkout --wid
   --states <dir>/evidence/states.json --grab <dir>/evidence/grab.json --out <dir>/evidence
 
 # 3. Compare
-node scripts/compare.mjs --app <dir>/evidence --token-map design-qa/token-map.md --catalog design-qa/components.json
+node scripts/compare.mjs --app <dir>/evidence --config design-qa.config.json \
+  --token-map design-qa/token-map.md --catalog design-qa/components.json
+#    --config supplies tolerances.px and tolerances.colorDeltaE (colours match by CIEDE2000 ΔE, default 1.5)
 #    --design defaults to the --app folder; compare.json goes to <dir>/evidence/compare.json (override with --out)
 
 # 4. Pixel diff: design/<state>.png against app/<state>.png
@@ -88,7 +90,7 @@ Build one `grab.json` from the prototype's element classes (inspect `design-dom/
 | `tokens` | Fill `expected.token` with `expectedToken` and `actual.token` with `actualToken` (null: hardcoded). Confirm both through the token map; a prototype that uses a raw value where the design system has a token still names the token the value resolves to. These count as token mismatches. |
 | `components` | Ledger `component`. `expected.value` the prototype's component and variant, `actual.value` what the app renders. Component mismatches. |
 | `motion` | Ledger `motion`, with the row copied into `ledgers.motion`. `observed: null` is missing motion (`actual.value: "none"`). Motion mismatches. |
-| `structure` | Missing in app: ledger `structure`, 🔴 when a region or call to action is missing. "Extra in app": `FIX_CODE`, phrased from the code side ("App renders an extra promo banner not in the prototype"). |
+| `structure` | Missing in app: ledger `structure`, 🔴 when a region or call to action is missing. "Extra in app": `FIX_CODE`, phrased from the code side ("App renders an extra promo banner not in the prototype"). A `CANNOT_VERIFY` row ("not sampled") is not a finding: raise the element class's `limit` in `grab.json` and capture again. |
 
 Then the usual rules apply: one finding per divergence, PASS findings per verified region, a crop on every finding that has a place on the page (app side from `computed/`, design side from `design-computed/`), severities and resolutions per classification.md. Prototype content that is clearly placeholder data (lorem ipsum, sample names) is `DATA`.
 

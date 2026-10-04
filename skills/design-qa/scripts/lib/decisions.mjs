@@ -5,11 +5,15 @@
 // ```design-qa-decisions fence), validate it, summarise it, apply it to a report by
 // composing the existing triage / dismissal / backfill functions, and write the
 // plain-language message. report.html mirrors decisionsMessage() character for
-// character, so keep its output stable and deterministic.
+// character, so keep its output stable and deterministic. Every name, title or value
+// that comes from the report or the document is folded to one line (oneLine) before
+// it is printed, so data can never forge a line (a "Next:" command, a second fence).
+import { oneLine } from './args.mjs';
 import { decideItems, DECIDE_CHOICES } from './backfill.mjs';
-import { DISMISS_KINDS, applyDismissal, isIsoDateTime, normalizeKind } from './dismissals.mjs';
+import { DISMISS_KINDS, applyDismissal, normalizeKind } from './dismissals.mjs';
 import { agentPrompt } from './fixplan.mjs';
 import { backfillItems, computeScorecard, hasBackfill, isTriageable, resolveOptions } from './ranking.mjs';
+import { isRfc3339DateTime } from './schema-check.mjs';
 import { applyTriage, buildTriage, reportSlug, withRanks } from './triage.mjs';
 import { shellArg } from './review-context.mjs';
 
@@ -33,7 +37,7 @@ const TRIAGE_KEYS = new Set(['fixNow', 'debt']);
  */
 export class DecisionsError extends Error {
   constructor(message, code = 'invalid') {
-    super(message);
+    super(oneLine(message)); // messages quote document and report values: one line, always
     this.name = 'DecisionsError';
     this.code = code;
   }
@@ -42,11 +46,16 @@ export class DecisionsError extends Error {
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const invalid = (message) => new DecisionsError(message, 'invalid');
 const nameOrNull = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
-const oneLine = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
+const show = (v) => JSON.stringify(v === undefined ? null : v);
+
+// Every date is an RFC 3339 date-time with an explicit zone (Z or ±hh:mm), the validator's
+// own rule (isRfc3339DateTime): a zone-less time would be read in the local zone, so two
+// machines could disagree on the instant.
+const isDateTime = (v) => isRfc3339DateTime(v);
 
 function unknownKeys(obj, allowed, where) {
   const extra = Object.keys(obj).filter((k) => !allowed.has(k));
-  if (extra.length) throw invalid(`${where} has unknown key${extra.length === 1 ? '' : 's'}: ${extra.map((k) => `"${k}"`).join(', ')}`);
+  if (extra.length) throw invalid(`${where} has unknown key${extra.length === 1 ? '' : 's'}: ${extra.map((k) => show(k)).join(', ')}`);
 }
 
 function optionalName(value, where) {
@@ -57,7 +66,7 @@ function optionalName(value, where) {
 
 function optionalDate(value, where) {
   if (value === undefined || value === null) return null;
-  if (!isIsoDateTime(value)) throw invalid(`${where} must be an ISO date-time like "2026-10-03T10:00:00.000Z" (got ${JSON.stringify(value)})`);
+  if (!isDateTime(value)) throw invalid(`${where} must be an ISO date-time with a time zone, like "2026-10-03T10:00:00.000Z" (got ${show(value)})`);
   return value;
 }
 
@@ -67,7 +76,7 @@ function idList(value, where) {
   const seen = new Set();
   value.forEach((id, i) => {
     if (typeof id !== 'string' || !FINDING_ID_RE.test(id)) {
-      throw invalid(`${where}[${i}] is ${JSON.stringify(id)}, not a finding id (expected e.g. "DQ-004")`);
+      throw invalid(`${where}[${i}] is ${show(id)}, not a finding id (expected e.g. "DQ-004")`);
     }
     if (seen.has(id)) throw invalid(`${where} lists ${id} twice`);
     seen.add(id);
@@ -83,23 +92,23 @@ function idList(value, where) {
  */
 export function normalizeDecisions(data) {
   if (!isObj(data)) throw invalid('the decisions document must be a JSON object');
-  if (data.kind !== DECISIONS_KIND) throw invalid(`"kind" must be "${DECISIONS_KIND}" (got ${JSON.stringify(data.kind ?? null)})`);
+  if (data.kind !== DECISIONS_KIND) throw invalid(`"kind" must be "${DECISIONS_KIND}" (got ${show(data.kind ?? null)})`);
   if (typeof data.version === 'number' && Number.isInteger(data.version) && data.version > DECISIONS_VERSION) {
     throw new DecisionsError(
       `this decisions document is version ${data.version}, a newer format than this design-qa skill reads (version ${DECISIONS_VERSION}); update the design-qa skill`,
       'version',
     );
   }
-  if (data.version !== DECISIONS_VERSION) throw invalid(`"version" must be ${DECISIONS_VERSION} (got ${JSON.stringify(data.version ?? null)})`);
+  if (data.version !== DECISIONS_VERSION) throw invalid(`"version" must be ${DECISIONS_VERSION} (got ${show(data.version ?? null)})`);
   unknownKeys(data, ALLOWED_TOP, 'the decisions document');
 
   if (typeof data.slug !== 'string' || !data.slug.trim()) throw invalid('"slug" is required: the report folder name, e.g. "ACME-482"');
   if (data.feature !== undefined && data.feature !== null && typeof data.feature !== 'string') throw invalid('"feature" must be a string or null');
-  if (!isIsoDateTime(data.reportGeneratedAt)) {
-    throw invalid(`"reportGeneratedAt" must be the report's meta.generatedAt, an ISO date-time (got ${JSON.stringify(data.reportGeneratedAt ?? null)})`);
+  if (!isDateTime(data.reportGeneratedAt)) {
+    throw invalid(`"reportGeneratedAt" must be the report's meta.generatedAt, an ISO date-time with a time zone (got ${show(data.reportGeneratedAt ?? null)})`);
   }
-  if (!isIsoDateTime(data.decidedAt)) throw invalid(`"decidedAt" must be an ISO date-time (got ${JSON.stringify(data.decidedAt ?? null)})`);
-  if (data.tickets !== undefined && typeof data.tickets !== 'boolean') throw invalid(`"tickets" must be true or false (got ${JSON.stringify(data.tickets)})`);
+  if (!isDateTime(data.decidedAt)) throw invalid(`"decidedAt" must be an ISO date-time with a time zone, like "2026-10-03T10:00:00.000Z" (got ${show(data.decidedAt ?? null)})`);
+  if (data.tickets !== undefined && typeof data.tickets !== 'boolean') throw invalid(`"tickets" must be true or false (got ${show(data.tickets)})`);
   const decidedBy = optionalName(data.decidedBy, '"decidedBy"');
 
   let triage;
@@ -120,13 +129,14 @@ export function normalizeDecisions(data) {
     if (!isObj(raw)) throw invalid(`${where} must be an object { findingId, kind, reason, by, date }`);
     unknownKeys(raw, DISMISSAL_KEYS, where);
     if (typeof raw.findingId !== 'string' || !FINDING_ID_RE.test(raw.findingId)) {
-      throw invalid(`${where}.findingId is ${JSON.stringify(raw.findingId ?? null)}, not a finding id (expected e.g. "DQ-007")`);
+      throw invalid(`${where}.findingId is ${show(raw.findingId ?? null)}, not a finding id (expected e.g. "DQ-007")`);
     }
     const id = raw.findingId;
     if (dismissed.has(id)) throw invalid(`dismissals list ${id} twice`);
     dismissed.add(id);
+    // Aliases ("Not an issue") are read; the canonical enum value is what is kept and written.
     const kind = normalizeKind(raw.kind);
-    if (!kind) throw invalid(`${where} (${id}): "kind" must be one of ${DISMISS_KINDS.join(', ')} (got ${JSON.stringify(raw.kind ?? null)})`);
+    if (!kind || !DISMISS_KINDS.includes(kind)) throw invalid(`${where} (${id}): "kind" must be one of ${DISMISS_KINDS.join(', ')} (got ${show(raw.kind ?? null)})`);
     if (typeof raw.reason !== 'string' || !raw.reason.trim()) throw invalid(`${where} (${id}): a non-empty "reason" is required for every dismissal`);
     return { findingId: id, kind, reason: raw.reason, by: optionalName(raw.by, `${where}.by`), date: optionalDate(raw.date, `${where}.date`) };
   });
@@ -142,12 +152,12 @@ export function normalizeDecisions(data) {
     if (!isObj(raw)) throw invalid(`${where} must be an object { id, decision, reason, by, date }`);
     unknownKeys(raw, BACKFILL_KEYS, where);
     if (typeof raw.id !== 'string' || !BACKFILL_ID_RE.test(raw.id)) {
-      throw invalid(`${where}.id is ${JSON.stringify(raw.id ?? null)}, not a backfill id (expected e.g. "BF-001")`);
+      throw invalid(`${where}.id is ${show(raw.id ?? null)}, not a backfill id (expected e.g. "BF-001")`);
     }
     if (seenBf.has(raw.id)) throw invalid(`backfill lists ${raw.id} twice`);
     seenBf.add(raw.id);
     if (!DECIDE_CHOICES.includes(raw.decision)) {
-      throw invalid(`${where} (${raw.id}): "decision" must be one of ${DECIDE_CHOICES.join(', ')} (got ${JSON.stringify(raw.decision ?? null)})`);
+      throw invalid(`${where} (${raw.id}): "decision" must be one of ${DECIDE_CHOICES.join(', ')} (got ${show(raw.decision ?? null)})`);
     }
     if (raw.reason !== undefined && raw.reason !== null && typeof raw.reason !== 'string') throw invalid(`${where} (${raw.id}): "reason" must be a string or null`);
     const reason = typeof raw.reason === 'string' && raw.reason.trim() ? raw.reason : null;
@@ -174,7 +184,9 @@ export function normalizeDecisions(data) {
 // ---------------------------------------------------------------------------
 // Reading the pasted message
 
-const FENCE_OPEN_RE = new RegExp(`^\\s*(\`{3,}|~{3,})\\s*${DECISIONS_FENCE}\\s*$`, 'i');
+// Only an opener in column 0 counts: the message indents every line it quotes (snippet
+// lines by two spaces), so a quoted "```design-qa-decisions" is never taken for one.
+const FENCE_OPEN_RE = new RegExp(`^(\`{3,}|~{3,})\\s*${DECISIONS_FENCE}\\s*$`, 'i');
 const ANY_FENCE_RE = /^\s*(`{3,}|~{3,})[^`]*$/;
 
 function stripQuoting(lines) {
@@ -185,16 +197,33 @@ function stripQuoting(lines) {
     if (!filled.length || !filled.every((l) => /^\s*>/.test(l))) break;
     out = out.map((l) => l.replace(/^\s*>\s?/, ''));
   }
-  return out;
+  // A message pasted indented as a whole: remove the indentation every line shares, so
+  // its own lines are back in column 0 and the lines it quotes stay indented.
+  const filled = out.filter((l) => l.trim());
+  let common = filled.length ? /^[ \t]*/.exec(filled[0])[0] : '';
+  for (const l of filled) {
+    while (common && !l.startsWith(common)) common = common.slice(0, -1);
+  }
+  return common ? out.map((l) => (l.startsWith(common) ? l.slice(common.length) : l.trimStart())) : out;
 }
 
-/** The JSON text of the document: the bare JSON, or the first ```design-qa-decisions fence. */
+/**
+ * The JSON text of the document: the bare JSON, or the one ```design-qa-decisions
+ * fence. A message with two or more such fences is refused: text quoted from the
+ * report could otherwise smuggle a forged document in ahead of the real one.
+ */
 export function extractDecisionsJson(text) {
   const raw = String(text ?? '')
     .replace(/^﻿/, '')
     .replace(/\r\n?/g, '\n');
   if (/^[{[]/.test(raw.trim())) return raw.trim();
   const lines = stripQuoting(raw.split('\n'));
+  const opens = lines.filter((l) => FENCE_OPEN_RE.test(l)).length;
+  if (opens > 1) {
+    throw invalid(
+      `the message has ${opens} \`\`\`${DECISIONS_FENCE} blocks; exactly one is allowed. Copy the message again from report.html (or apply the decisions.json document)`,
+    );
+  }
   const start = lines.findIndex((l) => FENCE_OPEN_RE.test(l));
   if (start >= 0) {
     const open = FENCE_OPEN_RE.exec(lines[start])[1];
@@ -220,8 +249,8 @@ export function extractDecisionsJson(text) {
 
 /**
  * Parse a decisions document: the bare JSON (text starting with "{") or the whole
- * pasted message (the first ```design-qa-decisions fence; everything outside it is
- * ignored). Tolerates CRLF, surrounding whitespace, a blockquoted or fenced message.
+ * pasted message (its one ```design-qa-decisions fence; everything outside it is
+ * ignored; a second fence is an error). Tolerates CRLF, surrounding whitespace, a blockquoted or fenced message.
  * Returns the normalized document; throws DecisionsError with the field and the reason.
  */
 export function parseDecisions(text) {
@@ -265,7 +294,8 @@ export function summaryLine(doc) {
 // ---------------------------------------------------------------------------
 // Checking against a report and applying
 
-const sameInstant = (a, b) => a === b || (Date.parse(a) === Date.parse(b) && !Number.isNaN(Date.parse(a)));
+// Equal strings, or two zoned date-times naming the same instant (zone-less ones are never reinterpreted).
+const sameInstant = (a, b) => a === b || (isDateTime(a) && isDateTime(b) && Date.parse(a) === Date.parse(b));
 
 /**
  * Is `doc` for this report? Returns { warnings }; throws DecisionsError "slug" when the
@@ -276,17 +306,17 @@ export function checkDecisionsTarget(report, doc, { allowStale = false } = {}) {
   const slug = reportSlug(report);
   const warnings = [];
   if (doc.slug !== slug) {
-    throw new DecisionsError(`these decisions are for "${doc.slug}" but this report is "${slug}": apply them to qa-reports/${doc.slug}/report.json`, 'slug');
+    throw new DecisionsError(`these decisions are for ${show(doc.slug)} but this report is ${show(slug)}: apply them to qa-reports/${doc.slug}/report.json`, 'slug');
   }
   const generatedAt = report?.meta?.generatedAt ?? null;
   if (!sameInstant(doc.reportGeneratedAt, generatedAt)) {
     const msg =
-      `these decisions were made on the report generated ${doc.reportGeneratedAt}, but report.json was generated ${generatedAt}. ` +
+      `these decisions were made on the report generated ${oneLine(doc.reportGeneratedAt)}, but report.json was generated ${oneLine(generatedAt)}. ` +
       'Finding ids are renumbered on every pass, so they may point at different findings';
     if (!allowStale) {
       throw new DecisionsError(`${msg}. Reopen the current report.html, review again and send the new decisions.`, 'stale');
     }
-    warnings.push(`${msg}; applied anyway (--allow-stale)`);
+    warnings.push(oneLine(`${msg}; applied anyway (--allow-stale)`));
   }
   return { warnings };
 }
@@ -382,16 +412,16 @@ export function applyDecisions(report, doc, { now = new Date().toISOString(), al
     for (const id of d.triage.fixNow) {
       const f = current.get(id);
       if (isTriageable(f)) fixIds.push(id);
-      else warnings.push(`${id} is ${f.severity} / ${f.resolution} in report.json, not triageable; its fix-now decision is ignored`);
+      else warnings.push(`${id} is ${oneLine(f.severity)} / ${oneLine(f.resolution)} in report.json, not triageable; its fix-now decision is ignored`);
     }
     for (const id of d.triage.debt) {
       const f = current.get(id);
-      if (!isTriageable(f)) warnings.push(`${id} is ${f.severity} / ${f.resolution} in report.json, not triageable; its debt decision is ignored`);
+      if (!isTriageable(f)) warnings.push(`${id} is ${oneLine(f.severity)} / ${oneLine(f.resolution)} in report.json, not triageable; its debt decision is ignored`);
     }
     const unlisted = next.findings.filter((f) => isTriageable(f) && !listed.has(f.id)).map((f) => f.id);
     if (unlisted.length) warnings.push(`not in the decisions, recorded as debt: ${unlisted.join(', ')}`);
     const built = buildTriage(next, { fixIds, decidedBy: d.decidedBy, decidedAt, source: 'report-ui' });
-    warnings.push(...built.warnings);
+    warnings.push(...built.warnings.map(oneLine));
     const triage = { ...built.triage, ticketsAuthorized: d.tickets };
     if (!sameJson(triageComparable(next.triage), triageComparable(triage))) {
       next = applyTriage(next, triage, o);
@@ -431,26 +461,39 @@ export function applyDecisions(report, doc, { now = new Date().toISOString(), al
 // The plain-language message ("Copy for your agent")
 
 /**
+ * A finding with every string folded to one line (oneLine), except the source
+ * snippet, which agentPrompt prints as indented lines of its own.
+ */
+function foldedFinding(value, key = '') {
+  if (typeof value === 'string') return key === 'snippet' ? value : oneLine(value);
+  if (Array.isArray(value)) return value.map((v) => foldedFinding(v));
+  if (isObj(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, foldedFinding(v, k)]));
+  return value;
+}
+
+/**
  * The message report.html copies for any coding agent: what to do, the document in a
  * ```design-qa-decisions fence, then the fix-now prompts (agentPrompt), the fix-later,
  * dismissed and backfill lists. Deterministic: everything comes from the (normalized)
  * document and the report's findings. reportPath defaults to qa-reports/<slug>/report.json.
- * Lines are joined with "\n"; there is no trailing newline.
+ * Lines are joined with "\n"; there is no trailing newline. Feature, slug, names,
+ * report path and every finding string (but the snippet) are folded with oneLine, so
+ * nothing quoted can open a line of its own (a forged fence or instruction).
  */
 export function decisionsMessage(report, doc, { reportPath, configPath } = {}) {
   const d = normalizeDecisions(doc);
   const file = reportPath || `qa-reports/${d.slug}/report.json`;
-  const feature = d.feature ?? report?.meta?.feature ?? d.slug;
+  const feature = oneLine(d.feature ?? report?.meta?.feature ?? d.slug);
   const findings = new Map((Array.isArray(report?.findings) ? report.findings : []).map((f) => [f?.id, f]));
-  const finding = (id) => findings.get(id) ?? { id, title: '(not in this report)' };
+  const finding = (id) => foldedFinding(findings.get(id) ?? { id, title: '(not in this report)' });
   const fixNow = d.triage ? d.triage.fixNow : [];
   const debt = d.triage ? d.triage.debt : [];
 
   const lines = [
-    `Apply my design QA review for ${feature} (${d.slug}).`,
+    `Apply my design QA review for ${feature} (${oneLine(d.slug)}).`,
     '',
-    `Report: ${file}`,
-    `Decided by ${d.decidedBy ?? 'the reviewer'}: ${summaryLine(d)}`,
+    `Report: ${oneLine(file)}`,
+    `Decided by ${oneLine(d.decidedBy ?? 'the reviewer')}: ${summaryLine(d)}`,
     '',
     'What to do:',
     '1. Use the design-qa skill, section "Apply review decisions". Save this whole message to a file and run its script:',

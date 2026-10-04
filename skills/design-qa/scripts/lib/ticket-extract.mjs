@@ -2,7 +2,7 @@
 // behaviours per state (with trigger), Figma / preview / PR links and branches.
 import { adfToText } from './adf.mjs';
 import { matchStateSynonym } from './state-discovery.mjs';
-import { extractUrls } from './target-url.mjs';
+import { extractUrls, normalizeTicketKey, trimEnd } from './target-url.mjs';
 
 const AC_HEADING = /acceptance criteria|\bAC\b|definition of done/i;
 const LIST_MARKER = /^(?:[-*•+]\s+|\d+[.)]\s+|[a-z][.)]\s+)?(?:\[[ xX]?\]\s*)?/;
@@ -104,13 +104,14 @@ export function extractExpectedBehaviors(acceptanceCriteria) {
 
 const URL_RE = /https?:\/\/\S+/gi;
 const BRANCH_PREFIX = /(?<![\w/.-])((?:feature|feat|fix|bugfix|hotfix|chore|release|refactor|design-qa)\/[A-Za-z0-9._\-/]+)/g;
+const BRANCH_TRAILING = new Set('.,;:)]\'"`');
 
 /** Branch names: feature/… style tokens, "branch: name" and GitHub /tree/<branch> links. */
 export function extractBranches(text) {
   const s = String(text ?? '');
   const out = [];
   const push = (b) => {
-    const v = b.replace(/[.,;:)\]'"`]+$/, '');
+    const v = trimEnd(b, BRANCH_TRAILING);
     if (v && !out.includes(v)) out.push(v);
   };
   for (const m of s.replace(URL_RE, ' ').matchAll(BRANCH_PREFIX)) push(m[1]);
@@ -122,6 +123,8 @@ export function extractBranches(text) {
 /**
  * Normalised ticket.json from a Jira REST v3 issue.
  * opts: { baseUrl, remoteLinks: [{ object: { url, title } }], now: Date }
+ * previewUrlSources maps every preview URL to where it was first found: "description",
+ * "comment" or "remote-link" (resolveTarget only auto-trusts the description).
  */
 export function buildJiraTicket(issue, { baseUrl = '', remoteLinks = [], now = new Date() } = {}) {
   const f = issue?.fields || {};
@@ -130,12 +133,17 @@ export function buildJiraTicket(issue, { baseUrl = '', remoteLinks = [], now = n
   const remote = (remoteLinks || []).map((l) => l?.object?.url).filter(Boolean);
   const allText = [description, ...comments, ...remote].join('\n');
   const urls = extractUrls(allText);
+  const previewUrlSources = {};
+  for (const [source, text] of [['description', description], ...comments.map((c) => ['comment', c]), ...remote.map((r) => ['remote-link', r])]) {
+    for (const u of extractUrls(text).previewUrls) previewUrlSources[u] ??= source;
+  }
   const acceptanceCriteria = extractAcceptanceCriteria(description);
   const base = String(baseUrl || '').replace(/\/+$/, '');
+  const key = normalizeTicketKey(issue?.key);
   return {
     provider: 'jira',
-    key: issue?.key ?? null,
-    url: issue?.key && base ? `${base}/browse/${issue.key}` : null,
+    key,
+    url: key && base ? `${base}/browse/${key}` : null,
     title: f.summary ?? null,
     status: f.status?.name ?? null,
     issueType: f.issuetype?.name ?? null,
@@ -147,6 +155,7 @@ export function buildJiraTicket(issue, { baseUrl = '', remoteLinks = [], now = n
     figmaUrls: urls.figmaUrls,
     prototypeUrls: urls.prototypeUrls,
     previewUrls: urls.previewUrls,
+    previewUrlSources,
     prUrls: urls.prUrls,
     otherUrls: urls.otherUrls,
     branches: extractBranches(allText),

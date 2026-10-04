@@ -6,7 +6,7 @@
 // allOf/anyOf/oneOf/not, if/then/else, plus the ajv-errors style "errorMessage"
 // and "x-removed": { "<value>": "<message>" } for enum values removed in 2.0).
 // Rules JSON Schema cannot express (unique ids, cross references, dismissals,
-// meta.source / meta.figma, meta.screens, derived scorecard values, pixel-diff
+// INTENTIONAL sign-offs, meta.source / meta.figma, meta.screens, derived scorecard values, pixel-diff
 // bands against configured tolerances, the design-backfill block) are implemented below. Unknown object
 // keys are warnings, never errors.
 import { readFileSync } from 'node:fs';
@@ -91,24 +91,68 @@ function deepEqual(a, b) {
   return ka.length === kb.length && ka.every((k) => deepEqual(a[k], b[k]));
 }
 
-const DATE_TIME = /^\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?([Zz]|[+-]\d{2}:?\d{2})?$/;
+const FULL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DATE_TIME = /^(\d{4}-\d{2}-\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(\.\d+)?([Zz]|[+-](\d{2}):(\d{2}))$/;
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
-function formatOk(format, v) {
-  if (format === 'date-time') return DATE_TIME.test(v) && !Number.isNaN(Date.parse(v));
-  if (format === 'uri') {
-    if (v.includes('${')) return true;
-    if (!/^[a-z][a-z0-9+.-]*:\/\/\S+$/i.test(v)) return false;
-    try {
-      new URL(v);
-      return true;
-    } catch {
-      return false;
-    }
+const isLeapYear = (year) => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+
+/** RFC 3339 full-date: YYYY-MM-DD, a real calendar day (leap years included). */
+export function isRfc3339Date(value) {
+  const m = typeof value === 'string' ? FULL_DATE.exec(value) : null;
+  if (!m) return false;
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (month < 1 || month > 12 || day < 1) return false;
+  return day <= (month === 2 && isLeapYear(year) ? 29 : DAYS_IN_MONTH[month - 1]);
+}
+
+/**
+ * RFC 3339 date-time, strictly: a real calendar date, "T" (or "t"), hh:mm:ss with
+ * optional fraction, and "Z" (or "z") or a ±hh:mm offset. Everything this accepts,
+ * ajv-formats and Date.parse accept too; it rejects what they disagree on: a space
+ * separator, a missing seconds or time zone, hour 24, a ±hh or ±hhmm offset, and a
+ * leap second (Date.parse cannot read ":60", so the decisions flow would reject it).
+ */
+export function isRfc3339DateTime(value) {
+  const m = typeof value === 'string' ? DATE_TIME.exec(value) : null;
+  if (!m || !isRfc3339Date(m[1])) return false;
+  const [hour, minute, second] = [Number(m[2]), Number(m[3]), Number(m[4])];
+  if (hour > 23 || minute > 59 || second > 59) return false;
+  if (m[7] !== undefined && (Number(m[7]) > 23 || Number(m[8]) > 59)) return false;
+  return !Number.isNaN(Date.parse(value));
+}
+
+/**
+ * format "uri": an absolute URL that new URL() parses, written scheme://… or as a
+ * file: URL (file:/abs/proto.html, file:///abs/proto.html), in RFC 3986 characters.
+ * Config documents may also hold ${ENV_VAR} placeholders, expanded at capture time.
+ */
+export function isAbsoluteUri(value, { placeholders = false } = {}) {
+  if (typeof value !== 'string') return false;
+  if (placeholders && value.includes('${')) return true;
+  // RFC 3986 characters only (spaces, quotes, braces and non-ASCII must be %-encoded), well-formed %XX.
+  if (!/^[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]+$/.test(value) || /%(?![0-9A-Fa-f]{2})/.test(value)) return false;
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
   }
+  return /^[a-z][a-z0-9+.-]*:\/\/./i.test(value) || url.protocol === 'file:';
+}
+
+function formatOk(format, v, ctx) {
+  if (format === 'date-time') return isRfc3339DateTime(v);
+  if (format === 'date') return isRfc3339Date(v);
+  if (format === 'uri') return isAbsoluteUri(v, { placeholders: Boolean(ctx.placeholders) });
   return true;
 }
 
-const FORMAT_TEXT = { 'date-time': 'an ISO-8601 date-time (e.g. 2026-01-31T12:00:00Z)', uri: 'an absolute URL' };
+const FORMAT_TEXT = {
+  'date-time': 'an ISO-8601 date-time (e.g. 2026-01-31T12:00:00Z)',
+  date: 'a date (e.g. 2026-01-31)',
+  uri: 'an absolute URL',
+};
 
 // ---------------------------------------------------------------------------
 // Schema interpreter
@@ -166,7 +210,7 @@ function check(value, schema, segs, ctx) {
     }
     if (typeof schema.maxLength === 'number' && value.length > schema.maxLength) fail(`must be at most ${schema.maxLength} characters`);
     if (schema.pattern && !new RegExp(schema.pattern).test(value)) fail(`must match ${schema.pattern} (got ${show(value)})`);
-    if (schema.format && !formatOk(schema.format, value)) fail(`expected ${FORMAT_TEXT[schema.format] || schema.format} (got ${show(value)})`);
+    if (schema.format && !formatOk(schema.format, value, ctx)) fail(`expected ${FORMAT_TEXT[schema.format] || schema.format} (got ${show(value)})`);
   }
 
   if (typeof value === 'number') {
@@ -205,7 +249,7 @@ function check(value, schema, segs, ctx) {
   }
 
   const branch = (sub) => {
-    const inner = { root: ctx.root, errors: [], warnings: [], inBranch: true };
+    const inner = { root: ctx.root, errors: [], warnings: [], inBranch: true, placeholders: ctx.placeholders };
     check(value, sub, segs, inner);
     return inner.errors;
   };
@@ -242,9 +286,12 @@ function check(value, schema, segs, ctx) {
   }
 }
 
-/** Validate a value against a JSON Schema (subset). Returns { errors, warnings } of { path, message }. */
-export function validateAgainstSchema(value, schema) {
-  const ctx = { root: schema, errors: [], warnings: [], inBranch: false };
+/**
+ * Validate a value against a JSON Schema (subset). Returns { errors, warnings } of { path, message }.
+ * opts.placeholders: strings containing ${ENV_VAR} pass format "uri" (config documents only).
+ */
+export function validateAgainstSchema(value, schema, { placeholders = false } = {}) {
+  const ctx = { root: schema, errors: [], warnings: [], inBranch: false, placeholders };
   check(value, schema, [], ctx);
   return { errors: dedupe(ctx.errors), warnings: dedupe(ctx.warnings) };
 }
@@ -329,6 +376,7 @@ export function validateReport(report, opts = {}) {
   loop.forEach((entry, i) => isPlainObject(entry) && refs(entry.findingIds, `fixLoop[${i}].findingIds`));
 
   checkDismissals(findings, err, warn);
+  checkSignoffs(findings, err);
   checkSource(report.meta, err);
   checkScreens(report, matrix, findings, err, warn);
   checkBackfill(report, matrix, o, err, warn);
@@ -351,6 +399,15 @@ export function validateReport(report, opts = {}) {
       warn(`findings[${i}].state`, `state "${f.state}" is not a row of stateMatrix`);
     }
   });
+  // A pixel diff keyed by another id never meets its state's findings in the verdict.
+  if (isPlainObject(report.scorecard?.pixelDiff)) {
+    for (const state of Object.keys(report.scorecard.pixelDiff)) {
+      if (!seenStates.has(state)) {
+        const known = [...seenStates.keys()].join(', ') || 'none';
+        warn(formatPath(['scorecard', 'pixelDiff', state]), `state "${state}" is not a row of stateMatrix (rows: ${known})`);
+      }
+    }
+  }
   // Which FIX_CODE findings are fix-now vs debt depends on topN and weights (config),
   // so a different split is a warning. Wrong lists (e.g. a DISMISSED finding in
   // fix-now) are schema errors on rank.bucket.
@@ -386,6 +443,24 @@ function checkDismissals(findings, err, warn) {
       }
     } else if (isPlainObject(d)) {
       warn(`findings[${i}].dismissal`, `is ignored: resolution is ${f.resolution}, not DISMISSED`);
+    }
+  });
+}
+
+export const SIGNOFF_SHAPE = '{ by, date, reason }';
+
+/**
+ * INTENTIONAL needs a person's sign-off ({ by, date, reason }, by and reason not
+ * blank: the schema checks a signoff that is present) or a cited known drift
+ * (knownDrift, the drift id). Without either, an open finding could be marked
+ * accepted to raise parity and close the loop.
+ */
+function checkSignoffs(findings, err) {
+  findings.forEach((f, i) => {
+    if (!isPlainObject(f) || f.resolution !== 'INTENTIONAL') return;
+    const cited = typeof f.knownDrift === 'string' && f.knownDrift.trim() !== '';
+    if (!isPlainObject(f.signoff) && !cited) {
+      err(`findings[${i}].signoff`, `is required when resolution is INTENTIONAL: ${SIGNOFF_SHAPE} naming who accepted the divergence and why (or cite a known drift in knownDrift)`);
     }
   });
 }
@@ -463,6 +538,7 @@ function checkBackfill(report, matrix, o, err, warn) {
   const ids = new Map();
   const states = new Map();
   const designed = new Set(matrix.filter((r) => isPlainObject(r) && typeof r.state === 'string').map((r) => r.state));
+  const designedByCase = new Map([...designed].map((s) => [s.toLowerCase(), s]));
   const screens = Array.isArray(report.meta?.screens) ? report.meta.screens : null;
   const screenIds = new Set((screens || []).filter((s) => isPlainObject(s) && typeof s.id === 'string').map((s) => s.id));
   const known = [...screenIds].join(', ') || 'none';
@@ -478,6 +554,11 @@ function checkBackfill(report, matrix, o, err, warn) {
     if (typeof item.state === 'string') {
       if (designed.has(item.state)) {
         err(`${base(i)}.state`, `"${item.state}" is a stateMatrix row: the design defines it, so it is not an undesigned state (drop this backfill item)`);
+      } else if (designedByCase.has(item.state.toLowerCase())) {
+        warn(
+          `${base(i)}.state`,
+          `"${item.state}" differs from the stateMatrix row "${designedByCase.get(item.state.toLowerCase())}" only by letter case: the design probably defines it (drop this backfill item, or rename the state)`,
+        );
       }
       if (states.has(item.state)) warn(`${base(i)}.state`, `duplicate state "${item.state}" (also ${base(states.get(item.state))})`);
       else states.set(item.state, i);
@@ -657,7 +738,7 @@ function checkBackfillScorecard(report, sc, derived, err) {
 const PLACEHOLDER = /\$\{([^}]*)\}/g;
 
 export function validateConfig(config) {
-  const { errors, warnings } = validateAgainstSchema(config, loadSchema('config'));
+  const { errors, warnings } = validateAgainstSchema(config, loadSchema('config'), { placeholders: true });
   if (!isPlainObject(config)) return result(errors, warnings);
   const err = (path, message) => errors.push({ path, message });
   const warn = (path, message) => warnings.push({ path, message });
@@ -743,15 +824,19 @@ export function validateStateMatrix(rows) {
 
 export const TYPES = ['report', 'config', 'state-matrix'];
 
-/** report: schemaVersion + findings; config: app + surfaces; state-matrix: array of { state, result }. */
+/**
+ * report: schemaVersion or findings; config: app or surfaces; state-matrix: array of
+ * { state, result }. One key is enough, so a file missing the other is validated
+ * (and gets "required key is missing") instead of being unrecognised.
+ */
 export function inferType(data) {
   if (Array.isArray(data)) {
     if (data.length === 0 || (isPlainObject(data[0]) && 'state' in data[0] && 'result' in data[0])) return 'state-matrix';
     return null;
   }
   if (isPlainObject(data)) {
-    if ('schemaVersion' in data && 'findings' in data) return 'report';
-    if ('app' in data && 'surfaces' in data) return 'config';
+    if ('schemaVersion' in data || 'findings' in data) return 'report';
+    if ('app' in data || 'surfaces' in data) return 'config';
   }
   return null;
 }

@@ -27,114 +27,401 @@ const NAMED_COLORS = Object.freeze({
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 const round = (n, d = 3) => Number(Number(n).toFixed(d));
 
-function channel(v) {
-  const s = String(v).trim();
-  return s.endsWith('%') ? (Number(s.slice(0, -1)) / 100) * 255 : Number(s);
+// ---------------------------------------------------------------------------
+// Colours: every CSS Color 4 syntax Chrome can return as a computed value (hex, rgb(),
+// hsl(), hwb(), lab(), lch(), oklab(), oklch(), color(<space> …), named), converted to
+// CIELAB (D50, as CSS lab()) and compared with CIEDE2000. Matrices: CSS Color 4.
+// ---------------------------------------------------------------------------
+
+/** Default colour tolerance: ΔE (CIEDE2000), as tolerances.colorDeltaE. */
+export const DEFAULT_COLOR_DELTA_E = 1.5;
+/** Allowed alpha difference between two colours (0–1). */
+export const ALPHA_TOLERANCE = 0.01;
+
+const mul = (m, v) => m.map((r) => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);
+const SRGB_TO_XYZ = [
+  [0.41239079926595934, 0.357584339383878, 0.1804807884018343],
+  [0.21263900587151027, 0.715168678767756, 0.07219231536073371],
+  [0.01933081871559182, 0.11919477979462598, 0.9505321522496607],
+];
+const XYZ_TO_SRGB = [
+  [3.2409699419045226, -1.537383177570094, -0.4986107602930034],
+  [-0.9692436362808796, 1.8759675015077202, 0.04155505740717559],
+  [0.05563007969699366, -0.20397695888897652, 1.0569715142428786],
+];
+const P3_TO_XYZ = [
+  [0.4865709486482162, 0.26566769316909306, 0.1982172852343625],
+  [0.2289745640697488, 0.6917385218365064, 0.079286914093745],
+  [0, 0.04511338185890264, 1.043944368900976],
+];
+const A98_TO_XYZ = [
+  [0.5766690429101305, 0.1855582379065463, 0.1882286462349947],
+  [0.29734497525053605, 0.6273635662554661, 0.0752914584939978],
+  [0.02703136138641234, 0.07068885253582723, 0.9913375368376388],
+];
+const REC2020_TO_XYZ = [
+  [0.6369580483012914, 0.14461690358620832, 0.1688809751641721],
+  [0.2627002120112671, 0.6779980715188708, 0.05930171646986196],
+  [0, 0.028072693049087428, 1.060985057710791],
+];
+const PROPHOTO_TO_XYZ_D50 = [
+  [0.7977604896723027, 0.13518583717574031, 0.0313493495815248],
+  [0.2880711282292934, 0.7118432178101014, 0.00008565396060525902],
+  [0, 0, 0.8251046025104601],
+];
+const D65_TO_D50 = [
+  [1.0479298208405488, 0.022946793341019088, -0.05019222954313557],
+  [0.029627815688159344, 0.990434484573249, -0.01707382502938514],
+  [-0.009243058152591178, 0.015055144896577895, 0.7518742899580008],
+];
+const D50_TO_D65 = [
+  [0.9554734527042182, -0.023098536874261423, 0.0632593086610217],
+  [-0.028369706963208136, 1.0099954580058226, 0.021041398966943008],
+  [0.012314001688319899, -0.020507696433477912, 1.3303659366080753],
+];
+const LMS_TO_XYZ = [
+  [1.2268798758459243, -0.5578149944602171, 0.2813910456659647],
+  [-0.0405757452148008, 1.112286803280317, -0.0717110580655164],
+  [-0.0763729366746601, -0.4214933324022432, 1.5869240198367816],
+];
+const D50_WHITE = [0.3457 / 0.3585, 1, (1 - 0.3457 - 0.3585) / 0.3585];
+const LAB_E = 216 / 24389;
+const LAB_K = 24389 / 27;
+
+const signed = (f) => (v) => Math.sign(v) * f(Math.abs(v));
+const srgbToLinear = signed((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+const linearToSrgb = signed((v) => (v > 0.0031308 ? 1.055 * v ** (1 / 2.4) - 0.055 : 12.92 * v));
+const a98ToLinear = signed((v) => v ** (563 / 256));
+const prophotoToLinear = signed((v) => (v <= 16 / 512 ? v / 16 : v ** 1.8));
+const rec2020ToLinear = signed((v) => {
+  const a = 1.09929682680944;
+  const b = 0.018053968510807;
+  return v < b * 4.5 ? v / 4.5 : ((v + a - 1) / a) ** (1 / 0.45);
+});
+
+function xyzD50ToLab(xyz) {
+  const f = (t) => (t > LAB_E ? Math.cbrt(t) : (LAB_K * t + 16) / 116);
+  const [fx, fy, fz] = xyz.map((v, i) => f(v / D50_WHITE[i]));
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
 }
-function alpha(v) {
-  if (v === undefined) return 1;
-  const s = String(v).trim();
-  return s.endsWith('%') ? Number(s.slice(0, -1)) / 100 : Number(s);
+function labToXyzD50([L, a, b]) {
+  const fy = (L + 16) / 116;
+  const fx = a / 500 + fy;
+  const fz = fy - b / 200;
+  const inv = (f) => (f ** 3 > LAB_E ? f ** 3 : (116 * f - 16) / LAB_K);
+  return [inv(fx), L > LAB_K * LAB_E ? fy ** 3 : L / LAB_K, inv(fz)].map((v, i) => v * D50_WHITE[i]);
 }
-function hslToRgb(h, s, l) {
+const fromXyzD65 = (xyz) => ({ srgb: mul(XYZ_TO_SRGB, xyz).map(linearToSrgb), lab: xyzD50ToLab(mul(D65_TO_D50, xyz)) });
+const fromXyzD50 = (xyz) => ({ srgb: mul(XYZ_TO_SRGB, mul(D50_TO_D65, xyz)).map(linearToSrgb), lab: xyzD50ToLab(xyz) });
+const fromSrgb = (rgb) => ({ srgb: rgb, lab: xyzD50ToLab(mul(D65_TO_D50, mul(SRGB_TO_XYZ, rgb.map(srgbToLinear)))) });
+const fromLab = (lab) => ({ srgb: fromXyzD50(labToXyzD50(lab)).srgb, lab });
+const polar = (l, c, h) => [l, c * Math.cos((h * Math.PI) / 180), c * Math.sin((h * Math.PI) / 180)];
+function fromOklab([L, a, b]) {
+  const lms = [L + 0.3963377773761749 * a + 0.2158037573099136 * b, L - 0.1055613458156586 * a - 0.0638541728258133 * b, L - 0.0894841775298119 * a - 1.2914855480194092 * b];
+  return fromXyzD65(mul(LMS_TO_XYZ, lms.map((v) => v ** 3)));
+}
+function hslToSrgb(h, s, l) {
   const k = (n) => (n + h / 30) % 12;
   const a = s * Math.min(l, 1 - l);
   const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-  return [f(0) * 255, f(8) * 255, f(4) * 255];
+  return [f(0), f(8), f(4)];
+}
+function hwbToSrgb(h, w, b) {
+  if (w + b >= 1) return [w / (w + b), w / (w + b), w / (w + b)];
+  return hslToSrgb(h, 1, 0.5).map((c) => c * (1 - w - b) + w);
 }
 
-/** "#2563eb" | "rgb(37, 99, 235)" | "rgba(37 99 235 / 50%)" | "hsl(…)" | named → [r, g, b, a] or null. */
-export function parseColor(value) {
+const NUMBER_RE = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/;
+const num = (s) => (NUMBER_RE.test(s) ? Number(s) : NaN);
+/** A colour component: "none" → 0, "50%" → 0.5 × percentRef, else the number. */
+function component(token, percentRef) {
+  if (token === 'none') return 0;
+  return token.endsWith('%') ? (num(token.slice(0, -1)) / 100) * percentRef : num(token);
+}
+/** A hue in degrees (deg, rad, grad, turn or a bare number), 0–360. */
+function hue(token) {
+  if (token === 'none') return 0;
+  const m = /^(.*?)(deg|rad|grad|turn)?$/.exec(token);
+  const n = num(m[1]);
+  const deg = m[2] === 'rad' ? (n * 180) / Math.PI : m[2] === 'grad' ? n * 0.9 : m[2] === 'turn' ? n * 360 : n;
+  return ((deg % 360) + 360) % 360;
+}
+const alphaOf = (token) => (token === undefined ? 1 : clamp(component(token, 1), 0, 1));
+
+const RGB_SPACES = {
+  srgb: (c) => fromSrgb(c),
+  'srgb-linear': (c) => fromXyzD65(mul(SRGB_TO_XYZ, c)),
+  'display-p3': (c) => fromXyzD65(mul(P3_TO_XYZ, c.map(srgbToLinear))),
+  'a98-rgb': (c) => fromXyzD65(mul(A98_TO_XYZ, c.map(a98ToLinear))),
+  'prophoto-rgb': (c) => fromXyzD50(mul(PROPHOTO_TO_XYZ_D50, c.map(prophotoToLinear))),
+  rec2020: (c) => fromXyzD65(mul(REC2020_TO_XYZ, c.map(rec2020ToLinear))),
+  xyz: (c) => fromXyzD65(c),
+  'xyz-d65': (c) => fromXyzD65(c),
+  'xyz-d50': (c) => fromXyzD50(c),
+};
+
+/** A colour function's components → { srgb: [0–1 floats, unclamped], lab } or null. */
+function colorFunction(fn, args) {
+  const [x, y, z] = args;
+  switch (fn) {
+    case 'rgb':
+    case 'rgba': {
+      const c = args.map((t) => clamp(component(t, 255), 0, 255));
+      return c.every(Number.isFinite) ? { ...fromSrgb(c.map((v) => v / 255)), legacy: c } : null;
+    }
+    case 'hsl':
+    case 'hsla':
+    case 'hwb': {
+      // Saturation, lightness, whiteness and blackness: "50%" or a bare 0–100 number.
+      const pct = (t) => clamp(t === 'none' ? 0 : component(t.endsWith('%') ? t : `${t}%`, 1), 0, 1);
+      const [h, s, l] = [hue(x), pct(y), pct(z)];
+      if (![h, s, l].every(Number.isFinite)) return null;
+      return fromSrgb(fn === 'hwb' ? hwbToSrgb(h, s, l) : hslToSrgb(h, s, l));
+    }
+    case 'lab': {
+      const lab = [clamp(component(x, 100), 0, 100), component(y, 125), component(z, 125)];
+      return lab.every(Number.isFinite) ? fromLab(lab) : null;
+    }
+    case 'lch': {
+      const lch = [clamp(component(x, 100), 0, 100), Math.max(0, component(y, 150)), hue(z)];
+      return lch.every(Number.isFinite) ? fromLab(polar(...lch)) : null;
+    }
+    case 'oklab': {
+      const lab = [clamp(component(x, 1), 0, 1), component(y, 0.4), component(z, 0.4)];
+      return lab.every(Number.isFinite) ? fromOklab(lab) : null;
+    }
+    case 'oklch': {
+      const lch = [clamp(component(x, 1), 0, 1), Math.max(0, component(y, 0.4)), hue(z)];
+      return lch.every(Number.isFinite) ? fromOklab(polar(...lch)) : null;
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Any CSS colour → { rgba: [r, g, b, a] (0–255 integers clamped to sRGB, alpha 0–1),
+ * lab: [L, a, b] (CIELAB D50, unclamped: a display-p3 red keeps its wider chroma),
+ * alpha, inGamut } or null.
+ */
+export function parseColorDetailed(value) {
   const s = String(value ?? '').trim().toLowerCase();
-  if (NAMED_COLORS[s]) return [...NAMED_COLORS[s]];
-  let m = /^#([0-9a-f]{3,8})$/.exec(s);
-  if (m) {
-    let h = m[1];
+  let parsed = null;
+  let alpha = 1;
+  if (NAMED_COLORS[s]) {
+    const [r, g, b, a] = NAMED_COLORS[s];
+    parsed = { ...fromSrgb([r / 255, g / 255, b / 255]), legacy: [r, g, b] };
+    alpha = a;
+  } else if (/^#[0-9a-f]{3,8}$/.test(s)) {
+    let h = s.slice(1);
     if (h.length === 3 || h.length === 4) h = [...h].map((c) => c + c).join('');
     if (h.length !== 6 && h.length !== 8) return null;
     const n = (i) => parseInt(h.slice(i, i + 2), 16);
-    return [n(0), n(2), n(4), h.length === 8 ? round(n(6) / 255, 3) : 1];
+    parsed = { ...fromSrgb([n(0) / 255, n(2) / 255, n(4) / 255]), legacy: [n(0), n(2), n(4)] };
+    alpha = h.length === 8 ? n(6) / 255 : 1;
+  } else {
+    const m = /^([a-z0-9-]+)\(\s*([^()]*?)\s*\)$/.exec(s);
+    if (!m) return null;
+    const [, fn, body] = m;
+    const [main, alphaPart, ...rest] = body.split('/');
+    if (rest.length || (alphaPart !== undefined && !alphaPart.trim())) return null;
+    let args = main.trim().split(/[\s,]+/).filter(Boolean);
+    let alphaToken = alphaPart?.trim();
+    if (alphaToken === undefined && /^(rgba?|hsla?)$/.test(fn) && args.length === 4) alphaToken = args.pop();
+    if (fn === 'color') {
+      const space = RGB_SPACES[args[0]];
+      args = args.slice(1);
+      if (!space || args.length !== 3) return null;
+      const c = args.map((t) => component(t, 1));
+      parsed = c.every(Number.isFinite) ? space(c) : null;
+    } else {
+      parsed = args.length === 3 ? colorFunction(fn, args) : null;
+    }
+    alpha = alphaOf(alphaToken);
+    if (!Number.isFinite(alpha)) return null;
   }
-  m = /^rgba?\(([^)]*)\)$/.exec(s);
-  if (m) {
-    const parts = m[1].split(/[\s,/]+/).filter(Boolean);
-    if (parts.length < 3) return null;
-    const rgb = parts.slice(0, 3).map(channel);
-    if (!rgb.every(Number.isFinite)) return null;
-    return [...rgb.map((c) => clamp(Math.round(c), 0, 255)), clamp(round(alpha(parts[3]), 3), 0, 1)];
-  }
-  m = /^hsla?\(([^)]*)\)$/.exec(s);
-  if (m) {
-    const parts = m[1].split(/[\s,/]+/).filter(Boolean);
-    if (parts.length < 3) return null;
-    const h = Number(parts[0].replace(/deg$/, ''));
-    const sat = Number(parts[1].replace('%', '')) / 100;
-    const light = Number(parts[2].replace('%', '')) / 100;
-    if (![h, sat, light].every(Number.isFinite)) return null;
-    return [...hslToRgb(h, sat, light).map((c) => clamp(Math.round(c), 0, 255)), clamp(round(alpha(parts[3]), 3), 0, 1)];
-  }
-  return null;
+  if (!parsed || !parsed.lab.every(Number.isFinite)) return null;
+  const eps = 0.5 / 255;
+  const inGamut = parsed.legacy !== undefined || parsed.srgb.every((c) => c >= -eps && c <= 1 + eps);
+  const rgb = parsed.legacy ?? parsed.srgb.map((c) => c * 255);
+  return {
+    rgba: [...rgb.map((c) => clamp(Math.round(c), 0, 255)), clamp(round(alpha, 3), 0, 1)],
+    lab: parsed.lab,
+    alpha: clamp(alpha, 0, 1),
+    inGamut,
+  };
 }
 
-/** Canonical "rgba(r,g,b,a)" for any colour syntax; null when not a colour. */
+/** Any CSS colour → [r, g, b, a] (0–255, clamped to sRGB; alpha 0–1) or null. */
+export function parseColor(value) {
+  return parseColorDetailed(value)?.rgba ?? null;
+}
+
+/** Canonical "rgba(r,g,b,a)" for any colour syntax (clamped to sRGB); null when not a colour. */
 export function canonicalColor(value) {
   const c = parseColor(value);
   return c ? `rgba(${c[0]},${c[1]},${c[2]},${c[3]})` : null;
 }
 
-const COLOR_RE = /#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)|\b(?:transparent|black|white)\b/gi;
+/** CIEDE2000 colour difference of two CIELAB colours [L, a, b]. */
+export function deltaE2000([L1, a1, b1], [L2, a2, b2]) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const deg = (r) => (r * 180) / Math.PI;
+  const p7 = (c) => Math.sqrt(c ** 7 / (c ** 7 + 25 ** 7));
+  const cBar = (Math.hypot(a1, b1) + Math.hypot(a2, b2)) / 2;
+  const g = 0.5 * (1 - p7(cBar));
+  const a1p = (1 + g) * a1;
+  const a2p = (1 + g) * a2;
+  const c1 = Math.hypot(a1p, b1);
+  const c2 = Math.hypot(a2p, b2);
+  const h = (b, a) => (b === 0 && a === 0 ? 0 : (deg(Math.atan2(b, a)) + 360) % 360);
+  const h1 = h(b1, a1p);
+  const h2 = h(b2, a2p);
+  let dh = 0;
+  if (c1 * c2 !== 0) dh = Math.abs(h2 - h1) <= 180 ? h2 - h1 : h2 - h1 > 180 ? h2 - h1 - 360 : h2 - h1 + 360;
+  const dL = L2 - L1;
+  const dC = c2 - c1;
+  const dH = 2 * Math.sqrt(c1 * c2) * Math.sin(rad(dh / 2));
+  const lBar = (L1 + L2) / 2;
+  const cpBar = (c1 + c2) / 2;
+  let hBar = h1 + h2;
+  if (c1 * c2 !== 0) hBar = Math.abs(h1 - h2) <= 180 ? (h1 + h2) / 2 : h1 + h2 < 360 ? (h1 + h2 + 360) / 2 : (h1 + h2 - 360) / 2;
+  const t = 1 - 0.17 * Math.cos(rad(hBar - 30)) + 0.24 * Math.cos(rad(2 * hBar)) + 0.32 * Math.cos(rad(3 * hBar + 6)) - 0.2 * Math.cos(rad(4 * hBar - 63));
+  const dTheta = 30 * Math.exp(-(((hBar - 275) / 25) ** 2));
+  const rT = -Math.sin(rad(2 * dTheta)) * 2 * p7(cpBar);
+  const sL = 1 + (0.015 * (lBar - 50) ** 2) / Math.sqrt(20 + (lBar - 50) ** 2);
+  const sC = 1 + 0.045 * cpBar;
+  const sH = 1 + 0.015 * cpBar * t;
+  return Math.sqrt((dL / sL) ** 2 + (dC / sC) ** 2 + (dH / sH) ** 2 + rT * (dC / sC) * (dH / sH));
+}
+
+/**
+ * Difference of two CSS colours: { deltaE (CIEDE2000), alpha (absolute difference) },
+ * or null when either is not a colour. Two fully transparent colours are equal (ΔE 0)
+ * whatever their RGB.
+ */
+export function colorDifference(x, y) {
+  const cx = parseColorDetailed(x);
+  const cy = parseColorDetailed(y);
+  if (!cx || !cy) return null;
+  const transparent = cx.alpha < 0.0005 && cy.alpha < 0.0005;
+  return { deltaE: transparent ? 0 : deltaE2000(cx.lab, cy.lab), alpha: Math.abs(cx.alpha - cy.alpha) };
+}
+
+/** Whether two colours match: ΔE ≤ maxDeltaE and alpha within ALPHA_TOLERANCE; null when either is not a colour. */
+export function colorsMatch(x, y, maxDeltaE = DEFAULT_COLOR_DELTA_E) {
+  const diff = colorDifference(x, y);
+  if (!diff) return null;
+  return diff.deltaE <= maxDeltaE + 1e-9 && diff.alpha <= ALPHA_TOLERANCE + 1e-9;
+}
+
+const COLOR_RE = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]*\)|\b(?:transparent|black|white)\b/gi;
 const WEIGHTS = { normal: '400', bold: '700' };
 
-/** Canonical form of a computed value: colours → rgba(), seconds → ms, quotes and spacing removed. */
-export function normalizeValue(property, value) {
+/**
+ * Canonical form of a computed value: colours → rgba() (only colours inside the sRGB
+ * gamut: a wider display-p3 or oklch colour keeps its own syntax so it is never clipped
+ * onto another), seconds → ms, quotes and spacing removed. { canonicalColors: false }
+ * keeps every colour as written (lower-cased) for a ΔE comparison at full precision.
+ */
+export function normalizeValue(property, value, { canonicalColors = true } = {}) {
   if (value === null || value === undefined) return '';
   let s = String(value).trim().toLowerCase();
   if (property === 'font-weight' && WEIGHTS[s]) return WEIGHTS[s];
   if (/timing-function$|^easing$/.test(property ?? '')) return splitCssList(s).map((e) => normalizeEasing(e)).join(',');
-  s = s.replace(COLOR_RE, (m) => canonicalColor(m) ?? m);
+  if (canonicalColors) {
+    s = s.replace(COLOR_RE, (m) => {
+      const c = parseColorDetailed(m);
+      return c?.inGamut ? `rgba(${c.rgba.join(',')})` : m;
+    });
+  }
   s = s.replace(/(^|[\s,(])(-?\d*\.?\d+)s\b/g, (_, pre, n) => `${pre}${round(Number(n) * 1000, 2)}ms`);
   s = s.replace(/["']/g, '').replace(/\s*,\s*/g, ',').replace(/\s+/g, ' ');
   return s;
 }
 
-const TOKEN_RE = /rgba\([^)]*\)|[a-z-]+\([^)]*\)|[^\s,]+/g;
 const NUM_RE = /^(-?\d*\.?\d+)(px|ms|%|deg|em|rem)?$/;
 
 /**
- * Compare two computed values: { result: "PASS"|"FAIL", delta }.
- * px within tolerancePx, ms within toleranceMs; colours must match channel for channel
- * (alpha within 0.01): a near-miss hex like #5046e4 for #4f46e5 is a hand-typed value, not rounding.
- * delta: app − design for single numeric values (number), else null.
+ * Top-level tokens of a normalised value: words, numbers, "," and "/" separators, and
+ * whole function calls with balanced parentheses ("oklch(0.5 0.2 270 / 0.4)",
+ * "linear-gradient(…)").
  */
-export function compareValues(property, design, app, { tolerancePx = 1, toleranceMs = 1 } = {}) {
+export function splitTokens(s) {
+  const out = [];
+  let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (/\s/.test(ch)) {
+      i += 1;
+      continue;
+    }
+    if (ch === ',' || ch === '/') {
+      out.push(ch);
+      i += 1;
+      continue;
+    }
+    let j = i;
+    while (j < s.length && !/[\s,/()]/.test(s[j])) j += 1;
+    if (s[j] === '(') {
+      let depth = 0;
+      for (; j < s.length; j += 1) {
+        if (s[j] === '(') depth += 1;
+        else if (s[j] === ')' && --depth === 0) break;
+      }
+      j = Math.min(j + 1, s.length);
+    } else if (j === i) {
+      j = i + 1; // a stray ")"
+    }
+    out.push(s.slice(i, j));
+    i = j;
+  }
+  return out;
+}
+
+const singleNumber = (s) => {
+  const m = NUM_RE.exec(s);
+  return m ? { n: Number(m[1]), unit: m[2] ?? '' } : null;
+};
+
+function tokensMatch(x, y, tol) {
+  if (x === y) return true;
+  const colors = colorsMatch(x, y, tol.colorDeltaE);
+  if (colors !== null) return colors;
+  const nx = singleNumber(x);
+  const ny = singleNumber(y);
+  if (nx && ny && nx.unit === ny.unit) {
+    const t = nx.unit === 'px' ? tol.tolerancePx : nx.unit === 'ms' ? tol.toleranceMs : 0.001;
+    return Math.abs(nx.n - ny.n) <= t;
+  }
+  // The same function on both sides (a gradient, a transform): compare its arguments.
+  const fx = /^([a-z-]*)\((.*)\)$/s.exec(x);
+  const fy = /^([a-z-]*)\((.*)\)$/s.exec(y);
+  if (fx && fy && fx[1] === fy[1]) return listsMatch(splitTokens(fx[2]), splitTokens(fy[2]), tol);
+  return false;
+}
+const listsMatch = (xs, ys, tol) => xs.length === ys.length && xs.every((x, i) => tokensMatch(x, ys[i], tol));
+
+/**
+ * Compare two computed values: { result: "PASS"|"FAIL", delta, deltaE? }.
+ * px within tolerancePx, ms within toleranceMs, other numbers within 0.001. Colours (any
+ * CSS syntax, also inside shadows, borders, outlines and gradients) match when their
+ * CIEDE2000 ΔE ≤ colorDeltaE and alpha is within 0.01; two fully transparent colours
+ * match whatever their RGB.
+ * delta: app − design for single numeric values (number), else null. deltaE (2 decimals)
+ * only when both values are a single colour.
+ */
+export function compareValues(property, design, app, { tolerancePx = 1, toleranceMs = 1, colorDeltaE = DEFAULT_COLOR_DELTA_E } = {}) {
   const d = normalizeValue(property, design);
   const a = normalizeValue(property, app);
-  const single = (s) => {
-    const m = NUM_RE.exec(s);
-    return m ? { n: Number(m[1]), unit: m[2] ?? '' } : null;
-  };
-  const sd = single(d);
-  const sa = single(a);
+  const sd = singleNumber(d);
+  const sa = singleNumber(a);
   const delta = sd && sa && sd.unit === sa.unit ? round(sa.n - sd.n, 3) : null;
-  if (d === a) return { result: 'PASS', delta };
-  const td = d.match(TOKEN_RE) ?? [];
-  const ta = a.match(TOKEN_RE) ?? [];
-  if (td.length !== ta.length) return { result: 'FAIL', delta };
-  const same = td.every((x, i) => {
-    const y = ta[i];
-    if (x === y) return true;
-    const cx = parseColor(x);
-    const cy = parseColor(y);
-    if (cx && cy) return cx.slice(0, 3).every((v, j) => Math.round(v) === Math.round(cy[j])) && Math.abs(cx[3] - cy[3]) <= 0.01;
-    const nx = single(x);
-    const ny = single(y);
-    if (nx && ny && nx.unit === ny.unit) {
-      const tol = nx.unit === 'px' ? tolerancePx : nx.unit === 'ms' ? toleranceMs : 0.001;
-      return Math.abs(nx.n - ny.n) <= tol;
-    }
-    return false;
-  });
-  return { result: same ? 'PASS' : 'FAIL', delta };
+  const color = colorDifference(design, app);
+  const out = (result) => (color ? { result, delta, deltaE: round(color.deltaE, 2) } : { result, delta });
+  if (d === a) return out('PASS');
+  const raw = (v) => splitTokens(normalizeValue(property, v, { canonicalColors: false }));
+  return out(listsMatch(raw(design), raw(app), { tolerancePx, toleranceMs, colorDeltaE }) ? 'PASS' : 'FAIL');
 }
 
 // ---------------------------------------------------------------------------
@@ -596,8 +883,15 @@ export function compareMotion(dSpecs, aSpecs, ctx) {
 const textOf = (s) => String(s?.__el?.text ?? '').trim().toLowerCase();
 const propsOf = (s) => Object.keys(s || {}).filter((k) => !k.startsWith('__'));
 
-/** Pair design and app samples of one element class: same text first, then same index. */
-export function pairSamples(dSamples = [], aSamples = []) {
+/**
+ * Pair design and app samples of one element class: same text first, then the remaining
+ * samples of both sides in order (the texts may be data). counts: { dCount, aCount }, the
+ * number of elements each side's selector matched (the capture's `count`). When a side
+ * matched more elements than it sampled (the grab limit), a leftover on the other side
+ * may be one of the unsampled elements: it is notSampled (CANNOT_VERIFY), not missing or
+ * extra. → { pairs: [{ d, a, dIndex, aIndex, notSampled }], extra: [{ a, aIndex, notSampled }] }.
+ */
+export function pairSamples(dSamples = [], aSamples = [], { dCount = null, aCount = null } = {}) {
   const pairs = [];
   const usedA = new Set();
   const pairedD = new Set();
@@ -609,20 +903,22 @@ export function pairSamples(dSamples = [], aSamples = []) {
     const j = hits.includes(i) ? i : hits[0];
     usedA.add(j);
     pairedD.add(i);
-    pairs.push({ d, a: aSamples[j], dIndex: i, aIndex: j });
+    pairs.push({ d, a: aSamples[j], dIndex: i, aIndex: j, notSampled: false });
   });
+  const leftA = aSamples.map((_, j) => j).filter((j) => !usedA.has(j));
+  const truncated = (count, samples) => typeof count === 'number' && count > samples.length;
   dSamples.forEach((d, i) => {
     if (pairedD.has(i)) return;
-    const j = !usedA.has(i) && i < aSamples.length ? i : -1;
-    if (j === -1) {
-      pairs.push({ d, a: null, dIndex: i, aIndex: null });
+    if (!leftA.length) {
+      pairs.push({ d, a: null, dIndex: i, aIndex: null, notSampled: truncated(aCount, aSamples) });
       return;
     }
+    const j = leftA.shift();
     usedA.add(j);
-    pairs.push({ d, a: aSamples[j], dIndex: i, aIndex: j });
+    pairs.push({ d, a: aSamples[j], dIndex: i, aIndex: j, notSampled: false });
   });
   pairs.sort((x, y) => x.dIndex - y.dIndex);
-  const extra = aSamples.map((a, j) => (usedA.has(j) ? null : { a, aIndex: j })).filter(Boolean);
+  const extra = aSamples.map((a, j) => (usedA.has(j) ? null : { a, aIndex: j, notSampled: truncated(dCount, dSamples) })).filter(Boolean);
   return { pairs, extra };
 }
 
@@ -653,11 +949,11 @@ function domStructure(dDom, aDom, state) {
 /**
  * Compare one state. input: { state, design: { computed, motion, dom, driver },
  * app: { computed, motion, dom, driver }, tokenMap, tokenCategories, catalog, tolerancePx,
- * durationToleranceMs }.
+ * colorDeltaE, durationToleranceMs }.
  * → { style, tokens, components, motion, structure }.
  */
 export function compareState(input) {
-  const { state, design, app, tokenMap = {}, tokenCategories = null, catalog = null, tolerancePx = 1, durationToleranceMs = 20 } = input;
+  const { state, design, app, tokenMap = {}, tokenCategories = null, catalog = null, tolerancePx = 1, colorDeltaE = DEFAULT_COLOR_DELTA_E, durationToleranceMs = 20 } = input;
   const out = { style: [], tokens: [], components: [], motion: [], structure: [] };
   const dComputed = design?.computed ?? {};
   const aComputed = app?.computed ?? {};
@@ -673,13 +969,21 @@ export function compareState(input) {
   for (const [cls, dEntry] of Object.entries(dComputed)) {
     if (cls === 'rootTokens' || !dEntry || !Array.isArray(dEntry.samples)) continue;
     const aEntry = aComputed[cls] && Array.isArray(aComputed[cls].samples) ? aComputed[cls] : { samples: [] };
-    const { pairs, extra } = pairSamples(dEntry.samples, aEntry.samples);
-    for (const { d, a, dIndex, aIndex } of pairs) {
+    const { pairs, extra } = pairSamples(dEntry.samples, aEntry.samples, { dCount: dEntry.count, aCount: aEntry.count });
+    const sampledNote = (entry, side) => `not sampled in the ${side}: its selector matched ${entry.count} elements and only the first ${entry.samples.length} were captured (raise the grab limit to compare it)`;
+    for (const { d, a, dIndex, aIndex, notSampled } of pairs) {
       const selector = a?.__el?.selector ?? d?.__el?.selector ?? dEntry.selector;
+      // The design's text names the element across states (the app's may be data).
+      const text = d.__el?.text ?? null;
       grabbedSelectors.design.add(motionSample(design, cls, dIndex)?.__selector);
       if (a) grabbedSelectors.app.add(motionSample(app, cls, aIndex)?.__selector);
       const dVisible = d.__visible !== false;
       const aVisible = a ? a.__visible !== false : false;
+      if (notSampled) {
+        // The app has more elements than it sampled: this one is probably among them.
+        if (dVisible) out.structure.push({ state, source: 'computed', elementClass: cls, index: dIndex, selector, text, design: 'present', app: 'not sampled', result: 'CANNOT_VERIFY', note: sampledNote(aEntry, 'app') });
+        continue;
+      }
       if (dVisible && !aVisible) {
         out.structure.push({ state, source: 'computed', elementClass: cls, index: dIndex, selector, text: d.__el?.text ?? null, design: 'present', app: a ? 'hidden' : 'missing', result: 'FAIL', note: a ? 'hidden in app' : 'missing in app' });
       } else if (!dVisible && aVisible) {
@@ -689,9 +993,12 @@ export function compareState(input) {
         for (const prop of propsOf(d)) {
           if (!(prop in a)) continue;
           if (d[prop] === '' && a[prop] === '') continue;
-          const { result, delta } = compareValues(prop, d[prop], a[prop], { tolerancePx, toleranceMs: 1 });
-          out.style.push({ state, elementClass: cls, index: dIndex, selector, property: prop, design: d[prop], app: a[prop], delta, result });
-          if (result !== 'FAIL') continue;
+          const { result, delta, deltaE } = compareValues(prop, d[prop], a[prop], { tolerancePx, toleranceMs: 1, colorDeltaE });
+          out.style.push({ state, elementClass: cls, index: dIndex, selector, text, property: prop, design: d[prop], app: a[prop], delta, ...(deltaE === undefined ? {} : { deltaE }), result });
+          // A colour within ΔE but not identical is still traced: a near-miss value that no
+          // token produces is a hand-typed colour (a hardcoded token row, the style row passes).
+          const nearMiss = result === 'PASS' && deltaE > 0;
+          if (result !== 'FAIL' && !nearMiss) continue;
           // __vars are root tokens whose value equals the computed value, so they get the
           // same category filter: a value is never traced to a token of another kind.
           const dCtx = { tokens: dTokens, categories: tokenCategories };
@@ -699,17 +1006,20 @@ export function compareState(input) {
           const expectedToken = pickToken(d.__vars?.[prop], prop, dCtx) ?? tokenForValue(dTokens, prop, d[prop], dCtx);
           if (!expectedToken) continue;
           const actualToken = pickToken(a.__vars?.[prop], prop, aCtx) ?? tokenForValue(aTokens, prop, a[prop], aCtx);
+          if (nearMiss && actualToken) continue;
           out.tokens.push({
-            state, elementClass: cls, index: dIndex, selector, property: prop,
+            state, elementClass: cls, index: dIndex, selector, text, property: prop,
             expectedToken, expectedValue: d[prop], actualToken: actualToken ?? null, actualValue: a[prop], result: 'FAIL',
-            note: actualToken ? `uses ${actualToken} instead of ${expectedToken}` : `hardcoded value: no token resolves to ${a[prop]}; use ${expectedToken}`,
+            note: actualToken
+              ? `uses ${actualToken} instead of ${expectedToken}`
+              : `hardcoded value: no token resolves to ${a[prop]}${nearMiss ? ` (within ΔE ${deltaE} of the design)` : ''}; use ${expectedToken}`,
           });
         }
         const di = componentIdentity(d.__el, catalog);
         if (di) {
           const ai = componentIdentity(a.__el, catalog);
           const ok = ai && ai.component === di.component && (di.variant === null || ai.variant === di.variant);
-          out.components.push({ state, elementClass: cls, index: dIndex, selector, design: di, app: ai, result: ok ? 'PASS' : 'FAIL' });
+          out.components.push({ state, elementClass: cls, index: dIndex, selector, text, design: di, app: ai, result: ok ? 'PASS' : 'FAIL' });
         }
       }
       // An element missing or hidden on one side is a structure row only: there is no app
@@ -721,9 +1031,12 @@ export function compareState(input) {
         out.motion.push(...compareMotion(dSpecs, aSpecs, { state, selector, action, elementClass: cls, index: dIndex, durationToleranceMs, keyframes, isTarget }));
       }
     }
-    for (const { a, aIndex } of extra) {
+    for (const { a, aIndex, notSampled } of extra) {
       if (a.__visible === false) continue;
-      out.structure.push({ state, source: 'computed', elementClass: cls, index: aIndex, selector: a.__el?.selector ?? aEntry.selector, text: a.__el?.text ?? null, design: 'missing', app: 'present', result: 'FAIL', note: 'extra in app' });
+      const row = { state, source: 'computed', elementClass: cls, index: aIndex, selector: a.__el?.selector ?? aEntry.selector, text: a.__el?.text ?? null };
+      // The design has more elements than it sampled: this one may be among them.
+      if (notSampled) out.structure.push({ ...row, design: 'not sampled', app: 'present', result: 'CANNOT_VERIFY', note: sampledNote(dEntry, 'design') });
+      else out.structure.push({ ...row, design: 'missing', app: 'present', result: 'FAIL', note: 'extra in app' });
     }
   }
 
@@ -822,17 +1135,21 @@ export function dedupeMotion(states) {
   return states;
 }
 
+// The same element = same element class, index, selector and (design) text: the empty
+// state's heading at index 0 is not the with-data heading at index 0.
+const elementKey = (r) => [r.elementClass, r.index, r.selector ?? null, r.text ?? null];
 const REPEAT_KEYS = {
-  style: (r) => [r.elementClass, r.index, r.property, r.design, r.app],
-  tokens: (r) => [r.elementClass, r.index, r.property, r.expectedValue, r.actualValue],
-  components: (r) => [r.elementClass, r.index, JSON.stringify(r.design), JSON.stringify(r.app)],
-  structure: (r) => [r.source, r.elementClass, r.index, r.design, r.app, r.text ?? r.name ?? null],
+  style: (r) => [...elementKey(r), r.property, r.design, r.app],
+  tokens: (r) => [...elementKey(r), r.property, r.expectedValue, r.actualValue],
+  components: (r) => [...elementKey(r), JSON.stringify(r.design), JSON.stringify(r.app)],
+  structure: (r) => [r.source, ...elementKey(r), r.role ?? null, r.name ?? null, r.design, r.app],
 };
 
 /**
- * Drop FAIL rows that repeat an earlier state's row with the same element, property and
- * values (a padding drift seen in with-data shows again in hover): one difference, one row.
- * State-specific differences keep their rows. Returns { dropped } and mutates states.
+ * Drop FAIL rows that repeat an earlier state's row with the same element (element
+ * class, index, selector and text), property and values (a padding drift seen in
+ * with-data shows again in hover): one difference, one row. State-specific differences
+ * keep their rows. Returns { dropped } and mutates states.
  */
 export function dedupeRepeats(states) {
   let dropped = 0;
@@ -870,9 +1187,10 @@ export function summarize(states, figmaMotion = []) {
       unique: new Set(motion.filter((r) => r.result === 'FAIL').map((r) => r._compare.key)).size,
     },
     structure: {
-      fail: all('structure').length,
-      missingInApp: count(all('structure'), (r) => r.app === 'missing' || r.app === 'hidden'),
-      extraInApp: count(all('structure'), (r) => r.design === 'missing' || r.design === 'hidden'),
+      fail: count(all('structure'), (r) => r.result === 'FAIL'),
+      missingInApp: count(all('structure'), (r) => r.result === 'FAIL' && (r.app === 'missing' || r.app === 'hidden')),
+      extraInApp: count(all('structure'), (r) => r.result === 'FAIL' && (r.design === 'missing' || r.design === 'hidden')),
+      cannotVerify: count(all('structure'), (r) => r.result === 'CANNOT_VERIFY'),
     },
   };
 }

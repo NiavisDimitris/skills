@@ -32,7 +32,7 @@ Hard pairings, enforced by `validate.mjs`:
 - 🟢 `PASS` ⇒ `NONE`.
 - ℹ️ `CANNOT_VERIFY` ⇒ `NONE`. An evidence gap is not a divergence.
 - 🔴 `BLOCKER`, 🟡 `WARNING`, 🔵 `DS_CANDIDATE` ⇒ one of `FIX_CODE`, `INTENTIONAL`, `DATA`, `DISMISSED`, `UNCLASSIFIED`.
-- `DISMISSED` ⇒ a `dismissal` with a non-empty `reason`. `INTENTIONAL` ⇒ a `signoff` or a `knownDrift`.
+- `DISMISSED` ⇒ a `dismissal` with a non-empty `reason`. `INTENTIONAL` ⇒ a `signoff` whose `by` and `reason` are not blank, or a `knownDrift` citing a drift id. Without one, an open finding could be marked accepted to raise parity and close the loop.
 
 Open findings are those with `FIX_CODE` or `UNCLASSIFIED`.
 
@@ -151,8 +151,10 @@ The value is capped at 99 while any finding is open, so 100 always means nothing
 Evaluated in order; the first match wins.
 
 1. **FAIL** if any 🔴 BLOCKER is open, or any state result is `MISSING_IN_CODE`, or a pixel-diff band is `fail` in a state that has an unexplained finding or no findings.
-2. **REVIEW** if any finding is unexplained, or any finding is ℹ️ CANNOT_VERIFY, or any open decision exists, or any pixel-diff band is `review`, or a `fail` band's state has only explained findings, or any state result is `CANNOT_VERIFY`.
+2. **REVIEW** if any finding is unexplained, or any finding is ℹ️ CANNOT_VERIFY, or any open decision exists, or any pixel-diff band is `review`, or a `fail` band's state has only explained findings, or any state result is `CANNOT_VERIFY`, or no state was verified (the state matrix is empty, or no row is `PASS` or `FAIL`).
 3. **PASS** otherwise.
+
+A pass that compared nothing is not a pass: with no verified state there are no findings to count, so parity reads 100, and the verdict says REVIEW instead.
 
 Ticketed debt does not hold the verdict at REVIEW: a pass whose only open findings are ticketed debt can PASS with parity below 100. A `fail` band is explained when every finding in its state is fixed, signed off, dismissed, data or ticketed debt; then it counts as REVIEW, not FAIL. A `fail` band with no findings at all is unexplained and FAILs.
 
@@ -178,7 +180,7 @@ Apart from settling pending captures and adding `NOT_SPECIFIED` rows, never set 
 - `designed`, `specified`, `implemented`: rows where that object is not null.
 - `verified`: rows whose result is `PASS` or `FAIL`, meaning the state was actually captured and compared.
 
-`verified < total` always means some states were not checked; the fix plan lists them under "Cannot verify" or "Missing states".
+`verified < total` always means some states were not checked; the fix plan lists them under "Cannot verify" or "Missing states". `verified` 0 (or `total` 0) holds the verdict at REVIEW at best.
 
 ## Pixel-diff bands
 
@@ -186,7 +188,7 @@ Per state, from `scripts/diff.mjs` and the `tolerances.pixelDiff` config (defaul
 
 | Diff | Band | Effect |
 |---|---|---|
-| below `pass` (1%) | pass | none |
+| below `pass` (1%), or exactly 0% (also with `pass: 0`) | pass | none |
 | up to `review` (5%) | review | explain the difference in a finding or mask it as data; verdict at best REVIEW |
 | above `review` | fail | verdict FAIL when the state has an unexplained finding or no findings; otherwise REVIEW |
 

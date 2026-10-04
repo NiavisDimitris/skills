@@ -4,13 +4,16 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   inferType,
+  isAbsoluteUri,
+  isRfc3339Date,
+  isRfc3339DateTime,
   loadSchema,
   validateAgainstSchema,
   validateConfig,
   validateReport,
   validateStateMatrix,
 } from '../skills/design-qa/scripts/lib/schema-check.mjs';
-import { computeScorecard, rankFindings } from '../skills/design-qa/scripts/lib/ranking.mjs';
+import { computeScorecard, isLoopClosed, rankFindings } from '../skills/design-qa/scripts/lib/ranking.mjs';
 import { applyTriage, buildTriage } from '../skills/design-qa/scripts/lib/triage.mjs';
 import { ROOT, fixture, loadFixture, run, script, tmpDir } from './_helpers.mjs';
 
@@ -233,7 +236,7 @@ test('config: semantic errors and unknown-key warnings', () => {
   const result = validateConfig(c);
   const errors = result.errors.map((e) => `${e.path}: ${e.message}`);
   const has = (re) => assert.ok(errors.some((e) => re.test(e)), `missing ${re} in\n${errors.join('\n')}`);
-  has(/^app\.baseUrl: must be an absolute http\(s\) URL or a \$\{ENV_VAR\} placeholder \(got "localhost:3000"\)$/);
+  has(/^app\.baseUrl: must be an absolute http\(s\) URL or an environment-variable placeholder \(a \$ sign followed by \{NAME\}\) \(got "localhost:3000"\)$/);
   has(/^tolerances\.pixelDiff: pass \(5\) must be <= review \(1\)$/);
   has(/^surfaces\.items\.states\.hover: action "hover" needs a "selector"$/);
   has(/^surfaces\.items\.states\.focus: action "keyboard" needs "keys"/);
@@ -667,4 +670,209 @@ test('CLI: validate.mjs reports backfill errors and documents the rules', async 
   assert.match(res.stderr, /ERROR backfill\.items\[2\]\.reason: is required when decision is "not-needed"/);
   const help = await run(VALIDATE, ['--help']);
   assert.match(help.stdout, /Design backfill \(step 2, optional "backfill" block\)/);
+});
+
+// ---------------------------------------------------------------------------
+// INTENTIONAL sign-offs, formats, inference, --json, warnings
+// ---------------------------------------------------------------------------
+
+test('INTENTIONAL needs a signoff with a non-blank by and reason, or a cited known drift', () => {
+  const ok = loadFixture('report-valid.json');
+  assert.equal(ok.findings[6].resolution, 'INTENTIONAL');
+  ok.findings[6].knownDrift = null;
+  assert.deepEqual(errorsOf(ok), [], 'a signoff alone is enough (date-only signoff dates stay valid)');
+  ok.findings[6].signoff.date = '2026-09-20T09:00:00Z';
+  assert.deepEqual(errorsOf(ok), [], 'so is a date-time');
+
+  const drift = loadFixture('report-valid.json');
+  drift.findings[6].signoff = null;
+  assert.deepEqual(errorsOf(drift), [], 'a cited known drift is enough');
+
+  const neither = loadFixture('report-valid.json');
+  neither.findings[6].signoff = null;
+  neither.findings[6].knownDrift = '  ';
+  expectError(neither, /^findings\[6\]\.signoff: is required when resolution is INTENTIONAL: \{ by, date, reason \}/);
+  delete neither.findings[6].signoff;
+  delete neither.findings[6].knownDrift;
+  expectError(neither, /^findings\[6\]\.signoff: is required when resolution is INTENTIONAL/);
+
+  const blank = loadFixture('report-valid.json');
+  blank.findings[6].signoff = { by: ' ', date: 'last week', reason: '' };
+  expectError(blank, /^findings\[6\]\.signoff\.by: must name who signed off \(not blank\) \(got " "\)$/);
+  expectError(blank, /^findings\[6\]\.signoff\.reason: must say why the divergence is accepted \(not blank\)/);
+  expectError(blank, /^findings\[6\]\.signoff\.date: must be a date \(2026-01-31\) or an ISO-8601 date-time/);
+  blank.findings[6].signoff.date = '2026-02-30';
+  expectError(blank, /^findings\[6\]\.signoff\.date: must be a date/);
+});
+
+test('INTENTIONAL without a signoff cannot fake parity 100 and a closed loop (which also opens the backfill gate)', () => {
+  const r = loadFixture('report-backfill.json');
+  for (const f of r.findings) {
+    if (['FIX_CODE', 'UNCLASSIFIED'].includes(f.resolution)) Object.assign(f, { resolution: 'INTENTIONAL', signoff: null, knownDrift: null, fix: null });
+  }
+  r.openDecisions = [];
+  r.triage = null;
+  r.backfill.gate.override = null;
+  r.findings = rankFindings(r.findings.map((f) => ({ ...f, rank: null })));
+  r.stateMatrix.forEach((row) => {
+    if (row.result === 'MISSING_IN_CODE') row.result = 'FAIL';
+  });
+  r.scorecard = computeScorecard(r);
+  assert.equal(r.scorecard.parity, 100);
+  assert.equal(isLoopClosed(r), true);
+  const result = validateReport(r);
+  assert.equal(result.valid, false);
+  const unsigned = result.errors.filter((e) => /^findings\[\d+\]\.signoff$/.test(e.path)).length;
+  assert.equal(unsigned, 5, result.errors.map((e) => `${e.path}: ${e.message}`).join('\n'));
+});
+
+test('date-time is strict RFC 3339 (what ajv-formats and Date.parse both accept); date is a real calendar day', () => {
+  const good = [
+    '2026-01-31T12:00:00Z',
+    '2026-01-31t12:00:00z',
+    '2026-01-31T12:00:00.123456Z',
+    '2026-01-31T12:00:00+05:30',
+    '2026-01-31T23:59:59-23:59',
+    '2024-02-29T00:00:00Z',
+    '2000-02-29T00:00:00Z',
+  ];
+  const bad = [
+    '2026-09-22 14:30:00Z', // space separator
+    '2026-09-22T14:30Z', // no seconds
+    '2026-09-22T14:30:00', // no time zone
+    '2026-02-30T12:00:00Z', // no such day
+    '2026-02-29T12:00:00Z', // not a leap year
+    '1900-02-29T12:00:00Z', // century, not a leap year
+    '2026-01-31T24:00:00Z', // hour 24
+    '2026-01-31T12:60:00Z',
+    '2026-12-31T23:59:60Z', // leap second: Date.parse cannot read it
+    '2026-01-31T12:00:00+0530', // offset without a colon
+    '2026-01-31T12:00:00+05',
+    '2026-01-31T12:00:00+24:00',
+    '2026-13-01T12:00:00Z',
+    '2026-1-31T12:00:00Z',
+    '2026-01-31',
+    'yesterday',
+  ];
+  for (const v of good) assert.equal(isRfc3339DateTime(v), true, v);
+  for (const v of bad) assert.equal(isRfc3339DateTime(v), false, v);
+  for (const v of good) assert.ok(!Number.isNaN(Date.parse(v)), `${v}: the decisions flow can read it`);
+  assert.equal(isRfc3339Date('2024-02-29'), true);
+  for (const v of ['2026-02-29', '2026-04-31', '2026-00-10', '2026-01-31T00:00:00Z', 26]) assert.equal(isRfc3339Date(v), false, String(v));
+
+  const r = loadFixture('report-valid.json');
+  r.meta.generatedAt = '2026-09-22 14:30:00Z';
+  r.triage = { decidedAt: '2026-09-22T14:30', source: 'cli', items: [] };
+  expectError(r, /^meta\.generatedAt: expected an ISO-8601 date-time \(e\.g\. 2026-01-31T12:00:00Z\) \(got "2026-09-22 14:30:00Z"\)$/, { skipTriage: false, skipScorecard: true });
+  expectError(r, /^triage\.decidedAt: expected an ISO-8601 date-time/, { skipScorecard: true });
+});
+
+test('uri: parsed with new URL; file: URLs pass; ${…} placeholders only in config documents', () => {
+  for (const v of ['https://example.com/x?y=1', 'http://localhost:3000', 'file:///Users/me/proto/index.html', 'file:/Users/me/proto/index.html', 'https://www.figma.com/design/AbC/Items?node-id=1-2']) {
+    assert.equal(isAbsoluteUri(v), true, v);
+  }
+  for (const v of ['${PREVIEW_URL}', 'not a url ${', 'localhost:3000', 'https://exa mple.com', 'http://', '/abs/path', 'example.com']) {
+    assert.equal(isAbsoluteUri(v), false, v);
+  }
+  assert.equal(isAbsoluteUri('${PREVIEW_URL}', { placeholders: true }), true);
+  assert.equal(validateAgainstSchema('${PREVIEW_URL}', { type: 'string', format: 'uri' }, { placeholders: true }).errors.length, 0);
+
+  const r = loadFixture('report-valid.json');
+  r.meta.app.url = '${PREVIEW_URL}';
+  expectError(r, /^meta\.app\.url: expected an absolute URL \(got "\$\{PREVIEW_URL\}"\)$/);
+  const proto = loadFixture('report-valid.json');
+  delete proto.meta.figma;
+  proto.meta.source = { kind: 'prototype', url: 'file:/Users/me/proto/index.html', label: null, tool: 'html', frame: { width: 1440, height: 900 } };
+  proto.meta.tools.figmaAccess = 'none';
+  assert.deepEqual(errorsOf(proto), [], 'file:/abs is a valid source URL');
+});
+
+test('schemas: errorMessage text never contains a ${…} template (ajv-errors reads it as a JSON pointer)', () => {
+  const walk = (node, at, out) => {
+    if (Array.isArray(node)) node.forEach((v, i) => walk(v, `${at}[${i}]`, out));
+    else if (node && typeof node === 'object') {
+      for (const [k, v] of Object.entries(node)) {
+        if (k === 'errorMessage' && typeof v === 'string' && /\$\{[^}]+\}/.test(v)) out.push(`${at}.${k}`);
+        walk(v, `${at}.${k}`, out);
+      }
+    }
+    return out;
+  };
+  for (const name of ['report', 'config', 'state-matrix', 'decisions']) assert.deepEqual(walk(loadSchema(name), name, []), [], name);
+});
+
+test('config: report.debtLog must be a .md path', () => {
+  const c = loadFixture('config.json');
+  c.report.debtLog = 'qa-reports/design-debt.md';
+  assert.deepEqual(validateConfig(c).errors, []);
+  c.report.debtLog = 'qa-reports/design-debt.json';
+  const errors = validateConfig(c).errors.map((e) => `${e.path}: ${e.message}`);
+  assert.deepEqual(errors, ['report.debtLog: must be the path of a Markdown file ending in .md (the JSON log is written next to it) (got "qa-reports/design-debt.json")']);
+});
+
+test('warnings: pixel-diff keys that are not stateMatrix states', () => {
+  const r = loadFixture('report-valid.json');
+  r.scorecard.pixelDiff.with_data = { ...r.scorecard.pixelDiff['with-data'] };
+  r.scorecard = computeScorecard(r);
+  const result = validateReport(r);
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.warnings.map((w) => `${w.path}: ${w.message}`), [
+    'scorecard.pixelDiff.with_data: state "with_data" is not a row of stateMatrix (rows: with-data, empty, loading, error, hover)',
+  ]);
+});
+
+test('inferType: one identifying key is enough, so a broken file gets its real errors', () => {
+  const r = loadFixture('report-valid.json');
+  delete r.findings;
+  assert.equal(inferType(r), 'report');
+  assert.equal(inferType({ findings: [] }), 'report');
+  assert.equal(inferType({ app: { baseUrl: 'http://localhost:3000' } }), 'config');
+  assert.equal(inferType({ surfaces: {} }), 'config');
+  assert.equal(inferType({ hello: 1 }), null);
+});
+
+test('CLI: a report without findings exits 1 with "required"; --json always prints a result', async () => {
+  const dir = tmpDir();
+  const r = loadFixture('report-valid.json');
+  delete r.findings;
+  const file = path.join(dir, 'report.json');
+  writeFileSync(file, JSON.stringify(r));
+  const res = await run(VALIDATE, [file]);
+  assert.equal(res.code, 1, res.stderr);
+  assert.match(res.stderr, /ERROR findings: required key is missing/);
+  const json = await run(VALIDATE, [file, '--json']);
+  assert.equal(json.code, 1);
+  assert.equal(JSON.parse(json.stdout).type, 'report');
+  assert.ok(JSON.parse(json.stdout).errors.some((e) => e.path === 'findings' && e.message === 'required key is missing'));
+
+  const cases = [
+    [path.join(dir, 'nope.json'), 2, /file not found/, null],
+    [path.join(dir, 'broken.json'), 1, /is not valid JSON/, null],
+    [path.join(dir, 'unknown.json'), 2, /cannot infer the file type/, null],
+  ];
+  writeFileSync(cases[1][0], '{"schemaVersion": ');
+  writeFileSync(cases[2][0], '{"hello": 1}');
+  for (const [target, code, message, type] of cases) {
+    const out = await run(VALIDATE, [target, '--json']);
+    assert.equal(out.code, code, `${path.basename(target)}: ${out.stderr}`);
+    const parsed = JSON.parse(out.stdout);
+    assert.equal(parsed.valid, false);
+    assert.equal(parsed.type, type);
+    assert.match(parsed.file, new RegExp(`${path.basename(target).replace('.', '\\.')}$`));
+    assert.deepEqual(parsed.warnings, []);
+    assert.equal(parsed.errors.length, 1);
+    assert.equal(parsed.errors[0].path, '(root)');
+    assert.match(parsed.errors[0].message, message);
+  }
+  const usage = await run(VALIDATE, [file, '--json', '--type', 'nope']);
+  assert.equal(usage.code, 2);
+  assert.match(JSON.parse(usage.stdout).errors[0].message, /--type must be one of/);
+  assert.equal((await run(VALIDATE, [dir])).code, 2, 'a folder is a usage error');
+});
+
+test('docs: a backfill frame recorded while step 1 is open is a warning (schema description and --help agree)', async () => {
+  assert.match(loadSchema('report').definitions.backfill.description, /a figma frame while not ready \(no loopClosed, no override\) is a warning/);
+  const help = (await run(VALIDATE, ['--help'])).stdout.replace(/\s+/g, ' ');
+  assert.match(help, /is a warning: backfill\.mjs --record refuses it/);
+  assert.match(help, /INTENTIONAL ⇒ a signoff/);
 });

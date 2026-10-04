@@ -64,6 +64,8 @@ Use these ids in the matrix, in file names (`app/<state>.png`) and in findings (
 
 Anything else keeps a kebab-case slug of its name (`partial-results`, `offline-banner`).
 
+A name maps to an id when the whole name, or one segment of it (`Orders – Empty`, `State=Hover`), is a synonym; otherwise when it contains a synonym as a whole word that is not negated and not a word too common to trust on its own (`data`, `default`, `open`, `active`, `current`, `done`…). Negated names keep their own slug: `Not empty` → `not-empty`, `non-empty`, `no-errors`, `without-errors`, `not-selected`; `Data table` → `data-table`. Phrases that are synonyms themselves still map (`No data`, `No results` → `empty`). Capture is stricter still: it treats a state as `loading` (no network-idle wait, delayed mock held) or as the driverless `with-data` default only when the whole name or a segment is that label, so `Pending orders` or `Fetching done` is not a loading state.
+
 ## Building the matrix
 
 ```bash
@@ -125,7 +127,7 @@ A driver tells `scripts/capture.mjs` how to put the app into a state. Drivers li
 |---|---|---|
 | `fixture` | string | Replaces `{fixture}` or `{id}` in the surface route; otherwise appended as `?fixture=<value>`. |
 | `query` | string | Query string merged into the URL, e.g. `state=empty`. |
-| `mock` | `{ urlPattern, status, body, delayMs, contentType }` | Intercepts matching requests (Playwright glob such as `**/api/orders*`) and answers with this status and body, optionally after a delay. |
+| `mock` | `{ urlPattern, status, body, delayMs, contentType }` | Intercepts matching requests and answers with this status and body, optionally after a delay. `urlPattern` is a Playwright glob matched against the whole URL, query string included: `**/api/orders` does not match `/api/orders?page=1`; use `**/api/orders*` (any query without a `/`) or `**/api/orders{,?**}`. A mock that matches no request is a warning and a degradation in `capture.json`. Only `delayMs` (no status or body): the request is delayed, then let through; in a loading state it is held until the capture is done (browser-capture.md). |
 | `storage` | `{ local: {…}, session: {…} }` | Seeds localStorage and sessionStorage before the page loads (dismissed banners, saved filters, feature toggles). |
 | `action` | `hover` · `focus` · `active` · `click` · `keyboard` | Interaction on `selector` after load. `active` holds the mouse button down. |
 | `selector` | CSS selector | Target of the action. |
@@ -133,10 +135,11 @@ A driver tells `scripts/capture.mjs` how to put the app into a state. Drivers li
 | `settleMs` | integer | Wait after the action for transitions to finish. |
 | `viewport` | `{ width, height }` | Viewport for this state only. It must equal this state's design frame (a mobile frame, a narrow panel). |
 | `reducedMotion` | boolean | Emulate `prefers-reduced-motion: reduce` in this state. |
-| `wait` | CSS selector | Element that proves the state rendered; overrides `--wait`. |
+| `wait` | CSS selector | Element that proves the state rendered (its data, not just the page frame); overrides `--wait`. |
+| `allowNavigation` | boolean | The state may end on another URL (an action that navigates). Without it, a state whose page ends on another origin or path (a redirect to a sign-in page) fails. |
 | `source` | file reference | The state exists in code but nothing can drive it at runtime. Reported as ℹ️ CANNOT_VERIFY. |
 
-`implemented.driver` records the primary driver, in this order of precedence: `mock`, `fixture`, `query`, `storage`, `action`, `source`. `viewport`, `reducedMotion`, `wait` and `settleMs` modify another driver. An empty driver `{}` is the default render, which only makes sense for `with-data`: capture skips any other state whose driver has none of `fixture`, `query`, `mock`, `storage`, `action` or `viewport`, and logs it under `degradations` in `capture.json`, so the default page is never saved under another state's name.
+`implemented.driver` records the primary driver, in this order of precedence: `action`, `mock`, `query`, `storage`, `fixture`, `source` (`driverKind()` in state-discovery.mjs). Capture applies every key of a driver together; the precedence only names the key that distinguishes the state from the shared base data, so `{ "fixture": "rich-orders", "action": "hover" }` is an `action` and `{ "fixture": "rich-orders", "mock": … }` a `mock`. A driver with only a `viewport` counts as `fixture` (the default data at another size). `viewport`, `reducedMotion`, `wait`, `settleMs` and `allowNavigation` modify another driver. An empty driver `{}` is the default render, which only makes sense for `with-data`: capture skips any other state whose driver has none of `fixture`, `query`, `mock`, `storage`, `action` or `viewport`, and logs it under `degradations` in `capture.json`, so the default page is never saved under another state's name.
 
 Examples:
 

@@ -92,3 +92,37 @@ test('textToAdf: one paragraph per non-empty line', () => {
     content: [p(t('Line one')), p(t('Line two'))],
   });
 });
+
+test('hostile ticket content degrades instead of throwing', () => {
+  // Out-of-range or junk timestamps are dropped; a valid one still renders.
+  for (const timestamp of ['99999999999999999', 'not a date', { x: 1 }, Infinity]) {
+    assert.equal(adfToText(doc(p(t('on '), { type: 'date', attrs: { timestamp } }))), 'on', String(timestamp));
+  }
+  assert.equal(adfToText(doc(p({ type: 'date', attrs: { timestamp: '1758585600000' } }))), '2025-09-23');
+  // Non-string attrs and text are coerced (objects dropped), never called as strings.
+  assert.equal(adfToText(doc(p({ type: 'mention', attrs: { id: 42 } }))), '@42');
+  assert.equal(adfToText(doc(p({ type: 'mention', attrs: { text: { evil: true } } }))), '@');
+  assert.equal(adfToText(doc(p({ type: 'mention', attrs: null }), p({ type: 'emoji', attrs: { text: 7 } }))), '@\n\n7');
+  assert.equal(adfToText(doc(p({ type: 'text', text: 5, marks: { type: 'link' } }))), '5');
+  assert.equal(adfToText({ type: 'text', text: 5 }), '5');
+  assert.equal(adfToText(doc(p(t('x', [{ type: 'link', attrs: { href: ['a'] } }])))), 'x');
+  // content that is not an array, null children, rows and cells.
+  assert.equal(adfToText(doc({ type: 'paragraph', content: 'abc' }, null, { type: 'bulletList', content: [null, li(null, p(t('a')))] })), '- \n- a');
+  assert.equal(adfToText(doc({ type: 'table', content: [null, { type: 'tableRow', content: [null, { type: 'tableCell', content: [p(t('c'))] }] }] })), '| c');
+  assert.equal(adfToText(doc({ type: 'taskList', content: [null] }, { type: 'decisionList', content: [null] })), '- [ ] \n\n-');
+});
+
+test('nesting deeper than 100 levels is cut off, not a stack overflow', () => {
+  for (const depth of [150, 5000, 50000]) {
+    let node = p(t('deep'));
+    for (let i = 0; i < depth; i++) node = { type: 'blockquote', content: [node] };
+    let list = p(t('deep'));
+    for (let i = 0; i < depth; i++) list = { type: 'bulletList', content: [li(list)] };
+    assert.doesNotThrow(() => adfToText(doc(p(t('top')), node, list)), String(depth));
+    assert.match(adfToText(doc(p(t('top')), node)), /^top/);
+    assert.ok(!adfToText(doc(node)).includes('deep'), 'content below the cap is dropped');
+  }
+  let shallow = p(t('kept'));
+  for (let i = 0; i < 20; i++) shallow = { type: 'blockquote', content: [shallow] };
+  assert.match(adfToText(doc(shallow)), /> kept$/);
+});

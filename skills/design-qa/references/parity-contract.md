@@ -28,6 +28,8 @@ Any delta in these is a finding.
 | Data states | With-data, empty, loading, error, partial, success. | state |
 | Motion | Which transitions and animations run, on which property and trigger, their type, duration, easing, delay and distance, and what happens under reduced motion. Missing motion is a finding like a missing element. | motion |
 
+Exact means within the measurement tolerances of the config: `tolerances.px` for lengths and `tolerances.colorDeltaE` (CIEDE2000 ΔE, alpha within 0.01) for colors, in any CSS color syntax (ledgers.md, "Comparing values"). A color within ΔE that no token produces is still a token finding.
+
 ## May differ
 
 Classify these as `DATA`. Never change code or design to make data match.

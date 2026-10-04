@@ -6,8 +6,8 @@ Fix mode runs the audit, lets the person choose what to fix now (the review in `
 
 - **The fix-now set only**: `FIX_CODE` findings triaged fix now (`triage.items[].decision == "fix-now"`). The triage comes from the reviewer's Send, recorded by `apply-decisions.mjs` (SKILL.md "Apply review decisions"), which also prints the set in order; or from `/design-qa triage` typed by hand. Without a recorded triage, open the review or offer the split in chat first (SKILL.md Phase 9); if the person does not choose, use the default split (the fix-now bucket plus every blocker).
 - Send approves starting this loop on that set. It does not approve wider changes: the rules below still apply.
-- Debt is not touched. It is ticketed and logged instead (report.md, "Triage and debt").
-- Never touch data (`DATA`), accepted drift (`INTENTIONAL`) or dismissed findings (`DISMISSED`).
+- Debt is not touched. It is ticketed and logged instead (report.md, "Triage and debt"). The debt log follows each finding by its fingerprint, not its id (ids are renumbered every pass; ledgers.md, "Cumulative logs"), so a debt item fixed here resolves on the next `debt-log.mjs` run and its ticket never moves to another finding.
+- Never touch data (`DATA`), accepted drift (`INTENTIONAL`) or dismissed findings (`DISMISSED`). Undoing a dismissal (`dismiss.mjs --undo`) restores the resolution the finding had (`UNCLASSIFIED` or `DATA` when recorded, else `FIX_CODE`); only a finding back at `FIX_CODE` re-enters the fix-now set.
 - The design is the target. When a fix feels wrong because the code seems better than the design, stop and ask: the person can sign the finding off or dismiss it with a reason. Never change the design.
 - Work in rank order within the fix-now set. If an item turns out much bigger than expected, ask whether to move it to debt (re-run triage; blockers cannot move) instead of widening the change.
 - A fix that would change a shared design-system component (and so every screen that uses it) is a design-system change. Ask first, or reclassify the finding as 🔵 DS_CANDIDATE.
@@ -101,6 +101,7 @@ Run `commands.test` from `commands.cwd`, and each command in `commands.lint`. A 
 1. Re-capture the touched states, for example `node scripts/capture.mjs … --state hover --driver '<json>' --grab <grab.json> --out <dir>/evidence`.
 2. Re-run the structure, component, style and motion ledgers for the touched elements from the new `computed/`, `dom/` and `motion/` files. With a coded prototype, re-run `scripts/compare.mjs --app <dir>/evidence --states <touched states>`; for Figma reactions, add `--figma-spec <dir>/evidence/figma-spec.json`.
 3. A verified fix keeps its finding id and becomes 🟢 PASS / `NONE`; update its evidence to the new capture. A fix that did not hold stays `FIX_CODE`.
+4. Run the `Next:` commands the scripts print as printed: every path in them is shell-quoted. The scripts lock `report.json` and the logs while they rewrite them and refuse to write through a symbolic link; a "being updated by another design-qa run" error means another run holds the lock: wait and run the command again.
 
 ## 5. Pixel diff
 

@@ -6,7 +6,7 @@
 // after an explicit override.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { CliError, displayPath, parseCli, parseJsonArg, readJsonFile, runMain, toNumber, usageError, writeJson } from './lib/args.mjs';
+import { CliError, displayPath, formatIssues, oneLine, parseCli, parseJsonArg, readJsonFile, runMain, toNumber, usageError, writeJson } from './lib/args.mjs';
 import {
   BACKFILL_DISCOVERED_BY,
   BackfillGateError,
@@ -22,7 +22,9 @@ import {
   setOverride,
 } from './lib/backfill.mjs';
 import { resolveOptions } from './lib/ranking.mjs';
+import { shellArg } from './lib/review-context.mjs';
 import { validateConfig } from './lib/schema-check.mjs';
+import { sameInstant } from './lib/triage.mjs';
 
 const HELP = `Design backfill (step 2): list the states the app has but the design does not, record
 decisions, and the Figma frames built for them.
@@ -70,7 +72,8 @@ Options:
   --detail "<where>"     with --add: where it is in code, e.g. "OrdersTable.tsx:88 renders
                          BulkBar when selection.length > 0"
   --screen <id>          with --add: the meta.screens id (the state becomes "<id>/<state>");
-                         with --captured: attach to this screen's items only
+                         with --captured: attach to this screen's items only (required when
+                         a captured state name is an item on more than one screen)
   --discovered-by <how>  with --add: ${BACKFILL_DISCOVERED_BY.join(' | ')} (default source)
   --driver '<json>'      with --add: a capture.mjs DRIVER that puts the app in this state
   --reason "<why>"       with --not-needed (required), --build (optional note) or --override
@@ -82,6 +85,9 @@ Options:
   --round-trip <pct>     with --record: pixel diff (0–100) of the 1x frame export against the
                          app capture; stored with its band
   --config <file>        design-qa.config.json: tolerances.pixelDiff for the round-trip band
+  --allow-stale          with --from: apply although the decisions were made on an earlier
+                         report (reportGeneratedAt differs from meta.generatedAt), only when
+                         you know the ids still point at the same items
   --by <name>            who decided (a --from item's own "by" wins; then --by, then the
                          file's decidedBy / "by:" line)
   --dry-run              print the result without writing report.json
@@ -99,7 +105,7 @@ verdict or triage. The scorecard is not recomputed here: re-render with
 which also validates the report.
 
 Exit codes: 0 ok · 1 unreadable report, or --record before step 1 is closed without an
-override · 2 bad arguments (missing reason, unknown id…)`;
+override · 2 bad arguments (missing reason, unknown id, stale --from decisions…)`;
 
 const ID_RE = /^BF-\d{3,}$/;
 const STATE_RE = /^[a-z0-9][a-z0-9-]*(\/[a-z0-9][a-z0-9-]*)?$/;
@@ -111,11 +117,15 @@ function parseIds(raw, flag) {
     .map((id) => id.toUpperCase());
   if (!ids.length) throw usageError(`--${flag}: give at least one backfill id (e.g. BF-001)`);
   const bad = ids.filter((id) => !ID_RE.test(id));
-  if (bad.length) throw usageError(`--${flag}: not backfill ids: ${bad.join(', ')} (expected e.g. BF-001)`);
+  if (bad.length) throw usageError(`--${flag}: not backfill ids: ${bad.map(oneLine).join(', ')} (expected e.g. BF-001)`);
   return [...new Set(ids)];
 }
 
-const quote = (s) => `"${String(s).length > 90 ? `${String(s).slice(0, 87)}…` : s}"`;
+// A quoted reason or detail: one line (it comes from the report or a decisions file), shortened.
+const quote = (s) => {
+  const text = oneLine(s);
+  return `"${text.length > 90 ? `${text.slice(0, 87)}…` : text}"`;
+};
 const relPosix = (from, to) => path.relative(from, to).split(path.sep).join('/');
 
 async function main(argv) {
@@ -141,6 +151,7 @@ async function main(argv) {
     'round-trip': { type: 'string' },
     config: { type: 'string' },
     by: { type: 'string' },
+    'allow-stale': { type: 'boolean' },
     'dry-run': { type: 'boolean' },
     quiet: { type: 'boolean' },
   });
@@ -149,7 +160,9 @@ async function main(argv) {
     return 0;
   }
   const log = values.quiet ? () => {} : (msg) => console.log(msg);
-  const warn = (msg) => console.error(`warning: ${msg}`);
+  // Every report, capture or decisions value in a warning is folded to one line.
+  const warn = (msg) => console.error(`warning: ${oneLine(msg)}`);
+  const show = (file) => oneLine(displayPath(file));
 
   if (!values.report) throw usageError('--report <report.json> is required (see --help)');
   const modeFlags = ['candidates', 'add', 'captured', 'build', 'not-needed', 'record', 'override', 'from'];
@@ -167,14 +180,15 @@ async function main(argv) {
   onlyWith(['screen'], ['add', 'captured']);
   onlyWith(['reason'], ['build', 'not-needed', 'override']);
   onlyWith(['figma-url', 'node-id', 'name', 'round-trip', 'config'], ['record']);
+  onlyWith(['allow-stale'], ['from']);
 
   const reportFile = path.resolve(values.report);
   const report = readJsonFile(reportFile, 'report', 1);
   if (!report || typeof report !== 'object' || !Array.isArray(report.findings)) {
-    throw new CliError(`${displayPath(reportFile)} is not a design-qa report (no "findings" array)`, 1);
+    throw new CliError(`${show(reportFile)} is not a design-qa report (no "findings" array)`, 1);
   }
   if (report.schemaVersion !== '2.0') {
-    throw new CliError(`${displayPath(reportFile)}: schemaVersion 2.0 required (got "${report.schemaVersion}"); 1.x reports: re-run the pass`, 1);
+    throw new CliError(`${show(reportFile)}: schemaVersion 2.0 required (got "${oneLine(report.schemaVersion)}"); 1.x reports: re-run the pass`, 1);
   }
   const slug = backfillSlug(report);
   const now = new Date().toISOString();
@@ -184,8 +198,8 @@ async function main(argv) {
     try {
       return fn();
     } catch (err) {
-      if (err instanceof BackfillGateError) throw new CliError(err.message, 1);
-      throw usageError(err.message);
+      if (err instanceof BackfillGateError) throw new CliError(oneLine(err.message), 1);
+      throw usageError(oneLine(err.message));
     }
   };
 
@@ -196,20 +210,20 @@ async function main(argv) {
       candidates = wrap(() => parseCandidatesFile(data));
     } else {
       const state = String(values.add).trim().toLowerCase();
-      if (!STATE_RE.test(state)) throw usageError(`--add must be a kebab-case state id like "bulk-selected" (got "${values.add}")`);
+      if (!STATE_RE.test(state)) throw usageError(`--add must be a kebab-case state id like "bulk-selected" (got "${oneLine(values.add)}")`);
       if (values.screen !== undefined && !/^[a-z0-9][a-z0-9-]*$/.test(values.screen)) {
-        throw usageError(`--screen must be a kebab-case id like "cart" (got "${values.screen}")`);
+        throw usageError(`--screen must be a kebab-case id like "cart" (got "${oneLine(values.screen)}")`);
       }
       const screenIds = (Array.isArray(report.meta?.screens) ? report.meta.screens : []).map((s) => s?.id);
       if (values.screen !== undefined && !screenIds.includes(values.screen)) {
-        throw usageError(`--screen "${values.screen}" is not in meta.screens (have: ${screenIds.join(', ') || 'none — a single-screen report takes no --screen'})`);
+        throw usageError(`--screen "${oneLine(values.screen)}" is not in meta.screens (have: ${screenIds.map(oneLine).join(', ') || 'none — a single-screen report takes no --screen'})`);
       }
       if (!values.detail || !values.detail.trim()) {
         throw usageError('--detail is required with --add: say where the state is in code (e.g. --detail "OrdersTable.tsx:88 renders BulkBar when selection.length > 0")');
       }
       const discoveredBy = values['discovered-by'] ?? 'source';
       if (!BACKFILL_DISCOVERED_BY.includes(discoveredBy)) {
-        throw usageError(`--discovered-by must be one of ${BACKFILL_DISCOVERED_BY.join(', ')} (got "${discoveredBy}")`);
+        throw usageError(`--discovered-by must be one of ${BACKFILL_DISCOVERED_BY.join(', ')} (got "${oneLine(discoveredBy)}")`);
       }
       const driver = values.driver !== undefined ? parseJsonArg(values.driver, 'driver') : null;
       if (driver !== null && (typeof driver !== 'object' || Array.isArray(driver))) throw usageError('--driver must be a JSON object (a capture.mjs DRIVER)');
@@ -218,15 +232,16 @@ async function main(argv) {
     const result = wrap(() => mergeCandidates(report, candidates));
     next = result.report;
     const byId = new Map(next.backfill.items.map((i) => [i.id, i]));
-    for (const id of result.added) log(`Added ${id} ${byId.get(id).state} (${byId.get(id).discoveredBy}) — ${byId.get(id).detail ?? '–'}`);
-    for (const id of result.updated) log(`Updated ${id} ${byId.get(id).state} (decision ${byId.get(id).decision} kept)`);
+    // Item values come from candidates files and the report: folded to one line.
+    for (const id of result.added) log(`Added ${oneLine(id)} ${oneLine(byId.get(id).state)} (${oneLine(byId.get(id).discoveredBy)}) — ${oneLine(byId.get(id).detail ?? '–')}`);
+    for (const id of result.updated) log(`Updated ${oneLine(id)} ${oneLine(byId.get(id).state)} (decision ${oneLine(byId.get(id).decision)} kept)`);
     for (const s of result.skipped) warn(`skipped ${s.state}: ${s.why}`);
     log(`Backfill candidates: ${result.added.length} added, ${result.updated.length} updated, ${result.skipped.length} skipped`);
     const drivable = [...result.added, ...result.updated].map((id) => byId.get(id)).filter((i) => i.driver && !i.captured);
     if (drivable.length) {
       log(
-        `Capture them app-only: node scripts/capture.mjs --config <config> --states <states.json with ${drivable.map((i) => i.state).join(', ')}> ` +
-          `--out ${displayPath(path.join(path.dirname(reportFile), 'evidence', 'backfill'))}, then --captured <that capture.json>`,
+        `Capture them app-only: node scripts/capture.mjs --config <config> --states <states.json with ${drivable.map((i) => oneLine(i.state)).join(', ')}> ` +
+          `--out ${shellArg(displayPath(path.join(path.dirname(reportFile), 'evidence', 'backfill')))}, then --captured <that capture.json>`,
       );
     }
   } else if (mode === 'captured') {
@@ -235,7 +250,7 @@ async function main(argv) {
     const prefix = relPosix(path.dirname(reportFile), path.dirname(captureFile));
     const result = wrap(() => attachCaptures(report, capture, { prefix, screen: values.screen ?? null }));
     next = result.report;
-    for (const a of result.attached) log(`Attached ${a.id} ${a.state}: ${next.backfill.items.find((i) => i.id === a.id).captured.app}`);
+    for (const a of result.attached) log(`Attached ${oneLine(a.id)} ${oneLine(a.state)}: ${oneLine(next.backfill.items.find((i) => i.id === a.id).captured.app)}`);
     for (const f of result.failed) warn(`${f.id} ${f.state} was not captured: ${f.reason}`);
     for (const k of result.unmatched) warn(`capture state "${k}" matches no backfill item; ignored`);
     log(`Captures: ${result.attached.length} attached, ${result.failed.length} failed, ${result.unmatched.length} unmatched`);
@@ -247,33 +262,42 @@ async function main(argv) {
     }
     const result = wrap(() => decideItems(report, ids.map((id) => ({ id, decision: mode, reason, by, date: now }))));
     next = result.report;
-    for (const c of result.changes) log(`${c.id} ${c.decision}${c.previous !== 'pending' && c.previous !== c.decision ? ` (was ${c.previous})` : ''}${reason ? ` — ${quote(reason)}` : ''}`);
+    for (const c of result.changes) log(`${oneLine(c.id)} ${oneLine(c.decision)}${c.previous !== 'pending' && c.previous !== c.decision ? ` (was ${oneLine(c.previous)})` : ''}${reason ? ` — ${quote(reason)}` : ''}`);
   } else if (mode === 'from') {
     const fromFile = path.resolve(values.from);
     let content;
     try {
       content = readFileSync(fromFile, 'utf8');
     } catch (err) {
-      throw usageError(`cannot read --from ${values.from}: ${err.code === 'ENOENT' ? 'file not found' : err.message}`);
+      throw usageError(`cannot read --from ${oneLine(values.from)}: ${err.code === 'ENOENT' ? 'file not found' : oneLine(err.message)}`);
     }
     let parsed;
     try {
       parsed = parseBackfillFile(content);
     } catch (err) {
-      throw usageError(`--from ${values.from}: ${err.message}`);
+      throw usageError(`--from ${oneLine(values.from)}: ${oneLine(err.message)}`);
     }
     if (parsed.slug && parsed.slug !== slug) warn(`backfill decisions are for "${parsed.slug}" but this report is "${slug}"`);
-    if (parsed.reportGeneratedAt && parsed.reportGeneratedAt !== report.meta?.generatedAt) {
-      warn(`backfill decisions were made on the report generated ${parsed.reportGeneratedAt}; this report was generated ${report.meta?.generatedAt}`);
+    if (parsed.reportGeneratedAt && !sameInstant(parsed.reportGeneratedAt, report.meta?.generatedAt)) {
+      // As apply-decisions.mjs: decisions made on another report are refused unless --allow-stale.
+      const msg =
+        `these backfill decisions were made on the report generated ${oneLine(parsed.reportGeneratedAt)}, but report.json was generated ${oneLine(report.meta?.generatedAt)}. ` +
+        'Backfill ids may be renumbered on a new pass, so they may point at different states';
+      if (!values['allow-stale']) {
+        throw usageError(
+          `${msg}. Reopen the current report.html, review again and send the new decisions. (Or pass --allow-stale if you are sure the ids still point at the same items.)`,
+        );
+      }
+      warn(`${msg}; applied anyway (--allow-stale)`);
     }
     const blank = parsed.items.filter((i) => i.decision === 'not-needed' && !i.reason).map((i) => i.id);
-    if (blank.length) throw usageError(`a reason is required for every not-needed decision; missing for ${blank.join(', ')}`);
+    if (blank.length) throw usageError(`a reason is required for every not-needed decision; missing for ${blank.map(oneLine).join(', ')}`);
     const decisions = parsed.items.map((i) => ({ ...i, by: i.by ?? by ?? parsed.decidedBy ?? null, date: i.date ?? now }));
     const result = wrap(() => decideItems(report, decisions));
     next = result.report;
     for (const c of result.changes) {
       const item = next.backfill.items.find((i) => i.id === c.id);
-      log(`${c.id} ${c.decision}${item.reason ? ` — ${quote(item.reason)}` : ''}`);
+      log(`${oneLine(c.id)} ${oneLine(c.decision)}${item.reason ? ` — ${quote(item.reason)}` : ''}`);
     }
   } else if (mode === 'override') {
     const reason = (values.reason ?? '').trim();
@@ -282,7 +306,7 @@ async function main(argv) {
     if (status.loopClosed) warn('step 1 is already closed (loopClosed); the override is recorded but not needed');
     const result = wrap(() => setOverride(report, { reason, by, date: now }));
     next = result.report;
-    log(`Override recorded — ${quote(reason)}${by ? ` — by ${by}` : ''} (step 1 open: ${status.open})`);
+    log(`Override recorded — ${quote(reason)}${by ? ` — by ${oneLine(by)}` : ''} (step 1 open: ${oneLine(status.open)})`);
   } else {
     const id = parseIds(values.record, 'record');
     if (id.length !== 1) throw usageError('--record takes exactly one backfill id');
@@ -292,7 +316,7 @@ async function main(argv) {
     if (values.config) {
       config = readJsonFile(path.resolve(values.config), 'config', 2);
       const cv = validateConfig(config);
-      if (!cv.valid) throw usageError(`--config is invalid:\n${cv.errors.map((e) => `  ${e.path}: ${e.message}`).join('\n')}`);
+      if (!cv.valid) throw usageError(`--config is invalid:\n${formatIssues(cv.errors)}`);
     }
     const result = wrap(() =>
       recordBuilt(report, id[0], {
@@ -307,7 +331,10 @@ async function main(argv) {
     );
     next = result.report;
     const f = result.item.figma;
-    log(`Recorded ${id[0]} built in Figma: "${f.name}" (${f.nodeId}) ${f.url}${f.roundTrip ? ` — round trip ${f.roundTrip.percent}% (${f.roundTrip.band})` : ''}`);
+    log(
+      `Recorded ${oneLine(id[0])} built in Figma: "${oneLine(f.name)}" (${oneLine(f.nodeId)}) ${oneLine(f.url)}` +
+        `${f.roundTrip ? ` — round trip ${oneLine(f.roundTrip.percent)}% (${oneLine(f.roundTrip.band)})` : ''}`,
+    );
   }
 
   const s = backfillSummary(next);
@@ -322,9 +349,9 @@ async function main(argv) {
     return 0;
   }
   writeJson(reportFile, next);
-  log(`Wrote ${displayPath(reportFile)}`);
-  const planFile = displayPath(path.join(path.dirname(reportFile), 'report-backfill.md'));
-  log(`Next: node scripts/render-report.mjs --in ${displayPath(reportFile)} --recompute --write-back --backfill-plan ${planFile} (recomputes the scorecard and validates)`);
+  log(`Wrote ${show(reportFile)}`);
+  const planFile = shellArg(displayPath(path.join(path.dirname(reportFile), 'report-backfill.md')));
+  log(`Next: node scripts/render-report.mjs --in ${shellArg(displayPath(reportFile))} --recompute --write-back --backfill-plan ${planFile} (recomputes the scorecard and validates)`);
   return 0;
 }
 

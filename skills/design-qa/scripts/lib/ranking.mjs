@@ -65,12 +65,15 @@ export function resolveOptions(opts = {}) {
   return resolved;
 }
 
-/** Pixel-diff band: percent < pass → "pass"; percent <= review → "review"; else "fail". */
+/**
+ * Pixel-diff band: percent < pass → "pass"; percent <= review → "review"; else "fail".
+ * 0% (identical images) is always "pass", also with a pass tolerance of 0 (as diff.mjs).
+ */
 export function band(percent, tolerances = DEFAULT_TOLERANCES) {
   const t = isObj(tolerances) && isObj(tolerances.pixelDiff) ? tolerances.pixelDiff : tolerances || {};
   const pass = typeof t.pass === 'number' ? t.pass : DEFAULT_TOLERANCES.pass;
   const review = typeof t.review === 'number' ? t.review : DEFAULT_TOLERANCES.review;
-  if (percent < pass) return 'pass';
+  if (percent === 0 || percent < pass) return 'pass';
   if (percent <= review) return 'review';
   return 'fail';
 }
@@ -212,8 +215,9 @@ export function derivedBands(report, opts = {}) {
  * for a state that has an unexplained finding or no findings at all.
  * REVIEW: an unexplained finding (ticketed debt is explained), a CANNOT_VERIFY
  * finding, an open decision, a review band, a fail band whose findings are all
- * explained (fixed, INTENTIONAL, DATA, DISMISSED or ticketed debt), or a
- * CANNOT_VERIFY state. Otherwise PASS.
+ * explained (fixed, INTENTIONAL, DATA, DISMISSED or ticketed debt), a
+ * CANNOT_VERIFY state, or no verified state at all (an empty state matrix, or no
+ * row PASS or FAIL: nothing was captured and compared). Otherwise PASS.
  */
 export function explainVerdict(report, opts = {}) {
   const o = resolveOptions(opts);
@@ -254,6 +258,10 @@ export function explainVerdict(report, opts = {}) {
   for (const row of matrix) {
     if (row && row.result === 'CANNOT_VERIFY') review.push(`state "${row.state}" is CANNOT_VERIFY`);
   }
+  // Nothing compared is not a pass: an empty pass must not read as full parity.
+  const coverage = stateCoverage(matrix);
+  if (coverage.total === 0) review.push('no state was verified: the state matrix is empty');
+  else if (coverage.verified === 0) review.push(`no state was verified (0 of ${coverage.total} captured and compared)`);
   if (review.length) return { verdict: 'REVIEW', reasons: review };
   return { verdict: 'PASS', reasons: [] };
 }

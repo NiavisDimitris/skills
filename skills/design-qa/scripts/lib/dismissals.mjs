@@ -3,6 +3,8 @@
 // apply/undo on a report, the cumulative dismissed log (JSON + Markdown) that carries
 // the decisions into later passes, and the two import formats (dismissals.json from
 // report.html and the multi-line "/design-qa dismiss <slug>" chat message).
+import { oneLine } from './args.mjs';
+import { isRfc3339DateTime } from './schema-check.mjs';
 import { reportSlug } from './triage.mjs';
 
 export const DISMISS_KINDS = Object.freeze(['not-an-issue', 'remove', 'intentional']);
@@ -10,6 +12,11 @@ export const DISMISSAL_SOURCES = Object.freeze(['report-ui', 'chat', 'cli', 'pri
 export const DISMISSIBLE_SEVERITIES = Object.freeze(['BLOCKER', 'WARNING', 'DS_CANDIDATE']);
 /** Findings a dismissal applies to on its own: the open ones. */
 export const OPEN_RESOLUTIONS = Object.freeze(['FIX_CODE', 'UNCLASSIFIED']);
+/**
+ * Resolutions an undo can restore besides FIX_CODE (the default): recorded as
+ * previousResolution on the dismissal (or sign-off) when the finding had one of them.
+ */
+export const RESTORABLE_RESOLUTIONS = Object.freeze(['UNCLASSIFIED', 'DATA']);
 
 const KIND_ALIASES = new Map([
   ['not-an-issue', 'not-an-issue'],
@@ -39,8 +46,9 @@ export function normalizeKind(kind) {
   return KIND_ALIASES.get(k) ?? KIND_ALIASES.get(k.replace(/ /g, '-')) ?? null;
 }
 
+/** An RFC 3339 date-time with a time zone: exactly what the report validator accepts. */
 export function isIsoDateTime(value) {
-  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) && !Number.isNaN(Date.parse(value));
+  return isRfc3339DateTime(value);
 }
 
 /**
@@ -64,7 +72,7 @@ export function dismissBlocker(finding, kind) {
   if (!finding) return 'unknown finding';
   if (!DISMISS_KINDS.includes(kind)) return `kind must be one of ${DISMISS_KINDS.join(', ')}`;
   if (!DISMISSIBLE_SEVERITIES.includes(finding.severity)) {
-    return `${finding.id} is ${finding.severity}: only BLOCKER, WARNING and DS_CANDIDATE findings can be dismissed or accepted`;
+    return `${oneLine(finding.id)} is ${oneLine(finding.severity)}: only BLOCKER, WARNING and DS_CANDIDATE findings can be dismissed or accepted`;
   }
   return null;
 }
@@ -100,13 +108,16 @@ export function applyDismissal(report, findingId, { kind, reason, by = null, dat
   const next = cloneReport(report);
   const f = next.findings[i];
   const when = isIsoDateTime(date) ? date : new Date().toISOString();
+  // What an undo restores: the resolution before the first dismissal (kept across re-dismissals).
+  const before = ['DISMISSED', 'INTENTIONAL'].includes(previous.resolution) ? previousResolutionOf(previous) : previous.resolution;
+  const restore = RESTORABLE_RESOLUTIONS.includes(before) ? { previousResolution: before } : {};
   if (k === 'intentional') {
     f.resolution = 'INTENTIONAL';
-    f.signoff = { by: orNull(by) ?? 'unknown', date: when, reason: text(reason) };
+    f.signoff = { by: orNull(by) ?? 'unknown', date: when, reason: text(reason), ...restore };
     delete f.dismissal;
   } else {
     f.resolution = 'DISMISSED';
-    f.dismissal = { kind: k, reason: text(reason), by: orNull(by), date: when, source, priorRef: priorRef ?? null };
+    f.dismissal = { kind: k, reason: text(reason), by: orNull(by), date: when, source, priorRef: priorRef ?? null, ...restore };
     f.signoff = null;
   }
   f.rank = { score: 0, bucket: 'none' };
@@ -116,27 +127,35 @@ export function applyDismissal(report, findingId, { kind, reason, by = null, dat
   return { report: next, finding: f, previous };
 }
 
+/** The resolution a dismissed / accepted finding had before (previousResolution), else null. */
+export function previousResolutionOf(finding) {
+  const record = finding?.resolution === 'DISMISSED' ? finding.dismissal : finding?.resolution === 'INTENTIONAL' ? finding.signoff : null;
+  const value = isObj(record) ? record.previousResolution : null;
+  return RESTORABLE_RESOLUTIONS.includes(value) ? value : null;
+}
+
 /**
- * Undo a dismissal (or an accepted-as-intentional sign-off): resolution back to
- * FIX_CODE, dismissal and signoff removed, rank cleared (null: re-ranked on render).
- * When the report has a triage block the finding returns to it as "fix-now".
- * Returns { report, finding, previous }; throws on an unknown id or a finding that
- * is neither DISMISSED nor INTENTIONAL.
+ * Undo a dismissal (or an accepted-as-intentional sign-off): resolution back to what
+ * it was before (previousResolution: UNCLASSIFIED or DATA; FIX_CODE when unknown),
+ * dismissal and signoff removed, rank cleared (null: re-ranked on render). A finding
+ * back at FIX_CODE returns to the report's triage block (when there is one) as
+ * "fix-now". Returns { report, finding, previous }; throws on an unknown id or a
+ * finding that is neither DISMISSED nor INTENTIONAL.
  */
 export function undoDismissal(report, findingId) {
   const i = findIndex(report, findingId);
   if (i < 0) throw new Error(`unknown finding id: ${findingId}`);
   const previous = report.findings[i];
   if (!['DISMISSED', 'INTENTIONAL'].includes(previous.resolution)) {
-    throw new Error(`${findingId} is ${previous.resolution}, not dismissed or accepted as intentional; nothing to undo`);
+    throw new Error(`${findingId} is ${oneLine(previous.resolution)}, not dismissed or accepted as intentional; nothing to undo`);
   }
   const next = cloneReport(report);
   const f = next.findings[i];
-  f.resolution = 'FIX_CODE';
+  f.resolution = previousResolutionOf(previous) ?? 'FIX_CODE';
   delete f.dismissal;
   f.signoff = null;
   f.rank = null;
-  if (isObj(next.triage) && Array.isArray(next.triage.items) && !next.triage.items.some((item) => item?.findingId === findingId)) {
+  if (f.resolution === 'FIX_CODE' && isObj(next.triage) && Array.isArray(next.triage.items) && !next.triage.items.some((item) => item?.findingId === findingId)) {
     const order = new Map(next.findings.map((x, j) => [x.id, j]));
     next.triage.items = [...next.triage.items, { findingId, decision: 'fix-now', reason: 'Dismissal undone.', ticket: null }].sort(
       (a, b) => (order.get(a.findingId) ?? 0) - (order.get(b.findingId) ?? 0),
@@ -211,26 +230,30 @@ export function parseChatDismissMessage(message) {
       continue;
     }
     if (/^DQ-\d/i.test(line)) {
-      throw new Error(`cannot read "${line}": expected "DQ-004 not-an-issue|remove|intentional — <reason>"`);
+      throw new Error(`cannot read "${oneLine(line)}": expected "DQ-004 not-an-issue|remove|intentional — <reason>"`);
     }
     if (items.length) {
       const last = items[items.length - 1];
       last.reason = last.reason ? `${last.reason} ${line}` : line;
       continue;
     }
-    throw new Error(`cannot read "${line}": the message starts with "/design-qa dismiss <slug>"`);
+    throw new Error(`cannot read "${oneLine(line)}": the message starts with "/design-qa dismiss <slug>"`);
   }
   if (!items.length) throw new Error('no dismissals found (expected lines like "DQ-004 not-an-issue — <reason>")');
   return { feature: null, slug, reportGeneratedAt: null, decidedBy, items };
 }
 
-/** The chat message for a list of { findingId, kind, reason } (inverse of parseChatDismissMessage). */
+/**
+ * The chat message for a list of { findingId, kind, reason } (inverse of
+ * parseChatDismissMessage). Every value is folded to one line (oneLine), so a reason
+ * can never add an item line of its own.
+ */
 export function formatChatDismissMessage({ slug, items = [], decidedBy = null } = {}) {
-  const lines = [`/design-qa dismiss ${slug || 'report'}`];
+  const lines = [`/design-qa dismiss ${oneLine(slug) || 'report'}`];
   for (const item of items) {
-    lines.push(`${item.findingId} ${normalizeKind(item.kind) ?? item.kind} — ${String(item.reason ?? '').replace(/\s*\r?\n\s*/g, ' ').trim()}`);
+    lines.push(`${oneLine(item.findingId)} ${normalizeKind(item.kind) ?? oneLine(item.kind)} — ${oneLine(item.reason)}`);
   }
-  if (orNull(decidedBy)) lines.push(`by: ${text(decidedBy)}`);
+  if (orNull(decidedBy)) lines.push(`by: ${oneLine(decidedBy)}`);
   return lines.join('\n');
 }
 
@@ -385,7 +408,15 @@ export function applyPriorDismissals(report, log) {
   return { report: next, applied, changed };
 }
 
-const cell = (v) => String(v ?? DASH).replace(/\r?\n/g, ' ').replace(/\|/g, '\\|') || DASH;
+/**
+ * A Markdown table cell: one line (every line break, including a lone \r, and control
+ * character folded), backslashes and pipes escaped so a value can neither end the
+ * row nor shift the columns.
+ */
+export const mdCell = (v) => oneLine(v ?? DASH).replace(/[\\|]/g, '\\$&') || DASH;
+/** Heading text: one line, a leading #, >, list marker or fence run escaped. */
+export const mdHeading = (v) => oneLine(v).replace(/^([#>+=*-]|`{3,}|~{3,})/, '\\$1');
+const cell = mdCell;
 const day = (iso) => (/^\d{4}-\d{2}-\d{2}/.test(String(iso ?? '')) ? String(iso).slice(0, 10) : DASH);
 
 /** dismissed.md: title, "active n · undone m", then one table per feature. */
@@ -407,7 +438,7 @@ export function renderDismissedMarkdown(log) {
   }
   for (const [name, list] of [...groups].sort((a, b) => a[0].localeCompare(b[0]))) {
     const slug = list.find((e) => e.slug)?.slug;
-    lines.push('', `## ${name}${slug && slug !== name ? ` (${slug})` : ''}`, '');
+    lines.push('', `## ${mdHeading(name)}${slug && slug !== name ? ` (${oneLine(slug)})` : ''}`, '');
     lines.push('| ID | Finding | Kind | Reason | By | Date | Status |', '|---|---|---|---|---|---|---|');
     for (const e of list) {
       const finding = [e.findingId, e.title].filter(Boolean).join(' — ');

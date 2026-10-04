@@ -5,12 +5,14 @@
 // debt item of a triaged report (--tickets-from) and record it in report.json.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { CliError, displayPath, parseCli, readJsonFile, runMain, usageError, writeJson } from './lib/args.mjs';
+import { CliError, displayPath, formatIssues, oneLine, parseCli, readJsonFile, runMain, usageError, writeJson } from './lib/args.mjs';
 import { textToAdf } from './lib/adf.mjs';
 import { DASH, parseDebtItems, sourceLocation } from './lib/fixplan.mjs';
-import { describeUrl, fetchWithRetry, readJsonResponse } from './lib/http.mjs';
+import { apiBaseUrl, describeUrl, fetchWithRetry, readJsonResponse, retryMessage } from './lib/http.mjs';
 import { computeScorecard, resolveOptions, triageIndex } from './lib/ranking.mjs';
+import { shellArg } from './lib/review-context.mjs';
 import { validateConfig, validateReport } from './lib/schema-check.mjs';
+import { normalizeTicketKey } from './lib/target-url.mjs';
 import { buildJiraTicket } from './lib/ticket-extract.mjs';
 import { DEBT_OWNER, triageLists } from './lib/triage.mjs';
 
@@ -48,19 +50,40 @@ Options:
   -h, --help           show this help
 
 Environment:
-  JIRA_BASE_URL        e.g. https://your-site.atlassian.net
+  JIRA_BASE_URL        e.g. https://your-site.atlassian.net (https:// required; http:// only
+                       for localhost)
   JIRA_EMAIL           Atlassian account email
   JIRA_API_TOKEN       API token (id.atlassian.com → Security → API tokens)
 
 ticket.json: { provider, key, url, title, status, description (plain text from ADF),
 acceptanceCriteria, expectedBehaviors [{ acRef, text, state, trigger }], figmaUrls,
 prototypeUrls, previewUrls, prUrls, otherUrls, branches, attachments, fetchedAt }. Links are read
-from the description, comments and remote links.
+from the description, comments and remote links; previewUrlSources maps each preview URL to
+where it was found (description, comment or remote-link).
+
+Reads (GET) are retried on HTTP 429/5xx and network errors; writes (comments, issues) only
+on HTTP 429 or when no connection could be made, so nothing is posted twice. Each request
+times out after 30 s (DESIGN_QA_HTTP_TIMEOUT_MS, in ms). Credentials are only sent to
+JIRA_BASE_URL: a redirect to another host is refused.
 
 Exit codes: 0 ok · 1 error (issue not found, request failed) · 2 bad arguments ·
 6 authentication (credentials missing or rejected)`;
 
-const KEY_RE = /^[A-Z][A-Z0-9_]+-\d+$/;
+// Warnings quote Jira and report text: always one line.
+const warn = (msg) => console.error(`warning: ${oneLine(msg)}`);
+
+/**
+ * JSON for the terminal: JSON.stringify escapes line breaks inside strings but not
+ * U+0085, U+2028, U+2029 or the C1 controls, which some readers treat as line breaks.
+ */
+const printableJson = (value) => JSON.stringify(value, null, 2).replace(/[\u007f-\u009f\u2028\u2029]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+
+/** A text file shown as a quoted preview: every line prefixed, so none starts a line of its own. */
+const quotedLines = (text) =>
+  text
+    .split(/\r\n|[\n\r\v\f\u0085\u2028\u2029]/)
+    .map((l) => `  | ${l.replace(/[\u0000-\u0008\u000e-\u001f\u007f-\u009f]/g, ' ')}`)
+    .join('\n');
 
 function credentials() {
   const base = process.env.JIRA_BASE_URL;
@@ -68,8 +91,7 @@ function credentials() {
   const token = process.env.JIRA_API_TOKEN;
   const missing = [['JIRA_BASE_URL', base], ['JIRA_EMAIL', email], ['JIRA_API_TOKEN', token]].filter(([, v]) => !v).map(([k]) => k);
   if (missing.length) throw new CliError(`missing environment variable(s): ${missing.join(', ')} (see --help)`, 6);
-  if (!/^https?:\/\//.test(base)) throw usageError(`JIRA_BASE_URL must start with https:// (got "${base}")`);
-  return { base: base.replace(/\/+$/, ''), auth: `Basic ${Buffer.from(`${email}:${token}`).toString('base64')}` };
+  return { base: apiBaseUrl(base, 'JIRA_BASE_URL'), auth: `Basic ${Buffer.from(`${email}:${token}`).toString('base64')}` };
 }
 
 function makeApi({ base, auth }) {
@@ -81,7 +103,8 @@ function makeApi({ base, auth }) {
         headers: { Authorization: auth, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
         body: body ? JSON.stringify(body) : undefined,
       },
-      { label },
+      // sameOrigin: never follow a redirect off JIRA_BASE_URL with the credentials.
+      { label, sameOrigin: true, onRetry: (info) => warn(retryMessage(label, info)) },
     );
     if (res.status === 401 || res.status === 403) {
       throw new CliError(
@@ -96,16 +119,22 @@ function makeApi({ base, auth }) {
 async function errorText(res) {
   try {
     const json = JSON.parse(await res.text());
-    return [...(json.errorMessages || []), ...Object.values(json.errors || {})].join('; ') || `HTTP ${res.status}`;
+    return oneLine([...(json.errorMessages || []), ...Object.values(json.errors || {})].join('; ')) || `HTTP ${res.status}`;
   } catch {
     return `HTTP ${res.status}`;
   }
 }
 
+/** errorText for a failed write; a 5xx may still have been applied, so a blind re-run could duplicate it. */
+async function writeErrorText(res) {
+  const text = await errorText(res);
+  return res.status >= 500 ? `${text} (Jira may have applied it anyway: check the issue before re-running)` : text;
+}
+
 async function fetchIssue(api, key, fields) {
   const res = await api('GET', `/rest/api/3/issue/${encodeURIComponent(key)}?fields=${fields}`, null, `issue ${key}`);
   if (res.status === 404) throw new CliError(`issue ${key} was not found (or this account cannot see it)`, 1);
-  if (!res.ok) throw new CliError(`fetching ${key} failed: ${await errorText(res)} (${describeUrl(res.url)})`, 1);
+  if (!res.ok) throw new CliError(`fetching ${key} failed: ${await errorText(res)} (${oneLine(describeUrl(res.url))})`, 1);
   return readJsonResponse(res, `issue ${key}`);
 }
 
@@ -139,8 +168,8 @@ async function main(argv) {
     if (values[flag]) throw usageError(`--${flag} is only used with --tickets-from`);
   }
   if (!values.issue) throw usageError('--issue <KEY> is required (see --help)');
-  const key = values.issue.trim().toUpperCase();
-  if (!KEY_RE.test(key)) throw usageError(`--issue: "${values.issue}" is not an issue key like ABC-123`);
+  const key = normalizeTicketKey(values.issue);
+  if (!key) throw usageError(`--issue: "${oneLine(values.issue)}" is not an issue key like ABC-123`);
   if (!values.out && !values.comment && !values.subtasks) throw usageError('nothing to do: pass --out <dir>, --comment <file> or --subtasks <fixplan.md>');
   if (values.write && !values.comment && !values.subtasks) throw usageError('--write needs --comment <file> or --subtasks <fixplan.md>');
 
@@ -148,11 +177,11 @@ async function main(argv) {
     try {
       return readFileSync(file, 'utf8');
     } catch (err) {
-      throw usageError(`cannot read ${label} ${file}: ${err.code === 'ENOENT' ? 'file not found' : err.message}`);
+      throw usageError(`cannot read ${label} ${oneLine(file)}: ${err.code === 'ENOENT' ? 'file not found' : oneLine(err.message)}`);
     }
   };
   const commentText = values.comment ? readText(values.comment, 'comment file') : null;
-  if (commentText !== null && !commentText.trim()) throw usageError(`comment file ${values.comment} is empty`);
+  if (commentText !== null && !commentText.trim()) throw usageError(`comment file ${oneLine(values.comment)} is empty`);
   const debt = values.subtasks ? parseDebtItems(readText(values.subtasks, 'fix plan')) : null;
 
   // A pure dry run (no --out, no --write) never touches the network or needs credentials.
@@ -171,28 +200,29 @@ async function main(argv) {
     const ticket = buildJiraTicket(issue, { baseUrl: creds.base, remoteLinks: Array.isArray(remoteLinks) ? remoteLinks : [] });
     const file = path.join(path.resolve(values.out), 'ticket.json');
     writeJson(file, ticket);
-    log(`${ticket.key}: ${ticket.title ?? '(no title)'} [${ticket.status ?? 'no status'}]`);
-    log(`  ${ticket.acceptanceCriteria.length} acceptance criteria · states: ${[...new Set(ticket.expectedBehaviors.map((b) => b.state).filter(Boolean))].join(', ') || 'none'}`);
-    log(`  Figma: ${ticket.figmaUrls.length} · prototype: ${ticket.prototypeUrls.length} · preview: ${ticket.previewUrls.length} · PRs: ${ticket.prUrls.length} · branches: ${ticket.branches.join(', ') || 'none'}`);
-    log(`Wrote ${displayPath(file)}`);
+    // Ticket text is written by anyone who can edit the issue: every value folded to one line.
+    log(`${oneLine(ticket.key)}: ${oneLine(ticket.title ?? '(no title)')} [${oneLine(ticket.status ?? 'no status')}]`);
+    log(`  ${ticket.acceptanceCriteria.length} acceptance criteria · states: ${[...new Set(ticket.expectedBehaviors.map((b) => oneLine(b.state)).filter(Boolean))].join(', ') || 'none'}`);
+    log(`  Figma: ${ticket.figmaUrls.length} · prototype: ${ticket.prototypeUrls.length} · preview: ${ticket.previewUrls.length} · PRs: ${ticket.prUrls.length} · branches: ${ticket.branches.map(oneLine).join(', ') || 'none'}`);
+    log(`Wrote ${oneLine(displayPath(file))}`);
   }
 
   if (commentText !== null) {
     const body = { body: textToAdf(commentText) };
     if (!values.write) {
       log(`[dry run] would add a comment to ${key} (${body.body.content.length} paragraph(s)); re-run with --write to post:`);
-      log(commentText.trim().split(/\r?\n/).map((l) => `  | ${l}`).join('\n'));
+      log(quotedLines(commentText.trim()));
     } else {
       const res = await api('POST', `/rest/api/3/issue/${encodeURIComponent(key)}/comment`, body, `comment on ${key}`);
-      if (!res.ok) throw new CliError(`posting the comment failed: ${await errorText(res)}`, 1);
+      if (!res.ok) throw new CliError(`posting the comment failed: ${await writeErrorText(res)}`, 1);
       const json = await readJsonResponse(res, 'comment');
-      log(`Posted comment ${json.id ?? ''} on ${key}`);
+      log(`Posted comment ${oneLine(json.id ?? '')} on ${key}`);
     }
   }
 
   if (debt) {
     if (!debt.length) {
-      log(`no "## Debt" items in ${values.subtasks}; nothing to create`);
+      log(`no "## Debt" items in ${oneLine(values.subtasks)}; nothing to create`);
       return 0;
     }
     const project = key.replace(/-\d+$/, '');
@@ -200,10 +230,10 @@ async function main(argv) {
     const existing = values.write ? (await fetchIssue(api, key, 'subtasks')).fields?.subtasks ?? [] : [];
     const existingText = existing.map((s) => s?.fields?.summary ?? '').join('\n');
     const tracked = debt.filter((item) => item.ticket);
-    for (const item of tracked) log(`skip ${item.id}: already tracked by ${item.ticket}`);
+    for (const item of tracked) log(`skip ${oneLine(item.id)}: already tracked by ${oneLine(item.ticket)}`);
     const planned = debt.filter((item) => !item.ticket && !new RegExp(`\\b${item.id}\\b`).test(existingText));
     for (const item of debt) {
-      if (!item.ticket && !planned.includes(item)) log(`skip ${item.id}: a sub-task already mentions it`);
+      if (!item.ticket && !planned.includes(item)) log(`skip ${oneLine(item.id)}: a sub-task already mentions it`);
     }
     for (const item of planned) {
       const summary = `${item.id} — ${item.title}`.slice(0, 250);
@@ -216,13 +246,13 @@ async function main(argv) {
         labels: ['design-qa'],
       };
       if (!values.write) {
-        log(`[dry run] would create ${issuetype} under ${key}: ${summary}`);
+        log(`[dry run] would create ${oneLine(issuetype)} under ${key}: ${oneLine(summary)}`);
         continue;
       }
       const res = await api('POST', '/rest/api/3/issue', { fields }, `create sub-task ${item.id}`);
-      if (!res.ok) throw new CliError(`creating the sub-task for ${item.id} failed: ${await errorText(res)}`, 1);
+      if (!res.ok) throw new CliError(`creating the sub-task for ${oneLine(item.id)} failed: ${await writeErrorText(res)}`, 1);
       const json = await readJsonResponse(res, 'create issue');
-      log(`Created ${json.key ?? '(unknown key)'} — ${summary}`);
+      log(`Created ${normalizeTicketKey(json.key) ?? '(unknown key)'} — ${oneLine(summary)}`);
     }
     if (!values.write) log('Re-run with --write to create them (existing sub-tasks are checked then).');
   }
@@ -266,21 +296,20 @@ export function debtIssueFields(finding, item, report, { project, parent = null,
 }
 
 async function ticketsFromReport(values, log) {
-  const warn = (msg) => console.error(`warning: ${msg}`);
   const reportFile = path.resolve(values['tickets-from']);
   const report = readJsonFile(reportFile, 'report', 2);
   let config = {};
   if (values.config) {
     config = readJsonFile(path.resolve(values.config), 'config', 2);
     const cv = validateConfig(config);
-    if (!cv.valid) throw usageError(`--config is invalid:\n${cv.errors.map((e) => `  ${e.path}: ${e.message}`).join('\n')}`);
+    if (!cv.valid) throw usageError(`--config is invalid:\n${formatIssues(cv.errors)}`);
   }
   const options = resolveOptions(config);
   const check = validateReport(report, { options, skipScorecard: true });
   if (!check.valid) {
-    throw new CliError(`${displayPath(reportFile)} is not a valid report:\n${check.errors.map((e) => `  ${e.path}: ${e.message}`).join('\n')}`, 1);
+    throw new CliError(`${oneLine(displayPath(reportFile))} is not a valid report:\n${formatIssues(check.errors)}`, 1);
   }
-  if (!report.triage) throw usageError(`${displayPath(reportFile)} has no triage block: run triage.mjs first`);
+  if (!report.triage) throw usageError(`${oneLine(displayPath(reportFile))} has no triage block: run triage.mjs first`);
 
   const index = triageIndex(report);
   const todo = triageLists(report, options).debt.filter((f) => !index.get(f.id)?.ticket);
@@ -291,28 +320,26 @@ async function ticketsFromReport(values, log) {
 
   const debtConfig = config.ticket?.debt ?? {};
   const autoParent =
-    (debtConfig.parent === undefined || debtConfig.parent === 'auto') && report.meta?.ticket?.provider === 'jira' && KEY_RE.test(report.meta.ticket.key ?? '')
-      ? report.meta.ticket.key
-      : null;
-  const parent = values.parent ? values.parent.trim().toUpperCase() : autoParent;
-  if (parent && !KEY_RE.test(parent)) throw usageError(`--parent: "${values.parent}" is not an issue key like ABC-123`);
+    (debtConfig.parent === undefined || debtConfig.parent === 'auto') && report.meta?.ticket?.provider === 'jira' ? normalizeTicketKey(report.meta.ticket.key) : null;
+  const parent = values.parent ? normalizeTicketKey(values.parent) : autoParent;
+  if (values.parent && !parent) throw usageError(`--parent: "${oneLine(values.parent)}" is not an issue key like ABC-123`);
   const project = values.project ? values.project.trim().toUpperCase() : debtConfig.project ?? (parent ? parent.replace(/-\d+$/, '') : null);
   if (!project) throw usageError('no parent issue (meta.ticket.key) and no project: pass --parent KEY or --project KEY');
-  if (!PROJECT_RE.test(project)) throw usageError(`--project: "${project}" is not a Jira project key like ABC`);
+  if (!PROJECT_RE.test(project)) throw usageError(`--project: "${oneLine(project)}" is not a Jira project key like ABC`);
   const issuetype = values.issuetype ?? debtConfig.issueType ?? (parent ? 'Sub-task' : 'Task');
   if (/sub-?task/i.test(issuetype) && !parent) throw usageError('a Sub-task needs a parent: pass --parent KEY, or --issuetype Task with --project KEY');
   const labels = values.labels ? values.labels.split(',').map((l) => l.trim()).filter(Boolean) : debtConfig.labels ?? ['design-qa', 'design-debt'];
   const badLabel = labels.find((l) => /\s/.test(l));
-  if (badLabel) throw usageError(`Jira labels cannot contain spaces (got "${badLabel}")`);
+  if (badLabel) throw usageError(`Jira labels cannot contain spaces (got "${oneLine(badLabel)}")`);
 
   const reportPath = displayPath(reportFile);
   const payloads = todo.map((f) => ({ finding: f, fields: debtIssueFields(f, index.get(f.id), report, { project, parent, issuetype, labels, reportPath }) }));
   const target = parent ? `under ${parent}` : `in project ${project}`;
   if (!values.write) {
-    log(`[dry run] would create ${payloads.length} ${issuetype} issue(s) ${target}; re-run with --write to create them and record them in the report:`);
+    log(`[dry run] would create ${payloads.length} ${oneLine(issuetype)} issue(s) ${oneLine(target)}; re-run with --write to create them and record them in the report:`);
     for (const p of payloads) {
-      log(`\n# ${p.finding.id} — ${p.fields.summary}`);
-      log(JSON.stringify({ fields: p.fields }, null, 2));
+      log(`\n# ${oneLine(p.finding.id)} — ${oneLine(p.fields.summary)}`);
+      log(printableJson({ fields: p.fields }));
     }
     return 0;
   }
@@ -324,11 +351,13 @@ async function ticketsFromReport(values, log) {
   for (const p of payloads) {
     try {
       const res = await api('POST', '/rest/api/3/issue', { fields: p.fields }, `create a ticket for ${p.finding.id}`);
-      if (!res.ok) throw new CliError(`creating the ticket for ${p.finding.id} failed: ${await errorText(res)}`, 1);
+      if (!res.ok) throw new CliError(`creating the ticket for ${oneLine(p.finding.id)} failed: ${await writeErrorText(res)}`, 1);
       const json = await readJsonResponse(res, 'create issue');
-      if (!json.key) throw new CliError(`Jira did not return a key for ${p.finding.id}`, 1);
-      created.set(p.finding.id, { provider: 'jira', key: json.key, url: `${creds.base}/browse/${json.key}`, createdAt: new Date().toISOString() });
-      log(`Created ${json.key} ${target} — ${p.fields.summary}`);
+      // The key goes into report.json and a URL: only an issue key like ABC-123.
+      const newKey = normalizeTicketKey(json.key);
+      if (!newKey) throw new CliError(`Jira did not return an issue key for ${oneLine(p.finding.id)}${json.key ? ` (got ${JSON.stringify(oneLine(String(json.key).slice(0, 40)))})` : ''}; check Jira before re-running`, 1);
+      created.set(p.finding.id, { provider: 'jira', key: newKey, url: `${creds.base}/browse/${newKey}`, createdAt: new Date().toISOString() });
+      log(`Created ${newKey} ${oneLine(target)} — ${oneLine(p.fields.summary)}`);
     } catch (err) {
       failure = err;
       break;
@@ -344,12 +373,12 @@ async function ticketsFromReport(values, log) {
     writeJson(reportFile, next);
     const sc = next.scorecard;
     log(
-      `Recorded ${created.size} ticket(s) in ${reportPath}` +
+      `Recorded ${created.size} ticket(s) in ${oneLine(reportPath)}` +
         (sc.unexplained !== undefined ? ` — unexplained ${sc.unexplained}, debt ${sc.debt.ticketed}/${sc.debt.count} ticketed, verdict ${sc.verdict}` : ''),
     );
     const after = validateReport(next, { options });
     for (const e of after.errors) warn(`${e.path}: ${e.message}`);
-    log('Next: debt-log.mjs --report ' + reportPath + ', then re-render the report.');
+    log(`Next: debt-log.mjs --report ${shellArg(reportPath)}, then re-render the report.`);
   }
   if (failure) throw failure;
   return 0;

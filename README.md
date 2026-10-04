@@ -208,20 +208,18 @@ Each dismissal is recorded in `report.json` (resolution `DISMISSED` with kind, r
 
 ## States
 
-Expected states come from three places, merged:
+Only the design defines which states exist. Three places feed the state matrix, each with its own job:
 
-Only the design defines states:
-
-1. **Figma** — variants, state-named frames, prototype reactions, and annotations on the frame; or the routes, toggles and interactions of a coded prototype.
-2. **The ticket** — acceptance criteria add behaviour and motion checks to the designed states they mention (Jira today; see [Contributing](#contributing) to add another tracker).
-3. **The config** — `surfaces.<name>.states`, each with a driver that puts the app into a designed state: `fixture`, `query`, `mock`, `storage`, or `action` (see the example config for all five).
+1. **The design** — defines the states: variants, state-named frames, prototype reactions, and annotations on the frame; or the routes, toggles and interactions of a coded prototype.
+2. **The ticket** — acceptance criteria add behaviour and motion checks to the designed states they mention (Jira today; see [Contributing](#contributing) to add another tracker). A state only the ticket names is not added.
+3. **The config** — `surfaces.<name>.states`, each with a driver that puts the app into a designed state: `fixture`, `query`, `mock`, `storage`, or `action` (see the example config for all five). A configured state the design lacks is not added either.
 
 The state coverage grid in the report classifies every designed state:
 
 - **Missing in code** — designed, not implemented → blocker.
 - **Unreachable** — designed and implemented, but the skill couldn't drive the app into it → reported as unverifiable, with the missing hook (fixture, mock route, selector, etc.) named.
 
-A state that exists only in code is not part of the parity pass: it is listed for step 2, [design backfill](#two-steps-parity-then-design-backfill), which builds its frame in Figma once production matches the design. Anything extra the app renders inside a designed state is a finding against the code.
+A state that exists only in code, the ticket or the config is not part of the parity pass: it is listed for step 2, [design backfill](#two-steps-parity-then-design-backfill), which builds its frame in Figma once production matches the design. Anything extra the app renders inside a designed state is a finding against the code.
 
 ## Motion
 
@@ -262,7 +260,9 @@ It runs the skill headlessly against a PR's preview URL and gates the PR on:
 
 In CI the skill records the default triage, never creates tickets, and lists the proposed debt in the PR comment for a person to confirm.
 
-Secrets the adopter sets: `ANTHROPIC_API_KEY`, `FIGMA_TOKEN`, `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and any of `DESIGN_QA_APP_USER`, `DESIGN_QA_APP_PASS`, `DESIGN_QA_APP_COOKIE` and `DESIGN_QA_APP_STORAGE_STATE_JSON` (a Playwright storageState JSON blob; the workflow writes it to a file) the target app needs. `GITHUB_TOKEN` is provided by Actions automatically.
+Secrets the adopter sets: `ANTHROPIC_API_KEY`, `FIGMA_TOKEN`, `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and any of `DESIGN_QA_APP_USER`, `DESIGN_QA_APP_PASS`, `DESIGN_QA_APP_COOKIE` and `DESIGN_QA_APP_STORAGE_STATE_JSON` (a Playwright storageState JSON blob; the workflow writes it to a file) the target app needs. `GITHUB_TOKEN` is provided by Actions automatically. Give each secret the least privilege that works: the agent reads ticket, Figma and app text that other people write, and treats it as data, never as instructions.
+
+The workflow skips pull requests from forks and from Dependabot (they get no secrets), pins its actions and the Claude Code CLI to exact versions, and keeps the report artifact for 7 days. On a public repository the PR comment and the artifact are public; read [Secrets in `ci.md`](skills/design-qa/references/ci.md#secrets) first, along with what to commit under `qa-reports/` (the dismissal and debt logs, not the evidence).
 
 ## How it stays honest
 

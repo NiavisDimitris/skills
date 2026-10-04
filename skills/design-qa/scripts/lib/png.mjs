@@ -1,15 +1,45 @@
 // PNG helpers on top of pngjs: read/write, synthetic images, rectangle fills and
-// a header-only size reader. Unreadable PNGs raise CliError with exit code 3.
-import { readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { CliError, ensureDir } from './args.mjs';
+// a header-only size reader. Unreadable PNGs raise CliError with exit code 3, and so do
+// PNGs whose header declares more pixels than the decode limit (checked before decoding:
+// a few KB of compressed data can declare 40000×40000, gigabytes once decoded).
+import { readFileSync } from 'node:fs';
+import { CliError, writeFileAtomic } from './args.mjs';
 import { importDependency } from './deps.mjs';
 
 const { PNG } = await importDependency('pngjs');
 
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
+/** Default decode limit: 64 Mi pixels, 67108864 (a 2880×22000 full-page capture fits). */
+export const DEFAULT_MAX_PNG_PIXELS = 64 * 1024 * 1024;
+
+/** The decode limit in pixels: DESIGN_QA_MAX_PNG_PIXELS (a positive integer) or the default. */
+export function maxPngPixels(env = process.env) {
+  const raw = env.DESIGN_QA_MAX_PNG_PIXELS;
+  if (raw === undefined || raw === '') return DEFAULT_MAX_PNG_PIXELS;
+  const n = Number(raw);
+  if (!Number.isSafeInteger(n) || n <= 0) throw new CliError(`DESIGN_QA_MAX_PNG_PIXELS must be a positive integer (got "${raw}")`, 2);
+  return n;
+}
+
+/**
+ * Refuse a PNG whose IHDR declares more than maxPixels (width × height) before it is
+ * decoded. Buffers that are not PNGs are left to the decoder's own error.
+ */
+export function checkPngSize(buffer, label = 'image', maxPixels = maxPngPixels()) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 24 || !buffer.subarray(0, 8).equals(SIGNATURE)) return;
+  const { width, height } = pngSize(buffer);
+  if (width * height > maxPixels) {
+    throw new CliError(
+      `${label} declares ${width}×${height} = ${width * height} pixels, above the decode limit of ${maxPixels} pixels; ` +
+        'set DESIGN_QA_MAX_PNG_PIXELS to a larger pixel count if the image is genuine',
+      3,
+    );
+  }
+}
+
 export function decodePng(buffer, label = 'image') {
+  checkPngSize(buffer, label);
   try {
     return PNG.sync.read(buffer);
   } catch (err) {
@@ -32,9 +62,9 @@ export function encodePng(png) {
   return PNG.sync.write(png);
 }
 
+/** Encode and write atomically; a destination that is a symbolic link or a directory is refused (CliError, exit 1). */
 export function writePng(file, png) {
-  ensureDir(path.dirname(file));
-  writeFileSync(file, encodePng(png));
+  writeFileAtomic(file, encodePng(png));
 }
 
 /** A solid-colour RGBA image (used by tests and fixtures). */

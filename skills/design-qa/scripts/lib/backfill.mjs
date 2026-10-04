@@ -19,6 +19,7 @@ import {
   isLoopClosed,
   unexplainedFindings,
 } from './ranking.mjs';
+import { isRfc3339DateTime } from './schema-check.mjs';
 import { stateLabel } from './state-discovery.mjs';
 import { reportSlug } from './triage.mjs';
 
@@ -41,8 +42,9 @@ export class BackfillGateError extends Error {
   }
 }
 
+/** A date-time the validator accepts (RFC 3339); anything else falls back to "now" where it is recorded. */
 export function isIsoDateTime(value) {
-  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) && !Number.isNaN(Date.parse(value));
+  return isRfc3339DateTime(value);
 }
 
 /** "BF-001" for 1 (three digits at least). */
@@ -177,13 +179,15 @@ export function newItem(id, candidate) {
  * block when missing). Existing items keep their id, label, capture, anchor,
  * components, tokens, decision and Figma frame; discoveredBy, detail and driver are
  * refreshed (a null detail/driver never overwrites a known one). States the design
- * defines (stateMatrix rows) are skipped. Returns { report, added, updated, skipped:
- * [{ state, why }] } (ids). Throws on an invalid candidate.
+ * defines (stateMatrix rows, compared without letter case, as items are) are skipped.
+ * Returns { report, added, updated, skipped: [{ state, why }] } (ids). Throws on an
+ * invalid candidate.
  */
 export function mergeCandidates(report, candidates = []) {
   const next = cloneWithBackfill(report);
   const items = next.backfill.items;
-  const designed = new Set((Array.isArray(next.stateMatrix) ? next.stateMatrix : []).map((r) => r?.state).filter(Boolean));
+  const designedStates = (Array.isArray(next.stateMatrix) ? next.stateMatrix : []).map((r) => r?.state).filter((s) => typeof s === 'string' && s);
+  const designed = new Map(designedStates.map((s) => [s.toLowerCase(), s]));
   const key = (screen, state) => `${screen ?? ''}::${String(state).toLowerCase()}`;
   const byKey = new Map(items.map((i) => [key(i.screen ?? null, i.state), i]));
   let max = items.reduce((m, i) => Math.max(m, idNumber(i.id)), 0);
@@ -192,8 +196,10 @@ export function mergeCandidates(report, candidates = []) {
   const skipped = [];
   candidates.forEach((raw, i) => {
     const c = normalizeCandidate(raw, `candidates[${i}]`);
-    if (designed.has(c.state)) {
-      skipped.push({ state: c.state, why: 'the design defines it (a stateMatrix row)' });
+    const row = designed.get(c.state.toLowerCase());
+    if (row !== undefined) {
+      const why = row === c.state ? 'the design defines it (a stateMatrix row)' : `the design defines it as "${row}" (a stateMatrix row; the ids differ only by letter case)`;
+      skipped.push({ state: c.state, why });
       return;
     }
     const existing = byKey.get(key(c.screen, c.state));
@@ -217,9 +223,11 @@ export function mergeCandidates(report, candidates = []) {
  * Attach app-only evidence from a capture.json written by
  * capture.mjs --out <dir>/evidence/backfill. `prefix` is the capture folder relative
  * to report.json (e.g. "evidence/backfill"); the manifest's paths are relative to it.
- * A capture state matches an item whose state (without the screen prefix) equals it;
- * `screen` restricts matching to that screen's items. Returns { report, attached:
- * [{ id, state }], failed: [{ id, state, reason }], unmatched: [capture state] }.
+ * A capture state matches an item whose state equals it, else the one item whose state
+ * without the screen prefix equals it; `screen` restricts matching to that screen's
+ * items. Throws when an unprefixed name is an item on more than one screen and no
+ * `screen` is given (a capture of one screen would be attached to another). Returns
+ * { report, attached: [{ id, state }], failed: [{ id, state, reason }], unmatched: [capture state] }.
  */
 export function attachCaptures(report, capture, { prefix = '', screen = null } = {}) {
   if (!isObj(capture) || !isObj(capture.states)) throw new Error('not a capture.json (no "states" object)');
@@ -231,7 +239,15 @@ export function attachCaptures(report, capture, { prefix = '', screen = null } =
   const rel = (p) => (typeof p === 'string' && p ? (p.startsWith('/') ? p : posixJoin(prefix, p)) : null);
   for (const [key, entry] of Object.entries(capture.states)) {
     const k = String(key).toLowerCase();
-    const item = items.find((i) => String(i.state).toLowerCase() === k) ?? items.find((i) => stripScreen(i.state).toLowerCase() === k);
+    let item = items.find((i) => String(i.state).toLowerCase() === k);
+    if (!item) {
+      const candidates = items.filter((i) => stripScreen(i.state).toLowerCase() === k);
+      if (candidates.length > 1) {
+        const which = candidates.map((i) => `${i.id} ${i.state}`).join(', ');
+        throw new Error(`capture state "${key}" matches more than one backfill item (${which}): pass --screen <id> for the screen this capture is of`);
+      }
+      item = candidates[0];
+    }
     if (!item) {
       unmatched.push(key);
       continue;

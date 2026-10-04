@@ -3,7 +3,7 @@
 // Playwright Chromium at deviceScaleFactor 1: one screenshot, computed styles, a DOM
 // snapshot and a motion trace per state + capture.json / design-capture.json.
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { CliError, displayPath, ensureDir, parseCli, parseJsonArg, readJsonFile, runMain, toNumber, usageError, writeJson } from './lib/args.mjs';
 import {
@@ -12,19 +12,29 @@ import {
   checkDriver,
   checkGrab,
   configDefaults,
+  ensureOutSubdir,
   expandEnv,
-  fileSafe,
+  holdsMock,
   isDrivable,
   isLoadingState,
   loadStates,
+  makeRedactor,
+  mergeManifest,
   normalizeAuthType,
   parseHeaders,
   parseKeys,
-  redact,
+  redirectLocation,
+  removeStateFiles,
   resolveAuth,
+  sameLocation,
+  secretEnvEntries,
+  stateFiles,
+  unlinkSymlink,
+  writeFileNoFollow,
 } from './lib/capture-helpers.mjs';
 import { isMissingModule, missingDependencyMessage } from './lib/deps.mjs';
 import { pngSize } from './lib/png.mjs';
+import { exactStateName } from './lib/state-discovery.mjs';
 import { appKind, designSource } from './lib/target-url.mjs';
 
 const HELP = `Capture the app in each state (screenshot + computed styles + DOM snapshot + motion).
@@ -40,24 +50,35 @@ Options:
   --width <px>, --height <px>
                            viewport — use the Figma frame size; captures run at DPR 1
   --full-page              capture the full scroll height (width must still match)
-  --wait <selector>        wait until visible before capturing (use an element present in every
-                           state, e.g. the page heading); default: network idle
+  --wait <selector>        wait until visible before capturing: an element that proves the data
+                           rendered (a row, not the page heading), present in every state, else
+                           use per-state "wait" keys; capture then still waits up to 5 s for
+                           network idle. Default: network idle
   --auth <type>            none (default) | basic | cookie | storage-state | login
   --env-prefix <PREFIX>    credential variables prefix (default DESIGN_QA_APP):
                            basic/login → <PREFIX>_USER, <PREFIX>_PASS; cookie → <PREFIX>_COOKIE
-                           ("name=value; name2=value2"); storage-state → <PREFIX>_STORAGE_STATE (path)
+                           ("name=value; name2=value2"); storage-state → <PREFIX>_STORAGE_STATE (path).
+                           basic credentials answer only the --url origin's 401 challenges
   --login-config '<json>'  { "url", "userSelector", "passSelector", "submitSelector", "successSelector" }
-  --header name=value      extra HTTP header, repeatable (sent with every request the page makes)
+  --header name=value      extra HTTP header, repeatable, sent only with requests to the app's own
+                           origin (redirect hops included), never to third-party hosts: those
+                           requests are made by capture itself, and a redirect off the origin is
+                           followed without the headers (as is one answering a POST). EventSource
+                           and WebSocket connections get no extra headers
+  --allow-navigation       do not fail states that end on another URL (every state; a state's
+                           "allowNavigation": false still checks it); config: capture.allowNavigation
   --states <file>          { "<state>": DRIVER } — see below
   --state <name>           capture only this state; its driver is --driver, else the one in
-                           --states / --config, else none
+                           --states / --config, else none. Merged into an existing manifest in
+                           --out of the same side, URL, viewport and fullPage (others are kept)
   --driver '<json>'        DRIVER for --state
   --grab <file>            { "<elementClass>": { "selector", "props": [..], "limit": 3 } }
                            (default: body, headings, text, buttons, links, inputs)
   --reduced-motion         emulate prefers-reduced-motion: reduce
   --timeout <ms>           navigation / wait / action timeout (default 30000)
   --config <file>          take defaults from design-qa.config.json: URL (app.baseUrl + route), states,
-                           auth type / env prefix / login, headers, fullPage, reducedMotion.
+                           auth type / env prefix / login, headers, fullPage, reducedMotion,
+                           allowNavigation.
                            Explicit flags win; --state <name> alone picks that state's driver
   --surface <name>         which config surface (optional when the config has only one)
   --screen <id>            multi-screen config: take the URL from surfaces.<name>.screens.<id>
@@ -75,15 +96,28 @@ DRIVER (all keys optional): { "fixture", "query": "?state=empty", "mock": { "url
 "**/api/items*", "status", "body", "delayMs", "contentType" }, "storage": { "local": {…},
 "session": {…} }, "action": "hover"|"focus"|"active"|"click"|"keyboard", "selector", "keys":
 "Tab Tab", "settleMs" (default 250), "viewport": { "width", "height" }, "reducedMotion",
-"wait": "<selector for this state>" }. A mock with only delayMs delays the request, then lets it
-through. "active" holds the mouse button down on the selector while capturing. Values may use
-\${ENV_VAR} placeholders (a missing variable is an error). Without --states/--state a single
-"with-data" state is captured. Each state runs in a fresh page and browser context seeded with
-the same signed-in storage, so mocks and storage never leak between states. A state other
-than with-data whose driver changes nothing (no fixture, query, mock, storage, action or
-viewport) is skipped and listed under degradations instead of being captured. Loading states
-(name "loading" or a mock delay >= 1 s) do not wait for network idle: they wait for --wait
-(or the state's "wait") if given, else settle 1.5 s.
+"wait": "<selector for this state>", "allowNavigation": true }. A urlPattern glob matches the
+whole URL, query string included: "**/api/items" misses /api/items?page=1 (use "**/api/items*",
+or "**/api/items{,?**}"); a mock that matched no request is a warning and a degradation. A mock
+with only delayMs delays the request, then lets it through; in a loading state a delayed request
+is held unanswered until the capture is done. "active" holds the mouse button down on the
+selector while capturing. A state whose page ends on another URL (a redirect to a sign-in page,
+a script navigating away) fails, unless its driver sets "allowNavigation": true (an action meant
+to navigate) or --allow-navigation is given; if every state does, the run exits 5. Scheme, host
+and path are compared: an http → https upgrade of the same host, a trailing slash, the query and
+the fragment (so hash routes such as #/login) do not count. Values may use \${ENV_VAR}
+placeholders (a missing variable is an error); their values never reach the evidence: the
+manifest keeps the drivers as written, and URLs and messages show \${ENV_VAR} instead (a bare
+base URL such as \${APP_URL} stays readable). Without --states/--state a single "with-data"
+state is captured.
+State names that would write the same file ("with data" / "with-data", "Empty" / "empty")
+are rejected. Each state runs in a fresh page and browser context seeded with the same
+signed-in storage, so mocks and storage never leak between states. A state other than
+with-data whose driver changes nothing (no fixture, query, mock, storage, action or viewport)
+is skipped and listed under degradations instead of being captured. Loading states (named
+"loading" or a synonym such as "Skeleton", exactly, or a mock delay >= 1 s) do not wait for
+network idle: they wait for --wait (or the state's "wait") if given, else settle 1.5 s.
+A failed or skipped state's files are deleted, so no stale evidence is left in --out.
 
 Writes <out>/app/<state>.png, <out>/computed/<state>.json, <out>/dom/<state>.json,
 <out>/motion/<state>.json and <out>/capture.json { side, url, kind, viewport, dpr, fullPage,
@@ -126,6 +160,20 @@ size differs from the viewport (device scale) · 4 browser launch failure (run
 \`npx playwright install chromium\`) · 5 navigation or authentication failure`;
 
 class StateFailure extends Error {}
+
+/** The page ended on another URL (a redirect to a sign-in page, a script navigating away). */
+class NavigationFailure extends StateFailure {
+  constructor(message, finalUrl) {
+    super(message);
+    this.finalUrl = finalUrl;
+  }
+}
+
+/** A page call that did not settle in time (a blocked main thread). */
+class PageTimeout extends StateFailure {}
+
+/** After a --wait / "wait" selector appears, how long to still wait for the network to go idle. */
+const NETWORK_IDLE_AFTER_WAIT_MS = 5000;
 
 const SIDES = ['app', 'design'];
 
@@ -487,9 +535,18 @@ async function launchBrowser(chromium, env) {
   }
 }
 
-function mockHandler(mock, timers) {
+// Answers (or holds) the requests a state's mock matches. `state` counts them:
+// hits (requests matched), answered (responses sent or passed on) and, for a
+// loading state, hold: a promise resolved when the capture is done, until which
+// the request is held open so the loading UI cannot finish before the screenshot.
+function mockHandler(mock, timers, state) {
   return async (route) => {
+    state.hits += 1;
     try {
+      if (state.hold) {
+        await state.hold;
+        return; // never answered: the page is being closed
+      }
       if (mock.delayMs) {
         await new Promise((resolve) => {
           const t = setTimeout(resolve, mock.delayMs);
@@ -506,12 +563,81 @@ function mockHandler(mock, timers) {
           body: status === 204 || status === 304 ? '' : isText ? mock.body : JSON.stringify(mock.body ?? null),
         });
       } else {
-        await route.continue();
+        // Let it through, via the app-header route (registered on the context) if any.
+        await route.fallback();
       }
+      state.answered += 1;
     } catch {
-      // The page was closed while a delayed request was pending (expected for loading states).
+      // The page was closed while a delayed request was pending.
     }
   };
+}
+
+/** Redirect hops capture follows itself before re-sending a request with the app headers. */
+const MAX_REDIRECTS = 20;
+
+/**
+ * Send --header / app.headers only with requests to the app's own origin, never to
+ * analytics, CDN or other third-party hosts (a deployment-protection bypass secret
+ * or a bearer token must not leave the app), redirect hops included. Playwright
+ * copies headers given to route.continue() onto every redirect hop and never routes
+ * a hop, so an app-origin request is fetched here with the headers and without
+ * following redirects:
+ * - not a redirect: that response is handed to the page;
+ * - a redirect leaving the origin (a CDN, a sign-in host), or one answering a POST:
+ *   the 3xx is handed to the page, whose browser follows it without the headers;
+ * - a GET/HEAD redirect whose every hop stays on the origin (/ → /en/): the chain is
+ *   walked here first, then the request is re-sent with the headers, which the
+ *   browser keeps on those hops (the chain is requested twice).
+ * EventSource streams never end, so they cannot be fetched here: they are sent
+ * without the headers (cookies still apply), as are WebSockets, which routes never see.
+ * Context routes run after the page's mock routes, so a mock answers first and a
+ * let-through mock request still gets the headers.
+ */
+async function routeAppHeaders(context, headers, origin) {
+  const entries = Object.entries(headers ?? {});
+  if (!entries.length || !origin || origin === 'null') return;
+  const extra = Object.fromEntries(entries.map(([k, v]) => [k.toLowerCase(), String(v)]));
+  // A page answered from here has no network address, so Chromium counts it as public
+  // and blocks its requests to localhost (Local Network Access): allow that for the app.
+  await context.grantPermissions(['local-network-access'], { origin }).catch(() => {});
+  const isHome = (url) => {
+    try {
+      return new URL(url).origin === origin;
+    } catch {
+      return false;
+    }
+  };
+  // Does the redirect chain starting at `url` end without ever leaving the origin?
+  const staysHome = async (route, url, withHeaders) => {
+    let next = url;
+    for (let hop = 0; next && hop < MAX_REDIRECTS; hop++) {
+      if (!isHome(next)) return false;
+      const response = await route.fetch({ url: next, headers: withHeaders, maxRedirects: 0, timeout: 0 });
+      next = redirectLocation(response.status(), response.headers().location, next);
+    }
+    return !next;
+  };
+  await context.route('**/*', async (route) => {
+    const request = route.request();
+    try {
+      if (!isHome(request.url()) || request.resourceType() === 'eventsource') {
+        await route.continue();
+        return;
+      }
+      const withHeaders = { ...request.headers(), ...extra };
+      const response = await route.fetch({ headers: withHeaders, maxRedirects: 0, timeout: 0 });
+      const next = redirectLocation(response.status(), response.headers().location, request.url());
+      if (next && ['GET', 'HEAD'].includes(request.method()) && (await staysHome(route, next, withHeaders))) {
+        await route.continue({ headers: withHeaders });
+        return;
+      }
+      await route.fulfill({ response });
+    } catch {
+      // The page was closed while the request was pending, or the app could not be reached.
+      await route.abort().catch(() => {});
+    }
+  });
 }
 
 async function performAction(page, driver, timeout) {
@@ -545,29 +671,30 @@ async function performAction(page, driver, timeout) {
   }
 }
 
-async function login(browser, contextOptions, auth, loginConfig, appUrl, timeout, prefix) {
-  const context = await browser.newContext(contextOptions);
+async function login(browser, run, auth, loginConfig, appUrl, prefix) {
+  const context = await browser.newContext(run.contextOptions);
   try {
+    await routeAppHeaders(context, run.headers, run.appOrigin);
     const page = await context.newPage();
     const loginUrl = new URL(loginConfig.url, appUrl).toString();
     try {
-      await page.goto(loginUrl, { waitUntil: 'domcontentloaded', timeout });
+      await page.goto(loginUrl, { waitUntil: 'domcontentloaded', timeout: run.timeout });
     } catch (err) {
-      throw new CliError(`login page ${loginUrl} could not be opened: ${firstLine(redact(err.message, auth.secrets))}`, 5);
+      throw new CliError(`login page ${run.redactUrl(loginUrl)} could not be opened: ${firstLine(run.redact(err.message))}`, 5);
     }
-    await page.locator(loginConfig.userSelector).first().fill(auth.user, { timeout });
-    await page.locator(loginConfig.passSelector).first().fill(auth.pass, { timeout });
-    await page.locator(loginConfig.submitSelector).first().click({ timeout });
+    await page.locator(loginConfig.userSelector).first().fill(auth.user, { timeout: run.timeout });
+    await page.locator(loginConfig.passSelector).first().fill(auth.pass, { timeout: run.timeout });
+    await page.locator(loginConfig.submitSelector).first().click({ timeout: run.timeout });
     if (loginConfig.successSelector) {
-      await page.locator(loginConfig.successSelector).first().waitFor({ state: 'visible', timeout });
+      await page.locator(loginConfig.successSelector).first().waitFor({ state: 'visible', timeout: run.timeout });
     } else {
-      await page.waitForLoadState('networkidle', { timeout }).catch(() => {});
+      await page.waitForLoadState('networkidle', { timeout: run.timeout }).catch(() => {});
     }
     return await context.storageState();
   } catch (err) {
     if (err instanceof CliError) throw err;
     throw new CliError(
-      `login failed: ${firstLine(redact(err.message, auth.secrets))} (credentials come from ${prefix}_USER / ${prefix}_PASS and are never printed)`,
+      `login failed: ${firstLine(run.redact(err.message))} (credentials come from ${prefix}_USER / ${prefix}_PASS and are never printed)`,
       5,
     );
   } finally {
@@ -575,13 +702,25 @@ async function login(browser, contextOptions, auth, loginConfig, appUrl, timeout
   }
 }
 
+/** A page call that never settles (a page blocking its main thread) fails the state instead of hanging the run. */
+function withTimeout(promise, ms, what) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new PageTimeout(`${what} did not finish within ${ms} ms (the page may be blocking its main thread)`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function captureState(browser, run, plan) {
   const { name, driver } = plan;
   const started = Date.now();
   const warnings = [];
+  const degradations = [];
   const viewport = driver.viewport ?? run.viewport;
   const reduced = driver.reducedMotion ?? run.reducedMotion;
   const timers = new Set();
+  const mockState = { hits: 0, answered: 0, hold: null, release: () => {} };
+  if (plan.hold) mockState.hold = new Promise((resolve) => (mockState.release = resolve));
   const context = await browser.newContext({
     ...run.contextOptions,
     viewport,
@@ -590,21 +729,38 @@ async function captureState(browser, run, plan) {
   });
   try {
     if (run.cookies.length) await context.addCookies(run.cookies);
+    await routeAppHeaders(context, run.headers, run.appOrigin);
     const page = await context.newPage();
-    if (driver.mock) await page.route(driver.mock.urlPattern, mockHandler(driver.mock, timers));
+    if (driver.mock) await page.route(driver.mock.urlPattern, mockHandler(driver.mock, timers, mockState));
     if (driver.storage) await page.addInitScript(applyStorage, { local: driver.storage.local || {}, session: driver.storage.session || {} });
 
     let response;
     try {
       response = await page.goto(plan.url, { waitUntil: plan.loading ? 'domcontentloaded' : 'load', timeout: run.timeout });
     } catch (err) {
-      throw new CliError(`state "${name}": could not load ${plan.url}: ${firstLine(redact(err.message, run.secrets))}`, 5);
+      throw new CliError(`state "${name}": could not load ${plan.safeUrl}: ${firstLine(run.redact(err.message))}`, 5);
     }
     const status = response ? response.status() : 0;
     if (status >= 400) {
       const hint = status === 401 || status === 403 ? ' — the page needs authentication (see --auth)' : '';
-      throw new CliError(`state "${name}": ${plan.url} answered HTTP ${status}${hint}`, 5);
+      throw new CliError(`state "${name}": ${plan.safeUrl} answered HTTP ${status}${hint}`, 5);
     }
+    // A redirect (302 to /login) or a script navigating away is not this state: its
+    // screenshot would be the sign-in page under the state's name.
+    const redirected = Boolean(response?.request().redirectedFrom());
+    const allowNavigation = driver.allowNavigation ?? run.allowNavigation;
+    const checkLocation = (when) => {
+      if (allowNavigation) return;
+      const now = page.url();
+      if (sameLocation(plan.url, now)) return;
+      const how = redirected && when === 'on load' ? 'the server redirected' : `the page navigated away ${when}`;
+      throw new NavigationFailure(
+        `ended on ${now} instead of ${plan.url} (${how}); a sign-in page or another route is not this state — check --auth and the URL` +
+          `, or set "allowNavigation": true if ${driver.action ? 'the action is' : 'the state is'} meant to navigate`,
+        now,
+      );
+    };
+    checkLocation('on load');
 
     const waitFor = driver.wait ?? run.wait;
     if (waitFor) {
@@ -613,6 +769,9 @@ async function captureState(browser, run, plan) {
       } catch {
         warnings.push(`"${waitFor}" was not visible within ${run.timeout} ms`);
       }
+      // The selector proves the page rendered, not that its data arrived: still give
+      // pending requests a bounded chance to finish (a loading state keeps its request open).
+      if (!plan.loading) await page.waitForLoadState('networkidle', { timeout: Math.min(NETWORK_IDLE_AFTER_WAIT_MS, run.timeout) }).catch(() => {});
     } else if (plan.loading) {
       await page.waitForTimeout(1500);
     } else {
@@ -632,25 +791,47 @@ async function captureState(browser, run, plan) {
       }
     }
     // Motion trace before settling: transitions started by the action are still running.
-    const degradations = [];
     const motionProblem = (what, err) => {
-      const reason = `${what}: ${firstLine(redact(err?.message ?? err, run.secrets))}`;
+      if (err instanceof PageTimeout) throw err;
+      const reason = `${what}: ${firstLine(run.redact(err?.message ?? err))}`;
       degradations.push({ step: `motion:${name}`, reason, impact: `Motion for state "${name}" is incomplete; check transitions by hand.` });
     };
     let animations = [];
     try {
-      animations = await page.evaluate(collectAnimations, { grab: run.grab });
+      animations = await withTimeout(page.evaluate(collectAnimations, { grab: run.grab }), run.timeout, 'document.getAnimations()');
     } catch (err) {
       motionProblem('document.getAnimations() failed', err);
     }
     const settleMs = driver.settleMs ?? 250;
     await page.waitForTimeout(settleMs);
+    checkLocation('before the screenshot');
 
-    const screenshot = `${run.dirs.shots}/${fileSafe(name)}.png`;
-    const shotPath = path.join(run.outDir, screenshot);
-    ensureDir(path.dirname(shotPath));
-    const scroll = await page.evaluate(() => ({ x: Math.round(window.scrollX), y: Math.round(window.scrollY) }));
-    const buffer = await page.screenshot({ path: shotPath, fullPage: run.fullPage, animations: 'disabled', caret: 'hide', timeout: run.timeout });
+    if (driver.mock && mockState.hits === 0) {
+      const reason = `mock urlPattern "${driver.mock.urlPattern}" matched no request`;
+      warnings.push(reason);
+      degradations.push({
+        step: `mock:${name}`,
+        reason,
+        impact: `State "${name}" may show the real response instead of the mocked one; fix the pattern (a glob matches the whole URL, query string included).`,
+      });
+    }
+    if (plan.namedLoading && driver.mock && mockState.answered > 0) {
+      const reason = `the mocked request was answered before the screenshot (delayMs ${driver.mock.delayMs ?? 0})`;
+      warnings.push(reason);
+      degradations.push({
+        step: `mock:${name}`,
+        reason,
+        impact: `The "${name}" screenshot may show loaded content, not the loading UI; give the mock a delayMs so capture holds the request.`,
+      });
+    }
+
+    const [screenshot, computed, dom, motion] = stateFiles(run.dirs, name);
+    const scroll = await withTimeout(
+      page.evaluate(() => ({ x: Math.round(window.scrollX), y: Math.round(window.scrollY) })),
+      run.timeout,
+      'reading the scroll position',
+    );
+    const buffer = await page.screenshot({ fullPage: run.fullPage, animations: 'disabled', caret: 'hide', timeout: run.timeout });
     const size = pngSize(buffer);
     if (size.width !== viewport.width || (!run.fullPage && size.height !== viewport.height)) {
       const why =
@@ -666,30 +847,48 @@ async function captureState(browser, run, plan) {
       );
     }
 
-    const computed = `${run.dirs.computed}/${fileSafe(name)}.json`;
-    const dom = `${run.dirs.dom}/${fileSafe(name)}.json`;
-    const motion = `${run.dirs.motion}/${fileSafe(name)}.json`;
-    const styles = await page.evaluate(grabComputedStyles, { grab: run.grab, fullPage: run.fullPage });
+    const styles = await withTimeout(page.evaluate(grabComputedStyles, { grab: run.grab, fullPage: run.fullPage }), run.timeout, 'reading computed styles');
     let motionGrab = { elements: {}, actionTarget: null, keyframes: {}, errors: [] };
     try {
-      motionGrab = await page.evaluate(grabMotion, { grab: run.grab, props: MOTION_PROPS, actionSelector: driver.action ? driver.selector ?? null : null });
+      motionGrab = await withTimeout(
+        page.evaluate(grabMotion, { grab: run.grab, props: MOTION_PROPS, actionSelector: driver.action ? driver.selector ?? null : null }),
+        run.timeout,
+        'reading transition/animation styles',
+      );
     } catch (err) {
       motionProblem('reading transition/animation styles failed', err);
     }
-    for (const e of motionGrab.errors) degradations.push({ step: `motion:${name}`, reason: e, impact: 'Keyframes from that stylesheet are not listed.' });
+    for (const e of motionGrab.errors) degradations.push({ step: `motion:${name}`, reason: run.redact(e), impact: 'Keyframes from that stylesheet are not listed.' });
     let ariaSnapshot = null;
     const body = page.locator('body');
     if (typeof body.ariaSnapshot === 'function') {
       try {
-        ariaSnapshot = await body.ariaSnapshot({ timeout: 10000 });
+        ariaSnapshot = await withTimeout(body.ariaSnapshot({ timeout: 10000 }), Math.max(run.timeout, 10000), 'the accessibility snapshot');
       } catch (err) {
+        if (err instanceof PageTimeout) throw err;
         warnings.push(`ariaSnapshot failed: ${firstLine(err.message)}`);
       }
     }
-    const walked = await page.evaluate(walkDom, { maxTexts: 5000, maxElements: 2000 });
+    const walked = await withTimeout(page.evaluate(walkDom, { maxTexts: 5000, maxElements: 2000 }), run.timeout, 'reading the DOM');
+    const title = await withTimeout(page.title(), run.timeout, 'reading the page title');
+    const finalUrl = page.url();
+    checkLocation('during the capture');
     if (release) await release();
+
+    // Every page read succeeded: only now write this state's files, so a failed
+    // state never leaves a fresh screenshot next to stale styles (or the reverse).
+    // Directories and files are created afresh: a symlink planted at one of these paths
+    // (a PR checkout can commit one) is removed, never written through.
+    for (const sub of Object.values(run.dirs).filter((d) => !d.endsWith('.json'))) ensureOutSubdir(run.outDir, sub);
+    removeStateFiles(run.outDir, run.dirs, name);
+    writeFileNoFollow(path.join(run.outDir, screenshot), buffer);
     writeJson(path.join(run.outDir, computed), styles);
-    writeJson(path.join(run.outDir, dom), { url: page.url(), title: await page.title(), ariaSnapshot, ...walked });
+    writeJson(path.join(run.outDir, dom), {
+      url: run.redactUrl(finalUrl),
+      title: run.redactUrl(title),
+      ariaSnapshot: ariaSnapshot === null ? null : run.redactUrl(ariaSnapshot),
+      ...walked,
+    });
     let motionPath = motion;
     try {
       writeJson(path.join(run.outDir, motion), {
@@ -708,9 +907,10 @@ async function captureState(browser, run, plan) {
     }
 
     return {
-      driver, url: plan.url, viewport, screenshot, computed, dom, motion: motionPath, settleMs, durationMs: Date.now() - started, scroll, warnings, degradations,
+      driver, url: plan.safeUrl, viewport, screenshot, computed, dom, motion: motionPath, settleMs, durationMs: Date.now() - started, scroll, warnings, degradations,
     };
   } finally {
+    mockState.release();
     for (const t of timers) clearTimeout(t);
     await context.close().catch(() => {});
   }
@@ -736,6 +936,7 @@ async function main(argv) {
     driver: { type: 'string' },
     grab: { type: 'string' },
     'reduced-motion': { type: 'boolean' },
+    'allow-navigation': { type: 'boolean' },
     timeout: { type: 'string' },
     out: { type: 'string' },
     config: { type: 'string' },
@@ -750,6 +951,7 @@ async function main(argv) {
   }
   const env = process.env;
   const log = values.quiet ? () => {} : (msg) => console.log(msg);
+  const warn = values.quiet ? () => {} : (msg) => console.error(`warning: ${msg}`);
 
   const side = values.side ?? 'app';
   if (!SIDES.includes(side)) throw usageError(`--side must be app or design (got "${values.side}")`);
@@ -763,13 +965,16 @@ async function main(argv) {
     throw usageError('--side design needs --url <prototype-url> (or surfaces.<name>.prototype / screens.<id>.prototype in --config)');
   }
   for (const flag of ['url', 'width', 'height', 'out']) if (!values[flag]) throw usageError(`--${flag} is required (see --help)`);
-  const url = expandEnv(values.url, env, '--url');
+  // Every ${VAR} substituted anywhere is recorded: its value stays in memory and is
+  // redacted from everything written or printed (unless it is a bare base URL).
+  const envUsed = new Map();
+  const url = expandEnv(values.url, env, '--url', envUsed);
   // A coded prototype may be a local HTML file; the app is always served over http(s).
   const protocols = side === 'design' ? /^(https?|file):$/ : /^https?:$/;
   try {
     if (!protocols.test(new URL(url).protocol)) throw new Error('protocol');
   } catch {
-    throw usageError(`--url must be an absolute ${side === 'design' ? 'http(s) or file:' : 'http(s)'} URL (got "${url}")`);
+    throw usageError(`--url must be an absolute ${side === 'design' ? 'http(s) or file:' : 'http(s)'} URL (got "${values.url}")`);
   }
   const width = toNumber(values.width, 'width', { min: 1, max: 10000, integer: true });
   const height = toNumber(values.height, 'height', { min: 1, max: 20000, integer: true });
@@ -777,41 +982,54 @@ async function main(argv) {
   const auth = normalizeAuthType(values.auth ?? cfg?.auth);
   const prefix = values['env-prefix'] ?? cfg?.envPrefix ?? 'DESIGN_QA_APP';
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(prefix)) throw usageError(`--env-prefix must be an environment variable prefix (got "${prefix}")`);
-  let loginConfig = cfg?.loginConfig ? expandEnv(cfg.loginConfig, env, 'app.auth.login') : null;
-  if (values['login-config']) loginConfig = expandEnv(parseJsonArg(values['login-config'], 'login-config'), env, '--login-config');
+  let loginConfig = cfg?.loginConfig ? expandEnv(cfg.loginConfig, env, 'app.auth.login', envUsed) : null;
+  if (values['login-config']) loginConfig = expandEnv(parseJsonArg(values['login-config'], 'login-config'), env, '--login-config', envUsed);
   if (auth === 'login') {
     const missing = ['url', 'userSelector', 'passSelector', 'submitSelector'].filter((k) => !loginConfig?.[k]);
     if (missing.length) throw usageError(`--auth login needs --login-config with ${missing.join(', ')}`);
   }
   const headers = {
-    ...expandEnv(cfg?.headers ?? {}, env, 'app.headers'),
-    ...parseHeaders(values.header ?? [], env),
+    ...expandEnv(cfg?.headers ?? {}, env, 'app.headers', envUsed),
+    ...parseHeaders(values.header ?? [], env, envUsed),
   };
   if (values.driver && !values.state) throw usageError('--driver needs --state <name>');
   const statesFile = values.states ? readJsonFile(path.resolve(values.states), 'states file') : cfg?.states ?? null;
   const driver = values.driver ? parseJsonArg(values.driver, 'driver') : null;
-  const states = loadStates({ statesFile, stateName: values.state ?? null, driver }).map(([name, d]) => {
-    const expanded = expandEnv(d, env, `state "${name}"`);
-    return [name, expanded, checkDriver(name, expanded)];
+  // template: the driver as written (with ${VAR} placeholders), the only form written
+  // to the manifest; driver: the expanded copy, used in memory only.
+  const states = loadStates({ statesFile, stateName: values.state ?? null, driver }).map(([name, template]) => {
+    const expanded = expandEnv(template, env, `state "${name}"`, envUsed);
+    return { name, template, driver: expanded, warnings: checkDriver(name, expanded) };
   });
   const grab = checkGrab(values.grab ? readJsonFile(path.resolve(values.grab), 'grab file') : DEFAULT_GRAB);
-  const wait = values.wait ? expandEnv(values.wait, env, '--wait') : null;
+  const wait = values.wait ? expandEnv(values.wait, env, '--wait', envUsed) : null;
   const fullPage = Boolean(values['full-page'] ?? cfg?.fullPage);
   const outDir = path.resolve(values.out);
-  const skipped = states.filter(([name, d]) => !isDrivable(name, d));
-  const plans = states
-    .filter(([name, d]) => isDrivable(name, d))
-    .map(([name, d, warnings]) => ({
-      name,
-      driver: d,
-      warnings,
-      url: buildStateUrl(url, d, name),
-      loading: isLoadingState(name, d),
-    }));
   const credentials = resolveAuth(auth, prefix, env, url);
   if (credentials.storageStatePath && !existsSync(credentials.storageStatePath)) {
     throw usageError(`${prefix}_STORAGE_STATE points to a missing file: ${credentials.storageStatePath}`);
   }
+  // Header values long enough to be tokens are scrubbed too.
+  const headerSecrets = Object.values(headers).map(String).filter((v) => v.length >= 8);
+  const envEntries = secretEnvEntries(envUsed);
+  const redact = makeRedactor({ secrets: [...credentials.secrets, ...headerSecrets], envEntries });
+  // URLs and page text keep short credential values (a user name may be a path segment).
+  const redactUrl = makeRedactor({ secrets: [...credentials.secrets, ...headerSecrets].filter((s) => String(s).length >= 8), envEntries });
+  const safeUrl = redactUrl(url);
+  const skipped = states.filter((s) => !isDrivable(s.name, s.driver));
+  const plans = states
+    .filter((s) => isDrivable(s.name, s.driver))
+    .map((s) => {
+      const stateUrl = buildStateUrl(url, s.driver, s.name);
+      return {
+        ...s,
+        url: stateUrl,
+        safeUrl: redactUrl(stateUrl),
+        loading: isLoadingState(s.name, s.driver),
+        namedLoading: exactStateName(s.name) === 'loading',
+        hold: holdsMock(s.name, s.driver),
+      };
+    });
 
   const kind = appKind(url);
   const { commit, branch } = gitInfo(env);
@@ -821,8 +1039,8 @@ async function main(argv) {
   const manifestFile = path.join(outDir, dirs.manifest);
   const manifest = {
     side,
-    ...(side === 'design' ? { source: designSource(url, { frame: { width, height } }) } : {}),
-    url,
+    ...(side === 'design' ? { source: designSource(safeUrl, { frame: { width, height } }) } : {}),
+    url: safeUrl,
     kind,
     viewport: { width, height },
     dpr: 1,
@@ -833,10 +1051,52 @@ async function main(argv) {
     states: {},
     degradations: [],
   };
-  for (const [name, d, warnings] of skipped) {
+  // --state <name> re-captures one state into an existing evidence folder: merge it
+  // into the previous manifest instead of dropping every other state.
+  let previous = null;
+  if (values.state && existsSync(manifestFile)) {
+    try {
+      previous = JSON.parse(readFileSync(manifestFile, 'utf8'));
+    } catch {
+      warn(`${displayPath(manifestFile)} is not readable JSON; writing a fresh manifest with only "${values.state}"`);
+    }
+  }
+  const finish = () => {
+    // Keep the manifest in the order the states were requested (skipped ones included).
+    manifest.states = Object.fromEntries(states.map(({ name }) => [name, manifest.states[name]]).filter(([, v]) => v));
+    let out = manifest;
+    if (previous) {
+      const merged = mergeManifest(previous, manifest, states.map(({ name }) => name));
+      if (merged.mismatch) {
+        warn(`${displayPath(manifestFile)} was captured with another ${merged.mismatch}; replaced by a fresh manifest with only this run's states`);
+      } else if (merged.kept.length) {
+        log(`kept ${merged.kept.length} state(s) from the previous ${dirs.manifest}: ${merged.kept.join(', ')}`);
+      }
+      out = merged.manifest;
+    }
+    unlinkSymlink(manifestFile);
+    writeJson(manifestFile, out);
+    return out;
+  };
+  const failedEntry = (plan, message) => ({
+    driver: plan.template,
+    url: plan.safeUrl,
+    screenshot: null,
+    computed: null,
+    dom: null,
+    motion: null,
+    settleMs: plan.driver.settleMs ?? 250,
+    durationMs: 0,
+    warnings: plan.warnings.map(redact),
+    error: message,
+  });
+
+  ensureDir(outDir);
+  for (const { name, template, warnings } of skipped) {
     const reason = 'no runtime driver (needs a fixture, query, mock, storage, action or viewport)';
+    removeStateFiles(outDir, dirs, name);
     manifest.states[name] = {
-      driver: d,
+      driver: template,
       url: null,
       screenshot: null,
       computed: null,
@@ -844,7 +1104,7 @@ async function main(argv) {
       motion: null,
       settleMs: null,
       durationMs: 0,
-      warnings: [...warnings, `not captured: ${reason}`],
+      warnings: [...warnings.map(redact), `not captured: ${reason}`],
       skipped: true,
     };
     manifest.degradations.push({ step: `capture:${name}`, reason, impact: `State "${name}" cannot be verified (CANNOT_VERIFY).` });
@@ -852,7 +1112,7 @@ async function main(argv) {
   }
 
   if (!plans.length) {
-    writeJson(manifestFile, manifest);
+    finish();
     log(`Nothing to capture; wrote ${displayPath(manifestFile)}`);
     return 0;
   }
@@ -864,22 +1124,29 @@ async function main(argv) {
   process.once('SIGINT', onSignal);
   process.once('SIGTERM', onSignal);
 
+  const appOrigin = new URL(url).origin;
   const contextOptions = {
     viewport: { width, height },
     deviceScaleFactor: 1,
     colorScheme: 'light',
     ignoreHTTPSErrors: kind === 'local',
+    // Basic credentials are bound to the captured URL's origin (resolveAuth): a
+    // third-party frame or image answering 401 never gets them.
     ...(credentials.httpCredentials ? { httpCredentials: credentials.httpCredentials } : {}),
-    ...(Object.keys(headers).length ? { extraHTTPHeaders: headers } : {}),
   };
   const run = {
     contextOptions,
+    // Extra headers go to the app's origin only (routeAppHeaders), never extraHTTPHeaders.
+    headers,
+    appOrigin,
     viewport: { width, height },
     reducedMotion: Boolean(values['reduced-motion'] ?? cfg?.reducedMotion),
+    // A state's own "allowNavigation" wins over this run-wide default.
+    allowNavigation: Boolean(values['allow-navigation'] ?? cfg?.allowNavigation),
     storageState: credentials.storageStatePath ?? null,
     cookies: credentials.cookies,
-    // Header values long enough to be tokens are scrubbed from error messages too.
-    secrets: [...credentials.secrets, ...Object.values(headers).filter((v) => String(v).length >= 8)],
+    redact,
+    redactUrl,
     wait,
     timeout,
     fullPage,
@@ -890,57 +1157,65 @@ async function main(argv) {
   };
 
   let failures = 0;
+  let final = manifest;
   try {
-    ensureDir(outDir);
     if (auth === 'login') {
       try {
-        run.storageState = await login(browser, contextOptions, credentials, loginConfig, url, timeout, prefix);
+        run.storageState = await login(browser, run, credentials, loginConfig, url, prefix);
       } catch (err) {
         manifest.degradations.push({ step: 'capture:login', reason: err.message, impact: 'No state was captured.' });
         throw err;
       }
     }
+    let navigationFailures = 0;
+    let lastFinalUrl = null;
     for (const plan of plans) {
       try {
         const result = await captureState(browser, run, plan);
-        result.warnings.unshift(...plan.warnings);
+        result.driver = plan.template;
+        result.warnings = [...plan.warnings, ...result.warnings].map(redact);
+        result.degradations = result.degradations.map((d) => ({ ...d, reason: redact(d.reason) }));
         manifest.states[plan.name] = result;
         manifest.degradations.push(...result.degradations);
         const notes = result.warnings.length ? ` — ${result.warnings.length} warning(s): ${result.warnings.join('; ')}` : '';
         log(`captured ${plan.name} → ${result.screenshot} (${result.viewport.width}×${result.viewport.height}, ${result.durationMs} ms)${notes}`);
       } catch (err) {
+        // No stale evidence: a state that failed has no files, whatever an earlier run left.
+        removeStateFiles(outDir, dirs, plan.name);
         if (err instanceof CliError) {
+          err.message = redact(err.message);
+          manifest.states[plan.name] = failedEntry(plan, firstLine(err.message));
           manifest.degradations.push({ step: `capture:${plan.name}`, reason: err.message, impact: 'Capture stopped; later states were not captured.' });
           throw err;
         }
         failures += 1;
-        const message = firstLine(redact(err instanceof StateFailure ? err.message : err?.message ?? err, run.secrets));
-        manifest.states[plan.name] = {
-          driver: plan.driver,
-          url: plan.url,
-          screenshot: null,
-          computed: null,
-          dom: null,
-          motion: null,
-          settleMs: plan.driver.settleMs ?? 250,
-          durationMs: 0,
-          warnings: [...plan.warnings],
-          error: message,
-        };
+        if (err instanceof NavigationFailure) {
+          navigationFailures += 1;
+          lastFinalUrl = err.finalUrl;
+        }
+        const message = firstLine(redact(err instanceof StateFailure ? err.message : err?.message ?? err));
+        manifest.states[plan.name] = failedEntry(plan, message);
         manifest.degradations.push({ step: `capture:${plan.name}`, reason: message, impact: `No screenshot for state "${plan.name}".` });
         console.error(`state "${plan.name}" failed: ${message}`);
       }
     }
+    if (navigationFailures === plans.length) {
+      const message =
+        `every state ended on another page (last: ${redactUrl(lastFinalUrl)}) instead of ${safeUrl}: ` +
+        'an authentication or routing problem — check --auth and its credentials, and the URL' +
+        ' (when the app always redirects, say to a locale prefix, capture the final URL or pass --allow-navigation)';
+      manifest.degradations.push({ step: 'capture:navigation', reason: message, impact: 'No state was captured.' });
+      throw new CliError(message, 5);
+    }
   } finally {
-    // Keep the manifest in the order the states were requested (skipped ones included).
-    manifest.states = Object.fromEntries(states.map(([name]) => [name, manifest.states[name]]).filter(([, v]) => v));
-    writeJson(manifestFile, manifest);
+    final = finish();
     process.off('SIGINT', onSignal);
     process.off('SIGTERM', onSignal);
     await browser.close().catch(() => {});
   }
-  const captured = Object.values(manifest.states).filter((st) => st.screenshot).length;
-  log(`Wrote ${displayPath(manifestFile)} (${captured}/${states.length} states captured)`);
+  const all = Object.values(final.states);
+  const captured = all.filter((st) => st.screenshot).length;
+  log(`Wrote ${displayPath(manifestFile)} (${captured}/${all.length} states captured)`);
   return failures ? 1 : 0;
 }
 

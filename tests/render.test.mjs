@@ -60,7 +60,8 @@ test('script-breaking text in the data is escaped and round-trips', async () => 
   const raw = scriptContent(html, 'design-qa-data');
   assert.ok(!raw.includes('</script'), 'no closing script tag inside the data');
   assert.ok(!raw.includes('<!--'), 'no comment opener inside the data');
-  assert.ok(raw.includes('<\\/script>'), '</ is escaped as <\\/');
+  assert.ok(raw.includes('\\u003c/script\\u003e'), 'every < and > is a \\u escape');
+  assert.ok(!/[<>&]/.test(raw), 'no raw <, > or & in the data');
   assert.ok(!raw.includes(String.fromCharCode(0x2028)) && !raw.includes(String.fromCharCode(0x2029)));
   assert.equal(JSON.parse(raw).findings[0].title, nasty);
   assert.equal((html.match(/<\/script>/g) || []).length, 3, 'only the template’s own closing tags remain');

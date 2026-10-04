@@ -13,7 +13,7 @@
         "baseUrl": {
           "type": "string",
           "pattern": "^(https?://|\\$\\{)",
-          "errorMessage": "must be an absolute http(s) URL or a ${ENV_VAR} placeholder",
+          "errorMessage": "must be an absolute http(s) URL or an environment-variable placeholder (a $ sign followed by {NAME})",
           "description": "Where the app runs, e.g. http://localhost:3000 or ${PREVIEW_URL}."
         },
         "start": { "type": ["string", "null"], "description": "Command that starts the app locally (e.g. npm run dev)." },
@@ -85,8 +85,10 @@
         "embedImages": { "type": "boolean" },
         "debtLog": {
           "type": "string",
+          "pattern": "\\.md$",
+          "errorMessage": "must be the path of a Markdown file ending in .md (the JSON log is written next to it)",
           "default": "qa-reports/design-debt.md",
-          "description": "Markdown design-debt log written by scripts/debt-log.mjs (the JSON log sits next to it)."
+          "description": "Markdown design-debt log written by scripts/debt-log.mjs (the JSON log sits next to it, with .json for .md)."
         },
         "ranking": {
           "type": "object",
@@ -143,7 +145,8 @@
       "type": "object",
       "properties": {
         "driver": { "enum": ["script", "playwright-mcp", "builtin"] },
-        "reducedMotion": { "type": "boolean" }
+        "reducedMotion": { "type": "boolean" },
+        "allowNavigation": { "type": "boolean", "description": "Do not fail states that end on another URL (an app that always redirects, say to a locale prefix or www); same as capture --allow-navigation. A state's own allowNavigation wins." }
       }
     }
   },
@@ -166,7 +169,7 @@
         "prototype": {
           "type": ["string", "null"],
           "pattern": "^(https?://|file:|\\$\\{)",
-          "errorMessage": "must be an http(s) or file: URL or a ${ENV_VAR} placeholder",
+          "errorMessage": "must be an http(s) or file: URL or an environment-variable placeholder (a $ sign followed by {NAME})",
           "description": "Prototype URL used as the design source of truth: a Figma prototype (figma.com/proto/...) or a coded prototype (Figma Make, Framer, v0, Lovable, static HTML, localhost). capture.mjs --side design captures it."
         },
         "screens": {
@@ -185,7 +188,7 @@
         "prototype": {
           "type": ["string", "null"],
           "pattern": "^(https?://|file:|\\$\\{)",
-          "errorMessage": "must be an http(s) or file: URL or a ${ENV_VAR} placeholder",
+          "errorMessage": "must be an http(s) or file: URL or an environment-variable placeholder (a $ sign followed by {NAME})",
           "description": "Coded prototype URL of this screen."
         },
         "route": { "type": "string", "description": "App route of this screen (relative to app.baseUrl, or absolute)." }
@@ -229,6 +232,7 @@
         },
         "reducedMotion": { "type": "boolean" },
         "wait": { "type": "string", "description": "Selector to wait for in this state (overrides capture --wait)." },
+        "allowNavigation": { "type": "boolean", "description": "The state may end on another URL (an action that navigates); otherwise a redirect or navigation away fails the state." },
         "source": { "type": "string", "description": "Implemented in code but not drivable at runtime (file reference); the state is reported as CANNOT_VERIFY." }
       }
     }

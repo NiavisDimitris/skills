@@ -6,13 +6,13 @@
 // run it, wait for the exit, run the printed "Next:" command. node:http only.
 import { spawn } from 'node:child_process';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { existsSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CliError, displayPath, parseCli, readJsonFile, runMain, toNumber, usageError } from './lib/args.mjs';
+import { CliError, displayPath, formatIssues, oneLine, parseCli, readJsonFile, runMain, toNumber, usageError, writeText } from './lib/args.mjs';
 import { DecisionsError, applyDecisions, checkDecisionsTarget, parseDecisions, summaryLine } from './lib/decisions.mjs';
-import { resolveReviewConfig, shellArg } from './lib/review-context.mjs';
+import { findScriptElement, resolveReviewConfig, shellArg } from './lib/review-context.mjs';
 import { validateConfig } from './lib/schema-check.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +29,21 @@ const STATIC_TYPES = {
   '.json': 'application/json; charset=utf-8',
 };
 const NO_DECISIONS = 'No decisions were sent. The reviewer can still use "Copy for your agent" in the report.';
+// setTimeout overflows above 2^31-1 ms (~35791 minutes) and would fire at once.
+const MAX_TIMEOUT_MIN = 35000;
+// The served page: its own inline script and styles, images and fonts from this
+// origin or data:/blob: URLs, and fetch() back to this server only (POST /decisions).
+const PAGE_CSP = [
+  "default-src 'none'",
+  "script-src 'unsafe-inline'",
+  "style-src 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  'font-src data:',
+  "connect-src 'self'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join('; ');
 
 const HELP = `Open report.html for review and wait for the reviewer to click "Send to agent".
 
@@ -44,7 +59,8 @@ Options:
   --no-open              do not open the browser (also when the CI environment variable is set)
   --config <file>        configuration used to render the report (otherwise recovered from
                          report.html, or design-qa.config.json in a report ancestor)
-  --timeout-min <n>      stop waiting after n minutes (default 240; 0 waits until Ctrl+C)
+  --timeout-min <n>      stop waiting after n minutes (default 240, at most 35000; 0 waits
+                         until Ctrl+C)
   --quiet                print only the URL and the result
   -h, --help             show this help
 
@@ -61,43 +77,49 @@ this prints:
 and exits 0. Run that command next.
 
 Security: binds 127.0.0.1 only; a random 128-bit token is required for the page and
-for POST /decisions (header X-Design-QA-Token); requests with another Host header, or
-a POST from another Origin, are refused; no CORS headers; only images and .json files
-inside the report folder are served; nothing in the payload is ever executed.
+for POST /decisions (header X-Design-QA-Token); opening the page with it sets an
+HttpOnly, SameSite=Strict cookie that the images and .json files inside the report
+folder require (or the header); requests with another Host header, or a POST from
+another Origin, are refused; no CORS headers; the page is served with a
+Content-Security-Policy (inline script and styles, same-origin images and requests
+only); nothing in the payload is ever executed.
 
 Exit codes: 0 decisions received and saved · 1 server error (e.g. the port is taken) ·
 2 bad arguments · 3 timed out or interrupted with nothing received`;
 
-/** JSON for a <script type="application/json"> element (same escaping as render-report.mjs). */
-function serializeForScript(value) {
+/**
+ * JSON for a <script type="application/json"> element: every <, > and & is a \\u
+ * escape, so no value can close the element, open a comment or spell a tag.
+ */
+export function serializeForScript(value) {
   return JSON.stringify(value)
-    .replace(/<\//g, '<\\/')
-    .replace(/<!--/g, '\\u003c!--')
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
 }
-
-const CONTEXT_RE = new RegExp(`(<script\\b[^>]*\\bid\\s*=\\s*["']${CONTEXT_ID}["'][^>]*>)([\\s\\S]*?)(<\\/script\\s*>)`, 'i');
 
 /**
  * The page with the live context: the design-qa-context element's JSON becomes
  * { live: true, token, reportPath, ...the object that was there (minus those keys) };
  * without the element (an older report) one is inserted before the first <script>.
+ * Only a real element counts: text inside another script's JSON is skipped.
  */
 export function injectContext(html, { token, reportPath, configPath }) {
   const live = { live: true, token, reportPath, ...(configPath !== undefined ? { configPath } : {}) };
-  const m = CONTEXT_RE.exec(html);
+  const m = findScriptElement(html, CONTEXT_ID);
   if (m) {
     let existing = {};
     try {
-      const parsed = JSON.parse(m[2].trim());
+      const parsed = JSON.parse(m.body.trim());
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) existing = parsed;
     } catch {
       // A placeholder or empty element: nothing to keep.
     }
     const rest = Object.fromEntries(Object.entries(existing).filter(([k]) => !(k in live)));
     const json = serializeForScript({ ...live, ...rest });
-    return html.slice(0, m.index) + m[1] + json + m[3] + html.slice(m.index + m[0].length);
+    return html.slice(0, m.index) + m.open + json + m.close + html.slice(m.index + m.length);
   }
   const element = `<script id="${CONTEXT_ID}" type="application/json">${serializeForScript(live)}</script>\n`;
   const at = html.search(/<script\b/i);
@@ -105,6 +127,16 @@ export function injectContext(html, { token, reportPath, configPath }) {
   const body = html.search(/<\/body\s*>/i);
   if (body >= 0) return html.slice(0, body) + element + html.slice(body);
   return html + element;
+}
+
+/** name → value of a Cookie header. */
+function cookies(header) {
+  const out = {};
+  for (const part of String(header ?? '').split(';')) {
+    const eq = part.indexOf('=');
+    if (eq > 0) out[part.slice(0, eq).trim()] = part.slice(eq + 1).trim();
+  }
+  return out;
 }
 
 function sameToken(given, token) {
@@ -153,15 +185,15 @@ async function main(argv) {
   const htmlFile = path.resolve(values.html ?? path.join(reportDir, 'report.html'));
   if (!existsSync(htmlFile)) {
     throw usageError(
-      `${displayPath(htmlFile)} not found: render it first: node ${displayPath(path.join(HERE, 'render-report.mjs'))} --in ${displayPath(reportFile)} --out ${displayPath(htmlFile)}`,
+      `${oneLine(displayPath(htmlFile))} not found: render it first: node ${shellArg(displayPath(path.join(HERE, 'render-report.mjs')))} --in ${shellArg(displayPath(reportFile))} --out ${shellArg(displayPath(htmlFile))}`,
     );
   }
   const port = toNumber(values.port, 'port', { min: 0, max: 65535, integer: true }) ?? 0;
   const configFile = resolveReviewConfig(reportFile, { explicit: values.config, htmlFile, generatedAt: initialReport.meta?.generatedAt });
   const config = configFile ? readJsonFile(configFile, 'config', 2) : {};
   const cv = validateConfig(config);
-  if (configFile && !cv.valid) throw usageError(`--config is invalid: ${cv.errors.map((e) => `${e.path}: ${e.message}`).join('; ')}`);
-  const timeoutMin = toNumber(values['timeout-min'], 'timeout-min', { min: 0 }) ?? 240;
+  if (configFile && !cv.valid) throw usageError(`--config is invalid:\n${formatIssues(cv.errors)}`);
+  const timeoutMin = toNumber(values['timeout-min'], 'timeout-min', { min: 0, max: MAX_TIMEOUT_MIN }) ?? 240;
   const token = randomBytes(16).toString('hex');
   const reportPath = displayPath(reportFile);
   const decisionsFile = path.join(reportDir, 'decisions.json');
@@ -174,6 +206,8 @@ async function main(argv) {
     let timer = null;
     const allowedHosts = () => new Set([`127.0.0.1:${actualPort}`, `localhost:${actualPort}`]);
     const allowedOrigins = () => new Set([`http://127.0.0.1:${actualPort}`, `http://localhost:${actualPort}`]);
+    // Per port: two review servers on 127.0.0.1 share one cookie jar.
+    const cookieName = () => `design-qa-${actualPort}`;
 
     const send = (res, status, body, headers = {}) => {
       if (res.headersSent) return;
@@ -181,6 +215,7 @@ async function main(argv) {
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'no-referrer',
+        'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
         ...headers,
       });
       res.end(body);
@@ -233,16 +268,24 @@ async function main(argv) {
       if (pathname === '/') {
         if (!sameToken(query.get('t'), token)) return send(res, 403, 'Forbidden: open the exact URL review.mjs printed.', { 'Content-Type': 'text/plain; charset=utf-8' });
         const html = readFileSync(htmlFile, 'utf8');
-        return send(res, 200, injectContext(html, { token, reportPath, configPath: configFile ? displayPath(configFile) : null }), { 'Content-Type': 'text/html; charset=utf-8' });
+        return send(res, 200, injectContext(html, { token, reportPath, configPath: configFile ? displayPath(configFile) : null }), {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Security-Policy': PAGE_CSP,
+          'Set-Cookie': `${cookieName()}=${token}; HttpOnly; SameSite=Strict; Path=/`,
+        });
       }
       if (pathname === '/health') {
         if (!sameToken(query.get('t') ?? req.headers['x-design-qa-token'], token)) return fail(res, 403, 'forbidden: missing or wrong token');
         return sendJson(res, 200, { ok: true });
       }
-      return serveStatic(pathname, res);
+      return serveStatic(pathname, req, res);
     }
 
-    function serveStatic(pathname, res) {
+    function serveStatic(pathname, req, res) {
+      // Images and .json need the page's cookie (set by GET /?t=<token>) or the token header.
+      if (!sameToken(cookies(req.headers.cookie)[cookieName()], token) && !sameToken(req.headers['x-design-qa-token'], token)) {
+        return fail(res, 403, 'forbidden: open the exact URL review.mjs printed first');
+      }
       const notFound = () => fail(res, 404, 'not found');
       const rel = pathname.replace(/^\/+/, '');
       const type = STATIC_TYPES[path.extname(rel).toLowerCase()];
@@ -319,26 +362,19 @@ async function main(argv) {
         throw err;
       }
       received = true;
-      const tmp = path.join(reportDir, `.decisions.${randomBytes(6).toString('hex')}.tmp`);
       try {
-        writeFileSync(tmp, `${JSON.stringify(doc, null, 2)}\n`);
-        renameSync(tmp, decisionsFile);
+        writeText(decisionsFile, `${JSON.stringify(doc, null, 2)}\n`); // atomic; refuses a symlink
       } catch (err) {
         received = false;
-        try {
-          unlinkSync(tmp);
-        } catch {
-          // already gone
-        }
-        return fail(res, 500, `cannot save ${displayPath(decisionsFile)}: ${err.message}`);
+        return fail(res, 500, err instanceof CliError ? err.message : `cannot save ${displayPath(decisionsFile)}: ${err.message}`);
       }
       const summary = summaryLine(doc);
       res.on('finish', () => {
         shutdown(
           0,
           [
-            `Decisions received from ${doc.decidedBy ?? 'the reviewer'}: ${summary}`,
-            `Saved: ${displayPath(decisionsFile)}`,
+            `Decisions received from ${oneLine(doc.decidedBy ?? 'the reviewer')}: ${summary}`,
+            `Saved: ${oneLine(displayPath(decisionsFile))}`,
             `Next: node ${shellArg(displayPath(path.join(HERE, 'apply-decisions.mjs')))} --report ${shellArg(reportPath)}${configFile ? ` --config ${shellArg(displayPath(configFile))}` : ''}`,
           ].join('\n'),
         );

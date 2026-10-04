@@ -1,9 +1,11 @@
-// Pure helpers for capture.mjs: env placeholders, headers, cookies, auth
-// types, state lists and per-state URLs. No browser code here, so tests can
-// cover them without Chromium.
+// Pure helpers for capture.mjs: env placeholders, secret redaction, headers,
+// cookies, auth types, state lists, per-state URLs and output paths, and the
+// manifest merge. No browser code here, so tests can cover them without Chromium.
+import { lstatSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { usageError } from './args.mjs';
 import { driverProblems, loadSchema, validateAgainstSchema, validateConfig } from './schema-check.mjs';
-import { normalizeStateName } from './state-discovery.mjs';
+import { exactStateName } from './state-discovery.mjs';
 
 export const AUTH_TYPES = Object.freeze(['none', 'basic', 'cookie', 'storage-state', 'login']);
 
@@ -38,19 +40,42 @@ export const DEFAULT_GRAB = Object.freeze({
   },
 });
 
-/** Expand ${ENV_VAR} placeholders in strings (recursively); a missing variable is a usage error. */
-export function expandEnv(value, env = process.env, where = 'input') {
+/**
+ * Expand ${ENV_VAR} placeholders in strings (recursively); a missing variable is a usage error.
+ * `used` (a Map) collects every substituted variable as name → value, so the values can
+ * be kept out of the evidence (secretEnvEntries + makeRedactor).
+ */
+export function expandEnv(value, env = process.env, where = 'input', used = null) {
   if (typeof value === 'string') {
     return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_, name) => {
       if (env[name] === undefined) throw usageError(`environment variable ${name} is not set (referenced as \${${name}} in ${where})`);
+      if (used) used.set(name, String(env[name]));
       return env[name];
     });
   }
-  if (Array.isArray(value)) return value.map((v) => expandEnv(v, env, where));
+  if (Array.isArray(value)) return value.map((v) => expandEnv(v, env, where, used));
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, expandEnv(v, env, where)]));
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, expandEnv(v, env, where, used)]));
   }
   return value;
+}
+
+/**
+ * A bare location (http(s)/file URL without credentials, query or fragment), such as
+ * the ${APP_URL} base URL: not a secret, so it stays readable in the evidence.
+ */
+export function isPlainLocation(value) {
+  try {
+    const u = new URL(String(value));
+    return /^(https?|file):$/.test(u.protocol) && !u.username && !u.password && !u.search && !u.hash;
+  } catch {
+    return false;
+  }
+}
+
+/** Substituted env variables whose values must never reach the evidence: [[name, value]]. */
+export function secretEnvEntries(used) {
+  return [...(used ?? new Map())].filter(([, v]) => String(v).length >= 3 && !isPlainLocation(v));
 }
 
 /** --auth value → none | basic | cookie | storage-state | login (storageState accepted). */
@@ -62,12 +87,12 @@ export function normalizeAuthType(type) {
 }
 
 /** ["name=value", "Name: value"] → { name: value } with ${ENV} expansion. */
-export function parseHeaders(list = [], env = process.env) {
+export function parseHeaders(list = [], env = process.env, used = null) {
   const out = {};
   for (const item of list) {
     const m = /^\s*([A-Za-z0-9!#$%&'*+.^_`|~-]+)\s*(?:=|:)\s?(.*)$/.exec(item);
     if (!m) throw usageError(`--header: expected name=value (got "${item}")`);
-    out[m[1]] = expandEnv(m[2], env, `--header ${m[1]}`);
+    out[m[1]] = expandEnv(m[2], env, `--header ${m[1]}`, used);
   }
   return out;
 }
@@ -90,6 +115,8 @@ export function parseCookieString(cookie, appUrl) {
 /**
  * Resolve credentials for an auth type from <prefix>_USER/_PASS/_COOKIE/_STORAGE_STATE.
  * Returns { httpCredentials?, cookies, storageStatePath?, user?, pass?, secrets: [] }.
+ * Basic credentials are bound to the origin of `appUrl` (the app, or the prototype
+ * with --side design): a third-party frame or image answering 401 never gets them.
  */
 export function resolveAuth(type, prefix, env, appUrl) {
   const need = (suffix) => {
@@ -102,7 +129,7 @@ export function resolveAuth(type, prefix, env, appUrl) {
     out.user = need('USER');
     out.pass = need('PASS');
     out.secrets.push(out.user, out.pass);
-    if (type === 'basic') out.httpCredentials = { username: out.user, password: out.pass };
+    if (type === 'basic') out.httpCredentials = { username: out.user, password: out.pass, origin: new URL(appUrl).origin };
   } else if (type === 'cookie') {
     const cookie = need('COOKIE');
     out.secrets.push(cookie);
@@ -119,6 +146,51 @@ export function redact(message, secrets = []) {
   let text = String(message ?? '');
   for (const s of secrets) if (s && s.length >= 3) text = text.split(s).join('***');
   return text;
+}
+
+// The forms a value takes once it is put in a URL: encoded as a path segment or a
+// query value, and first decoded when it was written into a query string ("a+b" is
+// "a b" there, then re-encoded as "a+b"; "%2F" is "/").
+function encodedForms(value) {
+  const bases = new Set([value]);
+  const decoders = [(v) => new URLSearchParams(`v=${v}`).get('v'), decodeURIComponent];
+  for (const d of decoders) {
+    try {
+      bases.add(d(value));
+    } catch {
+      // not decodable
+    }
+  }
+  const forms = new Set();
+  const encoders = [(v) => v, encodeURIComponent, encodeURI, (v) => new URLSearchParams({ v }).toString().slice(2)];
+  for (const base of bases) {
+    for (const e of encoders) {
+      try {
+        forms.add(e(base));
+      } catch {
+        // lone surrogates cannot be encoded
+      }
+    }
+  }
+  return [...forms];
+}
+
+/**
+ * text → text with every secret removed: substituted env values (envEntries,
+ * [[name, value]]) become "${NAME}", other secrets (credentials, header values)
+ * "***". URL-encoded forms are replaced too, so a token passed in a query string
+ * is caught in page URLs and error messages. Longest values first.
+ */
+export function makeRedactor({ secrets = [], envEntries = [] } = {}) {
+  const pairs = [];
+  for (const [name, value] of envEntries) for (const form of encodedForms(String(value))) pairs.push([form, `\${${name}}`]);
+  for (const s of secrets) if (s) for (const form of encodedForms(String(s))) pairs.push([form, '***']);
+  const list = pairs.filter(([v]) => v.trim().length >= 3).sort((a, b) => b[0].length - a[0].length);
+  return (message) => {
+    let text = String(message ?? '');
+    for (const [value, mask] of list) if (text.includes(value)) text = text.split(value).join(mask);
+    return text;
+  };
 }
 
 const PLACEHOLDER = /\{(?:fixture|id)\}|%7B(?:fixture|id)%7D/gi;
@@ -154,15 +226,78 @@ const DRIVING_KEYS = ['fixture', 'query', 'mock', 'storage', 'action', 'viewport
  * Can this state be put on screen? with-data always can (default render); any
  * other state needs a fixture, query, mock, storage, action or viewport —
  * otherwise its screenshot would just be the default page under another name.
+ * The name must be a with-data label exactly ("Default", "with data"), so
+ * "Data table" with an empty driver is skipped, not captured as the default page.
  */
 export function isDrivable(name, driver = {}) {
-  if (normalizeStateName(name) === 'with-data') return true;
+  if (exactStateName(name) === 'with-data') return true;
   return DRIVING_KEYS.some((k) => driver && driver[k] !== undefined && driver[k] !== null && driver[k] !== '');
 }
 
-/** Loading states (or long delayed mocks) must not wait for network idle. */
+/**
+ * Loading states (or long delayed mocks) must not wait for network idle. The name
+ * must be a loading label exactly ("loading", "Skeleton", "Items / Loading"), so
+ * "Pending orders" or "Fetching done" is not a loading state.
+ */
 export function isLoadingState(name, driver = {}) {
-  return normalizeStateName(name) === 'loading' || (Number(driver?.mock?.delayMs) || 0) >= 1000;
+  return exactStateName(name) === 'loading' || (Number(driver?.mock?.delayMs) || 0) >= 1000;
+}
+
+/**
+ * Should the state's mocked request be held (never answered) until the capture is
+ * done? Yes for a loading state whose mock has a delay — a state named loading, or a
+ * delay-only mock (no status/body) of a second or more — so the loading UI cannot
+ * finish before the screenshot. A delayed mock with a status or body in a state not
+ * named loading is answered after its delay ("show the empty list after 5 s").
+ */
+export function holdsMock(name, driver = {}) {
+  const mock = driver?.mock;
+  const delay = Number(mock?.delayMs) || 0;
+  if (!mock || delay <= 0) return false;
+  if (exactStateName(name) === 'loading') return true;
+  return delay >= 1000 && mock.status === undefined && mock.body === undefined;
+}
+
+/**
+ * Where the page is, for "did it navigate away?": scheme, host and decoded path
+ * (trailing slashes ignored). Query and fragment may change without counting.
+ */
+export function locationKey(href) {
+  try {
+    const u = new URL(String(href));
+    let p = u.pathname;
+    try {
+      p = decodeURIComponent(p);
+    } catch {
+      // keep the encoded path
+    }
+    return `${u.protocol}//${u.host}${p.replace(/\/+$/, '') || '/'}`;
+  } catch {
+    return String(href);
+  }
+}
+
+/**
+ * Did the page stay where it was planned? Same locationKey, or the same place after
+ * an http → https upgrade of the same host (http://h/items → https://h/items).
+ * Hash routes are not compared: "#/login" counts as the same place.
+ */
+export function sameLocation(planned, final) {
+  const a = locationKey(planned);
+  const b = locationKey(final);
+  return a === b || (a.startsWith('http://') && b.startsWith('https://') && a.slice('http://'.length) === b.slice('https://'.length));
+}
+
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+/** The absolute URL a redirect response points to, or null (not a redirect, no usable Location). */
+export function redirectLocation(status, location, from) {
+  if (!REDIRECT_STATUSES.has(Number(status)) || !location) return null;
+  try {
+    return new URL(String(location), String(from)).toString();
+  } catch {
+    return null;
+  }
 }
 
 /** "Tab Tab Shift+Tab" / "Tab,Enter" → ["Tab", "Tab", "Shift+Tab"]. */
@@ -176,6 +311,70 @@ export function fileSafe(name) {
   return String(name).replace(/[^A-Za-z0-9._-]+/g, '-');
 }
 
+/** Two state names that write the same files ("with data"/"with-data", "Empty"/"empty" on a case-insensitive disk). */
+export function sameStateFile(a, b) {
+  return fileSafe(a).toLowerCase() === fileSafe(b).toLowerCase();
+}
+
+/** Evidence files of one state, relative to --out: [screenshot, computed, dom, motion]. */
+export function stateFiles(dirs, name) {
+  const base = fileSafe(name);
+  return [`${dirs.shots}/${base}.png`, `${dirs.computed}/${base}.json`, `${dirs.dom}/${base}.json`, `${dirs.motion}/${base}.json`];
+}
+
+/** Delete a state's evidence files, so a failed or skipped state never leaves stale evidence behind. */
+export function removeStateFiles(outDir, dirs, name) {
+  for (const rel of stateFiles(dirs, name)) {
+    try {
+      rmSync(path.join(outDir, rel), { force: true });
+    } catch {
+      // a directory or an unremovable file: nothing written there by capture
+    }
+  }
+}
+
+/**
+ * Make <outDir>/<sub> a real directory: a symlink there (say, committed in a PR
+ * checkout) is removed instead of followed, so evidence is never written outside --out.
+ */
+export function ensureOutSubdir(outDir, sub) {
+  const dir = path.join(outDir, sub);
+  let st = null;
+  try {
+    st = lstatSync(dir);
+  } catch {
+    st = null;
+  }
+  if (st?.isSymbolicLink()) unlinkSync(dir);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/** Remove a symlink at `file` (never its target); anything else is left alone. */
+export function unlinkSymlink(file) {
+  try {
+    if (lstatSync(file).isSymbolicLink()) unlinkSync(file);
+  } catch {
+    // nothing there
+  }
+}
+
+/**
+ * Write a file without following a symlink at its path: whatever is there (a
+ * previous capture, or a link to a file outside --out) is unlinked and the file is
+ * created afresh, exclusively.
+ */
+export function writeFileNoFollow(file, data) {
+  let st = null;
+  try {
+    st = lstatSync(file);
+  } catch {
+    st = null;
+  }
+  if (st && !st.isDirectory()) unlinkSync(file);
+  writeFileSync(file, data, { flag: 'wx' });
+}
+
 /** Validate one DRIVER against the config schema; returns warnings, throws usage errors. */
 export function checkDriver(name, driver) {
   if (!driver || typeof driver !== 'object' || Array.isArray(driver)) {
@@ -185,8 +384,11 @@ export function checkDriver(name, driver) {
   const res = validateAgainstSchema(driver, { ...schema.definitions.driver, definitions: schema.definitions });
   const problems = driverProblems(driver);
   const errors = [...res.errors.map((e) => `${e.path === '(root)' ? '' : `${e.path}: `}${e.message}`), ...problems.filter((p) => p.level === 'error').map((p) => p.message)];
+  if (driver.allowNavigation !== undefined && typeof driver.allowNavigation !== 'boolean') errors.push('allowNavigation: expected true or false');
   if (errors.length) throw usageError(`state "${name}": ${errors.join('; ')}`);
-  return [...res.warnings.map((w) => `${w.path}: ${w.message}`), ...problems.filter((p) => p.level === 'warning').map((p) => p.message)];
+  // allowNavigation is read by capture even where the schema does not list it yet.
+  const warnings = res.warnings.filter((w) => !(w.path === 'allowNavigation' && /unknown key/.test(w.message)));
+  return [...warnings.map((w) => `${w.path}: ${w.message}`), ...problems.filter((p) => p.level === 'warning').map((p) => p.message)];
 }
 
 /**
@@ -212,6 +414,18 @@ export function loadStates({ statesFile = null, stateName = null, driver = null 
   for (const [name] of list) {
     if (!/^[A-Za-z0-9][A-Za-z0-9 ._-]*$/.test(name)) throw usageError(`state name "${name}" may only contain letters, digits, space, ".", "_" and "-"`);
   }
+  // Each state writes <dir>/<fileSafe(name)>.png|json: names that map to the same file
+  // ("with data" / "with-data", or "Empty" / "empty" on a case-insensitive disk) would
+  // overwrite each other's evidence.
+  for (let i = 0; i < list.length; i++) {
+    for (let j = 0; j < i; j++) {
+      if (sameStateFile(list[i][0], list[j][0])) {
+        throw usageError(
+          `states "${list[j][0]}" and "${list[i][0]}" would write the same evidence files (${fileSafe(list[i][0])}.png); rename one`,
+        );
+      }
+    }
+  }
   return list;
 }
 
@@ -230,7 +444,7 @@ export function checkGrab(grab) {
 /**
  * Capture defaults from design-qa.config.json for one surface:
  * { url, states, auth, envPrefix, loginConfig, headers, fullPage, reducedMotion,
- *   prototype, screens }.
+ *   allowNavigation, prototype, screens }.
  * The app URL is app.baseUrl + surface.route; with side "design" it is the surface's
  * prototype URL (or null). A screen ({ screen: "<id>" }) takes route / prototype from
  * surfaces.<name>.screens.<id> instead. Explicit CLI flags override every value.
@@ -269,7 +483,61 @@ export function configDefaults(config, surfaceName = null, { side = 'app', scree
     headers: side === 'design' ? {} : config.app.headers || {},
     fullPage: surface.fullPage === true,
     reducedMotion: config.capture?.reducedMotion === true,
+    allowNavigation: config.capture?.allowNavigation === true,
     prototype: surface.prototype ?? null,
     screens,
   };
+}
+
+const stepState = (step) => String(step ?? '').replace(/^[^:]*:/, '');
+
+/**
+ * Merge a re-capture of some states (`recaptured`: the names this run captured or
+ * skipped) into the previous manifest of the same evidence folder. Only when both
+ * describe the same capture — side, url, viewport and fullPage — are the previous
+ * manifest's other states (and their degradations) kept; re-captured states, and
+ * old states writing the same files, are replaced. Returns { manifest, kept: [names],
+ * replaced: [names], mismatch: null | "what differs" } (on a mismatch, `next` as is).
+ */
+export function mergeManifest(previous, next, recaptured = []) {
+  if (!previous || typeof previous !== 'object' || !previous.states || typeof previous.states !== 'object' || Array.isArray(previous.states)) {
+    return { manifest: next, kept: [], replaced: [], mismatch: null };
+  }
+  const diffs = [];
+  if ((previous.side ?? 'app') !== next.side) diffs.push(`side (${previous.side ?? 'app'})`);
+  if (previous.url !== next.url) diffs.push(`url (${previous.url})`);
+  const pv = previous.viewport ?? {};
+  if (pv.width !== next.viewport?.width || pv.height !== next.viewport?.height) diffs.push(`viewport (${pv.width}×${pv.height})`);
+  if (Boolean(previous.fullPage) !== Boolean(next.fullPage)) diffs.push(`fullPage (${Boolean(previous.fullPage)})`);
+  if (diffs.length) return { manifest: next, kept: [], replaced: [], mismatch: diffs.join(', ') };
+
+  const fresh = new Map(Object.entries(next.states ?? {}));
+  const states = [];
+  const kept = [];
+  const replaced = [];
+  for (const [name, entry] of Object.entries(previous.states)) {
+    if (fresh.has(name)) {
+      states.push([name, fresh.get(name)]);
+      fresh.delete(name);
+    } else if (recaptured.some((r) => sameStateFile(r, name))) {
+      replaced.push(name);
+    } else {
+      states.push([name, entry]);
+      kept.push(name);
+    }
+  }
+  states.push(...fresh);
+  const keptSet = new Set(kept);
+  const degradations = [
+    ...(Array.isArray(previous.degradations) ? previous.degradations : []).filter((d) => keptSet.has(stepState(d?.step))),
+    ...(next.degradations ?? []),
+  ];
+  if (kept.length && (previous.commit ?? null) !== (next.commit ?? null)) {
+    degradations.push({
+      step: 'capture:merge',
+      reason: `kept ${kept.join(', ')} from a capture of commit ${previous.commit ?? 'unknown'}; re-captured ${recaptured.join(', ')} at ${next.commit ?? 'unknown'}`,
+      impact: 'The evidence mixes two builds; re-capture every state before a final verdict.',
+    });
+  }
+  return { manifest: { ...next, states: Object.fromEntries(states), degradations }, kept, replaced, mismatch: null };
 }

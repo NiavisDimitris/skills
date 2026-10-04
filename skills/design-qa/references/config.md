@@ -81,10 +81,11 @@ Which scripts read the config:
 
 | Script | Reads |
 |---|---|
-| `capture.mjs --config design-qa.config.json [--surface <name>]` | The URL (`app.baseUrl` + the surface route), the surface's states, `app.auth` (type, env prefix, login), `app.headers`, `fullPage`, `capture.reducedMotion`. Explicit flags win; `--state <name>` alone picks that state's configured driver. `--surface` is optional when there is only one. With `--side design`, pass the prototype's `--url` explicitly. |
+| `capture.mjs --config design-qa.config.json [--surface <name>]` | The URL (`app.baseUrl` + the surface route), the surface's states, `app.auth` (type, env prefix, login), `app.headers` (sent to the app's origin only), `fullPage`, `capture.reducedMotion`, `capture.allowNavigation`. Explicit flags win; `--state <name>` alone picks that state's configured driver. `--surface` is optional when there is only one. With `--side design`, pass the prototype's `--url` explicitly. |
 | `state-discovery.mjs --config … --surface <name>` | The surface's states, as the implemented side of the matrix. With `--backfill-out`, configured states (with a driver) that the design does not define become backfill candidates (`discoveredBy: "config"`); they are never rows. |
 | The agent, for design backfill (step 2) | `designSystem.name`, `designSystem.componentCatalog` and `designSystem.tokenMap`, to map what the app renders to library components and variables (design-backfill.md). No other key: step 2 needs no config of its own. |
 | `render-report.mjs --config …`, `validate.mjs --config …` | `tolerances.pixelDiff`, `report.topN`, `report.ranking`, `report.embedImages`. |
+| `compare.mjs --config …` | `tolerances.px` and `tolerances.colorDeltaE`. `--tolerance-px` and `--color-delta-e` win; the values used, and where each came from, are recorded in `compare.json` `options`. |
 | The agent, for the design input | `surfaces.<name>.prototype`, `surfaces.<name>.figma` and `surfaces.<name>.screens` (SKILL.md section 2). |
 | The agent, for triage | `ticket.debt` (passed to `jira-fetch.mjs --tickets-from`) and `report.debtLog` (passed to `debt-log.mjs --md`). |
 | `validate.mjs design-qa.config.json` | The whole file, against the schema. |
@@ -135,8 +136,8 @@ Paths are relative to the repository root. The files are the project's private o
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `tolerances.px` | number | 1 | Allowed difference for lengths in px. |
-| `tolerances.colorDeltaE` | number | 1.5 | Allowed color difference (ΔE, CIEDE2000). |
+| `tolerances.px` | number ≥ 0 | 1 | Allowed difference for lengths in px, also inside shadows and borders. |
+| `tolerances.colorDeltaE` | number ≥ 0 | 1.5 | Allowed color difference: CIEDE2000 ΔE between the two colors in CIELAB. Any CSS syntax compares (hex, `rgb()`, `hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color(srgb \| display-p3 \| … )`, named), wide-gamut colors without clipping to sRGB, and colors inside shadows, borders, outlines and gradients too. Alpha must match within 0.01; two fully transparent colors always match. 0 accepts only colors that convert to the same CIELAB value. |
 | `tolerances.pixelDiff.pass` | percent | 1 | Below this, the pixel-diff band is `pass`. |
 | `tolerances.pixelDiff.review` | percent | 5 | Up to this, `review`; above, `fail`. |
 
@@ -157,7 +158,7 @@ Paths are relative to the repository root. The files are the project's private o
 | `report.embedImages` | boolean | true | Inline images so `report.html` is one self-contained file. |
 | `report.ranking.severity` | object | `{ "BLOCKER": 3, "WARNING": 2, "DS_CANDIDATE": 1 }` | Severity weights in the ranking score. |
 | `report.ranking.ledger` | object | `{ "structure": 3, "component": 3, "state": 3, "style": 2, "behavior": 2, "motion": 2 }` | Ledger weights in the ranking score. |
-| `report.debtLog` | path | `qa-reports/design-debt.md` | The readable, cumulative design-debt log. Pass it to `debt-log.mjs --md`; the JSON log sits next to it (`qa-reports/design-debt.json`). The dismissals log (`dismissed.json` and `.md`) is not configured here: `dismiss.mjs` writes it in the parent of the report folder (`qa-reports/` with the default `report.outDir`), or where `--log` and `--md` say. |
+| `report.debtLog` | path ending in `.md` | `qa-reports/design-debt.md` | The readable, cumulative design-debt log. `debt-log.mjs` and `apply-decisions.mjs` find it through the config (the same discovery as `review.mjs`), or pass it with `--md`; the JSON log sits next to it (`qa-reports/design-debt.json`). The path is relative to the config file and must stay inside its folder, symbolic links followed: a committed config pointing elsewhere (`../`, an absolute path, or a symlinked folder that leads out) is refused with a usage error (exit 2), so a cloned repository cannot make a run write outside it. A path passed with `--md` or `--log` is used as given. The dismissals log (`dismissed.json` and `.md`) is not configured here: `dismiss.mjs` writes it in the parent of the report folder (`qa-reports/` with the default `report.outDir`), or where `--log` and `--md` say. |
 
 ### ticket
 
@@ -186,6 +187,7 @@ Paths are relative to the repository root. The files are the project's private o
 |---|---|---|---|
 | `capture.driver` | `script` · `playwright-mcp` · `builtin` | `script` | Preferred capture rung. |
 | `capture.reducedMotion` | boolean | false | Emulate reduced motion in every state. |
+| `capture.allowNavigation` | boolean | false | Let every state end on another URL. By default a redirect or navigation away from the planned URL (to a sign-in page, say) fails the state, and a run where every state redirected exits 5. An http→https upgrade on the same host and a trailing slash don't count. Same as `capture.mjs --allow-navigation`; a driver's own `allowNavigation` wins. |
 
 ## Environment variables
 
@@ -257,7 +259,9 @@ console.log(JSON.stringify(classifyInput(process.argv[1])));
 | | `motionMatches(expected, observedList, { durationToleranceMs })` | `{ result, observed, reasons }`: whether an observed transition or animation matches the expected one |
 | | `normalizeEasing`, `easingEqual`, `figmaEasingToCss`, `springToCubicBezier`, `parseDurationMs`, `describeMotion` | Easing and duration helpers behind the mapping |
 | `screens.mjs` | `discoverScreens(spec)` | `[ { id, name, nodeId, frame, states } ]` for a multi-screen page, section or flow |
-| `compare.mjs` | `compareState`, `compareFigmaMotion`, `dedupeMotion`, `dedupeRepeats`, `summarize`, `parseTokenMap`, `parseTokenCategories`, `tokenForValue`, `componentIdentity` | The core of `scripts/compare.mjs`: design-capture versus app-capture rows (browser-capture.md) |
+| `compare.mjs` | `compareState`, `compareFigmaMotion`, `dedupeMotion`, `dedupeRepeats`, `summarize`, `parseTokenMap`, `parseTokenCategories`, `tokenForValue`, `componentIdentity`, `pairSamples` | The core of `scripts/compare.mjs`: design-capture versus app-capture rows (browser-capture.md) |
+| | `compareValues(property, design, app, { tolerancePx, toleranceMs, colorDeltaE })` | `{ result, delta, deltaE? }`: one computed value against another, with the tolerances above |
+| | `colorDifference(a, b)`, `colorsMatch(a, b, maxDeltaE)`, `deltaE2000(lab1, lab2)`, `parseColor(value)`, `parseColorDetailed(value)` | `{ deltaE, alpha }` for two CSS colors (null when either is not a color); whether they match; the CIEDE2000 formula; `[r, g, b, a]` clamped to sRGB; `{ rgba, lab, alpha, inGamut }` |
 | `dismissals.mjs` | `applyDismissal`, `undoDismissal`, `applyPriorDismissals`, `upsertLogEntries`, `fingerprint`, `parseDismissalsFile`, `renderDismissedMarkdown` | The core of `scripts/dismiss.mjs`: fingerprints, applying and re-applying dismissals, the log (report.md, "Dismissals") |
 | `state-discovery.mjs` | `normalizeStateName(name)`, `buildStateMatrix(…)` | Normalised state ids; matrix rows |
 | | `discoverUndesigned({ figmaSpec, ticket, config, surface, screen })` | Backfill candidates: config and ticket states the design does not define, the `candidates` of `backfill-candidates.json` (design-backfill.md) |

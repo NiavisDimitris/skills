@@ -38,9 +38,10 @@ const dismissed = (id, severity = 'WARNING') => ({
   dismissal: { kind: 'not-an-issue', reason: 'noise', by: null, date: '2026-09-24T00:00:00Z', source: 'cli' },
 });
 
+// One verified state by default: a pass that verified nothing is REVIEW (tested below).
 const baseReport = (over = {}) => ({
   findings: [],
-  stateMatrix: [],
+  stateMatrix: [{ state: 'with-data', result: 'PASS' }],
   openDecisions: [],
   scorecard: { pixelDiff: {} },
   ...over,
@@ -54,6 +55,17 @@ test('band: pass below the pass tolerance, review up to and including review, fa
   assert.equal(band(5.01), 'fail');
   assert.equal(band(0.4, { pass: 0.5, review: 3 }), 'pass');
   assert.equal(band(3.5, { pixelDiff: { pass: 0.5, review: 3 } }), 'fail', 'accepts config.tolerances shape');
+});
+
+test('band: 0% always passes, also with a pass tolerance of 0 (identical images, as diff.mjs)', () => {
+  assert.equal(band(0, { pass: 0, review: 5 }), 'pass');
+  assert.equal(band(0, { pass: 0, review: 0 }), 'pass');
+  assert.equal(band(0.01, { pass: 0, review: 5 }), 'review', 'any difference is review with pass 0');
+  assert.equal(band(0.01, { pass: 0, review: 0 }), 'fail');
+  assert.equal(pixelDiffBand({ percent: 0 }, { pass: 0, review: 5 }), 'pass');
+  const r = baseReport({ scorecard: { pixelDiff: { 'with-data': { percent: 0, band: 'pass' } } } });
+  assert.equal(computeScorecard(r, { tolerances: { pass: 0, review: 5 } }).pixelDiff['with-data'].band, 'pass');
+  assert.equal(deriveVerdict(r, { tolerances: { pass: 0, review: 5 } }), 'PASS');
 });
 
 test('parity counts FIX_CODE and UNCLASSIFIED as open', () => {
@@ -178,6 +190,20 @@ test('verdict: REVIEW triggers', () => {
     'state cannot verify': { stateMatrix: [{ state: 'error', result: 'CANNOT_VERIFY' }] },
   };
   for (const [name, over] of Object.entries(cases)) assert.equal(deriveVerdict(baseReport(over)), 'REVIEW', name);
+});
+
+test('verdict: REVIEW when no state was verified (an empty pass is not full parity)', () => {
+  const empty = baseReport({ stateMatrix: [] });
+  assert.equal(parity(empty.findings), 100, 'parity alone would read 100');
+  assert.equal(deriveVerdict(empty), 'REVIEW');
+  assert.deepEqual(explainVerdict(empty).reasons, ['no state was verified: the state matrix is empty']);
+  const unverified = baseReport({ stateMatrix: [{ state: 'hover', result: 'NOT_SPECIFIED' }, { state: 'focus', result: 'NOT_SPECIFIED' }] });
+  assert.equal(deriveVerdict(unverified), 'REVIEW');
+  assert.deepEqual(explainVerdict(unverified).reasons, ['no state was verified (0 of 2 captured and compared)']);
+  assert.equal(deriveVerdict(baseReport({ stateMatrix: [{ state: 'hover', result: 'FAIL' }] })), 'PASS', 'a compared state counts, whatever its result');
+  assert.equal(deriveVerdict(baseReport({ stateMatrix: [], findings: [finding('DQ-001', 'BLOCKER', 'FIX_CODE')] })), 'FAIL', 'FAIL still wins');
+  const sc = computeScorecard(empty);
+  assert.deepEqual([sc.verdict, sc.parity, sc.stateCoverage.total], ['REVIEW', 100, 0]);
 });
 
 test('verdict: FAIL triggers', () => {

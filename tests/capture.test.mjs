@@ -51,7 +51,8 @@ test('headers, cookies, auth types, keys and redaction', () => {
 
 test('resolveAuth reads <PREFIX>_* variables', () => {
   const env = { APP_USER: 'u', APP_PASS: 'p4ss', APP_COOKIE: 'sid=1', APP_STORAGE_STATE: '/tmp/state.json' };
-  assert.deepEqual(resolveAuth('basic', 'APP', env, 'http://x.test').httpCredentials, { username: 'u', password: 'p4ss' });
+  assert.deepEqual(resolveAuth('basic', 'APP', env, 'http://x.test/items?a=1').httpCredentials, { username: 'u', password: 'p4ss', origin: 'http://x.test' }, 'bound to the URL origin');
+  assert.equal(resolveAuth('basic', 'APP', env, 'https://proto.framer.app:8443/p').httpCredentials.origin, 'https://proto.framer.app:8443', '--side design: the prototype origin');
   assert.equal(resolveAuth('cookie', 'APP', env, 'http://x.test').cookies[0].name, 'sid');
   assert.equal(resolveAuth('storage-state', 'APP', env, 'http://x.test').storageStatePath, '/tmp/state.json');
   assert.deepEqual(resolveAuth('none', 'APP', {}, 'http://x.test').cookies, []);
@@ -104,6 +105,10 @@ test('configDefaults: URL, states, auth, headers and flags from design-qa.config
   assert.deepEqual(Object.keys(d.states), ['with-data', 'empty', 'loading', 'hover', 'disabled', 'error']);
   assert.equal(d.fullPage, false);
   assert.equal(d.reducedMotion, true);
+  assert.equal(d.allowNavigation, false);
+  const lenient = loadFixture('config.json');
+  lenient.capture.allowNavigation = true;
+  assert.equal(configDefaults(lenient, 'items').allowNavigation, true, 'capture.allowNavigation');
   assert.equal(configDefaults(loadFixture('config.json')).surface, 'items', 'a single surface needs no --surface');
   assert.throws(() => configDefaults(loadFixture('config.json'), 'nope'), /surface "nope" is not in the config/);
   const bad = loadFixture('config.json');

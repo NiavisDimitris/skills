@@ -1,20 +1,25 @@
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import {
   canonicalColor,
+  colorDifference,
+  colorsMatch,
   compareFigmaMotion,
   compareState,
   compareValues,
   componentIdentity,
   dedupeMotion,
   dedupeRepeats,
+  deltaE2000,
   matchesSimpleSelector,
   motionFromLonghands,
   normalizeValue,
   pairSamples,
+  parseColor,
+  parseColorDetailed,
   parseTokenMap,
   parseTokenCategories,
   pickToken,
@@ -23,7 +28,7 @@ import {
   tokenCategory,
   tokenForValue,
 } from '../skills/design-qa/scripts/lib/compare.mjs';
-import { fixture, run, script, startServer, tmpDir } from './_helpers.mjs';
+import { fixture, loadFixture, run, script, startServer, tmpDir } from './_helpers.mjs';
 
 const COMPARE = script('compare.mjs');
 const CAPTURE = script('capture.mjs');
@@ -45,9 +50,12 @@ test('colours, durations and values normalise before comparing', () => {
   assert.equal(normalizeValue('font-weight', 'bold'), '700');
   assert.equal(normalizeValue('box-shadow', 'rgba(0, 0, 0, 0.1) 0px 1px 2px 0px'), 'rgba(0,0,0,0.1) 0px 1px 2px 0px');
 
-  assert.deepEqual(compareValues('background-color', '#2563eb', 'rgb(37, 99, 235)'), { result: 'PASS', delta: null });
+  assert.deepEqual(compareValues('background-color', '#2563eb', 'rgb(37, 99, 235)'), { result: 'PASS', delta: null, deltaE: 0 });
   assert.equal(compareValues('background-color', 'rgb(37, 99, 235)', 'rgb(29, 78, 216)').result, 'FAIL');
-  assert.equal(compareValues('background-color', '#4f46e5', '#5046e4').result, 'FAIL', 'a near-miss hex is a hand-typed value, not rounding');
+  // A near-miss hex renders within ΔE 1.5: the style row passes (a token row still flags a
+  // hand-typed value, see the compareState near-miss test); a tight tolerance fails it.
+  assert.equal(compareValues('background-color', '#4f46e5', '#5046e4').result, 'PASS');
+  assert.equal(compareValues('background-color', '#4f46e5', '#5046e4', { colorDeltaE: 0.1 }).result, 'FAIL');
   assert.equal(compareValues('background-color', 'rgba(0, 0, 0, 0.5)', 'rgba(0, 0, 0, 0.505)').result, 'PASS', 'alpha keeps its 0.01 tolerance');
   assert.deepEqual(compareValues('padding-top', '16px', '17px'), { result: 'PASS', delta: 1 }, 'within the 1px tolerance');
   assert.deepEqual(compareValues('padding-top', '16px', '18px'), { result: 'FAIL', delta: 2 });
@@ -56,6 +64,83 @@ test('colours, durations and values normalise before comparing', () => {
   assert.equal(compareValues('transition-duration', '0.2s', '200ms').result, 'PASS');
   assert.equal(compareValues('transition-timing-function', 'ease-out', 'cubic-bezier(0, 0, 0.58, 1)').result, 'PASS');
   assert.equal(compareValues('font-weight', '700', 'bold').result, 'PASS');
+});
+
+test('colours: every CSS Color 4 syntax converts to the same CIELAB colour', () => {
+  // CSS Color 4 reference conversions of sRGB red.
+  for (const red of [
+    'red', '#f00', 'rgb(255 0 0)', 'rgb(100% 0% 0%)', 'hsl(0 100% 50%)', 'hsl(0turn 100 50)', 'hwb(0 0% 0%)',
+    'oklch(0.628 0.2577 29.23)', 'oklch(62.8% 0.2577 29.23deg)', 'oklab(0.628 0.2249 0.1258)', 'lab(54.29 80.8 69.89)',
+    'lch(54.29 106.84 40.85)', 'color(srgb 1 0 0)', 'color(srgb-linear 1 0 0)', 'color(display-p3 0.9175 0.2 0.1387)',
+    'color(a98-rgb 0.8585 0 0)', 'color(rec2020 0.792 0.231 0.0738)', 'color(prophoto-rgb 0.7023 0.2757 0.1036)',
+    'color(xyz 0.4124 0.2126 0.0193)', 'color(xyz-d50 0.4361 0.2225 0.0139)',
+  ]) {
+    assert.deepEqual(parseColor(red), [255, 0, 0, 1], red);
+    assert.ok(colorDifference(red, 'rgb(255, 0, 0)').deltaE < 0.1, red);
+  }
+  assert.deepEqual(parseColor('hsl(0.5turn 50% 50%)'), parseColor('hsl(180deg 50% 50%)'));
+  assert.deepEqual(parseColor('hwb(120 20% 20% / 50%)'), [51, 204, 51, 0.5]);
+  assert.deepEqual(parseColor('rgb(none 0 0)'), [0, 0, 0, 1], '"none" components are 0');
+  assert.equal(parseColor('oklch(0.5 none none / none)')[3], 0, '"none" alpha is 0');
+  assert.equal(parseColor('oklch(0.5 0.1 200 / 40%)')[3], 0.4);
+  assert.equal(parseColor('color(foo 1 0 0)'), null);
+  assert.equal(parseColor('oklch(0.5 0.1)'), null);
+  assert.equal(parseColor('currentcolor'), null);
+
+  // display-p3 red is outside sRGB: its CIELAB value keeps the wider chroma (no clipping).
+  const p3 = parseColorDetailed('color(display-p3 1 0 0)');
+  assert.equal(p3.inGamut, false);
+  assert.deepEqual(p3.rgba, [255, 0, 0, 1], 'rgba is clamped to sRGB');
+  assert.ok(colorDifference('color(display-p3 1 0 0)', 'rgb(255, 0, 0)').deltaE > 5);
+  assert.equal(compareValues('color', 'color(display-p3 1 0 0)', 'color(display-p3 0.95 0 0)').result, 'FAIL', 'two reds that both clip to rgb(255,0,0) still differ');
+  assert.equal(normalizeValue('color', 'color(display-p3 1 0 0)'), 'color(display-p3 1 0 0)', 'out-of-gamut colours are never canonicalised onto an sRGB value');
+  assert.equal(normalizeValue('color', 'oklch(0.628 0.2577 29.23)'), 'rgba(255,0,0,1)');
+  assert.equal(canonicalColor('lab(54.29 80.8 69.89)'), 'rgba(255,0,0,1)');
+});
+
+test('colours: CIEDE2000 within colorDeltaE, alpha within 0.01, transparent equals transparent', () => {
+  // Sharma, Wu & Dalal (2005) CIEDE2000 test data.
+  for (const [x, y, e] of [
+    [[50, 2.6772, -79.7751], [50, 0, -82.7485], 2.0425],
+    [[50, 0, 0], [50, -1, 2], 2.3669],
+    [[50, 2.49, -0.001], [50, -2.49, 0.0009], 7.1792],
+    [[60.2574, -34.0099, 36.2677], [60.4626, -34.1751, 39.4387], 1.2644],
+    [[2.0776, 0.0795, -1.135], [0.9033, -0.0636, -0.5514], 0.9082],
+  ]) assert.equal(Number(deltaE2000(x, y).toFixed(4)), e);
+
+  assert.deepEqual(compareValues('color', 'oklch(0.511 0.262 276.966)', 'rgb(79, 57, 246)'), { result: 'PASS', delta: null, deltaE: 0.08 }, 'Tailwind v4 oklch vs its rgb');
+  assert.equal(compareValues('color', 'rgb(79, 70, 229)', 'rgb(80, 70, 229)').result, 'PASS', 'one channel step is below ΔE 1.5');
+  assert.equal(compareValues('color', 'rgb(79, 70, 229)', 'rgb(90, 70, 229)').result, 'FAIL', 'ΔE 1.7');
+  assert.equal(compareValues('color', 'rgb(79, 70, 229)', 'rgb(90, 70, 229)', { colorDeltaE: 2 }).result, 'PASS');
+  assert.equal(compareValues('color', 'oklch(0.628 0.2577 29.23)', 'rgb(37, 99, 235)').result, 'FAIL', 'red is not blue');
+  assert.equal(compareValues('background-color', 'rgba(0, 0, 0, 0)', 'rgba(255, 255, 255, 0)').result, 'PASS', 'transparent equals transparent');
+  assert.equal(compareValues('background-color', 'transparent', 'oklch(0.9 0.1 120 / 0)').result, 'PASS');
+  assert.equal(compareValues('background-color', 'rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.05)').result, 'FAIL', 'alpha differs by more than 0.01');
+  assert.equal(colorsMatch('rgb(1 2 3)', 'nope'), null);
+
+  // Colours inside shorthand values.
+  assert.equal(compareValues('box-shadow', 'oklab(0 0 0 / 0.1) 0px 1px 2px 0px', 'rgba(0, 0, 0, 0.1) 0px 1px 2px 0px').result, 'PASS');
+  assert.equal(compareValues('box-shadow', 'oklab(0 0 0 / 0.1) 0px 1px 2px 0px, oklch(0.2 0 0 / 0.2) 0px 4px 8px 0px', 'rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgb(22 22 22 / 0.2) 0px 4px 8px 0px').result, 'PASS');
+  assert.equal(compareValues('box-shadow', 'oklab(0 0 0 / 0.1) 0px 1px 2px 0px', 'rgba(0, 0, 0, 0.3) 0px 1px 2px 0px').result, 'FAIL', 'shadow alpha');
+  assert.equal(compareValues('box-shadow', 'oklab(0 0 0 / 0.1) 0px 1px 2px 0px', 'rgba(0, 0, 0, 0.1) 0px 4px 2px 0px').result, 'FAIL', 'shadow offset');
+  assert.equal(compareValues('border-top', '1px solid oklch(0.628 0.2577 29.23)', '1px solid rgb(255, 0, 0)').result, 'PASS');
+  assert.equal(compareValues('outline', 'rgb(79, 70, 229) solid 2px', 'rgb(80, 70, 229) solid 2px').result, 'PASS');
+  assert.equal(compareValues('background-image', 'linear-gradient(rgb(79, 70, 229), oklch(0.5 0.1 200))', 'linear-gradient(rgb(80, 70, 229), oklch(0.5 0.1 200))').result, 'PASS', 'colours inside gradients');
+  assert.equal(compareValues('background-image', 'linear-gradient(rgb(79, 70, 229), red)', 'linear-gradient(rgb(79, 70, 229), blue)').result, 'FAIL');
+});
+
+test('compareState: a colour within ΔE passes; a hand-typed near miss still gets a hardcoded token row', () => {
+  const sample = (bg, vars) => ({ 'background-color': bg, __visible: true, __el: { tag: 'button', text: 'Save', selector: 'button' }, __vars: vars });
+  const sideOf = (s) => ({ driver: {}, computed: { button: { selector: 'button', count: 1, samples: [s] }, rootTokens: { '--brand': 'rgb(79, 70, 229)' } } });
+  const nearMiss = compareState({ state: 'with-data', design: sideOf(sample('rgb(79, 70, 229)', { 'background-color': ['--brand'] })), app: sideOf(sample('rgb(80, 70, 229)', {})) });
+  assert.equal(nearMiss.style[0].result, 'PASS');
+  assert.equal(nearMiss.style[0].deltaE, 0.15);
+  assert.deepEqual(nearMiss.tokens.map((r) => [r.expectedToken, r.actualToken]), [['--brand', null]]);
+  assert.match(nearMiss.tokens[0].note, /hardcoded value: no token resolves to rgb\(80, 70, 229\) \(within ΔE 0.15 of the design\); use --brand/);
+  const sameToken = compareState({ state: 'with-data', design: sideOf(sample('oklch(0.511 0.262 276.966)', { 'background-color': ['--brand'] })), app: sideOf(sample('rgb(79, 57, 246)', { 'background-color': ['--brand'] })) });
+  assert.deepEqual([sameToken.style[0].result, sameToken.tokens.length], ['PASS', 0], 'within ΔE and on a token: nothing to report');
+  const tight = compareState({ state: 'with-data', colorDeltaE: 0.1, design: sideOf(sample('rgb(79, 70, 229)', { 'background-color': ['--brand'] })), app: sideOf(sample('rgb(80, 70, 229)', {})) });
+  assert.equal(tight.style[0].result, 'FAIL', 'compareState passes colorDeltaE through');
 });
 
 test('tokens: token maps, value lookup and the best-fitting name', () => {
@@ -194,13 +279,46 @@ test('components: data-component, catalog selector / className / testid; a bare 
   assert.ok(!matchesSimpleSelector({ tag: 'button', classes: [] }, 'button:not([data-ds-component])'), 'pseudo-classes are not evaluated');
 });
 
-test('pairSamples: same text first, then the same index; leftovers are extra', () => {
+test('pairSamples: same text first, then the remaining samples in order; leftovers are extra', () => {
   const s = (text) => ({ __el: { text } });
   const { pairs, extra } = pairSamples([s('Save'), s('Cancel')], [s('Cancel'), s('Save'), s('Delete')]);
   assert.deepEqual(pairs.map((p) => [p.dIndex, p.aIndex]), [[0, 1], [1, 0]]);
-  assert.deepEqual(extra.map((e) => e.aIndex), [2]);
+  assert.deepEqual(extra.map((e) => [e.aIndex, e.notSampled]), [[2, false]]);
   const byIndex = pairSamples([s('Alpha'), s('Beta')], [s('Item 1')]);
-  assert.deepEqual(byIndex.pairs.map((p) => [p.dIndex, p.aIndex]), [[0, 0], [1, null]]);
+  assert.deepEqual(byIndex.pairs.map((p) => [p.dIndex, p.aIndex, p.notSampled]), [[0, 0, false], [1, null, false]]);
+  // A textless icon button swapped with a labelled one: not the same index, still a pair.
+  const swapped = pairSamples([s('Save'), s('')], [s(''), s('Save')]);
+  assert.deepEqual(swapped.pairs.map((p) => [p.dIndex, p.aIndex]), [[0, 1], [1, 0]]);
+  assert.deepEqual(swapped.extra, []);
+  // The app matched 5 elements but sampled 2: a design leftover may be one it did not sample.
+  const truncated = pairSamples([s('A'), s('B'), s('C')], [s('A'), s('B')], { dCount: 3, aCount: 5 });
+  assert.deepEqual(truncated.pairs.map((p) => [p.dIndex, p.aIndex, p.notSampled]), [[0, 0, false], [1, 1, false], [2, null, true]]);
+  const designTruncated = pairSamples([s('A')], [s('A'), s('X')], { dCount: 4, aCount: 2 });
+  assert.deepEqual(designTruncated.extra.map((e) => [e.aIndex, e.notSampled]), [[1, true]]);
+});
+
+test('compareState: pairing across a reorder and a sampling limit raises no false missing / extra rows', () => {
+  const b = (text) => ({ 'font-size': '16px', __visible: true, __el: { tag: 'button', text, selector: 'button' } });
+  const sideOf = (texts, count) => ({ driver: {}, computed: { button: { selector: 'button', count, samples: texts.map(b) } } });
+  // Design [Export, Filter, New]; the app adds Help first and samples 3 of its 4 buttons.
+  const toolbar = compareState({ state: 'with-data', design: sideOf(['Export', 'Filter', 'New'], 3), app: sideOf(['Help', 'Export', 'Filter'], 4) });
+  assert.ok(!toolbar.structure.some((r) => r.note === 'missing in app'), 'New is not missing: the app has a fourth, unsampled button');
+  assert.ok(toolbar.style.every((r) => r.result === 'PASS'));
+  // An icon-only button reordered: paired with the app's icon-only button, not missing.
+  const icons = compareState({ state: 'with-data', design: sideOf(['Save', ''], 2), app: sideOf(['', 'Save'], 2) });
+  assert.deepEqual(icons.structure, []);
+  // The design sampled 3, the app only 2 of 6: the third design element cannot be verified.
+  const limited = compareState({ state: 'with-data', design: sideOf(['A', 'B', 'C'], 3), app: sideOf(['A', 'B'], 6) });
+  assert.deepEqual(limited.structure.map((r) => [r.text, r.design, r.app, r.result]), [['C', 'present', 'not sampled', 'CANNOT_VERIFY']]);
+  assert.match(limited.structure[0].note, /not sampled in the app: its selector matched 6 elements and only the first 2 were captured/);
+  assert.deepEqual(limited.motion, [], 'no "element missing in app" motion row for an unsampled element');
+  const extraUnsampled = compareState({ state: 'with-data', design: sideOf(['A'], 4), app: sideOf(['A', 'Z'], 2) });
+  assert.deepEqual(extraUnsampled.structure.map((r) => [r.text, r.design, r.app, r.result]), [['Z', 'not sampled', 'present', 'CANNOT_VERIFY']]);
+  // Without truncation a leftover is still missing / extra.
+  const missing = compareState({ state: 'with-data', design: sideOf(['A', 'B', 'C'], 3), app: sideOf(['A', 'B'], 2) });
+  assert.deepEqual(missing.structure.map((r) => [r.text, r.note, r.result]), [['C', 'missing in app', 'FAIL']]);
+  const summary = summarize({ limited, missing });
+  assert.deepEqual(summary.structure, { fail: 1, missingInApp: 1, extraInApp: 0, cannotVerify: 1 });
 });
 
 const longhands = (over = {}) => ({
@@ -360,6 +478,49 @@ test('compare CLI: usage errors', async () => {
   assert.match((await run(COMPARE, ['--help'])).stdout, /--figma-spec/);
 });
 
+test('compare CLI: tolerances from --config, overridden by --tolerance-px / --color-delta-e, recorded in options', async () => {
+  const dir = tmpDir();
+  const sample = (color, pad) => ({ color, 'padding-top': pad, __visible: true, __el: { tag: 'button', text: 'Save', selector: 'button' } });
+  for (const [folder, s] of [['design-computed', sample('rgb(79, 70, 229)', '16px')], ['computed', sample('rgb(90, 70, 229)', '18px')]]) {
+    mkdirSync(path.join(dir, folder), { recursive: true });
+    writeFileSync(path.join(dir, folder, 'with-data.json'), JSON.stringify({ button: { selector: 'button', count: 1, samples: [s] } }));
+  }
+  const config = loadFixture('config.json');
+  config.tolerances = { ...config.tolerances, px: 2, colorDeltaE: 2 };
+  const configFile = path.join(dir, 'design-qa.config.json');
+  writeFileSync(configFile, JSON.stringify(config));
+  const out = path.join(dir, 'compare.json');
+  const compare = async (...flags) => {
+    const res = await run(COMPARE, ['--app', dir, '--out', out, '--quiet', ...flags]);
+    assert.equal(res.code, 0, res.stderr);
+    const result = JSON.parse(readFileSync(out, 'utf8'));
+    return { options: result.options, results: Object.fromEntries(result.states['with-data'].style.map((r) => [r.property, r.result])) };
+  };
+
+  const defaults = await compare();
+  assert.deepEqual([defaults.options.tolerancePx, defaults.options.colorDeltaE, defaults.options.alphaTolerance], [1, 1.5, 0.01]);
+  assert.deepEqual(defaults.options.tolerancesFrom, { px: 'default', colorDeltaE: 'default' });
+  assert.deepEqual(defaults.results, { color: 'FAIL', 'padding-top': 'FAIL' }, 'ΔE 1.7 and 2px are over the defaults');
+
+  const fromConfig = await compare('--config', configFile);
+  assert.deepEqual([fromConfig.options.tolerancePx, fromConfig.options.colorDeltaE, fromConfig.options.config], [2, 2, configFile]);
+  assert.deepEqual(fromConfig.options.tolerancesFrom, { px: 'config', colorDeltaE: 'config' });
+  assert.deepEqual(fromConfig.results, { color: 'PASS', 'padding-top': 'PASS' });
+
+  const flagsWin = await compare('--config', configFile, '--color-delta-e', '1', '--tolerance-px', '0');
+  assert.deepEqual(flagsWin.options.tolerancesFrom, { px: 'flag', colorDeltaE: 'flag' });
+  assert.deepEqual(flagsWin.results, { color: 'FAIL', 'padding-top': 'FAIL' });
+  assert.deepEqual((await compare('--color-delta-e', '2')).results, { color: 'PASS', 'padding-top': 'FAIL' });
+
+  assert.equal((await run(COMPARE, ['--app', dir, '--out', out, '--color-delta-e', 'abc'])).code, 2);
+  assert.equal((await run(COMPARE, ['--app', dir, '--out', out, '--color-delta-e=-1'])).code, 2);
+  config.tolerances.colorDeltaE = -1;
+  writeFileSync(configFile, JSON.stringify(config));
+  const bad = await run(COMPARE, ['--app', dir, '--out', out, '--config', configFile]);
+  assert.equal(bad.code, 2);
+  assert.match(bad.stderr, /colorDeltaE/);
+});
+
 // ---------------------------------------------------------------------------
 // End to end: capture a coded prototype (design) and a drifting app, then compare
 // ---------------------------------------------------------------------------
@@ -464,6 +625,16 @@ test('end to end: prototype (--side design) vs drifting app → token, component
   } finally {
     await server.close();
   }
+});
+
+test('dedupeRepeats: a different element with the same values in another state keeps its row', () => {
+  const heading = (text, fs) => ({ 'font-size': fs, __visible: true, __el: { tag: 'h1', text, selector: 'h1' } });
+  const mk = (state, text) => compareState({ state, design: { computed: { heading: { selector: 'h1', count: 1, samples: [heading(text, '24px')] } } }, app: { computed: { heading: { selector: 'h1', count: 1, samples: [heading(text, '20px')] } } } });
+  const states = { 'with-data': mk('with-data', 'Orders'), empty: mk('empty', 'No orders yet'), hover: mk('hover', 'Orders') };
+  assert.deepEqual(dedupeRepeats(states), { dropped: 1 }, 'only the hover repeat of the with-data heading drops');
+  assert.deepEqual(states.empty.style.map((r) => [r.text, r.result]), [['No orders yet', 'FAIL']], "the empty state's heading is a different element");
+  assert.deepEqual(states.hover.style, []);
+  assert.equal(summarize(states).style.fail, 2);
 });
 
 test('dedupeRepeats keeps one row per difference across states', () => {

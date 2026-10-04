@@ -2,11 +2,10 @@
 // Fetch a Figma frame over the REST API: figma-spec.json (flattened layers,
 // components, styles, variables, discovered states) plus a PNG per state.
 import path from 'node:path';
-import { writeFileSync } from 'node:fs';
-import { CliError, displayPath, ensureDir, parseCli, runMain, toNumber, usageError, writeJson } from './lib/args.mjs';
+import { CliError, displayPath, ensureDir, oneLine, parseCli, runMain, toNumber, usageError, writeFileAtomic, writeJson } from './lib/args.mjs';
 import { buildFigmaSpec, siblingFrames } from './lib/figma-spec.mjs';
 import { figmaDesignUrl, normalizeNodeId, parseFigmaUrl } from './lib/figma-url.mjs';
-import { describeUrl, fetchWithRetry, readJsonResponse } from './lib/http.mjs';
+import { apiBaseUrl, describeUrl, fetchWithRetry, readBody, readJsonResponse, retryMessage } from './lib/http.mjs';
 import { decodePng } from './lib/png.mjs';
 import { discoverScreens } from './lib/screens.mjs';
 import { normalizeStateName, stateFromName } from './lib/state-discovery.mjs';
@@ -40,7 +39,8 @@ Options:
 Environment:
   FIGMA_TOKEN        personal access token with the file_content:read scope
                      (file_variables:read is needed for variables; Enterprise plans only)
-  FIGMA_API_BASE     API base URL (default https://api.figma.com)
+  FIGMA_API_BASE     API base URL (default https://api.figma.com; https:// required,
+                     http:// only for localhost)
 
 Writes <out>/figma-spec.json and <out>/figma/<state>.<format>. The main frame is
 exported as "with-data" unless its own name maps to another state. figma-spec.json keeps
@@ -48,12 +48,16 @@ every layer's prototype reactions (with their transitions) and lists them as CSS
 specs under "motion" (trigger, type, durationMs, easing; springs are approximated).
 Prototype links (figma.com/proto/…) work like design links: node-id, else the
 starting-point-node-id, is the frame.
-Retries HTTP 429/5xx up to 3 times with backoff (Retry-After is honoured).
+Retries HTTP 429/5xx and network errors up to 3 times with backoff (Retry-After is
+honoured). Each request times out after 30 s (DESIGN_QA_HTTP_TIMEOUT_MS, in ms). The token is
+only sent to FIGMA_API_BASE: a redirect to another host is refused. Images larger than 50 MB
+are skipped (recorded as a degradation).
 
 Exit codes: 0 ok · 1 error (node not found, render/download failure) · 2 bad arguments ·
 6 authentication (FIGMA_TOKEN missing or rejected)`;
 
 const FORMATS = ['png', 'jpg', 'svg', 'pdf'];
+const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
 
 function fileSafe(name) {
   return String(name).replace(/[^A-Za-z0-9._-]+/g, '-');
@@ -65,10 +69,8 @@ function makeApi(token, base, warn) {
     return fetchWithRetry(
       url,
       { headers: { 'X-Figma-Token': token, Accept: 'application/json' } },
-      {
-        label,
-        onRetry: ({ status, attempt, waitMs }) => warn(`${label}: HTTP ${status}, retry ${attempt}/3 in ${Math.round(waitMs / 100) / 10}s`),
-      },
+      // sameOrigin: fetch keeps custom headers (X-Figma-Token) on cross-origin redirects.
+      { label, sameOrigin: true, onRetry: (info) => warn(retryMessage(label, info)) },
     );
   };
 }
@@ -95,14 +97,19 @@ async function exportImages({ api, fileKey, format, scale, warn }, items, degrad
       continue;
     }
     // Rendered images live on a CDN: never send the token there.
-    const res = await fetchWithRetry(imageUrl, {}, { label: `download ${s.state}` });
-    if (!res.ok) {
-      degradations.push({ step: 'figma-export', reason: `download of ${s.state} failed (HTTP ${res.status})`, impact: `No reference image for state "${s.state}".` });
+    // Timeouts, network errors and oversized images degrade this state, not the run.
+    const label = `download ${s.state}`;
+    let buffer;
+    try {
+      const res = await fetchWithRetry(imageUrl, {}, { label });
+      if (!res.ok) throw new CliError(`${label}: HTTP ${res.status}`, 1);
+      buffer = await readBody(res, label, { maxBytes: MAX_IMAGE_BYTES });
+    } catch (err) {
+      if (!(err instanceof CliError)) throw err;
+      degradations.push({ step: 'figma-export', reason: `download of ${s.state} failed (${err.message.replace(`${label}: `, '')})`, impact: `No reference image for state "${s.state}".` });
       continue;
     }
-    const buffer = Buffer.from(await res.arrayBuffer());
-    ensureDir(path.dirname(s.file));
-    writeFileSync(s.file, buffer);
+    writeFileAtomic(s.file, buffer); // atomic; refuses a symlink or a directory
     const entry = { state: s.state, nodeId: s.nodeId, name: s.name, path: s.rel, width: null, height: null };
     if (format === 'png') {
       try {
@@ -127,7 +134,7 @@ async function fetchScreens({ spec, nodesJson, variables, outDir, exporter, log,
   const { api, fileKey, format } = exporter;
   const screens = discoverScreens(spec);
   if (!screens.length) {
-    throw new CliError(`no screens found under ${spec.name} (${spec.nodeId}): link a page, a section or a top-level frame`, 1);
+    throw new CliError(`no screens found under ${oneLine(spec.name)} (${oneLine(spec.nodeId)}): link a page, a section or a top-level frame`, 1);
   }
   // Nodes we know by id (for sibling frames handed to state discovery).
   const known = new Map([...spec.layers, ...spec.siblings].map((l) => [l.id, l]));
@@ -200,12 +207,16 @@ async function fetchScreens({ spec, nodesJson, variables, outDir, exporter, log,
   writeJson(path.join(outDir, 'figma-spec.json'), spec);
   writeJson(path.join(outDir, 'screens.json'), index);
 
-  log(`Figma: ${spec.fileName ?? fileKey} › ${spec.name} (${spec.nodeId}) — ${index.screens.length} screen(s)`);
+  // Names come from the Figma file: every one folded to one line.
+  log(`Figma: ${oneLine(spec.fileName ?? fileKey)} › ${oneLine(spec.name)} (${oneLine(spec.nodeId)}) — ${index.screens.length} screen(s)`);
   for (const s of index.screens) {
-    log(`  ${s.id}: ${s.name} (${s.nodeId}) ${s.frame.width}×${s.frame.height} — states ${s.states.join(', ') || 'none'}; capture with --width ${s.frame.width} --height ${s.frame.height} --out <dir>/evidence/screens/${s.id}`);
+    log(
+      `  ${oneLine(s.id)}: ${oneLine(s.name)} (${oneLine(s.nodeId)}) ${oneLine(s.frame.width)}×${oneLine(s.frame.height)} — states ${s.states.map(oneLine).join(', ') || 'none'}; ` +
+        `capture with --width ${oneLine(s.frame.width)} --height ${oneLine(s.frame.height)} --out <dir>/evidence/screens/${oneLine(s.id)}`,
+    );
   }
   for (const d of degradations) warn(`${d.step}: ${d.reason} — ${d.impact}`);
-  log(`Wrote ${displayPath(path.join(outDir, 'screens.json'))}`);
+  log(`Wrote ${oneLine(displayPath(path.join(outDir, 'screens.json')))}`);
   if (items.length && !entries.length) throw new CliError('no Figma image could be exported (see warnings above)', 1);
   return 0;
 }
@@ -226,20 +237,21 @@ async function main(argv) {
     return 0;
   }
   const log = values.quiet ? () => {} : (msg) => console.log(msg);
-  const warn = (msg) => console.error(`warning: ${msg}`);
+  // Warnings quote Figma layer names and server messages: always one line.
+  const warn = (msg) => console.error(`warning: ${oneLine(msg)}`);
 
   if (!values.url) throw usageError('--url <figma-url> is required (see --help)');
   if (!values.out) throw usageError('--out <dir> is required');
   const link = parseFigmaUrl(values.url);
-  if (!link) throw usageError(`--url is not a Figma design/file/proto link: ${values.url}`);
+  if (!link) throw usageError(`--url is not a Figma design/file/proto link: ${oneLine(values.url)}`);
   const nodeId = values.node ? normalizeNodeId(values.node) : link.nodeId;
-  if (values.node && !nodeId) throw usageError(`--node: not a Figma node id (expected 1:23 or 1-23, got "${values.node}")`);
+  if (values.node && !nodeId) throw usageError(`--node: not a Figma node id (expected 1:23 or 1-23, got "${oneLine(values.node)}")`);
   if (!nodeId) throw usageError('the link has no node-id; select the frame in Figma and copy its link, or pass --node 1:23');
   const scale = toNumber(values.scale ?? '1', 'scale', { min: 0.01, max: 4 });
   const format = (values.format ?? 'png').toLowerCase();
-  if (!FORMATS.includes(format)) throw usageError(`--format must be one of ${FORMATS.join(', ')} (got "${values.format}")`);
+  if (!FORMATS.includes(format)) throw usageError(`--format must be one of ${FORMATS.join(', ')} (got "${oneLine(values.format)}")`);
   if (scale !== 1) warn(`--scale ${scale}: diff.mjs refuses to compare images at different scales; captures run at DPR 1`);
-  if (values.screens !== undefined && values.screens !== 'auto') throw usageError(`--screens: only "auto" is supported (got "${values.screens}")`);
+  if (values.screens !== undefined && values.screens !== 'auto') throw usageError(`--screens: only "auto" is supported (got "${oneLine(values.screens)}")`);
   const screensMode = values.screens === 'auto';
   if (screensMode && values.states !== undefined && values.states !== 'auto') {
     throw usageError('--screens auto discovers each screen\'s states; it cannot be combined with an explicit --states list');
@@ -249,7 +261,7 @@ async function main(argv) {
   if (statesMode !== 'auto') {
     explicitIds = statesMode.split(',').map((s) => s.trim()).filter(Boolean).map((id) => {
       const n = normalizeNodeId(id);
-      if (!n) throw usageError(`--states: "${id}" is not a node id (use auto or a comma-separated list like 1:40,1:77)`);
+      if (!n) throw usageError(`--states: "${oneLine(id)}" is not a node id (use auto or a comma-separated list like 1:40,1:77)`);
       return n;
     });
   }
@@ -261,7 +273,7 @@ async function main(argv) {
       6,
     );
   }
-  const base = (process.env.FIGMA_API_BASE || 'https://api.figma.com').replace(/\/+$/, '');
+  const base = apiBaseUrl(process.env.FIGMA_API_BASE || 'https://api.figma.com', 'FIGMA_API_BASE');
   const api = makeApi(token, base, warn);
   const fileKey = link.fileKey;
   const outDir = path.resolve(values.out);
@@ -356,16 +368,17 @@ async function main(argv) {
   writeJson(specFile, spec);
 
   const mainExport = spec.exports.find((e) => e.nodeId === nodeId);
-  log(`Figma: ${spec.fileName ?? fileKey} › ${spec.name} (${nodeId}) — ${spec.frame.width}×${spec.frame.height} ${spec.type.toLowerCase()}, ${spec.layers.length} layers`);
-  log(`States: ${spec.states.map((s) => `${s.state} (${s.source}: ${s.name})`).join(', ') || 'none found'}`);
-  if (spec.motion.length) log(`Motion: ${spec.motion.map((m) => `${m.trigger} ${m.type} ${m.durationMs ?? '?'}ms ${m.easing ?? ''}`.trim()).join(', ')}`);
-  if (spec.exports.length) log(`Images: ${spec.exports.map((e) => `${e.path}${e.width ? ` ${e.width}×${e.height}` : ''}`).join(', ')}`);
+  // Names come from the Figma file: every one folded to one line.
+  log(`Figma: ${oneLine(spec.fileName ?? fileKey)} › ${oneLine(spec.name)} (${nodeId}) — ${oneLine(spec.frame.width)}×${oneLine(spec.frame.height)} ${oneLine(spec.type).toLowerCase()}, ${spec.layers.length} layers`);
+  log(`States: ${spec.states.map((s) => `${oneLine(s.state)} (${oneLine(s.source)}: ${oneLine(s.name)})`).join(', ') || 'none found'}`);
+  if (spec.motion.length) log(`Motion: ${spec.motion.map((m) => oneLine(`${m.trigger} ${m.type} ${m.durationMs ?? '?'}ms ${m.easing ?? ''}`)).join(', ')}`);
+  if (spec.exports.length) log(`Images: ${spec.exports.map((e) => `${oneLine(e.path)}${e.width ? ` ${e.width}×${e.height}` : ''}`).join(', ')}`);
   if (mainExport?.width && (mainExport.width !== Math.round(spec.frame.width * scale) || mainExport.height !== Math.round(spec.frame.height * scale))) {
     warn(`the export is ${mainExport.width}×${mainExport.height} but the frame is ${spec.frame.width}×${spec.frame.height} (effects or clipping); capture at the export size or crop before diffing`);
   }
   if (mainExport?.width && scale === 1) log(`Capture with: --width ${mainExport.width} --height ${mainExport.height}`);
   for (const d of degradations) warn(`${d.step}: ${d.reason} — ${d.impact}`);
-  log(`Wrote ${displayPath(specFile)}`);
+  log(`Wrote ${oneLine(displayPath(specFile))}`);
   if (ids.length && !spec.exports.length) {
     throw new CliError('no Figma image could be exported (see warnings above)', 1);
   }

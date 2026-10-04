@@ -6,6 +6,7 @@ import { buildFigmaSpec, siblingFrames } from '../skills/design-qa/scripts/lib/f
 import { validateStateMatrix } from '../skills/design-qa/scripts/lib/schema-check.mjs';
 import { deriveVerdict } from '../skills/design-qa/scripts/lib/ranking.mjs';
 import {
+  DRIVER_ORDER,
   SYNONYMS,
   buildStateMatrix,
   describeDriver,
@@ -14,11 +15,13 @@ import {
   discoverFigmaStates,
   discoverTicketStates,
   discoverUndesigned,
+  driverKind,
+  exactStateName,
   matchStateSynonym,
   normalizeStateName,
   stateFromName,
 } from '../skills/design-qa/scripts/lib/state-discovery.mjs';
-import { loadFixture, run, script, tmpDir, fixture } from './_helpers.mjs';
+import { SKILL, loadFixture, run, script, tmpDir, fixture } from './_helpers.mjs';
 
 const spec = () =>
   buildFigmaSpec({
@@ -54,6 +57,57 @@ test('normalizeStateName and stateFromName', () => {
   assert.equal(stateFromName('Open orders section'), null, 'names only count when a segment is a state label');
   assert.equal(stateFromName('Data table'), null);
   assert.equal(normalizeStateName(''), null);
+});
+
+test('negated or partial names never map to the opposite state', () => {
+  const cases = {
+    'Not empty': 'not-empty', 'non-empty': 'non-empty', 'no errors': 'no-errors', 'Without errors': 'without-errors',
+    'Not selected': 'not-selected', "isn't loading": 'isn-t-loading', 'Data table': 'data-table', 'Default view': 'default-view',
+    'Open orders': 'open-orders',
+  };
+  for (const [name, state] of Object.entries(cases)) assert.equal(normalizeStateName(name), state, name);
+  // Phrases that are themselves state labels still match.
+  assert.equal(normalizeStateName('No data'), 'empty');
+  assert.equal(normalizeStateName('No results'), 'empty');
+  assert.equal(normalizeStateName('Error banner'), 'error', 'a non-negated whole-word synonym still names the state');
+  // Exact names (capture decisions): the whole name or a segment must be the label.
+  assert.equal(exactStateName('Items / Loading'), 'loading');
+  assert.equal(exactStateName('Skeleton'), 'loading');
+  assert.equal(exactStateName('with-data'), 'with-data');
+  assert.equal(exactStateName('pending orders'), null);
+  assert.equal(exactStateName('Fetching done'), null);
+  // Figma variants: State=Not selected is not the selected state.
+  const set = { layers: [{ id: '5:0', name: 'Tab', type: 'COMPONENT_SET', depth: 0 }, { id: '5:1', name: 'State=Not selected', type: 'COMPONENT', depth: 1, variantProperties: { State: 'Not selected' } }] };
+  assert.deepEqual(discoverFigmaStates(set).map((s) => s.state), ['not-selected']);
+  // Config keys: "Not empty" does not implement the empty state.
+  const config = { surfaces: { s: { route: '/s', states: { 'Not empty': { query: 'n=1' } } } } };
+  assert.deepEqual(discoverConfigStates(config, 's').map((s) => s.state), ['with-data', 'not-empty']);
+});
+
+test('matchStateSynonym ignores negated mentions in prose', () => {
+  assert.equal(matchStateSynonym('When there are no errors, show the list'), null);
+  assert.equal(matchStateSynonym('The list should not be empty'), null);
+  assert.equal(matchStateSynonym('If the list is not empty show rows; otherwise show an error'), 'error');
+  assert.equal(matchStateSynonym('No errors here; when the request fails show an error'), 'error');
+  assert.equal(matchStateSynonym('Without a spinner, show the rows'), null);
+  assert.equal(matchStateSynonym('Show a skeleton while loading'), 'loading');
+});
+
+test('driverKind: the distinguishing driver wins, in the documented order', () => {
+  assert.deepEqual(DRIVER_ORDER, ['action', 'mock', 'query', 'storage', 'fixture', 'source']);
+  assert.equal(driverKind({ fixture: 'three', action: 'hover', selector: '.row' }), 'action');
+  assert.equal(driverKind({ mock: { urlPattern: '**' }, action: 'click', selector: 'a' }), 'action');
+  assert.equal(driverKind({ fixture: 'three', mock: { urlPattern: '**' } }), 'mock');
+  assert.equal(driverKind({ query: 'a=1', mock: { urlPattern: '**' } }), 'mock');
+  assert.equal(driverKind({ storage: { local: {} }, query: 'a=1' }), 'query');
+  assert.equal(driverKind({ fixture: 'three', storage: { local: {} } }), 'storage');
+  assert.equal(driverKind({ fixture: 'three', source: 'src/x.tsx' }), 'fixture');
+  assert.equal(driverKind({ source: 'src/x.tsx' }), 'source');
+  assert.equal(driverKind({ viewport: { width: 375, height: 812 } }), 'fixture');
+  assert.equal(driverKind({}), null);
+  // The reference documents the same order.
+  const doc = readFileSync(path.join(SKILL, 'references', 'state-matrix.md'), 'utf8');
+  assert.ok(doc.includes(`in this order of precedence: ${DRIVER_ORDER.map((k) => `\`${k}\``).join(', ')}`), 'state-matrix.md lists the driver precedence of driverKind()');
 });
 
 test('matchStateSynonym scans prose, ignoring words too common to trust', () => {

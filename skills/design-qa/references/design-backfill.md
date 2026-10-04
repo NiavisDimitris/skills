@@ -64,7 +64,7 @@ node scripts/capture.mjs --config design-qa.config.json --surface <name> --width
   --grab <grab.json> --states <dir>/evidence/backfill/states.json --out <dir>/evidence/backfill
 ```
 
-`states.json` holds just the candidates' drivers (`--states` replaces the configured states for that run). Each gets `app/<state>.png`, `computed/`, `dom/` and `motion/` under `evidence/backfill/`. No design side, no diff, no ledgers. Multi-screen: per screen, `--screen <id> --out <dir>/evidence/backfill/screens/<id>`, and record each with `backfill.mjs --captured <that capture.json> --screen <id>`. A candidate with no driver keeps `captured: null`; its `detail` is the build reference, and the reachability ladder (state-matrix.md) says how to add a driver.
+`states.json` holds just the candidates' drivers (`--states` replaces the configured states for that run). Each gets `app/<state>.png`, `computed/`, `dom/` and `motion/` under `evidence/backfill/`. No design side, no diff, no ledgers. Multi-screen: per screen, `--screen <id> --out <dir>/evidence/backfill/screens/<id>`, and record each with `backfill.mjs --captured <that capture.json> --screen <id>` (without `--screen`, a state name that is an item on several screens is refused rather than attached to the wrong one). A candidate with no driver keeps `captured: null`; its `detail` is the build reference, and the reachability ladder (state-matrix.md) says how to add a driver.
 
 **Phase 8, record.** After `report.json` is written, before rendering:
 
@@ -73,7 +73,7 @@ node scripts/backfill.mjs --report <dir>/report.json --candidates <dir>/backfill
 node scripts/backfill.mjs --report <dir>/report.json --captured <dir>/evidence/backfill/capture.json
 ```
 
-`--candidates` upserts by screen and state and keeps earlier decisions; `--captured` attaches the evidence paths. Then render with `--backfill-plan <dir>/report-backfill.md`. The Phase 8 reply mentions them in one line, "n undesigned states found — step 2, after parity", never as findings.
+`--candidates` upserts by screen and state and keeps earlier decisions; it skips states the design defines, also when the ids differ only by letter case. `--captured` attaches the evidence paths. Then render with `--backfill-plan <dir>/report-backfill.md`. The Phase 8 reply mentions them in one line, "n undesigned states found — step 2, after parity", never as findings.
 
 ## The record
 
@@ -123,7 +123,7 @@ node scripts/backfill.mjs --report <dir>/report.json --build BF-001,BF-002 --by 
 node scripts/backfill.mjs --report <dir>/report.json --not-needed BF-003 --reason "<why>" --by "<name>"
 ```
 
-`--from` reads a file: save the chat message first (a `backfill.json` from an older report works too). A not-needed line without a reason exits 2. Who decided: an item's own `by`, else `--by`, else the file's `decidedBy` (or the message's `by:` line).
+`--from` reads a file: save the chat message first (a `backfill.json` from an older report works too). A not-needed line without a reason exits 2, and so does a `backfill.json` whose `reportGeneratedAt` is not this report's `meta.generatedAt` (decisions made on an earlier pass), unless a person confirms the ids still match and you pass `--allow-stale`. Who decided: an item's own `by`, else `--by`, else the file's `decidedBy` (or the message's `by:` line).
 
 ## Before writing
 
