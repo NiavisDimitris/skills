@@ -1,6 +1,6 @@
 {
   "name": "design-qa",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Design → code parity QA scripts for the design-qa Claude Code skill: capture, compare, pixel diff, render, validate.",
   "type": "module",
   "license": "MIT",

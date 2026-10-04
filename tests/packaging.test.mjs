@@ -72,6 +72,53 @@ test('the plugin stays small: examples, tests and docs are not in it', () => {
   assert.ok(!tracked.some((f) => /\.(png|woff2|jpg|mp4)$/.test(f)), 'no binary assets in the plugin');
 });
 
+// Tracked files may be at most 1 MB. Anything larger needs an entry here with
+// the reason it has to live in git.
+const LARGE_FILE_LIMIT = 1024 * 1024;
+const LARGE_FILE_ALLOWLIST = new Map([
+  // The five-screen sample report, every screenshot embedded so it opens as
+  // one file; linked from the README.
+  ['examples/mock-five-frames/report.html', 'rendered sample linked from the README'],
+]);
+
+test('no tracked file is over 1 MB unless allowlisted', (t) => {
+  let tracked;
+  try {
+    tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .split('\0')
+      .filter(Boolean);
+  } catch {
+    t.skip('git is not available, or this is not a git checkout');
+    return;
+  }
+  const large = [];
+  for (const f of tracked) {
+    let size;
+    try {
+      size = statSync(path.join(ROOT, f)).size;
+    } catch {
+      continue; // tracked but deleted in the working tree
+    }
+    if (size > LARGE_FILE_LIMIT && !LARGE_FILE_ALLOWLIST.has(f)) large.push(`${f} (${(size / 1048576).toFixed(2)} MB)`);
+  }
+  assert.deepEqual(large, [], 'shrink these files, or allowlist them in tests/packaging.test.mjs with a reason');
+});
+
+test('the SKILL.md description fits the skill-listing cap', (t) => {
+  const skill = readFileSync(path.join(PLUGIN, 'SKILL.md'), 'utf8');
+  const frontmatter = skill.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? '';
+  const field = (name) => (frontmatter.match(new RegExp(`^${name}:[ \\t]*(.*)$`, 'm'))?.[1] ?? '').replace(/^(['"])([\s\S]*)\1$/, '$2');
+  const description = field('description');
+  const whenToUse = field('when_to_use');
+  // Claude Code truncates description + when_to_use at 1,536 characters in the
+  // skill listing. The open Agent Skills spec caps description at 1,024: over
+  // that, other agents may cut or reject it. Reported, not enforced, here.
+  const length = description.length + whenToUse.length;
+  t.diagnostic(`SKILL.md description: ${description.length} characters${whenToUse ? `, when_to_use: ${whenToUse.length}` : ''} (Claude Code cap 1536, open-spec cap 1024)`);
+  assert.ok(description.length > 0, 'SKILL.md has a description');
+  assert.ok(length <= 1536, `description + when_to_use is ${length} characters; Claude Code truncates at 1536`);
+});
+
 test('a missing package exits 4 with the folder to run npm install in', async () => {
   const deps = path.join(PLUGIN, 'scripts', 'lib', 'deps.mjs');
   const res = await run('--input-type=module', ['-e', `import(${JSON.stringify(deps)}).then((m) => m.importDependency('design-qa-no-such-package'))`]);

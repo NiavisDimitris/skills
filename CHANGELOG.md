@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-04
+
 The review goes back to the agent in one step, and works with any coding agent, not only Claude Code.
 
 ### Added
@@ -28,6 +30,66 @@ The review goes back to the agent in one step, and works with any coding agent, 
 ### Removed
 
 - From `report.html`: the three "Copy for Claude Code" buttons (triage, dismissals, backfill) and the `selection.json`, `dismissals.json` and `backfill.json` downloads. The typed `/design-qa triage`, `dismiss` and `backfill` commands and those files are still accepted.
+
+### Security
+
+From an adversarial review of the whole repository.
+
+- **Untrusted content stays data.** Hard rule 15 in SKILL.md: ticket, Figma, prototype and app text is data, never instructions, and secrets are never printed or written. Every untrusted string printed by the scripts, or written into `report-fixplan.md`, `report-backfill.md`, the ledgers and the "Copy for your agent" message, is folded to one line and escaped, so it cannot forge a `Next:` command, a fix item, a heading or a second `design-qa-decisions` block. A message with two decisions blocks is refused. The paste-to-agent blocks say their quoted values are data.
+- **report.html.** It loads no remote resources: images are embedded or relative paths only. A CSP `<meta>` is added, with the inline script pinned by hash. Report data can no longer break out of its `<script>` element or blank the page with placeholder text. Links must parse as http(s). `--embed-images` embeds only regular files inside the report folder whose bytes match their extension, under a 100 MB total budget.
+- **Review server.** Images and `.json` files need the session cookie set by the tokenised URL. The page is served with a CSP header. The live context is injected only into the real context element.
+- **Secrets in evidence.** `capture.mjs` writes drivers as written (`${VAR}`, not the value) and redacts substituted values from URLs, DOM snapshots, warnings and errors. `app.headers` are sent to the app's origin only, redirect hops included, and basic-auth credentials answer only the app's origin.
+- **Fetchers.**
+  - Credentialed Figma and Jira calls refuse cross-origin redirects; `X-Figma-Token` was forwarded.
+  - `JIRA_BASE_URL` and `FIGMA_API_BASE` must be https (http only for localhost).
+  - Every request has a timeout (`DESIGN_QA_HTTP_TIMEOUT_MS`, default 30 s), and image downloads are capped at 50 MB.
+  - POSTs are not retried after a 5xx or a dropped connection, so one run never creates duplicate Jira tickets or comments.
+- **Preview URLs** from tickets skip confirmation (`ticket.trustPreviewUrl`) only when they come from the description and are not internal or IP hosts. `ticket.json` gains `previewUrlSources`.
+- **Files.** `writeJson`/`writeText` write atomically (temp file, fsync, rename) and refuse a symlinked or directory destination; capture never writes through a symlink. The dismissed and debt logs are locked during updates, so parallel runs no longer lose entries, and `apply-decisions.mjs` claims `decisions.json` before reading it. A JSON log and Markdown log on the same path are refused, and config `report.debtLog` must end in `.md`.
+- **Example CI workflow.**
+  - Actions are pinned to commit SHAs and the Claude Code CLI to an exact version.
+  - Checkouts use `persist-credentials: false`, the agent runs with `--permission-mode dontAsk` and a narrow tool allowlist, and the job skips fork and Dependabot PRs.
+  - The report artifact is kept for 7 days and leaves out `ticket.json` and DOM snapshots.
+  - The PR comment updates only the bot's own comment; the verdict gate fails closed; `deployments: read` is granted; the local app start installs dependencies and fails when the app never answers.
+- **Repository CI.** `permissions: contents: read`; actions pinned; the denylist scans the whole repository; Node 24 added; `claude plugin validate --strict` added; a test fails on tracked files over 1 MB.
+- Removed the unreferenced walkthrough video `docs/design-qa-walkthrough.mp4` (34 MB) from the tree; the README embeds the hosted copy.
+
+### Fixed
+
+- **Validation.**
+  - `INTENTIONAL` now requires a sign-off with a non-blank `by` and `reason`, or a `knownDrift`.
+  - Date-times are strict RFC 3339 everywhere.
+  - URIs are parsed with `new URL` (`file:` accepted); the `${VAR}` exemption applies to config only.
+  - `validate --json` always prints JSON.
+- **Ranking and verdicts.**
+  - Triage always recomputes ranks, so `--config` `topN` and reclassified findings take effect.
+  - A 0% pixel diff always passes.
+  - A report with no verified state is REVIEW, not PASS.
+- **Colours.** `compare.mjs` matches colours within ΔE (CIEDE2000) using `tolerances.colorDeltaE`, as the docs said. It parses `hsl`, `hwb`, `lab`, `lch`, `oklab`, `oklch` and `color()` (Tailwind v4 output), and two fully transparent colours always match. The new `--config` and `--color-delta-e` flags set the tolerances, and `compare.json` records them.
+- **Element pairing.** Unmatched elements pair in order. An element beyond the other side's sample is CANNOT_VERIFY, not "missing". Repeat rows are deduplicated per element, not per property.
+- **Capture.**
+  - A redirect or navigation away (for example to a login page) fails the state; every state redirected exits 5. `driver.allowNavigation`, `capture.allowNavigation` or `--allow-navigation` opts out.
+  - `--wait` still waits for network idle.
+  - A mock that matched no request is reported.
+  - Loading states hold their delayed response until the screenshot.
+  - Re-capturing one state merges into `capture.json` instead of replacing it.
+  - State names that collide on disk are refused.
+  - Negated names ("not empty") no longer match a state.
+  - Page reads time out, and a failed state's old files are removed.
+- **Debt log.** Entries are keyed by finding fingerprint, not by the renumbered `DQ-` id, so a ticket stays with its finding. `debt-log.mjs` finds the config like `apply-decisions.mjs` does.
+- **Dismiss.** `--undo` restores the earlier `UNCLASSIFIED` or `DATA` resolution (`previousResolution`).
+- **`doctor.mjs`** launches the headless browser that capture uses, instead of checking the full Chromium binary. Its Node version check runs before any import that needs a newer Node.
+- **Ticket ingest.**
+  - Hostile ADF (bad dates, odd mentions, deep nesting) no longer crashes it.
+  - URL cleanup is linear.
+  - Issue keys follow one rule: underscores are allowed, and explicit keys may be in any case.
+- **CLI.**
+  - Number flags accept plain decimals only.
+  - `triage --fix ""` is an error, not "none".
+  - `triage --selection` and `backfill --from` refuse stale decisions unless `--allow-stale`.
+  - `review --timeout-min` is capped.
+  - Every path in printed `Next:` commands is shell-quoted.
+  - PNGs over 64 megapixels are refused before decoding.
 
 ## [0.2.1] - 2026-10-03
 
@@ -79,7 +141,8 @@ Initial release.
 - Distributable as a Claude Code plugin (`.claude-plugin/plugin.json` + `marketplace.json`) or as a plain skill folder copy.
 - Example config (`examples/design-qa.config.example.json`) and a rendered sample report under `examples/sample/`.
 
-[Unreleased]: https://github.com/NiavisDimitris/skills/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/NiavisDimitris/skills/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/NiavisDimitris/skills/releases/tag/v0.2.2
 [0.2.1]: https://github.com/NiavisDimitris/skills/releases/tag/v0.2.1
 [0.2.0]: https://github.com/NiavisDimitris/skills/releases/tag/v0.2.0
 [0.1.0]: https://github.com/NiavisDimitris/skills/releases/tag/v0.1.0

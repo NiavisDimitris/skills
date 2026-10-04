@@ -1,6 +1,6 @@
 {
   "name": "design-qa-skill",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Claude Code skill/plugin: design → code parity QA against Figma or a prototype URL, across all designed screens and states (tokens, components, motion), with agent-readable JSON and an interactive HTML report.",
   "type": "module",
   "license": "MIT",
