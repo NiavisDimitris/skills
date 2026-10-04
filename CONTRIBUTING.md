@@ -10,8 +10,10 @@
 ## Ground rules
 
 - **Zero-dep beyond the three.** The scripts depend only on `pixelmatch`, `pngjs`, and `playwright`. `skills/design-qa/package.json` is the one that ships with the skill; the root `package.json` installs the same packages for working on this repo. Keep the two dependency lists in sync (`tests/packaging.test.mjs` checks). Don't add a new runtime dependency for something Node's standard library or a few dozen lines can do. If a new dependency is genuinely justified, open an issue first.
-- **No proprietary content.** Nothing from a private employer, client, product, or codebase — no internal codenames, internal URLs, screenshots of non-public products, or fixtures derived from real work. `examples/` and any fixtures must be fictional (see the `Acme` examples already in the repo). CI greps `skills/`, `examples/` and `docs/` for a denylist of known leak patterns, kept in the `DENYLIST` repository secret so the list itself isn't published; keep it that way, and extend the list rather than remove entries from it.
-- **Node >= 20.** Don't rely on syntax or APIs newer than that without a fallback.
+- **No proprietary content.** Nothing from a private employer, client, product, or codebase — no internal codenames, internal URLs, screenshots of non-public products, or fixtures derived from real work. `examples/` and any fixtures must be fictional (see the `Acme` examples already in the repo). CI greps the whole repository (except `.git` and `node_modules`) for a denylist of known leak patterns, kept in the `DENYLIST` repository secret so the list itself isn't published; keep it that way, and extend the list rather than remove entries from it.
+- **Node >= 20.** Don't rely on syntax or APIs newer than that without a fallback. CI tests 20, 22 and 24.
+- **No big files.** Keep every tracked file under 1 MB; `tests/packaging.test.mjs` fails on a larger one unless it is on that test's allowlist with a reason.
+- **Pinned CI.** Workflow actions are pinned to full commit SHAs with the tag in a comment, and the Claude Code CLI to an exact version. Bump them on purpose, in their own commit.
 - **Agent-readable output is load-bearing.** Changes to `report.json`'s shape are a breaking change for anyone driving this from a script or another agent — call it out in the PR description and bump the schema/version accordingly.
 
 ## Adding a ticket adapter

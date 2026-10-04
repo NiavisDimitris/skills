@@ -1,6 +1,7 @@
 # CI for this repo (design-qa-skill itself): runs the test suite, validates
-# the sample report and template rendering, and blocks accidental
-# proprietary content from landing under skills/, examples/ or docs/.
+# the sample report, template rendering and the plugin and marketplace
+# manifests, and blocks accidental proprietary content from landing anywhere
+# in the repository.
 
 name: CI
 
@@ -10,9 +11,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded pull request runs only; every push to main runs to the end.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -21,16 +26,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 20 is the floor (package.json "engines" requires >=20, since
-        # Playwright 1.63 needs it); 22 is tested alongside it to catch
-        # next-major regressions early.
-        node-version: [20, 22]
+        # 20 is the floor: package.json "engines" requires >=20 (Playwright
+        # 1.63 needs it). Node 20 reached end of life on 2026-04-30; it stays
+        # here as long as "engines" allows it. 22 and 24 (the current LTS)
+        # catch newer-runtime regressions.
+        node-version: [20, 22, 24]
     steps:
+      # Third-party actions are pinned to full commit SHAs (the tag is in the
+      # comment): a tag can be moved, a SHA can't.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Node ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -39,7 +49,9 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        # npx --no runs the playwright the lockfile installed and never
+        # fetches another one.
+        run: npx --no playwright install --with-deps chromium
 
       - name: The plugin installs from its own lockfile
         # What Claude Code runs on plugin install: the skill folder's package.json
@@ -63,12 +75,23 @@ jobs:
             --embed-images \
             --fixplan /tmp/fixplan.md
 
-      - name: No proprietary content under skills/, examples/ or docs/
+      - name: Validate the plugin and marketplace manifests
+        # claude plugin validate is a local check: no API key or login. Claude
+        # Code needs Node 22 or later, so it runs on one leg. Pinned to an
+        # exact version; bump it deliberately.
+        if: matrix.node-version == 24
+        run: |
+          npm install -g @anthropic-ai/claude-code@2.1.289
+          claude plugin validate --strict .
+          claude plugin validate --strict skills/design-qa
+
+      - name: No proprietary content in the repository
         # Denylist of internal codenames, paths and identifiers that must
         # never appear in this public repo. The pattern (a grep -E regex)
         # lives in the DENYLIST repository secret, not in this file, so the
-        # check doesn't publish the terms it guards. Only file names are
-        # printed. Skipped when the secret isn't available (e.g. fork PRs).
+        # check doesn't publish the terms it guards. The whole checkout
+        # is scanned (except .git and node_modules); only file names are printed.
+        # Skipped when the secret isn't available (e.g. fork PRs).
         # If this fails, you (probably) pasted something from a private
         # codebase - scrub it, don't trim the list to make it pass.
         env:
@@ -80,7 +103,7 @@ jobs:
           fi
           # grep exits 0 on a match, 1 on no match, 2 on an error (e.g. a bad regex).
           status=0
-          grep -rEIil "$DENYLIST" skills/ examples/ docs/ || status=$?
+          grep -rEIil "$DENYLIST" . --exclude-dir=.git --exclude-dir=node_modules || status=$?
           if [ "$status" -eq 0 ]; then
             echo "::error::The files above match the DENYLIST secret, likely proprietary content. Remove it before merging."
             exit 1
@@ -89,11 +112,11 @@ jobs:
             echo "::error::The denylist check failed (grep exit $status). Check the DENYLIST secret is a valid grep -E regex."
             exit 1
           fi
-          echo "Clean - no denylisted strings under skills/, examples/ or docs/."
+          echo "Clean - no denylisted strings in the repository."
 
       - name: Upload rendered sample report
         if: matrix.node-version == 20
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sample-report-html
           path: /tmp/report.html

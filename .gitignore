@@ -1,11 +1,25 @@
+# Dependencies, at any depth (the repo root and skills/design-qa/ each have one)
 node_modules/
+
+# design-qa output when working on this repo (examples/ holds the committed samples)
 qa-reports/
-.DS_Store
-*.log
+
+# Secrets and local environment files: .env, .env.local, .envrc, ...
+.env*
+
+# Test and tool output
 playwright-report/
 test-results/
-.env*
+coverage/
+*.log
+
+# Scratch space and npm pack tarballs
+tmp/
+.tmp/
+scratch/
+*.tgz
+
+.DS_Store
 
 # Claude Code session artefacts (worktrees, local settings)
 .claude/
-
