@@ -917,7 +917,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     [['viewBox', '0 0 24 24'], ['fill', 'none'], ['stroke', 'currentColor'], ['stroke-width', '2'], ['stroke-linecap', 'round'], ['stroke-linejoin', 'round'], ['aria-hidden', 'true']]
       .forEach(function (a) { svg.setAttribute(a[0], a[1]); });
     svg.setAttribute('class', 'icon' + (cls ? ' ' + cls : ''));
-    svg.innerHTML = ICONS[name] || '';
+    svg.innerHTML = Object.prototype.hasOwnProperty.call(ICONS, name) ? ICONS[name] : ''; // the template's own markup only
     return svg;
   }
   if (!R || typeof R !== 'object' || Array.isArray(R)) { renderBootEmpty(); return; }

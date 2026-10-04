@@ -178,14 +178,45 @@ const isInside = (dir, file) => {
   return Boolean(rel) && rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
 };
 
-// The first bytes of each type (SVG: an <svg> root, after an optional XML declaration, comments or a doctype).
-const SVG_HEAD_RE = /^\s*(?:<\?xml[^>]*\?>\s*)?(?:(?:<!--[\s\S]*?-->|<!DOCTYPE[^>]*>)\s*)*<svg[\s>/]/i;
+/**
+ * True when text opens with an <svg> root, after an optional XML declaration, comments or a
+ * doctype. A linear scan: a regex with nested repetition here backtracks for minutes on a
+ * crafted head of "<!--" runs (CodeQL js/redos).
+ */
+export function looksLikeSvg(text) {
+  const s = String(text).replace(/^﻿/, '');
+  const skipSpace = (i) => {
+    while (i < s.length && /\s/.test(s[i])) i++;
+    return i;
+  };
+  let i = skipSpace(0);
+  if (s.startsWith('<?xml', i)) {
+    const end = s.indexOf('?>', i);
+    if (end < 0) return false;
+    i = skipSpace(end + 2);
+  }
+  for (;;) {
+    if (s.startsWith('<!--', i)) {
+      const end = s.indexOf('-->', i + 4);
+      if (end < 0) return false;
+      i = skipSpace(end + 3);
+    } else if (s.slice(i, i + 9).toUpperCase() === '<!DOCTYPE') {
+      const end = s.indexOf('>', i);
+      if (end < 0) return false;
+      i = skipSpace(end + 1);
+    } else {
+      return /^<svg[\s>/]/i.test(s.slice(i, i + 5));
+    }
+  }
+}
+
+// The first bytes of each type (SVG: see looksLikeSvg).
 const MAGIC = {
   'image/png': (b) => b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
   'image/jpeg': (b) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
   'image/gif': (b) => b.length >= 6 && /^GIF8[79]a$/.test(b.toString('latin1', 0, 6)),
   'image/webp': (b) => b.length >= 12 && b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP',
-  'image/svg+xml': (b) => SVG_HEAD_RE.test(b.toString('utf8', 0, Math.min(b.length, 4096)).replace(/^\uFEFF/, '')),
+  'image/svg+xml': (b) => looksLikeSvg(b.toString('utf8', 0, Math.min(b.length, 4096))),
 };
 
 /**
@@ -316,7 +347,7 @@ export function pathInside(file, cwd = process.cwd()) {
 /** The inline scripts' CSP sources ('sha256-…', in page order), "'none'" without any. */
 export function inlineScriptSources(html) {
   const out = [];
-  for (const m of String(html).matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+  for (const m of String(html).matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)) {
     const attrs = m[1];
     if (/\bsrc\s*=/i.test(attrs)) continue;
     const type = /\btype\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attrs);

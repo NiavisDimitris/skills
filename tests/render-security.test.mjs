@@ -22,6 +22,7 @@ import {
   fillTemplate,
   imageRefProblem,
   inlineScriptSources,
+  looksLikeSvg,
   serializeForScript,
 } from '../skills/design-qa/scripts/render-report.mjs';
 import { fixture, loadFixture, run, script, tmpDir } from './_helpers.mjs';
@@ -395,4 +396,18 @@ test('--config outside the working directory is not written into the page contex
   assert.deepEqual(reportOutside.ctx, { configPath: 'cfg.json' }, 'report outside cwd: no path from the report to the config');
   const elsewhere = await context(['--config', path.join(project, 'design-qa.config.json')], dir);
   assert.deepEqual(elsewhere.ctx, { reportPath: 'report.json' }, 'config above cwd: neither path is written');
+});
+
+test('looksLikeSvg: recognises SVG heads in linear time (no regex backtracking on "<!--" runs)', () => {
+  for (const ok of ['<svg xmlns="http://www.w3.org/2000/svg"/>', '\uFEFF  <?xml version="1.0"?>\n<!-- a --><!DOCTYPE svg>\n<svg>', '<!--x--> <!--y-->\n<SVG viewBox="0 0 1 1">']) {
+    assert.equal(looksLikeSvg(ok), true, ok);
+  }
+  for (const bad of ['', '<html><svg>', '<!-- unclosed <svg>', '<?xml version="1.0"', '<svgx>', 'GIF89a']) {
+    assert.equal(looksLikeSvg(bad), false, bad);
+  }
+  // These heads made the old regex run for minutes; capped at the 4096 bytes the check reads.
+  const heads = ['<!---->\n'.repeat(1000), '<!--'.repeat(1100), `<!--${'-'.repeat(5000)}`, '<!--a-->'.repeat(300) + '<!--' + '--> <!--'.repeat(400)];
+  const start = performance.now();
+  for (const h of heads) assert.equal(looksLikeSvg(h.slice(0, 4096)), false);
+  assert.ok(performance.now() - start < 200, `took ${Math.round(performance.now() - start)} ms`);
 });
