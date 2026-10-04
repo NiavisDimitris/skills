@@ -1,3 +1,7 @@
+<a href="docs/design-qa-walkthrough.mp4"><img src="docs/design-qa-walkthrough.jpg" alt="Watch the /design-qa walkthrough (4:55)" width="100%"></a>
+
+**[▶ Watch the walkthrough (4:55)](docs/design-qa-walkthrough.mp4)** — what /design-qa does, from install to a closed loop.
+
 # design-qa
 
 Design → code parity QA, as an agent skill for Claude Code, OpenAI Codex and Cursor.
