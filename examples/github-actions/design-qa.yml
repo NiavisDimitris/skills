@@ -83,10 +83,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: NiavisDimitris/skills
-          # Pinned to a commit SHA (design-qa 0.2.1): this job runs the skill's
+          # Pinned to a commit SHA (design-qa 0.2.2): this job runs the skill's
           # scripts with your secrets, so never point it at a moving branch.
           # Bump the SHA deliberately when you want newer scripts.
-          ref: 2121c8a6ac1bbdf8877a6c68a2c363843d6174a0
+          ref: 25072b053b4501c46dc0fddde0063b0a4754c2c8
           persist-credentials: false
           path: .design-qa-skill
           # If the repo you check out here is private to you (e.g. a
