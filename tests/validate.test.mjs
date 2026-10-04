@@ -768,7 +768,7 @@ test('date-time is strict RFC 3339 (what ajv-formats and Date.parse both accept)
 });
 
 test('uri: parsed with new URL; file: URLs pass; ${…} placeholders only in config documents', () => {
-  for (const v of ['https://example.com/x?y=1', 'http://localhost:3000', 'file:///Users/me/proto/index.html', 'file:/Users/me/proto/index.html', 'https://www.figma.com/design/AbC/Items?node-id=1-2']) {
+  for (const v of ['https://example.com/x?y=1', 'http://localhost:3000', 'file:///home/me/proto/index.html', 'file:/home/me/proto/index.html', 'https://www.figma.com/design/AbC/Items?node-id=1-2']) {
     assert.equal(isAbsoluteUri(v), true, v);
   }
   for (const v of ['${PREVIEW_URL}', 'not a url ${', 'localhost:3000', 'https://exa mple.com', 'http://', '/abs/path', 'example.com']) {
@@ -782,7 +782,7 @@ test('uri: parsed with new URL; file: URLs pass; ${…} placeholders only in con
   expectError(r, /^meta\.app\.url: expected an absolute URL \(got "\$\{PREVIEW_URL\}"\)$/);
   const proto = loadFixture('report-valid.json');
   delete proto.meta.figma;
-  proto.meta.source = { kind: 'prototype', url: 'file:/Users/me/proto/index.html', label: null, tool: 'html', frame: { width: 1440, height: 900 } };
+  proto.meta.source = { kind: 'prototype', url: 'file:/home/me/proto/index.html', label: null, tool: 'html', frame: { width: 1440, height: 900 } };
   proto.meta.tools.figmaAccess = 'none';
   assert.deepEqual(errorsOf(proto), [], 'file:/abs is a valid source URL');
 });
