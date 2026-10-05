@@ -579,6 +579,7 @@ test('a worklist.json from the real worklist.mjs: region with alsoIn, missing-in
 
   writeFileSync(path.join(dir, 'findings.json'), JSON.stringify({
     pass,
+    comparisons: Object.fromEntries(Object.entries(JSON.parse(readFileSync(path.join(dir, 'evidence/comparison-review.json'), 'utf8')).states).filter(([,r]) => r.complete).map(([state,r]) => [state, {digest:r.digest,images:r.images.map(i=>i.path),valuesReviewed:true}])),
     findings: [
       { ref: 'heading', worklist: title.key, title: 'Page heading reads "All orders" instead of "Orders"', ledger: 'structure', severity: 'WARNING', region: 'Header', expected: { value: 'Orders' }, actual: { value: 'All orders' }, fix: { summary: 'Use the designed heading copy' } },
       { ref: 'section-2', worklist: [missing.key], title: 'Section 2 is not rendered', ledger: 'structure', severity: 'BLOCKER', region: 'Section 2', expected: { value: 'Section 2 with its body copy' }, actual: { value: 'absent' }, fix: { summary: 'Render Section 2 between Section 1 and Section 3' } },

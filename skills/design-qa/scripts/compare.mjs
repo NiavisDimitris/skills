@@ -16,6 +16,8 @@ import {
   parseTokenMap,
   summarize,
 } from './lib/compare.mjs';
+import { validateFigmaValueEvidence } from './figma-values.mjs';
+import { compareFigmaValues } from './lib/figma-compare.mjs';
 import { validateConfig } from './lib/schema-check.mjs';
 
 const HELP = `Compare the design (coded prototype capture and/or Figma prototype motion) with the app capture.
@@ -28,7 +30,8 @@ Options:
   --design <dir>             folder holding design-capture.json, design-computed/, design-motion/,
                              design-dom/ (capture.mjs --side design); default: --app when it has them
   --app <dir>                folder holding capture.json, computed/, motion/, dom/ (required)
-  --figma-spec <file>        also check the Figma prototype's transitions (figma-spec.json "motion",
+  --dir <dir>               report folder, required for imported MCP value provenance
+  --figma-spec <file>        check Figma style values, geometry and prototype transitions (figma-spec.json "motion",
                              from reactions) against the app state whose driver performs the
                              trigger (hover → action "hover", press → "active", click → "click")
   --states <a,b>             only these states (default: every state captured on the design side)
@@ -123,6 +126,7 @@ function loadSide(dir, side) {
         driver: entry.driver ?? {},
         computed: readOptional(path.join(dir, entry.computed), `${side} computed`),
         motion: readOptional(entry.motion ? path.join(dir, entry.motion) : null, `${side} motion`),
+        audit: readOptional(path.join(dir, entry.audit ?? `audit/${state}.json`), `${side} audit`),
         dom: readOptional(entry.dom ? path.join(dir, entry.dom) : null, `${side} dom`),
       };
     }
@@ -132,6 +136,7 @@ function loadSide(dir, side) {
       const state = file.replace(/\.json$/, '');
       states[state] = {
         driver: {},
+        audit: readOptional(path.join(dir, 'audit', file), `${side} audit`),
         computed: readJsonFile(path.join(dir, names.computed, file), `${side} computed`),
         motion: readOptional(path.join(dir, names.motion, file), `${side} motion`),
         dom: readOptional(path.join(dir, names.dom, file), `${side} dom`),
@@ -160,6 +165,7 @@ async function main(argv) {
     design: { type: 'string' },
     app: { type: 'string' },
     'figma-spec': { type: 'string' },
+    dir: { type: 'string' },
     states: { type: 'string' },
     'token-map': { type: 'string' },
     catalog: { type: 'string' },
@@ -198,6 +204,7 @@ async function main(argv) {
   if (!Object.keys(design.states).length && !figmaSpec) {
     throw usageError(`no design capture in ${values.design ?? values.app} (expected design-capture.json or design-computed/; capture the prototype with capture.mjs --side design) and no --figma-spec`);
   }
+  if (figmaSpec) validateFigmaValueEvidence(figmaSpec, values.dir ? path.resolve(values.dir) : null);
   let tokenMap = {};
   let tokenCategories = null;
   if (values['token-map']) {
@@ -229,6 +236,13 @@ async function main(argv) {
       if (!design.states[state] && figmaSpec === null) throw usageError(`--states: "${state}" was not captured on the design side`);
     }
   }
+  if (figmaSpec) for (const [state, a] of Object.entries(app.states)) {
+    if (only && !only.includes(state)) continue;
+    const nodeId = (Array.isArray(figmaSpec.states) ? figmaSpec.states.find(s => s.state === state)?.nodeId : figmaSpec.states?.[state]?.nodeId) ?? (Array.isArray(figmaSpec.exports) ? figmaSpec.exports.find(s => s.state === state)?.nodeId : figmaSpec.exports?.[state]?.nodeId) ?? figmaSpec.nodeId;
+    const rows = compareFigmaValues({ state, spec: figmaSpec, nodeId, app: a, tolerancePx, colorDeltaE });
+    states[state] ??= { style: [], tokens: [], components: [], motion: [], structure: [] };
+    for (const key of ['style', 'structure']) states[state][key].push(...rows[key]);
+  }
   dedupeMotion(states);
   const { dropped: repeatsDropped } = dedupeRepeats(states);
   const appStates = Object.fromEntries(Object.entries(app.states).filter(([s]) => !only || only.includes(s)));
@@ -259,7 +273,7 @@ async function main(argv) {
 
   const s = result.summary;
   log(
-    `Compared ${s.states} state(s): style ${s.style.fail} FAIL / ${s.style.pass} PASS · tokens ${s.tokens.fail} mismatch(es) (${s.tokens.hardcoded} hardcoded) · ` +
+    `Compared ${s.states} state(s): style ${s.style.fail} FAIL / ${s.style.pass} PASS / ${s.style.cannotVerify} CANNOT_VERIFY · tokens ${s.tokens.fail} mismatch(es) (${s.tokens.hardcoded} hardcoded) · ` +
       `components ${s.components.fail} FAIL · motion ${s.motion.fail} FAIL (${s.motion.missing} missing, ${s.motion.extra} extra), ${s.motion.cannotVerify} cannot verify · ` +
       `structure ${s.structure.missingInApp} missing / ${s.structure.extraInApp} extra in app` +
       (s.structure.cannotVerify ? `, ${s.structure.cannotVerify} not sampled (cannot verify)` : ''),

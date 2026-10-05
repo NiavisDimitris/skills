@@ -12,6 +12,7 @@
       { "step": "behaviour:with-data", "reason": "The export menu needs a feature flag the staging account lacks.", "impact": "The export flow was not checked; its button is compared as a static element." }
     ]
   },
+  "comparisons": { "$comment": "After inspecting all side-by-side tiles and value rows, add each state with digest, images and valuesReviewed:true from comparison-review.md; placeholders never count as review." },
   "findings": [
     {
       "ref": "title-size",

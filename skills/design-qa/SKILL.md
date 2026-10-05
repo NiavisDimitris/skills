@@ -60,7 +60,7 @@ Anything else: references/figma-extraction.md.
 node scripts/pass.mjs evidence --dir <dir> --run <id>
 ```
 
-It captures every designed state over the whole page, diffs, audits and writes the worklist; a re-run redoes only what changed.
+It captures every designed state over the whole page, diffs and audits; reruns refresh changed evidence.
 
 | Exit | Do |
 |---|---|
@@ -70,7 +70,7 @@ It captures every designed state over the whole page, diffs, audits and writes t
 
 ### 4. Findings: your judgment
 
-Read `<dir>/worklist.md` (references/worklist.md) and write `<dir>/findings.json` following references/filing.md. `Next:` is `pass.mjs report … --check` (it works before the file exists): it lists every audit candidate and compare FAIL row still to decide, one line each. Every item, candidate and row ends as a finding or a rejection with a reason. Pin with a worklist key, an audit key or a selector: never compute pixel boxes. For one exact value: `node scripts/inspect.mjs --dir <dir> --item <key>`.
+Inspect all side-by-side tiles and Figma/code values; record review digests (references/worklist.md). Read `<dir>/worklist.md` and write `<dir>/findings.json` (references/filing.md). `Next:` is `pass.mjs report … --check` (it works before the file exists): it lists every audit candidate and compare FAIL row still to decide, one line each. Every item, candidate and row ends as a finding or a rejection with a reason. Pin with a worklist key, an audit key or a selector: never compute pixel boxes. Exact values: `inspect.mjs --dir <dir> --item <key>`.
 
 ### 5. Report
 
@@ -97,7 +97,7 @@ It builds `report.json` (earlier dismissals re-applied), renders `report.html` a
 
 1. Do the `Do:` lines, then run `Next:` as printed. Never skip or reorder a stage.
 2. The whole page, always. Never report from the first screen only.
-3. Never open a full-page screenshot or a raw evidence file (`audit/`, `dom/`, `computed/`, `capture.json`, `figma-spec.json`, `worklist.json`).
+3. Use review tiles and values; avoid dumping raw evidence files (`audit/`, `dom/`, `computed/`, `capture.json`, `figma-spec.json`, `worklist.json`).
 4. Never write `report.json` by hand, or a script that writes it.
 5. Never edit `design-qa.config.json` by hand: `setup.mjs apply` and `pass.mjs save-drivers` write it, after the person agrees.
 6. Never delete a report folder or archive. Never stop a process by pattern (`pkill`): use `review.mjs --stop`.

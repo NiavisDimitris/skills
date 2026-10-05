@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Every new pass requires full-state side-by-side review at original scale, including identical states, with current evidence digests and all tiles accounted for.
+- Figma style and geometry values are compared directly with captured code values. Missing values/counterparts prevent PASS, including after verdict recomputation; exact MCP values can be imported from saved source responses.
 - Defined design tokens are required implementation contracts. Equal rendered values without traced usage are candidates for source verification; visual agreement no longer suppresses token deviations. Recurring deviations remain code fixes rather than new-token proposals.
 - Design-system audit/report summaries count token property/state checks, verified usage, deviations and unverified usage separately from pixel match. An authored reference to the wrong design-bound token remains a finding even when the tokens share a value.
 - A token candidate cannot be rejected as `matches-design`. False-positive rejection requires source token evidence, preserved in the report. Defined-token code fixes cannot be downgraded to `DS_CANDIDATE`.

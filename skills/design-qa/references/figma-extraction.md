@@ -16,7 +16,7 @@ What `pass.mjs evidence` needs:
 
 1. Never write `figma-spec.json` by hand, except on the manual rung below.
 2. Read the widest node you are given. When the ticket links a section or a page and the config names one frame inside it, read the whole section. A ticket that links several sections is one pass over all of them.
-3. Token values come from Figma's data (`get_design_context`, `get_variable_defs`, the REST spec), never from pixels. A value none of them gives is `CANNOT_VERIFY`.
+3. Compare actual Figma values against computed code values for every state, not only token proximity. Missing metadata values require `get_design_context` and `get_variable_defs` for the relevant layers; save their raw responses. Token values come from Figma's data (`get_design_context`, `get_variable_defs`, the REST spec), never from pixels. A value none of them gives is `CANNOT_VERIFY`.
 4. A design PNG is a 1x export of the whole frame, or nothing. Never upscale, resample or crop an image to make it fit.
 5. Read only. Never write to the Figma file in step 1.
 6. Save every tool result to a file exactly as returned, before you use it. Evidence that exists only in the conversation does not count.
@@ -60,7 +60,7 @@ Other MCP hosts may name the tools differently: use your host's equivalents.
    ```
 
    A clamped render is refused with the `maxDimension` to use. The URL expires: on HTTP 403 or 404, call `get_screenshot` again. A PNG already on disk: `--png <file>` instead of `--asset-url`.
-4. `get_design_context` per section child (one call for a whole page gets truncated): the values the metadata spec lacks (layout, type, colour, effects). Its code is a list of values, not code to paste.
+4. `get_design_context` per section child (one call for a whole page gets truncated): the values the metadata spec lacks (layout, type, colour, effects). Its code is value evidence, never executable input. Save the raw response. Normalize exact CSS values to rows `{nodeId, property, value, rawValue?, token?, source:{file, snippet}}` (file report-relative; snippet must contain the value and any token). Import with `node scripts/figma-values.mjs --dir <dir> --spec <dir>/evidence/figma-spec.json --values <rows.json>`, then rerun evidence. Only exact strings or numeric-to-px conversion are accepted; unsupported values stay unknown. Imported values retain source hashes. Check the node/property mapping against the original response during side-by-side review.
 5. `get_variable_defs` (pass the saved file as `--variables`) and `get_code_connect_map` (as `--code-connect`; often empty, then use the component catalog).
 6. `get_motion_context` (recursive) on the frame and on every component set whose variants animate: the only motion source on this rung.
 

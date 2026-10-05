@@ -934,6 +934,7 @@ async function evidence(o, { dryRun = false } = {}) {
   if (o.frame && !frameOpt) throw usageError(`--frame must look like 1440x900 (got "${oneLine(o.frame)}")`);
   // --states persists for the pass; --states all goes back to every state.
   const onlyStates = o.states === 'all' ? null : o.states ? String(o.states).split(',').map((s) => s.trim()).filter(Boolean) : pass.stages?.evidence?.states ?? null;
+  pass.comparisonReviewRequired = true;
   const ev = path.join(dir, 'evidence');
   const specFile = path.join(ev, 'figma-spec.json');
   const surface = ctx.config?.surfaces?.[ctx.surfaceName] ?? null;
@@ -1298,15 +1299,13 @@ async function evidence(o, { dryRun = false } = {}) {
     const base = path.join(dir, screen.out);
     const spec = sourceKind === 'figma' ? (plan.multi && existsSync(path.join(base, 'figma-spec.json')) ? path.join(base, 'figma-spec.json') : specFile) : null;
     const specJson = spec ? readJsonOrNull(spec) : null;
-    const motion = specJson?.motion;
-    const hasMotion = Array.isArray(motion) ? motion.length > 0 : isObj(motion) && Object.keys(motion).length > 0;
     const hasDesign = sourceKind === 'prototype' && existsSync(path.join(base, 'design-capture.json'));
-    if (!existsSync(path.join(base, 'capture.json')) || (!hasDesign && !hasMotion)) continue;
-    const inputs = { capture: stamp(path.join(base, 'capture.json')), design: stamp(path.join(base, 'design-capture.json')), spec: spec ? stamp(spec) : null, config: configFingerprint(ctx.config) };
+    if (!existsSync(path.join(base, 'capture.json')) || (!hasDesign && !specJson)) continue;
+    const inputs = { valueComparisonVersion: 1, values: stamps([...filesIn(base, 'audit', '.json'), ...filesIn(base, 'computed', '.json')]), capture: stamp(path.join(base, 'capture.json')), design: stamp(path.join(base, 'design-capture.json')), spec: spec ? stamp(spec) : null, config: configFingerprint(ctx.config) };
     await step(`compare:${screen.key}`, 'compare', inputs, [path.join(base, 'compare.json')], async () => {
       const args = hasDesign
         ? ['--app', base, '--design', base, '--out', path.join(base, 'compare.json'), ...(ctx.configFile ? ['--config', ctx.configFile] : []), ...(cfgPath(dsCfg.tokenMap) ? ['--token-map', cfgPath(dsCfg.tokenMap)] : []), ...(cfgPath(dsCfg.componentCatalog) ? ['--catalog', cfgPath(dsCfg.componentCatalog)] : [])]
-        : ['--figma-spec', spec, '--app', base, '--out', path.join(base, 'compare.json')];
+        : ['--figma-spec', spec, '--dir', dir, '--app', base, '--out', path.join(base, 'compare.json'), ...(ctx.configFile ? ['--config', ctx.configFile] : [])];
       const r = await runChild(ctx, 'compare.mjs', [...args, '--quiet'], { log: `compare-${screen.key}` });
       if (r.missing) return { status: 'failed', message: missingScript('compare.mjs') };
       if (r.code !== 0) return { status: 'failed', code: r.code, log: r.log, message: `compare of ${screen.id ?? 'the screen'} failed (exit ${r.code}): ${relevantLines(r.stderr, 2).join('; ')}` };
@@ -1331,8 +1330,8 @@ async function evidence(o, { dryRun = false } = {}) {
   // ---- worklist ---------------------------------------------------------------------
   const worklistJson = path.join(ev, 'worklist.json');
   const worklistMd = path.join(dir, 'worklist.md');
-  const wlInputs = captureFolders(dir).flatMap((f) => ['diff.json', 'capture.json', 'compare.json', 'design-capture.json'].map((n) => path.join(f, n)));
-  await step('worklist', 'worklist', { files: stamps([...wlInputs, dsAuditFile, matrixFile]), config: configFingerprint(ctx.config) }, [worklistJson, worklistMd], async () => {
+  const wlInputs = captureFolders(dir).flatMap((f) => [...['diff.json', 'capture.json', 'compare.json', 'design-capture.json', 'figma-spec.json'].map((n) => path.join(f, n)), ...filesIn(f, 'audit', '.json'), ...filesIn(f, 'computed', '.json'), ...filesIn(f, 'app', '.png'), ...filesIn(f, 'figma', '.png'), ...filesIn(f, 'design', '.png')]);
+  await step('worklist', 'worklist', { reviewVersion: 1, files: stamps([...wlInputs, dsAuditFile, matrixFile]), config: configFingerprint(ctx.config) }, [worklistJson, worklistMd, path.join(ev, 'comparison-review.json')], async () => {
     const r = await runChild(ctx, 'worklist.mjs', ['--dir', dir, ...(ctx.configFile ? ['--config', ctx.configFile] : []), '--run', ctx.runId], { log: 'worklist' });
     if (r.missing) return { status: 'failed', message: missingScript('worklist.mjs') };
     if (r.code !== 0) return { status: 'failed', code: r.code, log: r.log, message: `the worklist failed (exit ${r.code}): ${relevantLines(r.stderr, 2).join('; ')}` };
@@ -1585,7 +1584,7 @@ function finishEvidence(ctx, result, info) {
   const candidates = (audit?.candidates ?? []).length;
   const compareFails = captureFolders(ctx.dir).reduce((n, f) => n + countFails(readJsonOrNull(path.join(f, 'compare.json'))), 0);
   const items = (readJsonOrNull(info.worklistJson)?.items ?? []).length;
-  L.push(`To decide in findings.json: ${plural(items, 'worklist item')}, ${plural(candidates, 'audit candidate')}, ${plural(compareFails, 'compare FAIL row')} (each filed as a finding or rejected with a reason)`);
+  L.push(`To decide in findings.json: ${plural(items, 'worklist item')}, ${plural(candidates, 'audit candidate')}, ${plural(compareFails, 'compare FAIL row')} (each filed or rejected); inspect all tiles and values in ${ctx.rel}/comparison-review.md`);
   if (componentCheckOff(ctx.config)) L.push(componentsOff(ctx.config));
   // sameAs comes from capture.json as it is now (a later with-data capture can change it);
   // design-capture.json (a coded prototype) says whether the design's capture differs.

@@ -16,6 +16,7 @@ const KEY = 'OrDeRsKeY42';
 const link = `https://www.figma.com/design/${KEY}/Orders?node-id=60-1`;
 const ENV = { DESIGN_QA_COMMIT: 'c', DESIGN_QA_BRANCH: 'b', DESIGN_QA_RUN_ID: '', FIGMA_TOKEN: '', DESIGN_QA_APP_STORAGE_STATE: '', DESIGN_QA_NO_DISPLAY: '1' };
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
+const reviewRecords = dir => Object.fromEntries(Object.entries(readJson(path.join(dir, 'evidence/comparison-review.json')).states).filter(([,r])=>r.complete).map(([s,r])=>[s,{digest:r.digest,images:r.images.map(i=>i.path),valuesReviewed:true}]));
 
 // [id, name]: frames of 1440×900 side by side.
 const LIST = [
@@ -112,24 +113,24 @@ async function designPngs(root, out, assets) {
   return lines.length;
 }
 
-/** findings.json with nothing to file, the report built, and every state verified. */
-async function reportAllVerified({ dir, rel, id, pass }, ids) {
-  writeFileSync(path.join(dir, 'findings.json'), JSON.stringify({ kind: 'design-qa-findings', version: 1, findings: [] }));
+/** Metadata-only Figma evidence remains unverified despite matching pixels. */
+async function reportMissingValues({ dir, rel, id, pass }, ids) {
+  writeFileSync(path.join(dir, 'findings.json'), JSON.stringify({ kind: 'design-qa-findings', version: 1, findings: [], comparisons: reviewRecords(dir) }));
   const r = await pass(['report', '--dir', rel, '--run', id]);
-  assert.equal(r.code, 0, r.stdout + r.stderr);
-  assert.match(r.stdout, new RegExp(`· ${ids.length} of ${ids.length} states verified`), r.stdout);
+  assert.equal(r.code, 3, r.stdout + r.stderr);
+  assert.match(r.stdout, new RegExp(`· 0 of ${ids.length} states verified`), r.stdout);
   assert.doesNotMatch(r.stdout, /not implemented in the app|MISSING_IN_CODE/, r.stdout);
   const report = readJson(path.join(dir, 'report.json'));
   for (const state of ids) {
     const row = report.stateMatrix.find((x) => x.state === state);
     assert.ok(row?.implemented, `${state} is implemented`);
-    assert.equal(row.result, 'PASS', `${state}: ${row.result} ${row.note}`);
+    assert.equal(row.result, 'CANNOT_VERIFY', `${state}: ${row.result} ${row.note}`);
     assert.ok(row.captured?.comparison?.pixelDiff, `${state} was compared with its design image`);
   }
   return r;
 }
 
-test('Figma section, two screens: --url routes the one screen nothing routes; states.json drivers keyed <screen>/<state> make all five states implemented and verified', { timeout: 400000 }, async (t) => {
+test('Figma section, two screens: --url routes the one screen nothing routes; states.json drivers keyed <screen>/<state> implement all five states; missing Figma values prevent verification', { timeout: 400000 }, async (t) => {
   if (!(await chromiumLaunches())) return t.skip('Chromium is not installed');
   const ctx = await startPass(t, {
     feature: 'mk-1',
@@ -180,14 +181,14 @@ test('Figma section, two screens: --url routes the one screen nothing routes; st
   const e3 = await pass(['evidence', '--dir', rel, '--run', id]);
   assert.equal(e3.code, 0, e3.stdout + e3.stderr);
   assert.match(e3.stdout, /Pixel diff: 5 pairs · 5 pass/);
-  await reportAllVerified(ctx, matrix.map((r) => r.state));
+  await reportMissingValues(ctx, matrix.map((r) => r.state));
   // Keeping the drivers for the next pass keeps the route --url gave too.
   const keep = await pass(['save-drivers', '--dir', rel, '--run', id, '--dry-run']);
   assert.match(keep.stdout, /screens\.orders-list\.route \(new\)/, keep.stdout);
   assert.match(keep.stdout, /states\.orders-list\/hover-tile \(new\)/);
 });
 
-test('Figma section, one screen: --url is its route, plain states.json keys drive hover-tile and hover-row, all four verified', { timeout: 400000 }, async (t) => {
+test('Figma section, one screen: --url is its route, plain states.json keys drive hover-tile and hover-row, all four reached; missing Figma values prevent verification', { timeout: 400000 }, async (t) => {
   if (!(await chromiumLaunches())) return t.skip('Chromium is not installed');
   const ctx = await startPass(t, { feature: 'mk-2', git: true, frames: LIST, frameMap: { '60:30': { screen: 'orders-list', state: 'hover-tile' }, '60:40': { screen: 'orders-list', state: 'hover-row' } } });
   const { root, dir, rel, id, pass, assets } = ctx;
@@ -199,8 +200,8 @@ test('Figma section, one screen: --url is its route, plain states.json keys driv
   assert.equal(await designPngs(root, e1.out, assets), 4);
   const e2 = await pass(['evidence', '--dir', rel, '--run', id]);
   assert.equal(e2.code, 0, e2.stdout + e2.stderr);
-  const r = await reportAllVerified(ctx, ['orders-list/with-data', 'orders-list/empty', 'orders-list/hover-row', 'orders-list/hover-tile']);
-  assert.match(r.stdout, /^PASS · /m);
+  const r = await reportMissingValues(ctx, ['orders-list/with-data', 'orders-list/empty', 'orders-list/hover-row', 'orders-list/hover-tile']);
+  assert.match(r.stdout, /^INCOMPLETE · /m);
 
   // Config staleness: what another run's apply writes that cannot change the result (a null
   // ticket address, the Figma access, key order) leaves the evidence up to date ...
@@ -209,7 +210,7 @@ test('Figma section, one screen: --url is its route, plain states.json keys driv
   const status = async () => (await pass(['status', '--dir', rel, '--run', id])).stdout;
   writeFileSync(cfgFile, JSON.stringify({ ticket: { provider: 'jira', baseUrl: null }, figma: { access: ['mcp'] }, ...cfg, app: { ...cfg.app, start: 'npm run dev' } }, null, 4));
   assert.match(await status(), /^ {2}evidence {2}up to date$/m);
-  assert.match(await status(), /^ {2}report {4}valid · PASS/m);
+  assert.match(await status(), /^ {2}report {4}valid · INCOMPLETE/m);
   // A code change still does.
   writeFileSync(path.join(root, 'app.js'), '// the app, changed\n');
   assert.match(await status(), /^ {2}evidence {2}stale: capture/m);
@@ -233,16 +234,19 @@ test('Figma section, one screen, only with-data captured (the rest recorded as u
   assert.equal(await designPngs(root, e1.out, assets), 1);
   const e2 = await pass(['evidence', '--dir', rel, '--run', id]);
   assert.equal(e2.code, 0, e2.stdout + e2.stderr);
+  const current = readJson(path.join(dir, 'findings.json'));
+  current.comparisons = reviewRecords(dir);
+  writeFileSync(path.join(dir, 'findings.json'), JSON.stringify(current));
   const r = await pass(['report', '--dir', rel, '--run', id]);
   assert.equal(r.code, 3, r.stdout + r.stderr);
-  assert.match(r.stdout, /^INCOMPLETE · .* · 1 of 4 states verified$/m);
-  assert.match(r.stdout, /^Do: INCOMPLETE is not a result: capture and compare the other designed states/m);
+  assert.match(r.stdout, /^INCOMPLETE · .* · 0 of 4 states verified$/m);
+  assert.match(r.stdout, /^Do: INCOMPLETE is not a result: resolve the missing Figma\/code values and counterparts/m);
   assert.match(nextOf(r.stdout), / evidence --dir /, 'Next goes back to the evidence, not to a review');
   const st = await pass(['status', '--dir', rel, '--run', id]);
   assert.match(nextOf(st.stdout), / evidence --dir /);
   const html = path.join(dir, 'logs', 'again.html');
   const rr = await run(script('render-report.mjs'), ['--in', path.join(dir, 'report.json'), '--out', html, '--run', id], { cwd: root, env: ENV });
-  assert.match(rr.stderr, /verdict INCOMPLETE: capture and compare the other designed states/);
+  assert.match(rr.stderr, /verdict INCOMPLETE: resolve the missing Figma\/code values and counterparts/);
   assert.doesNotMatch(rr.stderr, /nothing was captured and compared/);
 });
 

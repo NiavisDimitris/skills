@@ -1,3 +1,4 @@
+import { comparisonFixtureRecords } from './_helpers.mjs';
 // Every printed Next: runs as printed (sh -c); the CI gate checks the report it reads; one run
 // never acts on another run's folder (status, --resume, writes without --run, a review server,
 // dismissals); secrets never reach a printed command or the tracked config.
@@ -220,7 +221,7 @@ test('skipped audit: evidence says why and how to turn it on, status moves on; -
   const st = await pass(root, ['status', '--dir', rel, '--run', id]);
   assert.match(st.stdout, /evidence\s+up to date/);
   assert.match(nextCmd(st.stdout), /pass\.mjs report --dir qa-reports\/abc-9 --run \S+ --check$/, 'a recorded skip, not a missing step');
-  writeFileSync(path.join(dir, 'findings.json'), JSON.stringify({ kind: 'design-qa-findings', version: 1, findings: [] }));
+  writeFileSync(path.join(dir, 'findings.json'), JSON.stringify({ kind: 'design-qa-findings', version: 1, findings: [], comparisons: comparisonFixtureRecords(dir) }));
   const r1 = await pass(root, ['report', '--dir', rel, '--run', id]);
   assert.equal(r1.code, 0, r1.stdout + r1.stderr);
   assert.match(r1.stdout, /^Design system mismatches: token: not checked \(.+\) · component: not checked \(.+\) · 0 motion$/m);

@@ -1359,13 +1359,13 @@ export function cropInImage(rect, size) {
 // design's, no design data → a candidate marked designValue "unknown".
 
 /** Design data of one state: a coded prototype's audit file, a Figma REST spec, or none. */
-export function designSide({ audit = null, spec = null, nodeId = null } = {}) {
+export function designSide({ audit = null, spec = null, nodeId = null, includeRoot = false } = {}) {
   if (audit && Array.isArray(audit.elements)) {
     const nodes = nodesFromAudit(audit, 'design');
     return { kind: 'prototype', nodes, audit, values: true, text: true, note: nodes.length ? null : 'the design audit file has no elements' };
   }
   if (spec && typeof spec === 'object') {
-    const s = nodesFromSpec(spec, nodeId);
+    const s = nodesFromSpec(spec, nodeId, { includeRoot });
     return { kind: 'figma', nodes: s.nodes, audit: null, values: Boolean(s.values), text: Boolean(s.text), note: s.values ? s.note : 'the Figma spec carries no style values (MCP path): every design value is unknown' };
   }
   return { kind: 'none', nodes: [], audit: null, values: false, text: false, note: 'no design-side data for this state' };

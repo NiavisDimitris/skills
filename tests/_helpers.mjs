@@ -1,6 +1,6 @@
 // Shared test utilities (not a test file: the npm test glob is tests/*.test.mjs).
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
@@ -95,4 +95,12 @@ export function startServer(handler) {
 export function sendJson(res, status, data, headers = {}) {
   res.writeHead(status, { 'content-type': 'application/json', ...headers });
   res.end(JSON.stringify(data));
+}
+
+// Synthetic positive fixtures exercise report gates; this is not an agent's visual review.
+export function comparisonFixtureRecords(dir) {
+  const file = path.join(dir, 'evidence/comparison-review.json');
+  if (!existsSync(file)) return {};
+  const states = JSON.parse(readFileSync(file, 'utf8')).states;
+  return Object.fromEntries(Object.entries(states).filter(([,r]) => r.complete).map(([s,r]) => [s, {digest:r.digest, images:r.images.map(i=>i.path), valuesReviewed:true}]));
 }

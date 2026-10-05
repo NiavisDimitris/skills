@@ -1,3 +1,4 @@
+import { comparisonFixtureRecords } from './_helpers.mjs';
 // Following pass.mjs never loses the pass or loops: status's start command keeps the folder and
 // run; a review closed without Send ends at finish; following Next: repeatedly makes progress.
 // Also: code changes seen in new folders and odd file names (and a note when they cannot be
@@ -102,6 +103,7 @@ function writeFindings(dir) {
     JSON.stringify({
       kind: 'design-qa-findings',
       version: 1,
+      comparisons: comparisonFixtureRecords(dir),
       findings: [],
       rejected: [
         ...(audit.length ? [{ auditKeys: audit.map((c) => c.key), reason: 'out-of-scope', detail: 'Test fixture: not what this test checks.' }] : []),

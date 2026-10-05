@@ -337,3 +337,5 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) — running tests, the zero-dep rule, n
 ## License
 
 [MIT](LICENSE) © 2026 Dimitris Niavis
+
+Design QA requires full-state side-by-side inspection, including identical captures, and Figma/code value review. Missing values stay unverified; saved MCP responses can supply exact values through `figma-values.mjs`. Review digests expire when evidence changes.
