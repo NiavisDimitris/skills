@@ -22,13 +22,14 @@ import {
   parseTokenMapFile,
   scanRawImports,
   scanSourceImports,
+  tokenComplianceSummary,
 } from './lib/ds-audit.mjs';
 import { pngSize } from './lib/png.mjs';
 import { validateConfig } from './lib/schema-check.mjs';
 import { assertRunOwnsOutput } from './lib/pass.mjs';
 
 /** Candidates listed on stdout by default; ds-audit.json always holds all of them. */
-const SHOWN_CANDIDATES = 10;
+const SHOWN_CANDIDATES = 8;
 /** Fewer page variables than this (framework ones left out) is not a token set to audit against. */
 const MIN_PAGE_TOKENS = 5;
 
@@ -78,7 +79,7 @@ fix it with setup.mjs check --ask ds-tokens.
 Each recorded value is a match (equals a token), a near miss (within tolerance of the nearest
 token but not equal: a hand-typed value) or off-token (beyond tolerance; nearest token and
 distance given: ΔE for colours, px for lengths). Typography is checked as a set against text
-styles when the sources define any. A match is informational: only an authored var(--token)
+styles when the sources define any. A value match is a usage-unverified candidate: only an authored var(--token)
 the collector traced proves the code uses the token. Components are classified by
 designSystem.libraries ({ name, kind: design-system | third-party | legacy, classPrefix,
 selector, package }); third-party, legacy and native controls where the catalog has a
@@ -97,9 +98,9 @@ ${AUDIT_NOTE}
 Design check: each flagged element is matched to its design counterpart (the coded
 prototype's design-audit/<state>.json, else figma-spec.json values on the REST path) by
 selector path, test id, text or the same place and size. The design has the same value:
-not a parity difference, listed under designAlso, no candidate. Another value: a candidate
-whose expected is the design's value (and its token). No design value: a candidate with
-_audit.designValue "unknown" (check the design; reject with "matches-design" if it agrees).
+not a visual difference, but token deviations and unverified usage remain candidates.
+Only component groups shared by the design are listed under designAlso without candidates. Another value: a candidate
+whose expected is the design's value (and its token). No design value: check the intended semantic token. Visual agreement never waives token usage.
 
 A design system with "wraps" (built on a third-party library, same classes on the page):
 the wrapped library's elements count as the design system's; on a local target (or with
@@ -436,8 +437,9 @@ async function main(argv) {
   }]));
   const count = (pred) => candidates.filter(pred).length;
   const summary = {
+    ...tokenComplianceSummary(results),
     elementsChecked: results.reduce((n, r) => n + r.stats.elementsChecked, 0),
-    offTokenValues: count((c) => c.ledger === 'style'),
+    offTokenValues: count((c) => c.ledger === 'style' && !['token-usage', 'wrong-token'].includes(c._audit.kind)),
     nonSystemComponents,
     output: rel(outFile),
     states: results.length,
@@ -445,12 +447,15 @@ async function main(argv) {
     // The design check: candidates whose design has another value, groups the design shares
     // (not emitted: design and code agree), candidates with no design value to compare.
     designDifferent: count((c) => c._audit.designCheck === 'different'),
+    designSame: count((c) => c._audit.designCheck === 'same'),
     designAlso: designAlso.length,
     designUnknown: count((c) => c._audit.designCheck === 'unknown'),
     byKind: {
       offToken: count((c) => c._audit.kind === 'off-token'),
       nearMiss: count((c) => c._audit.kind === 'near-miss'),
       textStyle: count((c) => c._audit.kind === 'text-style'),
+      tokenUsage: count((c) => c._audit.kind === 'token-usage'),
+      wrongToken: count((c) => c._audit.kind === 'wrong-token'),
       component: count((c) => c._audit.kind === 'component'),
     },
     bySeverity: { BLOCKER: count((c) => c.severity === 'BLOCKER'), WARNING: count((c) => c.severity === 'WARNING'), DS_CANDIDATE: count((c) => c.severity === 'DS_CANDIDATE') },
@@ -494,8 +499,9 @@ async function main(argv) {
   log(`Design-system audit: ${summary.states} state(s), ${summary.elementsChecked} rendered elements checked (${results.map((r) => `${oneLine(r.state.id)} ${r.stats.elementsChecked}`).join(', ')})`);
   log(`Tokens: ${src}`);
   log(`Off-token values: ${summary.offTokenValues} (${summary.byKind.offToken} off-token, ${summary.byKind.nearMiss} near miss, ${summary.byKind.textStyle} text style) · non-system components: ${summary.nonSystemComponents} in ${summary.byKind.component} candidate(s) · token matches: ${summary.tokenMatches.verified} proven by var(), ${summary.tokenMatches.unverified} by value only`);
-  log(`Design check: ${summary.designDifferent} real difference(s) (the design has another value) · ${summary.designAlso} also in the design (design and code agree: nothing to file, not emitted) · ${summary.designUnknown} design unknown (check the design before filing; reject with "matches-design" if it uses the same value)`);
-  if (designAlso.length) log(`${designAlso.length} off-token value(s) are also in the design: design and code agree, nothing to file (listed under designAlso)`);
+  log(`Token compliance: ${summary.tokenUsageVerified}/${summary.tokenChecks} property/state checks have verified token usage · ${summary.tokenDeviationChecks} deviations · ${summary.tokenUsageUnverified} usage unverified (including equal rendered values). Excludes unchecked/component-covered values.`);
+  log(`Design check: ${summary.designDifferent} real difference(s) (the design has another value) · ${summary.designAlso} shared component groups (not emitted) · ${summary.designUnknown} design unknown (verify semantic tokens and source before filing)`);
+  if (designAlso.length) log(`${designAlso.length} shared component group(s) omitted; token contracts remain candidates`);
   if (candidates.length) {
     log(`Candidates (file as FIX_CODE, INTENTIONAL with a person's signoff, or a known drift; content is rejected DATA, never filed as DATA; refer to each by its key):`);
     const shownCandidates = values.verbose ? candidates : candidates.slice(0, SHOWN_CANDIDATES);

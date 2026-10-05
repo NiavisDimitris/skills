@@ -172,3 +172,31 @@ test('a running animation on an element that was not grabbed: the --check line n
   assert.doesNotMatch(covered, /confirm-icon/, covered);
   assert.match(covered, /"selector":"div\.toast"/);
 });
+
+
+test('defined-token findings cannot be cleared by visual agreement or downgraded to a DS gap', (t) => {
+  const candidate = auditCandidate('token-1', { expected: { value: '8px', token: '--space-small', source: 'design-rules' }, _audit: { kind: 'token-usage', count: 1, designValue: 'unknown', tokenRequired: true, usageUnverified: true } });
+  const ws = workspace(t, { audit: [candidate] });
+  let r = build(ws, { findings: [], rejected: [{ auditKey: 'token-1', reason: 'matches-design', detail: 'The prototype uses the same padding and the screenshots match.' }] });
+  assert.equal(r.report, null);
+  assert.match(problems(r), /visual agreement does not prove token compliance/);
+  r = build(ws, { findings: [{ auditKey: 'token-1', severity: 'DS_CANDIDATE' }] });
+  assert.equal(r.report, null);
+  assert.match(problems(r), /implementation fix, not a design-system gap/);
+  r = build(ws, { findings: [{ auditKey: 'token-1', resolution: 'NONE' }] });
+  assert.equal(r.report, null);
+  assert.match(problems(r), /cannot be marked NONE/);
+  r = build(ws, { findings: [{ auditKey: 'token-1', expected: { token: null } }] });
+  assert.equal(r.report, null);
+  assert.match(problems(r), /name the intended semantic token/);
+  r = build(ws, { findings: [{ auditKey: 'token-1' }] });
+  assert.ok(r.report, problems(r));
+  assert.equal(r.report.findings[0].expected.token, '--space-small');
+  r = build(ws, { findings: [], rejected: [{ auditKey: 'token-1', reason: 'false-positive', detail: 'The local implementation uses theme spacing through its wrapper.' }] });
+  assert.equal(r.report, null);
+  assert.match(problems(r), /requires tokenEvidence/);
+  const tokenEvidence = { token: '--space-small', file: 'src/Card.tsx', line: 12, snippet: 'padding: theme.spacing.small' };
+  r = build(ws, { findings: [], rejected: [{ auditKey: 'token-1', reason: 'false-positive', detail: 'Card resolves the intended spacing token through its theme wrapper.', tokenEvidence }] });
+  assert.ok(r.report, problems(r));
+  assert.deepEqual(r.report.rejections[0].tokenEvidence, tokenEvidence);
+});

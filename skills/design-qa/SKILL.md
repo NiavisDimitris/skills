@@ -12,6 +12,7 @@ Run every command from the repository under test. Commands here are written `nod
 
 ## The contract
 
+- **Required tokens.** Use defined tokens. Capture and fix deviations, including matching literals; references/ds-audit.md.
 - **Must match.** Component and variant, tokens, typography, colour, spacing, sizing, radii, borders, shadows, icons, layer order, copy, every designed state, motion.
 - **May differ.** Data: values, names, dates, counts, row contents (`DATA`). A section that code hides on purpose is a finding, not data.
 - **One direction.** The code changes, never the design. Write findings from the code side ("App renders an extra Retry button"), never "the design lacks". A state only the app has is not a finding: it waits for design backfill (step 2).
@@ -20,7 +21,7 @@ Run every command from the repository under test. Commands here are written `nod
 
 ## The procedure
 
-Every `pass.mjs` stage ends with `Next: <command>`. Anything you or the person must do first is on `Do:` lines just above it. Do the `Do:` lines, then run `Next:` exactly as printed. When lost, or after the review, `node scripts/pass.mjs status --dir <dir> --run <id>` prints the next command.
+Every `pass.mjs` stage ends with `Next: <command>`. Do the `Do:` lines first, then run `Next:` exactly as printed. When lost, or after the review, `node scripts/pass.mjs status --dir <dir> --run <id>` prints the next command.
 
 ### 1. Start
 

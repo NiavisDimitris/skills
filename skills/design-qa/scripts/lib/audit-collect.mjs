@@ -166,17 +166,17 @@ export function collectAuditElements(options = {}) {
   };
   const VAR_RE = /var\(\s*(--[\w-]+)/g;
   const SHORTHAND_NAMES = ['padding', 'margin', 'padding-block', 'padding-inline', 'margin-block', 'margin-inline', 'border', 'border-top', 'border-right', 'border-bottom', 'border-left', 'border-color', 'border-width', 'border-radius', 'background', 'gap', 'font'];
-  // The declarations of one style block that use var(): longhands, and shorthands by
+  // Authored declarations, including literals that may override a token: longhands and shorthands by
   // name (a shorthand set with var() leaves its longhands empty in the CSSOM).
   const varDecls = (style) => {
     const decl = {};
     for (const p of Array.from(style)) {
       const v = style.getPropertyValue(p);
-      if (v && v.includes('var(')) decl[p] = v;
+      if (v && !p.startsWith('--')) decl[p] = v;
     }
     for (const sh of SHORTHAND_NAMES) {
       const v = style.getPropertyValue(sh);
-      if (v && v.includes('var(')) decl[sh] = v;
+      if (v) decl[sh] = v;
     }
     return Object.keys(decl).length ? decl : null;
   };
@@ -241,7 +241,7 @@ export function collectAuditElements(options = {}) {
   let varStopped = false;
   const varStart = { t: 0 };
   const authoredVars = (el, cs, props) => {
-    if (varStopped) return null;
+    if (varStopped || unreadableSheets > 0) return null;
     if (!varStart.t) varStart.t = performance.now();
     if (performance.now() - varStart.t > varBudgetMs) {
       varStopped = true;
@@ -264,6 +264,10 @@ export function collectAuditElements(options = {}) {
     const inline = (el.style && varDecls(el.style)) || {};
     const out = {};
     for (const prop of props) {
+      // Equal computed values do not identify the cascade winner. A competing literal
+      // keeps usage unverified; source inspection can prove a theme/class/alias.
+      const authored = [inline, ...decls].flatMap((d) => SHORTHANDS(prop).map((sh) => d[sh]).filter(Boolean));
+      if (authored.some((v) => !v.includes('var('))) continue;
       const names = [];
       for (const d of [inline, ...decls.slice().reverse()]) {
         for (const sh of SHORTHANDS(prop)) {
@@ -272,6 +276,7 @@ export function collectAuditElements(options = {}) {
           for (const m of v.matchAll(VAR_RE)) if (!names.includes(m[1])) names.push(m[1]);
         }
       }
+      if (names.length !== 1) continue; // Several references need cascade/source verification.
       const actual = cs.getPropertyValue(prop).trim();
       for (const name of names) {
         // Only a reference whose resolved value IS the computed value: a var() in a rule

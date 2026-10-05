@@ -9,7 +9,7 @@ The design must be exact; only the data may differ. The design (Figma, a Figma p
 Any difference is a finding, within the config's `tolerances.px` and `tolerances.colorDeltaE` (references/ledgers.md, "Style"):
 
 - **Component and variant** the design instance points at. A recreation that looks right is still a finding.
-- **Tokens**: every colour, space, radius, type, shadow and motion value traces to the token the design binds. A colour within tolerance that no token produces is still a token finding.
+- **Tokens**: every colour, space, radius, type, shadow and motion value traces to the token the design binds. A colour within tolerance that no token produces is still a token finding. Equal hardcoded colour, spacing, typography and other values are not token compliance: capture them for source verification and replace literals with the intended semantic tokens. Shared off-token values in the design do not waive defined token contracts.
 - **Typography, colours, spacing** (and which element owns it), **sizing** (fixed sizes, min and max, hug versus fill), **radii, borders, shadows, stacking order, icons** (which, size, colour, stroke).
 - **Structure**: regions present, in the design's order.
 - **Copy**: wording, plural, casing, punctuation, per the project's design rules.

@@ -27,7 +27,7 @@ The build refuses to write while anything below holds, and names the place in `f
 | A verified state's app image is smaller than its page, or a design image is shorter or narrower than its frame | Capture the whole page. Only `pass.degradations` `{ "step": "capture-coverage:<state>", "reason", "impact" }`, or capture.mjs's own `partial` (an endless page, a virtual list), excuses it; the state then counts as captured in part (REVIEW). No other step name explains anything. |
 | A state has a design and an app image but no pixel diff or no worklist | Re-run `pass.mjs evidence`. |
 | A state captured identical to with-data and nothing addresses it | File a state finding, set `MISSING_IN_CODE` with a note, or fix the driver and re-run evidence. |
-| An audit candidate with an unknown design value is filed without `expected` | Read the design value (`inspect.mjs --side design`) or reject it `matches-design`. |
+| An audit candidate with an unknown design value is filed without `expected` | Read the design value (`inspect.mjs --side design`) and identify the intended token; visual agreement cannot clear a token candidate. Value matches with unverified usage can be filed directly for source verification. |
 | `DATA does not apply` (a component, motion or state finding, an audit candidate, a design token) or `DATA … has nothing computed behind it` (a named worklist region has no likely-DATA hint) | Leave it open (`FIX_CODE`). A person may accept it in the review. |
 | `diff.json` disagrees with its diff image, or `worklist.json` coverage with its items | The evidence was edited: re-run `pass.mjs evidence --force`. |
 | A typed `crop` is off its state's image, smaller than 8×8 or over 90% of it | Pin by worklist key, audit key or selector instead. |

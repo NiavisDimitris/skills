@@ -11,12 +11,12 @@ Read when: step 4 of every pass, writing `<dir>/findings.json`.
 | Input | File it | Reject it |
 |---|---|---|
 | Worklist item (`worklist.md`) | `"worklist": "<key>"` (or a list). Without a `pin` it is pinned on the item's crops (up to 5 states, plus the design); `state` defaults to the first item's. | `{ "worklist": ["<key>", …], "reason", "detail" }`; `worklist.md` prints complete rejections to paste. |
-| Audit candidate | `{ "auditKey": "<key>" }`: complete and pinned; add only what you change. A candidate marked design unknown needs `expected` (read it with `inspect.mjs --side design`), or reject it `matches-design`. A finding may carry `auditKey` and `worklist` together. | `{ "auditKeys": ["<key>", …], "reason", "detail" }` |
+| Audit candidate | `{ "auditKey": "<key>" }`: complete and pinned; add only what you change. Token candidates require source verification (references/ds-audit.md), never `matches-design`. A finding may carry `auditKey` and `worklist` together. | `{ "auditKeys": ["<key>", …], "reason", "detail" }` |
 | Compare FAIL row (coded prototype, Figma motion) | Usually nothing: a pinned finding covers rows inside its pin (same kind and property); for a leftover row `--check` prints the `covers` entry. | `{ "compare": { "kind", "state", "elementClass", "property" }, "reason", "detail" }` |
 
 A `covers` entry or `compare` matcher is `{ "kind", "state", "elementClass" | "selector" | "role" + "name" | "figmaNodeId", "property" }`. `detail` is a sentence (20+ characters). Every rejection is shown to the reviewer ("Rejected by the agent"); a rejected share above 5% of a page makes the verdict at least REVIEW.
 
-**Rejection reasons.** Worklist items: `DATA` (content, not design) · `same` (rendering only, refused for an item above 2% of its page) · `duplicate` (+ `duplicateOf`: a finding's `ref`, or a covered worklist key) · `known-drift` (+ `knownDrift`) · `covered-by-audit` (+ `coveredBy`: an audit key you filed) · `matches-design` · `intentional` · `out-of-scope`. Audit candidates: the compare-row reasons plus `matches-design` (the design uses that value too). Compare rows: `DATA` · `known-drift` · `intentional` · `duplicate` · `false-positive` (a browser default, not authored) · `out-of-scope`.
+**Rejection reasons.** Worklist items: `DATA` (content, not design) · `same` (rendering only, refused for an item above 2% of its page) · `duplicate` (+ `duplicateOf`: a finding's `ref`, or a covered worklist key) · `known-drift` (+ `knownDrift`) · `covered-by-audit` (+ `coveredBy`: an audit key you filed) · `matches-design` · `intentional` · `out-of-scope`. Audit candidates: the compare-row reasons plus `matches-design` for shared components only. Compare rows: `DATA` · `known-drift` · `intentional` · `duplicate` · `false-positive` (a browser default, not authored) · `out-of-scope`.
 
 ## Write a finding
 
@@ -37,7 +37,7 @@ One finding per divergence (one element, one property, one state).
 |---|---|
 | `BLOCKER` | Visibly wrong: wrong or recreated component, a designed state, region or call to action missing, wrong colour or type role, copy that changes the meaning, no visible focus. Would the designer call the screen wrong at a glance? |
 | `WARNING` | A difference of degree: 12px against 16px, radius or line height off, a hardcoded value that renders right, secondary copy casing, an extra element, motion missing or different. |
-| `DS_CANDIDATE` | A design-system gap: a pattern recreated in several places, a value used everywhere with no token. |
+| `DS_CANDIDATE` | A design-system gap: a pattern recreated in several places, a value used everywhere in a category the system has no tokens for. Deviations from defined tokens are `FIX_CODE`, never a token-set gap. |
 | `CANNOT_VERIFY` | An evidence gap you name (resolution `NONE`). `PASS` is derived; write it only for a verified fix. |
 
 Only `BLOCKER`, `WARNING` and `DS_CANDIDATE` count toward match and findings settled.

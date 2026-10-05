@@ -578,6 +578,10 @@ export function buildTokenSet(sources) {
       }
     }
   }
+  // Page-local variables cannot expand an authoritative token contract for a category.
+  for (const [category, pool] of Object.entries(pools)) {
+    if (pool.some((t) => t.source?.kind !== 'page')) pools[category] = pool.filter((t) => t.source?.kind !== 'page');
+  }
   const byVar = new Map();
   for (const t of tokens) for (const v of t.vars) if (!byVar.has(v)) byVar.set(v, t);
   return { tokens, textStyles, pools, byVar, conflicts, sources: summary };
@@ -1563,8 +1567,8 @@ export function designVerdict(e, prop, category, appValue, { match, design, set,
     const same = sameValue(category, appValue, dv, opts);
     const r = checkValue(set, category, dv, { ...opts, fontSize: toPx(e.s?.['font-size']) ?? 16, box: node.rect });
     const dvar = designVarOf(node, prop);
-    const token = r.status === 'match' ? r.token.name : dvar ? tokenForVar(set, dvar)?.name ?? dvar : null;
-    verdicts.push({ status: same ? 'same' : 'different', value: String(dv).trim(), token, via: m.via, node });
+    const token = dvar ? tokenForVar(set, dvar)?.name ?? dvar : r.status === 'match' ? r.token.name : null;
+    verdicts.push({ status: same ? 'same' : 'different', value: String(dv).trim(), token, tokenBound: Boolean(dvar), via: m.via, node });
   }
   if (!verdicts.length) return unknown('the design counterpart has no value for this property');
   // Several design layers at one place (Figma frame + background): any that agrees settles it.
@@ -1614,7 +1618,7 @@ export function auditState(input) {
   const verifiedVar = (e, prop) => {
     const name = e.v?.[prop];
     const t = name ? tokenForVar(set, name) : null;
-    return { name: name ?? null, token: t };
+    return { name: name ?? null, token: t, exact: Boolean(name && set.byVar.get(name) === t) };
   };
   const noteMatch = (token, verified) => {
     const m = matches.get(token.name) ?? { token, verified: 0, unverified: 0 };
@@ -1637,12 +1641,13 @@ export function auditState(input) {
     }
     valuesChecked += 1;
     // An authored var(--token) of the design system is proof, whatever the nearest value says.
-    if (authored.token && authored.token.category === category) {
-      noteMatch(authored.token, true);
+    if (authored.exact && authored.token && (set.pools[category] ?? []).includes(authored.token) && checkValue({ ...set, pools: { ...set.pools, [category]: [authored.token] } }, category, value, { ...opts, fontSize: toPx(e.s?.['font-size']) ?? 16, box: e.rect }).status === 'match') {
+      styleMembers.push({ i: e.i, prop, category, value: String(value).trim(), status: 'token-used', token: authored.token, distance: 0, unit: r.unit, authoredVar: authored.name, ...extra });
       return;
     }
     if (r.status === 'match') {
       noteMatch(r.token, false);
+      styleMembers.push({ i: e.i, prop, category, value: String(value).trim(), status: 'usage-unverified', token: r.token, distance: 0, unit: r.unit, authoredVar: authored.name, ...extra });
       return;
     }
     styleMembers.push({ i: e.i, prop, category, value: String(value).trim(), status: r.status, token: r.token, distance: r.distance, unit: r.unit, authoredVar: authored.name, ...extra });
@@ -1675,6 +1680,7 @@ export function auditState(input) {
       valuesChecked += 1;
       if (r.status === 'match') {
         noteMatch({ name: r.style.name, category: 'text-style', value: describeStyle(r.style), source: r.style.source }, false);
+        styleMembers.push({ i: e.i, prop: 'font', category: 'text-style', value: textStyleValue(s), status: 'usage-unverified', token: { name: r.style.name, value: describeStyle(r.style), source: r.style.source, category: 'text-style' }, distance: 0, unit: null, authoredVar: null });
         continue;
       }
       styleMembers.push({ i: e.i, prop: 'font', category: 'text-style', value: textStyleValue(s), status: r.status, token: { name: r.style.name, value: describeStyle(r.style), size: r.style.size, source: r.style.source, category: 'text-style' }, distance: r.distance, unit: null, diffs: r.diffs, authoredVar: null });
@@ -1692,8 +1698,10 @@ export function auditState(input) {
         const r = checkTextStyle(set, body, opts);
         if (r.status !== 'skip') {
           valuesChecked += 1;
-          if (r.status === 'match') noteMatch({ name: r.style.name, category: 'text-style', value: describeStyle(r.style), source: r.style.source }, false);
-          else styleMembers.push({ i: pageDefault.i, prop: 'font', category: 'text-style', value: textStyleValue(body), status: r.status, token: { name: r.style.name, value: describeStyle(r.style), size: r.style.size, source: r.style.source, category: 'text-style' }, distance: r.distance, unit: null, diffs: r.diffs, authoredVar: null, pageDefault: true });
+          if (r.status === 'match') {
+            noteMatch({ name: r.style.name, category: 'text-style', value: describeStyle(r.style), source: r.style.source }, false);
+            styleMembers.push({ i: pageDefault.i, prop: 'font', category: 'text-style', value: textStyleValue(body), status: 'usage-unverified', token: { name: r.style.name, value: describeStyle(r.style), source: r.style.source, category: 'text-style' }, distance: 0, unit: null, authoredVar: null, pageDefault: true });
+          } else styleMembers.push({ i: pageDefault.i, prop: 'font', category: 'text-style', value: textStyleValue(body), status: r.status, token: { name: r.style.name, value: describeStyle(r.style), size: r.style.size, source: r.style.source, category: 'text-style' }, distance: r.distance, unit: null, diffs: r.diffs, authoredVar: null, pageDefault: true });
         }
       } else {
         for (const p of ['font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing']) visit(synthetic, p, auditCategory(p), body[p], { pageDefault: true });
@@ -1713,7 +1721,7 @@ export function auditState(input) {
     return false;
   };
   const before = styleMembers.length;
-  const kept = styleMembers.filter((m) => !insideFlagged(m.i));
+  let kept = styleMembers.filter((m) => !insideFlagged(m.i));
   const coveredByComponents = before - kept.length;
   // What the design does at each flagged element: same value, another value, or unknown.
   const side = design ?? designSide();
@@ -1724,7 +1732,14 @@ export function auditState(input) {
     designComponents = classifyComponents(side.audit, { libraries, catalog, selectorIndex: dSel, unsupported: new Set() });
   }
   const ctx = { match, design: side, set, tolerancePx, colorDeltaE, designComponents };
-  for (const m of kept) m.design = designVerdict(els[m.i], m.prop, m.category, m.value, ctx);
+  for (const m of kept) {
+    m.design = designVerdict(els[m.i], m.prop, m.category, m.value, ctx);
+    if (m.status === 'token-used') {
+      if (m.design.status === 'different' || (m.design.tokenBound && m.design.token && m.design.token !== m.token.name)) m.status = 'wrong-token';
+      else noteMatch(m.token, true);
+    }
+  }
+  kept = kept.filter((m) => m.status !== 'token-used');
   for (const m of comp.members) m.design = componentVerdict(els[m.i], m, ctx);
   const verdicts = [...kept, ...comp.members].map((m) => m.design.status);
   return {
@@ -1797,7 +1812,7 @@ function plural(n, word) {
  * ctx: { evidencePaths: (state) → { screenshot, audit } (paths relative to the report
  * folder), samples, drifts, tolerancePx, colorDeltaE }.
  * Each member carries the design's verdict (auditState): a group the design shares on
- * every element goes to designAlso, never to candidates.
+ * every component goes to designAlso; token contracts remain candidates.
  * → { groups: { tokens, components, matches }, candidates, designAlso }.
  */
 export function buildCandidates(results, ctx) {
@@ -1815,7 +1830,8 @@ export function buildCandidates(results, ctx) {
     for (const m of r.styleMembers) {
       const cat = m.category;
       const vk = valueKey(cat, m.value);
-      add(`${prefix}style:${cat === 'text-style' ? 'text' : cat}:${vk}`, { kind: cat === 'text-style' ? 'text-style' : 'token', screen, category: cat, status: m.status, value: m.value, token: m.token, distance: m.distance, unit: m.unit, diffs: m.diffs ?? null, designSource }, { r, m });
+      const required = ['usage-unverified', 'wrong-token'].includes(m.status) && m.design?.tokenBound && m.design?.token ? `:required:${encodeURIComponent(m.design.token)}` : '';
+      add(`${prefix}style:${cat === 'text-style' ? 'text' : cat}:${vk}${required}`, { kind: cat === 'text-style' ? 'text-style' : 'token', screen, category: cat, status: m.status, value: m.value, token: m.token, distance: m.distance, unit: m.unit, diffs: m.diffs ?? null, designSource }, { r, m });
     }
     for (const m of r.componentMembers) {
       const lib = m.library ? kebab(m.library) : m.origin === 'raw-primitive' ? 'raw' : 'native';
@@ -1849,12 +1865,12 @@ export function buildCandidates(results, ctx) {
       x.dv = x.verdicts.find((v) => v.status === 'different') ?? (x.verdicts.every((v) => v.status === 'same') ? x.verdicts[0] : x.verdicts.find((v) => v.status === 'unknown'));
     }
     const all = [...seen.values()];
-    const isCandidate = g.kind === 'component' ? g.severity !== null : g.status === 'near' || g.status === 'off';
+    const isCandidate = g.kind === 'component' ? g.severity !== null : ['near', 'off', 'usage-unverified', 'wrong-token'].includes(g.status);
     const tally = { same: all.filter((x) => x.dv.status === 'same').length, different: all.filter((x) => x.dv.status === 'different').length, unknown: all.filter((x) => x.dv.status === 'unknown').length };
     // Design and code agree on every element: not a parity difference, nothing to file.
-    const agrees = isCandidate && tally.same > 0 && !tally.different && !tally.unknown;
-    const chosen = !isCandidate || agrees ? all : all.filter((x) => x.dv.status !== 'same');
-    const designCheck = tally.different ? 'different' : 'unknown';
+    const agrees = g.kind === 'component' && isCandidate && tally.same > 0 && !tally.different && !tally.unknown;
+    const chosen = g.kind !== 'component' || !isCandidate || agrees ? all : all.filter((x) => x.dv.status !== 'same');
+    const designCheck = tally.different ? 'different' : tally.same && !tally.unknown ? 'same' : 'unknown';
     const list = [...chosen].sort((a, b) => b.place.share - a.place.share || area(b.place.crop) - area(a.place.crop) || a.e.rect.y - b.e.rect.y || a.e.rect.x - b.e.rect.x || a.r.state.id.localeCompare(b.r.state.id));
     const byDoc = [...chosen].sort((a, b) => a.r.state.id.localeCompare(b.r.state.id) || a.m.i - b.m.i);
     const props = [...new Set(list.flatMap((x) => x.props))].sort();
@@ -1897,7 +1913,7 @@ export function buildCandidates(results, ctx) {
     }
     if (!isCandidate) continue;
     // The design's value: the most common one among the elements that differ.
-    const diffs = list.filter((x) => x.dv.status === 'different');
+    const diffs = list.filter((x) => x.dv.status === 'different' || (g.kind !== 'component' && x.dv.token));
     const byValue = new Map();
     for (const x of diffs) byValue.set(x.dv.value, [...(byValue.get(x.dv.value) ?? []), x]);
     const dWin = [...byValue.values()].sort((a, b) => b.length - a.length || String(a[0].dv.value).localeCompare(String(b[0].dv.value)))[0]?.[0]?.dv ?? null;
@@ -1913,7 +1929,13 @@ export function buildCandidates(results, ctx) {
     let finding;
     if (g.kind === 'component') {
       const what = g.origin === 'native-control' || g.origin === 'raw-primitive' ? `Native ${g.component}` : `${g.origin === 'legacy' ? 'Legacy' : 'Third-party'} ${g.component} (${g.library})`;
-      const title = dWin
+      const usage = g.status === 'usage-unverified';
+      const wrong = g.status === 'wrong-token';
+      const title = usage
+        ? `${lead} ${shown} equals ${tok.name}, but token usage is unverified on ${where}`
+        : wrong
+        ? `${lead} uses the wrong design token on ${where}: expected ${dWin?.token ?? tok.name}`
+        : dWin
         ? `${what} renders where the design has ${dWin.value} (${where})`
         : g.ds
         ? `${what} renders where the design system has ${g.ds.component} (${where})`
@@ -1947,18 +1969,21 @@ export function buildCandidates(results, ctx) {
       const near = g.status === 'near';
       const dShown = dWin ? (g.category === 'color' ? hexOf(dWin.value) ?? dWin.value : dWin.value) : null;
       const nearestNote = tok && tok.name !== dWin?.token ? ` · nearest token ${tok.name}${g.category === 'color' ? ` ${hexOf(tok.value) ?? tok.value}` : g.kind === 'text-style' ? '' : ` ${tok.value}`}` : '';
-      const title = dWin
+      const usage = g.status === 'usage-unverified';
+      const wrong = g.status === 'wrong-token';
+      const title = usage
+        ? `${lead} ${shown} equals ${tok.name}, but token usage is unverified on ${where}`
+        : wrong
+        ? `${lead} uses the wrong design token on ${where}: expected ${dWin?.token ?? tok.name}`
+        : dWin
         ? `${lead} ${shown}; the design has ${dShown}${dWin.token ? ` (${dWin.token})` : ''} on ${where}${nearestNote}`
         : g.kind === 'text-style'
         ? `${lead} ${shown} matches no text style${tok ? ` (nearest ${tok.name}${g.diffs?.length ? `: ${g.diffs.join(', ')}` : ''})` : ''} on ${where}`
         : near
           ? `${lead} ${shown} is a hand-typed near miss of ${tok.name} (${dist}) on ${where}`
           : `${lead} ${shown} matches no ${CATEGORY_LABEL[g.category] ?? g.category} token${tok ? ` (nearest ${tok.name} ${g.category === 'color' ? hexOf(tok.value) ?? tok.value : tok.value}${dist ? `, ${dist}` : ''})` : ''} on ${where}`;
-      // Severity (references/filing.md): a near miss or a value close to a token is a WARNING
-      // (use the token); a value far from every token that recurs is a gap in the token set.
-      const close = g.kind === 'text-style' || near || (g.distance !== null && g.distance !== undefined && (g.unit === 'ΔE' ? g.distance <= colorDeltaE * 3 : g.distance <= Math.max(4, tolerancePx * 4)));
-      // A value that differs from the design is the code's to fix: never a token-set gap.
-      const severity = dWin || close || uniquePaths < 3 ? 'WARNING' : 'DS_CANDIDATE';
+      // Defined tokens are implementation contracts, including recurring deviations.
+      const severity = 'WARNING';
       const cssVar = tok?.vars?.find((v) => v.startsWith('--')) ?? (tok?.name?.startsWith('--') ? tok.name : null);
       const authored = list.map((x) => x.m.authoredVar).find(Boolean) ?? null;
       // One property, or the shorthand its longhands share (padding-top + padding-left → padding).
@@ -1977,14 +2002,16 @@ export function buildCandidates(results, ctx) {
           ? { value: dWin.value, token: dWin.token ?? null, source: g.designSource ?? 'prototype' }
           : { value: tok ? tok.value : null, token: tok?.name ?? null, source: 'design-rules' },
         actual: { value: g.value, token: authored, source: { file: null, line: null, snippet: null } },
-        delta: dWin ? `${shown} in the app, ${dShown} in the design` : dist ? `${dist} from ${tok.name}` : g.diffs?.length ? g.diffs.join(', ') : null,
+        delta: usage ? '0 visual difference; token usage not proven' : dWin ? `${shown} in the app, ${dShown} in the design` : dist ? `${dist} from ${tok.name}` : g.diffs?.length ? g.diffs.join(', ') : null,
         tolerance: g.category === 'color' ? `ΔE ${colorDeltaE}` : g.unit === 'px' ? `${g.category === 'letter-spacing' ? Math.min(tolerancePx, 0.25) : tolerancePx}px` : g.kind === 'text-style' ? `${tolerancePx}px per length` : 'exact',
         fix: {
-          summary: dWin
+          summary: usage
+            ? `Trace ${property} to source and use ${dWin?.token ?? tok.name}; a matching literal is not token compliance`
+            : dWin
             ? `Match the design: ${dWin.token ? `use ${dWin.token} (${dShown})` : `use ${dShown}`} instead of ${shown}`
             : tok ? `Use ${tok.name} instead of the hardcoded ${shown}` : `Replace the hardcoded ${shown} with a design-system token`,
           patchHint: dWin
-            ? (g.kind !== 'text-style' ? `${property}: ${dWin.token?.startsWith('--') ? `var(${dWin.token})` : dShown}` : dWin.token ? `apply ${dWin.token}` : null)
+            ? (dWin.token ? dWin.token.startsWith('--') && g.kind !== 'text-style' ? `${property}: var(${dWin.token})` : `apply ${dWin.token}` : 'Identify and apply the intended design-system token; do not copy a literal')
             : cssVar && g.kind !== 'text-style' ? `${property}: var(${cssVar})` : tok ? `apply ${tok.name}` : null,
           files: [],
           effort: 2,
@@ -2003,7 +2030,9 @@ export function buildCandidates(results, ctx) {
       acRef: null,
       ...(pinned ? {} : { unpinnedReason: paths.screenshot ? `Every element of this group lies outside the ${st.id} screenshot (scrolled out of view or below the captured area); recapture the whole page.` : `There is no app screenshot for ${st.id}, so nothing on a capture marks these elements.` }),
       _audit: {
-        kind: g.kind === 'component' ? 'component' : g.kind === 'text-style' ? 'text-style' : g.status === 'near' ? 'near-miss' : 'off-token',
+        kind: g.kind === 'component' ? 'component' : g.status === 'usage-unverified' ? 'token-usage' : g.status === 'wrong-token' ? 'wrong-token' : g.kind === 'text-style' ? 'text-style' : g.status === 'near' ? 'near-miss' : 'off-token',
+        tokenRequired: g.kind !== 'component',
+        usageUnverified: g.status === 'usage-unverified',
         count: n,
         elements: uniquePaths,
         states,
@@ -2014,8 +2043,9 @@ export function buildCandidates(results, ctx) {
         designCheck,
         designValue: dWin ? dWin.value : 'unknown',
         designToken: dWin?.token ?? null,
+        designTokenBound: Boolean(dWin?.tokenBound),
         design: { ...tally, source: g.designSource ?? null },
-        ...(dWin ? {} : { designHint: 'No design value for these elements: check the design before filing; if it uses the same value, reject the candidate with reason "matches-design".' }),
+        ...(dWin ? {} : { designHint: g.kind === 'component' ? 'Check the design before filing this component candidate.' : 'Verify the intended semantic token in design and source. Matching the design visually does not waive the token contract.' }),
         knownDriftHint: null,
       },
     };
@@ -2048,4 +2078,13 @@ export function buildCandidates(results, ctx) {
   matchList.sort((a, b) => b.verified + b.unverified - (a.verified + a.unverified) || a.token.localeCompare(b.token));
   designAlso.sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
   return { groups: { tokens: tokenGroups, components: componentGroups, matches: matchList }, candidates, designAlso };
+}
+
+/** Counts audited property/state observations, not pixels or unique source declarations. */
+export function tokenComplianceSummary(results) {
+  const verified = results.reduce((n, r) => n + [...r.matches.values()].reduce((v, m) => v + m.verified, 0), 0);
+  const members = results.flatMap((r) => r.styleMembers);
+  const unverified = members.filter((m) => m.status === 'usage-unverified').length;
+  const deviations = members.length - unverified;
+  return { tokenChecks: verified + members.length, tokenUsageVerified: verified, tokenUsageUnverified: unverified, tokenDeviationChecks: deviations };
 }

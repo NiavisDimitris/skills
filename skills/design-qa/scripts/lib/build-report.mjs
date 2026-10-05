@@ -237,6 +237,7 @@ export const FINDINGS_SCHEMA = {
         knownDrift: { type: 'string', pattern: '^KD-\\d+$' },
         duplicateOf: { type: 'string', minLength: 1 },
         coveredBy: { type: 'string', minLength: 1 },
+        tokenEvidence: { type: 'object', required: ['token', 'file', 'line', 'snippet'], properties: { token: { type: 'string', minLength: 1 }, file: { type: 'string', minLength: 1 }, line: { type: 'integer', minimum: 1 }, snippet: { type: 'string', minLength: 1 } } },
       },
     },
     fixLoopInput: {
@@ -1441,7 +1442,7 @@ class BuildContext {
       });
       if (items.length !== keys.length) return;
       // The audit does not know the design's value: its "expected" is only the nearest token.
-      if (raw.auditKey !== undefined && base._audit?.designValue === 'unknown' && !(isObj(raw.expected) && raw.expected.value !== undefined && raw.expected.value !== null)) {
+      if (raw.auditKey !== undefined && base._audit?.designValue === 'unknown' && !base._audit?.usageUnverified && !(isObj(raw.expected) && raw.expected.value !== undefined && raw.expected.value !== null)) {
         this.problem(
           `${at}.expected`,
           `audit candidate "${oneLine(raw.auditKey)}" does not know the design's value (its expected ${show(base.expected?.value ?? null)} is the nearest token, a guess): read the design value (node scripts/inspect.mjs --dir <dir> --side design …) and give "expected": { "value", "token" }, or reject the candidate`,
@@ -1449,6 +1450,9 @@ class BuildContext {
         return;
       }
       const f = this.mergeFinding(base, raw);
+      if (base._audit?.tokenRequired && f.resolution === 'NONE') this.problem(`${at}.resolution`, 'token deviations and unverified usage cannot be marked NONE: file FIX_CODE or give source-backed false-positive evidence');
+      if (base._audit?.tokenRequired && f.resolution === 'FIX_CODE' && !str(f.expected?.token)) this.problem(`${at}.expected.token`, 'defined design tokens must be used: name the intended semantic token for this fix');
+      if (base._audit?.tokenRequired && f.resolution === 'FIX_CODE' && f.severity === 'DS_CANDIDATE') this.problem(`${at}.severity`, 'a defined-token contract is an implementation fix, not a design-system gap: use BLOCKER or WARNING');
       if ((f.state === undefined || f.state === null) && items.length) {
         f.state = items[0].state;
         if (this.multi && f.screen === undefined) f.screen = items[0].state.split('/')[0];
@@ -1990,6 +1994,7 @@ class BuildContext {
     const record = (kind, key, extra, r) => this.rejectionRecords.push({
       kind, key, state: extra.state ?? null, screen: extra.screen ?? null, reason: r.reason, detail: r.detail,
       percentOfPage: typeof extra.percentOfPage === 'number' ? extra.percentOfPage : null, crop: validRect(extra.crop) ? { x: extra.crop.x, y: extra.crop.y, w: extra.crop.w, h: extra.crop.h } : null,
+      ...(r.tokenEvidence ? { tokenEvidence: r.tokenEvidence } : {}),
       knownDrift: r.knownDrift ?? null, duplicateOf: r.duplicateOf ?? null, coveredBy: r.coveredBy ?? null,
     });
     this.rejectCounts = new Map(); // "audit|DATA" → n
@@ -2051,6 +2056,9 @@ class BuildContext {
           if (this.filed.has(key)) return this.problem(field(j), `"${oneLine(key)}" is both filed (findings[${this.filed.get(key)}]) and rejected: keep one`);
           if (this.rejectedKeys.has(key)) return this.problem(field(j), `"${oneLine(key)}" is already rejected by rejected[${this.rejectedKeys.get(key)}]`);
           const c = this.candidates.get(key).c;
+          if (c._audit?.tokenRequired && r.reason === 'matches-design') return this.problem(field(j), `"${oneLine(key)}": defined design tokens must be used; visual agreement does not prove token compliance. File FIX_CODE or provide source evidence for a false-positive rejection`);
+          if (c._audit?.tokenRequired && r.reason === 'false-positive' && !(isObj(r.tokenEvidence) && str(r.tokenEvidence.token) && str(r.tokenEvidence.file) && Number.isInteger(r.tokenEvidence.line) && r.tokenEvidence.line > 0 && str(r.tokenEvidence.snippet))) return this.problem(field(j), 'a token false-positive rejection requires tokenEvidence { token, file, line, snippet } tracing the property to the intended design token');
+          if (c._audit?.tokenRequired && c._audit?.designTokenBound && r.reason === 'false-positive' && r.tokenEvidence?.token !== c._audit.designToken) return this.problem(field(j), `tokenEvidence must trace the design-bound token ${show(c._audit.designToken)}, not ${show(r.tokenEvidence?.token ?? null)}`);
           const dv = c._audit?.designValue;
           if (r.reason === 'matches-design' && dv !== undefined && dv !== null && dv !== 'unknown') {
             return this.problem(field(j), `"${oneLine(key)}": the audit read the design's value, ${show(dv)}, and it differs from the app's ${show(c.actual?.value ?? null)}, so "matches-design" does not apply: file it or give another reason`);

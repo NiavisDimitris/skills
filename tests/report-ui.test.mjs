@@ -272,7 +272,7 @@ test('Design system tab: token, component and motion mismatches; Missing motion;
   assert.deepEqual(await ids(page, '#ds-tokens tbody tr[data-fid]'), ['DQ-003', 'DQ-004', 'DQ-013']);
   const t3 = await page.textContent('#ds-tokens tr[data-fid="DQ-003"]');
   assert.match(t3, /--ads-color-surface-hover/);
-  assert.match(t3, /hardcoded/);
+  assert.match(t3, /usage unverified/);
   assert.match(await page.textContent('#ds-tokens tr[data-fid="DQ-004"]'), /--ads-space-6.*24px.*--ads-space-5.*20px/s);
   assert.deepEqual(await ids(page, '#ds-components tbody tr[data-fid]'), ['DQ-002']);
   assert.match(await page.textContent('#ds-components tr[data-fid="DQ-002"]'), /Table\.Header.*compact.*thead \(custom CSS\)/s);
@@ -1477,9 +1477,9 @@ test('notices: incomplete pass, partial coverage, deployed target, unpinned coun
   assert.match(await p2.textContent('#ds-not-audited'), /No design-system audit was run.*Token and component mismatches were not looked for/s);
   assert.deepEqual(partial.errors, []);
 
-  const audited = await open(t, 'ui-report.json', { mutate: (r) => { r.meta.tools.dsAudit = 'script'; r.meta.dsAudit = { elementsChecked: 1480, offTokenValues: 3, nonSystemComponents: 1 }; } });
+  const audited = await open(t, 'ui-report.json', { mutate: (r) => { r.meta.tools.dsAudit = 'script'; r.meta.dsAudit = { elementsChecked: 1480, offTokenValues: 3, nonSystemComponents: 1, tokenChecks: 100, tokenUsageVerified: 80, tokenDeviationChecks: 5, tokenUsageUnverified: 15 }; } });
   await audited.page.click('#tab-design-system');
-  assert.equal(await audited.page.textContent('#ds-audit'), 'Design-system audit: script · 1480 elements checked · 3 off-token values · 1 non-system components');
+  assert.equal(await audited.page.textContent('#ds-audit'), 'Design-system audit: script · 1480 elements checked · 3 off-token values · 1 non-system components · 100 token property/state checks · 80 verified token uses · 5 token deviations · 15 token uses unverified');
   assert.equal(await audited.page.locator('#ds-not-audited, #alert-target, #alert-incomplete').count(), 0);
 });
 

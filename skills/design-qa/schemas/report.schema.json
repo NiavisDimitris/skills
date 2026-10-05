@@ -75,7 +75,8 @@
         "crop": { "anyOf": [{ "type": "null" }, { "$ref": "#/definitions/crop" }] },
         "knownDrift": { "$ref": "#/definitions/nullableString" },
         "duplicateOf": { "$ref": "#/definitions/nullableString" },
-        "coveredBy": { "$ref": "#/definitions/nullableString" }
+        "coveredBy": { "$ref": "#/definitions/nullableString" },
+        "tokenEvidence": { "type": "object", "required": ["token", "file", "line", "snippet"], "properties": { "token": { "type": "string", "minLength": 1 }, "file": { "type": "string", "minLength": 1 }, "line": { "type": "integer", "minimum": 1 }, "snippet": { "type": "string", "minLength": 1 } } }
       }
     },
     "count": { "type": "integer", "minimum": 0 },
