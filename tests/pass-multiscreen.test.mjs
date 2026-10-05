@@ -1,3 +1,4 @@
+import { comparisonFixtureRecords } from './_helpers.mjs';
 // pass.mjs on a multi-screen coded prototype (three screens of the bundled checkout mock):
 // start on a project with no config (it leaves one), screens and "<screen>/<state>" drivers in
 // the pass's states.json, --url with a path, the state count and coverage, the URLs captured,
@@ -103,6 +104,7 @@ function writeFindings(dir) {
     JSON.stringify({
       kind: 'design-qa-findings',
       version: 1,
+      comparisons: comparisonFixtureRecords(dir),
       findings: [],
       rejected: [
         ...(audit.length ? [{ auditKeys: audit, reason: 'out-of-scope', detail: 'Test fixture: the audit candidates are not what this test checks.' }] : []),

@@ -12,6 +12,7 @@
 // without following symbolic links. node: built-ins only (no pngjs: PNG sizes come from
 // the IHDR header).
 import { createHash } from 'node:crypto';
+import { evidenceHash, reviewDigest } from './review-hash.mjs';
 import { closeSync, lstatSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { inflateSync } from 'node:zlib';
@@ -127,6 +128,7 @@ export const FINDINGS_SCHEMA = {
     kind: { const: FINDINGS_KIND, errorMessage: `must be "${FINDINGS_KIND}"` },
     version: { const: FINDINGS_VERSION, errorMessage: `must be ${FINDINGS_VERSION} (a higher version is a newer format: update the skill)` },
     pass: { $ref: '#/definitions/pass' },
+    comparisons: { type: 'object', additionalProperties: { type: 'object', required: ['digest', 'images', 'valuesReviewed'], properties: { digest: { type: 'string', minLength: 1 }, images: { type: 'array', items: { type: 'string' }, uniqueItems: true }, valuesReviewed: { const: true } } } },
     findings: { type: 'array', items: { $ref: '#/definitions/findingInput' } },
     rejected: { type: 'array', items: { $ref: '#/definitions/rejection' } },
     openDecisions: { type: 'array', items: { $ref: '#/definitions/decisionInput' } },
@@ -237,6 +239,7 @@ export const FINDINGS_SCHEMA = {
         knownDrift: { type: 'string', pattern: '^KD-\\d+$' },
         duplicateOf: { type: 'string', minLength: 1 },
         coveredBy: { type: 'string', minLength: 1 },
+        tokenEvidence: { type: 'object', required: ['token', 'file', 'line', 'snippet'], properties: { token: { type: 'string', minLength: 1 }, file: { type: 'string', minLength: 1 }, line: { type: 'integer', minimum: 1 }, snippet: { type: 'string', minLength: 1 } } },
       },
     },
     fixLoopInput: {
@@ -1047,7 +1050,7 @@ function ledgerRowsFromCompare(rows, idsOf) {
         selector: String(r.row.selector ?? ''),
         property: String(r.row.property ?? ''),
         figma: r.row.design ?? null,
-        token: t?.row.expectedToken ?? null,
+        token: t?.row.expectedToken ?? r.row.expectedToken ?? null,
         computed: r.row.app ?? null,
         sourceValue: t?.row.result === 'FAIL' ? (t.row.actualValue ?? r.row.app ?? null) : null,
         result: ['PASS', 'FAIL', 'CANNOT_VERIFY', 'DATA'].includes(result) ? result : 'CANNOT_VERIFY',
@@ -1208,6 +1211,7 @@ class BuildContext {
     this.loadKnownDrifts();
     this.loadAudit();
     this.loadWorklist();
+    this.checkComparisonReview();
     this.buildFindings();
     this.processRejections();
     this.accountAudit();
@@ -1441,7 +1445,7 @@ class BuildContext {
       });
       if (items.length !== keys.length) return;
       // The audit does not know the design's value: its "expected" is only the nearest token.
-      if (raw.auditKey !== undefined && base._audit?.designValue === 'unknown' && !(isObj(raw.expected) && raw.expected.value !== undefined && raw.expected.value !== null)) {
+      if (raw.auditKey !== undefined && base._audit?.designValue === 'unknown' && !base._audit?.usageUnverified && !(isObj(raw.expected) && raw.expected.value !== undefined && raw.expected.value !== null)) {
         this.problem(
           `${at}.expected`,
           `audit candidate "${oneLine(raw.auditKey)}" does not know the design's value (its expected ${show(base.expected?.value ?? null)} is the nearest token, a guess): read the design value (node scripts/inspect.mjs --dir <dir> --side design …) and give "expected": { "value", "token" }, or reject the candidate`,
@@ -1449,6 +1453,9 @@ class BuildContext {
         return;
       }
       const f = this.mergeFinding(base, raw);
+      if (base._audit?.tokenRequired && f.resolution === 'NONE') this.problem(`${at}.resolution`, 'token deviations and unverified usage cannot be marked NONE: file FIX_CODE or give source-backed false-positive evidence');
+      if (base._audit?.tokenRequired && f.resolution === 'FIX_CODE' && !str(f.expected?.token)) this.problem(`${at}.expected.token`, 'defined design tokens must be used: name the intended semantic token for this fix');
+      if (base._audit?.tokenRequired && f.resolution === 'FIX_CODE' && f.severity === 'DS_CANDIDATE') this.problem(`${at}.severity`, 'a defined-token contract is an implementation fix, not a design-system gap: use BLOCKER or WARNING');
       if ((f.state === undefined || f.state === null) && items.length) {
         f.state = items[0].state;
         if (this.multi && f.screen === undefined) f.screen = items[0].state.split('/')[0];
@@ -1933,6 +1940,29 @@ class BuildContext {
   // ---- audit candidates and rejections ------------------------------------------------------
 
   /** The worklist (scripts/worklist.mjs): bounded regions to look at, each covered by a finding or rejected. */
+  checkComparisonReview() {
+    const marked = this.f.json('pass.json')?.comparisonReviewRequired === true || this.worklistFiles.some(rel => this.f.json(rel)?.comparisonReviewRequired === true);
+    const manifest = this.f.json('evidence/comparison-review.json');
+    if (!marked && !manifest) return; // Imported historical reports retain their original evidence contract.
+    if (!isObj(manifest?.states)) { this.problem('evidence/comparison-review.json', 'required side-by-side review manifest missing; rerun evidence'); return; }
+    const requiredStates = new Set(this.worklistCoverage.keys());
+    for (const row of this.matrixRows ?? []) if (row?.state) requiredStates.add(row.state);
+    for (const state of requiredStates) if (!manifest.states[state]) this.problem('evidence/comparison-review.json', `missing state ${state}`);
+    for (const [state, r] of Object.entries(manifest.states)) {
+      const at = `comparisons.${state}`;
+      if (!r.complete) { this.warnings.push(`${at}: side-by-side coverage incomplete: ${r.reason ?? 'unknown'}`); continue; }
+      if (!Array.isArray(r.images) || !r.images.length || !isObj(r.sources) || reviewDigest(r) !== r.digest) { this.problem(at, 'invalid review manifest; rerun evidence'); continue; }
+      for (const [rel, hash] of [...Object.entries(r.sources), ...r.images.map(i => [i.path, i.hash])]) {
+        const loc = this.f.locate(rel);
+        if (loc.error || evidenceHash(readFileSync(loc.abs)) !== hash) this.problem(at, `review evidence changed or missing: ${rel}; rerun worklist and inspect again`);
+      }
+      const reviewed = this.doc.comparisons?.[state];
+      if (!reviewed || reviewed.digest !== r.digest || reviewed.valuesReviewed !== true || r.images.some(i => !reviewed.images?.includes(i.path))) {
+        this.problem(at, 'inspect every side-by-side tile and every Figma/code value row, then record the current digest, all image paths and valuesReviewed:true');
+      }
+    }
+  }
+
   loadWorklist() {
     this.worklist = new Map();
     this.worklistFiles = [];
@@ -1990,6 +2020,7 @@ class BuildContext {
     const record = (kind, key, extra, r) => this.rejectionRecords.push({
       kind, key, state: extra.state ?? null, screen: extra.screen ?? null, reason: r.reason, detail: r.detail,
       percentOfPage: typeof extra.percentOfPage === 'number' ? extra.percentOfPage : null, crop: validRect(extra.crop) ? { x: extra.crop.x, y: extra.crop.y, w: extra.crop.w, h: extra.crop.h } : null,
+      ...(r.tokenEvidence ? { tokenEvidence: r.tokenEvidence } : {}),
       knownDrift: r.knownDrift ?? null, duplicateOf: r.duplicateOf ?? null, coveredBy: r.coveredBy ?? null,
     });
     this.rejectCounts = new Map(); // "audit|DATA" → n
@@ -2051,6 +2082,9 @@ class BuildContext {
           if (this.filed.has(key)) return this.problem(field(j), `"${oneLine(key)}" is both filed (findings[${this.filed.get(key)}]) and rejected: keep one`);
           if (this.rejectedKeys.has(key)) return this.problem(field(j), `"${oneLine(key)}" is already rejected by rejected[${this.rejectedKeys.get(key)}]`);
           const c = this.candidates.get(key).c;
+          if (c._audit?.tokenRequired && r.reason === 'matches-design') return this.problem(field(j), `"${oneLine(key)}": defined design tokens must be used; visual agreement does not prove token compliance. File FIX_CODE or provide source evidence for a false-positive rejection`);
+          if (c._audit?.tokenRequired && r.reason === 'false-positive' && !(isObj(r.tokenEvidence) && str(r.tokenEvidence.token) && str(r.tokenEvidence.file) && Number.isInteger(r.tokenEvidence.line) && r.tokenEvidence.line > 0 && str(r.tokenEvidence.snippet))) return this.problem(field(j), 'a token false-positive rejection requires tokenEvidence { token, file, line, snippet } tracing the property to the intended design token');
+          if (c._audit?.tokenRequired && c._audit?.designTokenBound && r.reason === 'false-positive' && r.tokenEvidence?.token !== c._audit.designToken) return this.problem(field(j), `tokenEvidence must trace the design-bound token ${show(c._audit.designToken)}, not ${show(r.tokenEvidence?.token ?? null)}`);
           const dv = c._audit?.designValue;
           if (r.reason === 'matches-design' && dv !== undefined && dv !== null && dv !== 'unknown') {
             return this.problem(field(j), `"${oneLine(key)}": the audit read the design's value, ${show(dv)}, and it differs from the app's ${show(c.actual?.value ?? null)}, so "matches-design" does not apply: file it or give another reason`);
@@ -2306,6 +2340,7 @@ class BuildContext {
 
   buildStateMatrix() {
     this.stateMatrix = [];
+    this.comparisonGaps = new Map();
     this.derivedRows = new Set(); // states whose PASS / FAIL comes from the capture and the findings
     this.pixelDiff = {};
     this.differences = {}; // state → stateRegions()
@@ -2395,6 +2430,15 @@ class BuildContext {
         row.result = 'CANNOT_VERIFY';
         const top = base.capture?.failure;
         row.note = ov?.note ?? (isObj(top) ? failureNote(null, top) : base.capture ? `Not captured: ${base.rel('capture.json')} has no entry for "${local}".` : `Not captured: there is no ${base.rel('capture.json')}.`);
+      }
+      const valueUnknowns = [...(base.compare?.states?.[local]?.style ?? []), ...(base.compare?.states?.[local]?.structure ?? [])].filter(r => r.result === 'CANNOT_VERIFY');
+      const reviewGap = this.f.json('evidence/comparison-review.json')?.states?.[row.state];
+      if (valueUnknowns.length || reviewGap?.complete === false || reviewGap?.valuesAvailable === false) {
+        this.comparisonGaps.set(row.state, valueUnknowns.length ? `${valueUnknowns.length} value or counterpart comparisons remain unverified` : (reviewGap?.reason ?? 'value ledger missing'));
+      }
+      if (row.result === 'PASS' && this.comparisonGaps.has(row.state)) {
+        row.result = 'CANNOT_VERIFY';
+        row.note = valueUnknowns.length ? `${valueUnknowns.length} Figma/code value or counterpart comparisons remain unverified.` : `Side-by-side or value review incomplete: ${reviewGap.reason ?? "no value ledger"}.`;
       }
       row.findings = this.findings.filter(inState).map((f) => f.id);
       this.stateMatrix.push(row);
@@ -2637,6 +2681,7 @@ class BuildContext {
       if (!degradations.some((x) => x.step === d.step && x.reason === d.reason)) degradations.push({ step: oneLine(d.step), reason: oneLine(d.reason), impact: oneLine(d.impact) });
     };
     const p = this.pass;
+    for (const [state, reason] of this.comparisonGaps) addDeg({step:`value-comparison:${state}`, reason, impact:'parity coverage is incomplete'});
     const firstBase = [...this.bases.values()][0];
     const capture = this.firstCapture?.c ?? null;
 
@@ -3113,7 +3158,7 @@ class BuildContext {
     const byId = new Map(report.findings.map((f) => [f.id, f]));
     for (const row of report.stateMatrix) {
       if (!this.derivedRows.has(row.state)) continue;
-      row.result = row.findings.some((id) => byId.has(id) && isOpen(byId.get(id))) ? 'FAIL' : 'PASS';
+      row.result = row.findings.some((id) => byId.has(id) && isOpen(byId.get(id))) ? 'FAIL' : this.comparisonGaps.has(row.state) ? 'CANNOT_VERIFY' : 'PASS';
       const led = report.ledgers.state.find((x) => x.state === row.state);
       if (led) led.result = row.result;
     }
@@ -3216,7 +3261,7 @@ function fileRecord(dir, abs) {
 export function evidenceFiles(dir, screens = []) {
   const folder = new EvidenceFolder(dir);
   const per = ['capture.json', 'design-capture.json', 'diff.json', 'compare.json', 'worklist.json', 'ds-audit.json', 'figma-spec.json'];
-  const rels = ['state-matrix.json', 'evidence/screens.json', ...per.map((n) => `evidence/${n}`)];
+  const rels = ['state-matrix.json', 'evidence/screens.json', 'evidence/comparison-review.json', ...per.map((n) => `evidence/${n}`)];
   for (const id of screens) rels.push(...per.map((n) => `evidence/screens/${id}/${n}`));
   return [...new Set(rels)].filter((rel) => folder.exists(rel));
 }

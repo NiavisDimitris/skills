@@ -150,7 +150,7 @@ test('end to end: fixture page → collector → ds-audit.mjs → the expected c
     await context.close();
   }
   writeFileSync(path.join(evidence, 'capture.json'), JSON.stringify({ states: { 'with-data': { screenshot: 'app/with-data.png', audit: 'audit/with-data.json' } } }));
-  const args = ['--evidence', evidence, '--config', path.join(dir, 'design-qa.config.json')];
+  const args = ['--evidence', evidence, '--config', path.join(dir, 'design-qa.config.json'), '--verbose'];
   const res = await run(script('ds-audit.mjs'), args);
   assert.equal(res.code, 0, res.stderr);
   const out = JSON.parse(readFileSync(path.join(evidence, 'ds-audit.json'), 'utf8'));
@@ -160,26 +160,44 @@ test('end to end: fixture page → collector → ds-audit.mjs → the expected c
     'component:native:input-text>acme-text-field',
     'component:old-ui:legacy-tag>acme-tag',
     'component:raw:button>acme-button',
+    'style:color:#2563eb',
     'style:color:#2664eb',
     'style:color:#3a3f47',
     'style:color:#b42318',
     'style:space:13px',
-  ]);
+    'style:border-width:1px', 'style:color:#1a1d23', 'style:color:#d0d4da', 'style:color:#ffffff', 'style:radius:6px', 'style:space:12px', 'style:space:16px', 'style:space:8px', 'style:text:14px/20px-600-arial', 'style:text:16px/24px-400-arial', 'style:text:24px/32px-700-arial',
+  ].sort());
   const by = Object.fromEntries(out.candidates.map((c) => [c.key, c]));
   assert.equal(by['component:mui:mui-button>acme-button'].severity, 'BLOCKER');
   assert.equal(by['component:mui:mui-button>acme-button'].expected.value, 'AcmeButton (design system)');
   assert.equal(by['style:space:13px']._audit.count, 3, 'the three cards, below the fold');
-  assert.equal(by['style:color:#3a3f47'].severity, 'DS_CANDIDATE', 'far from every token and recurring');
+  assert.equal(by['style:color:#3a3f47'].severity, 'WARNING', 'recurring drift remains an implementation fix');
   assert.equal(by['style:color:#2664eb']._audit.kind, 'near-miss');
   assert.equal(by['style:color:#b42318']._audit.samples[0].pinnedTo, 'scroll-container');
   for (const c of out.candidates) assert.ok(c.evidence.some((e) => e.state === 'with-data' && e.crop), `${c.key} is pinned`);
   assert.equal(out.summary.nonSystemComponents, 4);
   assert.equal(out.summary.offTokenValues, 4);
   assert.ok(out.summary.elementsChecked >= 20);
-  assert.ok(out.summary.tokenMatches.verified > 0, 'authored var() references prove some matches');
+  assert.equal(out.summary.tokenMatches.verified, 0, 'page-local variable names require source verification against the authoritative token names');
+  assert.ok(out.summary.tokenUsageUnverified > 0);
   for (const key of keys) assert.ok(res.stdout.includes(key), `stdout names ${key}`);
   // Same page, second run: the same keys.
   const again = await run(script('ds-audit.mjs'), [...args, '--out', path.join(dir, 'again.json')]);
   assert.equal(again.code, 0, again.stderr);
   assert.deepEqual(JSON.parse(readFileSync(path.join(dir, 'again.json'), 'utf8')).candidates.map((c) => c.key).sort(), keys);
+});
+
+
+test('collector: an equal literal overriding var() never proves token usage', async (t) => {
+  if (!BROWSER) return t.skip(SKIP);
+  const context = await BROWSER.newContext();
+  const page = await context.newPage();
+  try {
+    await page.setContent(`<style>:root { --space-small: 8px; } .card { padding: var(--space-small); } .override { padding: 8px; }</style><main><div class="card">Token</div><div class="card override">Stylesheet literal</div><div class="card" style="padding:8px">Inline literal</div></main>`);
+    const r = await page.evaluate(collectAuditElements, { fullPage: true });
+    assert.equal(byText(r, 'Token').v?.['padding-top'], '--space-small');
+    assert.equal(byText(r, 'Stylesheet literal').s['padding-top'], '8px');
+    assert.equal(byText(r, 'Stylesheet literal').v?.['padding-top'], undefined);
+    assert.equal(byText(r, 'Inline literal').v?.['padding-top'], undefined);
+  } finally { await context.close(); }
 });

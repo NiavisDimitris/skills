@@ -73,16 +73,16 @@ function runPair(design, { screen = null } = {}) {
   return buildCandidates([r], { evidencePaths: () => ({ screenshot: 'evidence/app/with-data.png', audit: 'evidence/audit/with-data.json' }) });
 }
 
-test('prototype design: same value → designAlso, another value → the design as expected, missing → unknown', () => {
+test('prototype design: shared token drift remains a candidate; shared components and design differences stay distinct', () => {
   const design = designSide({ audit: designPage() });
   const { candidates, designAlso } = runPair(design);
   const keys = Object.fromEntries(candidates.map((c) => [c.key, c]));
   const also = Object.fromEntries(designAlso.map((d) => [d.key, d]));
 
-  assert.ok(also['style:space:13px'], 'the 13px card padding is in the design too');
-  assert.equal(also['style:space:13px'].count, 2);
-  assert.equal(also['style:space:13px'].sample.design.via, 'path');
-  assert.equal(keys['style:space:13px'], undefined, 'no candidate for a value design and code share');
+  assert.equal(also['style:space:13px'], undefined);
+  assert.equal(keys['style:space:13px']._audit.count, 2);
+  assert.equal(keys['style:space:13px']._audit.designCheck, 'same');
+  assert.equal(keys['style:space:13px'].resolution, 'FIX_CODE');
 
   const select = keys['style:space:10px'];
   assert.ok(select, 'a value the design does not have is a candidate');
@@ -95,7 +95,7 @@ test('prototype design: same value → designAlso, another value → the design 
   const onlyApp = keys['style:color:#b42318'];
   assert.equal(onlyApp._audit.designCheck, 'unknown');
   assert.equal(onlyApp._audit.designValue, 'unknown');
-  assert.match(onlyApp._audit.designHint, /matches-design/);
+  assert.match(onlyApp._audit.designHint, /semantic token/);
   assert.equal(onlyApp.expected.source, 'design-rules', 'no design value: the nearest token, as before');
 
   assert.ok(also['component:raw:button>acme-button'], 'the design has the same native button');
@@ -123,8 +123,8 @@ test('geometry match after a vertical shift; ambiguity is no match', () => {
   const heading = match(app.elements.find((e) => e.text === 'Totals'));
   assert.equal(heading.via, 'geometry', 'another path and text, the same box 40px lower');
   assert.equal(heading.nodes[0].path, 'main > div.banner-wrap > h2');
-  const { designAlso } = runPair(design);
-  assert.ok(designAlso.some((d) => d.key === 'style:text:26px/32px-700-arial'), 'the 26px heading is in the design too');
+  const { candidates } = runPair(design);
+  assert.ok(candidates.some((d) => d.key === 'style:text:26px/32px-700-arial'), 'shared off-token typography still needs fixing');
   // Two design boxes at the same place with nothing to tell them apart: no match.
   const twins = designSide({ audit: audit([root, el(1, { path: 'x', tag: 'span', rect: { x: 5, y: 5, w: 10, h: 10 } }), el(2, { path: 'y', tag: 'span', rect: { x: 5, y: 5, w: 10, h: 10 } })]) });
   assert.equal(designMatcher([el(1, { path: 'z', tag: 'span', rect: { x: 5, y: 5, w: 10, h: 10 } })], twins)(el(1, { path: 'z', tag: 'span', rect: { x: 5, y: 5, w: 10, h: 10 } })), null);
@@ -133,8 +133,11 @@ test('geometry match after a vertical shift; ambiguity is no match', () => {
 test('keys stay stable: a group that moves to designAlso just leaves candidates', () => {
   const none = runPair(designSide()).candidates.map((c) => c.key);
   const withDesign = runPair(designSide({ audit: designPage() })).candidates.map((c) => c.key);
-  assert.ok(withDesign.every((k) => none.includes(k)), 'no new or renamed key');
-  assert.ok(withDesign.length < none.length);
+  assert.ok(withDesign.every((k) => none.includes(k.split(':required:')[0])), 'semantic bindings refine usage candidate keys without changing the value key');
+  assert.deepEqual(withDesign, runPair(designSide({ audit: designPage() })).candidates.map((c) => c.key), 'keys stay stable for the same evidence');
+  assert.ok(none.includes('component:raw:button>acme-button'));
+  assert.ok(!withDesign.includes('component:raw:button>acme-button'), 'only shared component candidates are suppressed');
+  assert.ok(withDesign.includes('style:space:13px'), 'shared token drift is retained');
   assert.ok(runPair(designSide()).candidates.every((c) => c._audit.designCheck === 'unknown'), 'no design data: every candidate is unknown');
 });
 
@@ -157,10 +160,10 @@ test('Figma REST spec: layer values decide same, different and the bound variabl
   assert.equal(design.values, true);
   const { candidates, designAlso } = runPair(design);
   const keys = Object.fromEntries(candidates.map((c) => [c.key, c]));
-  assert.ok(designAlso.some((d) => d.key === 'style:space:13px'), 'the cards have 13px padding in Figma');
-  assert.ok(designAlso.some((d) => d.key === 'style:color:#b42318'), 'the text layer has the same colour (matched by its text)');
+  assert.ok(candidates.some((d) => d.key === 'style:space:13px'), 'shared off-token padding remains a candidate');
+  assert.ok(candidates.some((d) => d.key === 'style:color:#b42318'), 'shared off-token colour remains a candidate');
   const select = keys['style:space:10px'];
-  assert.deepEqual([select._audit.designCheck, select.expected.value, select.expected.token, select.expected.source], ['different', '12px', 'space.3', 'figma']);
+  assert.deepEqual([select._audit.designCheck, select.expected.value, select.expected.token, select.expected.source], ['different', '12px', 'space/3', 'figma']);
 });
 
 test('Figma MCP spec (no values): every candidate is design unknown', () => {
@@ -199,12 +202,12 @@ test('CLI: design-audit/ beside audit/ (prototype layout), the three numbers in 
   const out = JSON.parse(readFileSync(path.join(ev, 'ds-audit.json'), 'utf8'));
   const { designDifferent, designAlso, designUnknown, offTokenValues } = out.summary;
   assert.equal(designAlso, out.designAlso.length);
-  assert.ok(designAlso >= 2 && designDifferent >= 2 && designUnknown >= 1, JSON.stringify(out.summary));
-  assert.equal(designDifferent + designUnknown, out.candidates.length);
-  assert.equal(offTokenValues, out.candidates.filter((c) => c.ledger === 'style').length, 'offTokenValues still counts emitted candidates');
+  assert.ok(designAlso >= 1 && designDifferent >= 2 && designUnknown >= 1, JSON.stringify(out.summary));
+  assert.equal(designDifferent + designUnknown + out.summary.designSame, out.candidates.length);
+  assert.equal(offTokenValues, out.candidates.filter((c) => c.ledger === 'style' && !['token-usage', 'wrong-token'].includes(c._audit.kind)).length, 'value deviations exclude unverified usage and semantic-only mismatches');
   assert.equal(out.states['with-data'].designData, 'evidence/design-audit/with-data.json');
-  assert.match(res.stdout, new RegExp(`Design check: ${designDifferent} real difference\\(s\\).*${designAlso} also in the design.*${designUnknown} design unknown`));
-  assert.match(res.stdout, /also in the design: design and code agree, nothing to file/);
+  assert.match(res.stdout, new RegExp(`Design check: ${designDifferent} real difference\\(s\\).*${designAlso} shared component groups.*${designUnknown} design unknown`));
+  assert.match(res.stdout, /Token compliance:/);
   // A failed design state (audit null in design-capture.json) falls back to unknown, with a warning.
   writeFileSync(path.join(ev, 'design-capture.json'), JSON.stringify({ side: 'design', states: { 'with-data': { screenshot: null, audit: null } } }));
   const res2 = await run(script('ds-audit.mjs'), ['--evidence', ev, '--config', path.join(dir, 'design-qa.config.json'), '--out', path.join(dir, 'b.json')]);

@@ -29,7 +29,7 @@ test('identical images: no items, one coverage line that says so', () => {
   const { data, md } = buildWorklist(dir);
   assert.equal(data.items.length, 0);
   assert.equal(data.coverage['with-data'].identical, true);
-  assert.match(md, /`with-data` \(1280×\d+, whole page\): identical, nothing to decide\./);
+  assert.match(md, /`with-data` \(1280×\d+, whole page\): identical pixels; side-by-side and value review still required\./);
   assert.match(md, /Nothing to decide/);
 });
 

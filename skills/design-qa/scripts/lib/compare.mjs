@@ -1182,7 +1182,7 @@ export function summarize(states, figmaMotion = []) {
   const motion = [...all('motion'), ...figmaMotion];
   return {
     states: Object.keys(states).length,
-    style: { pass: count(all('style'), (r) => r.result === 'PASS'), fail: count(all('style'), (r) => r.result === 'FAIL') },
+    style: { pass: count(all('style'), (r) => r.result === 'PASS'), fail: count(all('style'), (r) => r.result === 'FAIL'), cannotVerify: count(all('style'), (r) => r.result === 'CANNOT_VERIFY') },
     tokens: { fail: all('tokens').length, hardcoded: count(all('tokens'), (r) => r.actualToken === null) },
     components: { pass: count(all('components'), (r) => r.result === 'PASS'), fail: count(all('components'), (r) => r.result === 'FAIL') },
     motion: {

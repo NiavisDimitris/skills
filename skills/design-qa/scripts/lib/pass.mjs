@@ -104,6 +104,7 @@ export function writePass(dir, pass) {
 export function newPass({ runId, feature, dir, config, surface, url, design, ticket, label }) {
   const now = new Date().toISOString();
   return {
+    comparisonReviewRequired: true,
     kind: PASS_KIND,
     version: PASS_VERSION,
     runId,

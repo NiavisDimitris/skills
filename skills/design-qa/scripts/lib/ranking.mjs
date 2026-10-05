@@ -536,7 +536,8 @@ export function deriveStateResults(report) {
     if (!isObj(row) || !(row.result === 'PASS' || row.result === 'FAIL') || !row.captured?.app) return row;
     const listed = Array.isArray(row.findings) ? row.findings.map((id) => byId.get(id)).filter(Boolean) : [];
     const open = [...listed, ...findings.filter((f) => f.state === row.state)].some(isOpen);
-    const result = open ? 'FAIL' : 'PASS';
+    const gap = (report.meta?.degradations ?? []).some(d => d.step === `value-comparison:${row.state}`);
+    const result = open ? 'FAIL' : gap ? 'CANNOT_VERIFY' : 'PASS';
     results.set(row.state, result);
     return result === row.result ? row : { ...row, result };
   });
@@ -659,7 +660,9 @@ export function explainVerdict(report, opts = {}) {
     const what = rows.length
       ? `no state was verified (0 of ${rows.length} captured and compared${parts.length ? `: ${parts.join(', ')}` : ''})`
       : 'no state was verified: the state matrix is empty';
-    return { verdict: 'INCOMPLETE', reasons: [what, INCOMPLETE_NEXT] };
+    const valueGaps = (report.meta?.degradations ?? []).filter(d => d.step?.startsWith('value-comparison:'));
+    const next = valueGaps.length ? 'resolve the missing Figma/code values and counterparts, rerun evidence and inspect every side-by-side tile; this is not a complete result' : INCOMPLETE_NEXT;
+    return { verdict: 'INCOMPLETE', reasons: [what, next] };
   }
   const bands = derivedBands(report, o);
   const unexplained = unexplainedFindings(report);

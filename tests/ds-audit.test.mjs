@@ -267,7 +267,7 @@ function runAudit({ states = [{ id: 'with-data', name: 'with-data', screen: null
 test('identical problems are one candidate with a count; samples most visible first; crops inside the image', () => {
   const { candidates, groups } = runAudit();
   const keys = candidates.map((c) => c.key);
-  assert.deepEqual([...keys].sort(), ['style:color:#2664eb', 'style:color:#3a3f47', 'style:color:#b42318', 'style:space:13px', 'style:text:15px/22px-500-arial'].sort());
+  assert.deepEqual([...keys].sort(), ['style:border-width:1px', 'style:color:#2664eb', 'style:color:#3a3f47', 'style:color:#b42318', 'style:color:#d0d4da', 'style:space:13px', 'style:text:15px/22px-500-arial', 'style:text:16px/24px-400-arial'].sort());
   const pad = candidates.find((c) => c.key === 'style:space:13px');
   assert.equal(pad._audit.count, 3, 'three cards, padding-top and padding-left counted once per element');
   assert.deepEqual(pad._audit.properties, ['padding-left', 'padding-top']);
@@ -337,9 +337,10 @@ test('the page default text is checked once, not on every element that inherits 
   const set = setFrom(jsonTokens());
   const r = auditState({ audit: audit(els, { bodyText: body }), state: { id: 's', name: 's', screen: null }, set, libraries: normalizeLibraries([], {}), catalog: null, image: { width: 800, height: 1000 } });
   const { candidates } = buildCandidates([r], { evidencePaths: () => ({ screenshot: 'evidence/app/s.png', audit: 'evidence/audit/s.json' }) });
-  assert.equal(candidates.length, 1);
-  assert.equal(candidates[0]._audit.count, 1);
-  assert.match(candidates[0].title, /^Page default text colour #3a3f47/);
+  assert.equal(candidates.length, 2);
+  assert.ok(candidates.every((c) => c._audit.count === 1), 'page defaults are audited once per property/composite');
+  assert.ok(candidates.some((c) => /^Page default text colour #3a3f47/.test(c.title)));
+  assert.ok(candidates.some((c) => c._audit.kind === 'token-usage'), 'the matching default type style still requires source verification');
 });
 
 test('known drifts: parsed from the template and attached as hints', () => {
@@ -479,7 +480,8 @@ test('an MUI theme: typography variants are text styles, shadows and the spacing
   const set = buildTokenSet([{ kind: 'tokens-file', file: 'mui.json', parsed: t }]);
   const r = auditState({ audit: page, state: { id: 'default', name: 'default', screen: null }, set, libraries: normalizeLibraries([], {}), catalog: null, image: { width: 800, height: 1800 } });
   const { candidates } = buildCandidates([r], { evidencePaths: () => ({ screenshot: 'evidence/app/default.png', audit: null }), samples: 5 });
-  assert.deepEqual(candidates.map((c) => c.key), []);
+  assert.deepEqual(candidates.map((c) => c.key), ['style:color:#000000de', 'style:text:20px/32px-500-ls-0.15px-roboto']);
+  assert.ok(candidates.every((c) => c._audit.kind === 'token-usage'));
 });
 
 test("page variables: a framework's own (--tw-…) are not tokens; too few left skips the audit with why and how to turn it on", async () => {

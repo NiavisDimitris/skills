@@ -14,6 +14,8 @@ The design can be a Figma file, frame, page or section (one screen or many), a F
 
 ## How it works
 
+**Defined design tokens must be used.** Colour, spacing, typography and other token contracts are checked separately from pixel similarity. Matching literals and unverified usage remain candidates; shared off-token values in the design do not clear implementation drift. The Design system tab shows verified token uses, deviations and checks whose usage still needs source verification.
+
 A pass is a handful of commands. `pass.mjs` runs everything mechanical in a fixed order, and every stage ends with `Next: <command>`, runnable as printed, with anything the agent or the person must do first on `Do:` lines just above it. The agent's own judgment goes into one file, `findings.json`; the scripts build, check and render the report from it. That keeps different models, small and large, on the same path.
 
 ```
@@ -335,3 +337,5 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) — running tests, the zero-dep rule, n
 ## License
 
 [MIT](LICENSE) © 2026 Dimitris Niavis
+
+Design QA requires full-state side-by-side inspection, including identical captures, and Figma/code value review. Missing values stay unverified; saved MCP responses can supply exact values through `figma-values.mjs`. Review digests expire when evidence changes.

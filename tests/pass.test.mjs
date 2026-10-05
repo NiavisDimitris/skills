@@ -61,6 +61,7 @@ export function writeFindings(dir) {
     kind: 'design-qa-findings',
     version: 1,
     ...(states ? { states } : {}),
+    comparisons: Object.fromEntries(Object.entries(read(path.join(ev, 'comparison-review.json'))?.states ?? {}).filter(([,r])=>r.complete).map(([s,r])=>[s,{digest:r.digest,images:r.images.map(i=>i.path),valuesReviewed:true}])),
     findings: [
       {
         ref: 'save-colour',
