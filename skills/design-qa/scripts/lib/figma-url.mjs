@@ -82,6 +82,22 @@ export function parseFigmaUrl(input) {
   };
 }
 
+/**
+ * The Figma nodes a list of links points at (ticket.json figmaUrls), deduplicated:
+ * [{ fileKey, mainFileKey, nodeId, url }]. Links that are not Figma links are skipped;
+ * a link without a node id keeps nodeId null (the whole file).
+ */
+export function figmaNodeRefs(urls) {
+  const out = [];
+  for (const url of Array.isArray(urls) ? urls : []) {
+    const link = parseFigmaUrl(url);
+    if (!link) continue;
+    if (out.some((r) => r.fileKey === link.fileKey && r.nodeId === link.nodeId)) continue;
+    out.push({ fileKey: link.fileKey, mainFileKey: link.mainFileKey, nodeId: link.nodeId, url: link.url });
+  }
+  return out;
+}
+
 /** Canonical design link for a file key + node id. */
 export function figmaDesignUrl(fileKey, nodeId) {
   const n = toUrlNodeId(nodeId);

@@ -4,6 +4,7 @@
 // command works for a plugin install, a plain copy of the folder and this repo.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { scriptCommand } from './args.mjs';
 
 /** The skill folder (where package.json lives), resolved from this file. */
 export const SKILL_DIR = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
@@ -28,7 +29,7 @@ export function isMissingModule(err, name) {
 export function missingDependencyMessage(name, err) {
   const why = err ? ` (${firstLine(err.message)})` : '';
   const browser = name === 'playwright' ? ', then `npx playwright install chromium` in the same folder' : '';
-  return `${name} is not installed${why}. Run \`npm install\` in ${SKILL_DIR}${browser}. \`node ${path.join(SKILL_DIR, 'scripts', 'doctor.mjs')}\` checks everything.`;
+  return `${name} is not installed${why}. Run \`npm install\` in ${SKILL_DIR}${browser}. \`${scriptCommand('doctor.mjs')}\` checks everything.`;
 }
 
 /**

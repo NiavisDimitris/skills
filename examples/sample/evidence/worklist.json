@@ -1,0 +1,1748 @@
+{
+  "generatedAt": "2026-10-04T21:34:34.975Z",
+  "dir": "sample",
+  "caps": {
+    "maxPerState": 8,
+    "maxTotal": 30,
+    "maxLines": 400,
+    "imageMaxWidth": 1100,
+    "imageMaxHeight": 1100,
+    "maxTiles": 6,
+    "minRegionPixels": 64,
+    "threshold": 0.1
+  },
+  "rejectReasons": [
+    "DATA",
+    "same",
+    "duplicate",
+    "known-drift",
+    "covered-by-audit",
+    "intentional",
+    "out-of-scope"
+  ],
+  "rejectFields": {
+    "duplicate": "duplicateOf",
+    "known-drift": "knownDrift",
+    "covered-by-audit": "coveredBy"
+  },
+  "coverage": {
+    "with-data": {
+      "state": "with-data",
+      "screen": null,
+      "compared": true,
+      "reason": null,
+      "design": "evidence/figma/with-data.png",
+      "app": "evidence/app/with-data.png",
+      "designSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "appSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "width": 1440,
+        "height": 900
+      },
+      "shift": null,
+      "identical": false,
+      "differingPixels": 219835,
+      "percentDiffering": 16.96,
+      "maskedPercent": 0,
+      "speckle": {
+        "clusters": 1,
+        "pixels": 28,
+        "percent": 0
+      },
+      "regions": 4,
+      "rawRegions": 46,
+      "clipped": 0,
+      "appElements": "grab",
+      "designLayers": "none",
+      "pageArea": 1296000,
+      "listedItems": 4,
+      "listedPixels": 219807,
+      "unlistedItems": 0,
+      "unlistedPixels": 0,
+      "unlistedPercentOfPage": 0,
+      "coveredPercent": 99.99
+    },
+    "empty": {
+      "state": "empty",
+      "screen": null,
+      "compared": false,
+      "reason": "no app capture for this state in capture.json",
+      "design": "evidence/figma/empty.png",
+      "app": null
+    },
+    "loading": {
+      "state": "loading",
+      "screen": null,
+      "compared": true,
+      "reason": null,
+      "design": "evidence/figma/loading.png",
+      "app": "evidence/app/loading.png",
+      "designSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "appSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "width": 1440,
+        "height": 900
+      },
+      "shift": null,
+      "identical": false,
+      "differingPixels": 79675,
+      "percentDiffering": 6.15,
+      "maskedPercent": 0,
+      "speckle": {
+        "clusters": 1,
+        "pixels": 84,
+        "percent": 0.01
+      },
+      "regions": 4,
+      "rawRegions": 33,
+      "clipped": 0,
+      "appElements": "grab",
+      "designLayers": "none",
+      "pageArea": 1296000,
+      "listedItems": 4,
+      "listedPixels": 79591,
+      "unlistedItems": 0,
+      "unlistedPixels": 0,
+      "unlistedPercentOfPage": 0,
+      "coveredPercent": 99.89
+    },
+    "error": {
+      "state": "error",
+      "screen": null,
+      "compared": true,
+      "reason": null,
+      "design": "evidence/figma/error.png",
+      "app": "evidence/app/error.png",
+      "designSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "appSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "width": 1440,
+        "height": 900
+      },
+      "shift": null,
+      "identical": false,
+      "differingPixels": 7039,
+      "percentDiffering": 0.54,
+      "maskedPercent": 0,
+      "speckle": {
+        "clusters": 1,
+        "pixels": 28,
+        "percent": 0
+      },
+      "regions": 4,
+      "rawRegions": 6,
+      "clipped": 0,
+      "appElements": "grab",
+      "designLayers": "none",
+      "pageArea": 1296000,
+      "listedItems": 4,
+      "listedPixels": 7011,
+      "unlistedItems": 0,
+      "unlistedPixels": 0,
+      "unlistedPercentOfPage": 0,
+      "coveredPercent": 99.6
+    },
+    "hover": {
+      "state": "hover",
+      "screen": null,
+      "compared": true,
+      "reason": null,
+      "design": "evidence/figma/hover.png",
+      "app": "evidence/app/hover.png",
+      "designSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "appSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "width": 1440,
+        "height": 900
+      },
+      "shift": null,
+      "identical": false,
+      "differingPixels": 265249,
+      "percentDiffering": 20.47,
+      "maskedPercent": 0,
+      "speckle": {
+        "clusters": 1,
+        "pixels": 32,
+        "percent": 0
+      },
+      "regions": 4,
+      "rawRegions": 36,
+      "clipped": 0,
+      "appElements": "grab",
+      "designLayers": "none",
+      "pageArea": 1296000,
+      "listedItems": 4,
+      "listedPixels": 265217,
+      "unlistedItems": 0,
+      "unlistedPixels": 0,
+      "unlistedPercentOfPage": 0,
+      "coveredPercent": 99.99
+    },
+    "focus": {
+      "state": "focus",
+      "screen": null,
+      "compared": true,
+      "reason": null,
+      "design": "evidence/figma/focus.png",
+      "app": "evidence/app/focus.png",
+      "designSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "appSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "width": 1440,
+        "height": 900
+      },
+      "shift": null,
+      "identical": false,
+      "differingPixels": 231091,
+      "percentDiffering": 17.83,
+      "maskedPercent": 0,
+      "speckle": {
+        "clusters": 1,
+        "pixels": 28,
+        "percent": 0
+      },
+      "regions": 8,
+      "rawRegions": 41,
+      "clipped": 0,
+      "appElements": "grab",
+      "designLayers": "none",
+      "pageArea": 1296000,
+      "listedItems": 8,
+      "listedPixels": 231063,
+      "unlistedItems": 0,
+      "unlistedPixels": 0,
+      "unlistedPercentOfPage": 0,
+      "coveredPercent": 99.99
+    },
+    "selected": {
+      "state": "selected",
+      "screen": null,
+      "compared": false,
+      "reason": "no app screenshot",
+      "design": "evidence/figma/selected.png",
+      "app": null
+    },
+    "overflow": {
+      "state": "overflow",
+      "screen": null,
+      "compared": false,
+      "reason": "no design image for this state (export its frame at 1x, or capture the prototype)",
+      "design": null,
+      "app": null
+    }
+  },
+  "items": [
+    {
+      "key": "wl:with-data:200,264",
+      "screen": null,
+      "state": "with-data",
+      "alsoIn": [
+        "hover"
+      ],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 264,
+        "y": 204,
+        "w": 1144,
+        "h": 656
+      },
+      "designRect": {
+        "x": 264,
+        "y": 204,
+        "w": 1144,
+        "h": 656
+      },
+      "pixels": 218416,
+      "faint": 173888,
+      "percentOfPage": 16.85,
+      "crop": {
+        "x": 264,
+        "y": 204,
+        "w": 1144,
+        "h": 656
+      },
+      "designCrop": {
+        "x": 264,
+        "y": 204,
+        "w": 1144,
+        "h": 656
+      },
+      "occurrences": [
+        {
+          "state": "hover",
+          "rect": {
+            "x": 264,
+            "y": 204,
+            "w": 1144,
+            "h": 656
+          },
+          "crop": {
+            "x": 264,
+            "y": 204,
+            "w": 1144,
+            "h": 656
+          },
+          "designCrop": {
+            "x": 264,
+            "y": 204,
+            "w": 1144,
+            "h": 656
+          },
+          "pixels": 263826
+        }
+      ],
+      "design": [],
+      "designMore": 0,
+      "app": [
+        {
+          "selector": ".orders-row #1",
+          "path": ".orders-row #1",
+          "text": null,
+          "rect": {
+            "x": 284,
+            "y": 264,
+            "w": 1104,
+            "h": 48
+          },
+          "props": {},
+          "vars": null
+        },
+        {
+          "selector": ".orders-row #2",
+          "path": ".orders-row #2",
+          "text": null,
+          "rect": {
+            "x": 284,
+            "y": 312,
+            "w": 1104,
+            "h": 48
+          },
+          "props": {},
+          "vars": null
+        }
+      ],
+      "appMore": 8,
+      "hints": [
+        {
+          "kind": "faint",
+          "text": "low-contrast difference (a background, border or shade slightly off): check the colours with inspect.mjs"
+        }
+      ],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/with-data/200-264.png",
+          "width": 1100,
+          "height": 690
+        },
+        {
+          "path": "evidence/worklist/with-data/200-264-2.png",
+          "width": 1100,
+          "height": 690
+        }
+      ],
+      "image": "evidence/worklist/with-data/200-264.png",
+      "score": 106844
+    },
+    {
+      "key": "wl:loading:200,264",
+      "screen": null,
+      "state": "loading",
+      "alsoIn": [],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 264,
+        "y": 204,
+        "w": 1144,
+        "h": 464
+      },
+      "designRect": {
+        "x": 264,
+        "y": 204,
+        "w": 1144,
+        "h": 464
+      },
+      "pixels": 78200,
+      "faint": 29455,
+      "percentOfPage": 6.03,
+      "crop": {
+        "x": 264,
+        "y": 204,
+        "w": 1144,
+        "h": 464
+      },
+      "designCrop": {
+        "x": 264,
+        "y": 204,
+        "w": 1144,
+        "h": 464
+      },
+      "occurrences": [],
+      "design": [],
+      "designMore": 0,
+      "app": [
+        {
+          "selector": "[data-testid=orders-table] thead",
+          "path": "[data-testid=orders-table] thead",
+          "text": null,
+          "rect": {
+            "x": 284,
+            "y": 224,
+            "w": 1104,
+            "h": 40
+          },
+          "props": {},
+          "vars": null
+        },
+        {
+          "selector": ".orders-skeleton .ads-skeleton #2",
+          "path": ".orders-skeleton .ads-skeleton #2",
+          "text": null,
+          "rect": {
+            "x": 450,
+            "y": 282,
+            "w": 168,
+            "h": 12
+          },
+          "props": {
+            "background-color": "rgb(209, 213, 219)",
+            "border-radius": "2px"
+          },
+          "vars": null
+        }
+      ],
+      "appMore": 2,
+      "hints": [],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/loading/200-264.png",
+          "width": 1100,
+          "height": 984
+        }
+      ],
+      "image": "evidence/worklist/loading/200-264.png",
+      "score": 42881
+    },
+    {
+      "key": "wl:error:224,280",
+      "screen": null,
+      "state": "error",
+      "alsoIn": [],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 280,
+        "y": 224,
+        "w": 1108,
+        "h": 80
+      },
+      "designRect": {
+        "x": 280,
+        "y": 224,
+        "w": 1108,
+        "h": 80
+      },
+      "pixels": 5620,
+      "faint": 0,
+      "percentOfPage": 0.43,
+      "crop": {
+        "x": 280,
+        "y": 224,
+        "w": 1108,
+        "h": 80
+      },
+      "designCrop": {
+        "x": 280,
+        "y": 224,
+        "w": 1108,
+        "h": 80
+      },
+      "occurrences": [],
+      "design": [],
+      "designMore": 0,
+      "app": [
+        {
+          "selector": "[data-testid=orders-error]",
+          "path": "[data-testid=orders-error]",
+          "text": null,
+          "rect": {
+            "x": 284,
+            "y": 224,
+            "w": 1104,
+            "h": 72
+          },
+          "props": {
+            "background-color": "rgb(254, 242, 242)"
+          },
+          "vars": null
+        },
+        {
+          "selector": "[data-testid=orders-error] button",
+          "path": "[data-testid=orders-error] button",
+          "text": null,
+          "rect": {
+            "x": 1288,
+            "y": 244,
+            "w": 84,
+            "h": 32
+          },
+          "props": {
+            "border-radius": "6px"
+          },
+          "vars": null
+        }
+      ],
+      "appMore": 0,
+      "hints": [],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/error/224-280.png",
+          "width": 1100,
+          "height": 284
+        }
+      ],
+      "image": "evidence/worklist/error/224-280.png",
+      "score": 6536
+    },
+    {
+      "key": "wl:focus:664,264",
+      "screen": null,
+      "state": "focus",
+      "alsoIn": [],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 264,
+        "y": 664,
+        "w": 1144,
+        "h": 192
+      },
+      "designRect": {
+        "x": 264,
+        "y": 664,
+        "w": 1144,
+        "h": 192
+      },
+      "pixels": 156796,
+      "faint": 144433,
+      "percentOfPage": 12.1,
+      "crop": {
+        "x": 264,
+        "y": 664,
+        "w": 1144,
+        "h": 192
+      },
+      "designCrop": {
+        "x": 264,
+        "y": 664,
+        "w": 1144,
+        "h": 192
+      },
+      "occurrences": [],
+      "design": [],
+      "designMore": 0,
+      "app": [],
+      "appMore": 0,
+      "hints": [
+        {
+          "kind": "faint",
+          "text": "low-contrast difference (a background, border or shade slightly off): check the colours with inspect.mjs"
+        }
+      ],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/focus/664-264.png",
+          "width": 1100,
+          "height": 482
+        }
+      ],
+      "image": "evidence/worklist/focus/664-264.png",
+      "score": 58482
+    },
+    {
+      "key": "wl:with-data:152,1056",
+      "screen": null,
+      "state": "with-data",
+      "alsoIn": [],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 1060,
+        "y": 152,
+        "w": 196,
+        "h": 40
+      },
+      "designRect": {
+        "x": 1060,
+        "y": 152,
+        "w": 196,
+        "h": 40
+      },
+      "pixels": 698,
+      "faint": 0,
+      "percentOfPage": 0.05,
+      "crop": {
+        "x": 1060,
+        "y": 152,
+        "w": 196,
+        "h": 40
+      },
+      "designCrop": {
+        "x": 1060,
+        "y": 152,
+        "w": 196,
+        "h": 40
+      },
+      "occurrences": [],
+      "design": [],
+      "designMore": 0,
+      "app": [
+        {
+          "selector": "[data-testid=orders-pagination]",
+          "path": "[data-testid=orders-pagination]",
+          "text": null,
+          "rect": {
+            "x": 1060,
+            "y": 152,
+            "w": 196,
+            "h": 36
+          },
+          "props": {
+            "gap": "8px"
+          },
+          "vars": null
+        }
+      ],
+      "appMore": 0,
+      "hints": [],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/with-data/152-1056.png",
+          "width": 724,
+          "height": 114
+        }
+      ],
+      "image": "evidence/worklist/with-data/152-1056.png",
+      "score": 624
+    },
+    {
+      "key": "wl:loading:152,1088",
+      "screen": null,
+      "state": "loading",
+      "alsoIn": [
+        "error",
+        "hover",
+        "focus"
+      ],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 1088,
+        "y": 152,
+        "w": 168,
+        "h": 40
+      },
+      "designRect": {
+        "x": 1088,
+        "y": 152,
+        "w": 168,
+        "h": 40
+      },
+      "pixels": 698,
+      "faint": 0,
+      "percentOfPage": 0.05,
+      "crop": {
+        "x": 1088,
+        "y": 152,
+        "w": 168,
+        "h": 40
+      },
+      "designCrop": {
+        "x": 1088,
+        "y": 152,
+        "w": 168,
+        "h": 40
+      },
+      "occurrences": [
+        {
+          "state": "error",
+          "rect": {
+            "x": 1088,
+            "y": 152,
+            "w": 168,
+            "h": 40
+          },
+          "crop": {
+            "x": 1088,
+            "y": 152,
+            "w": 168,
+            "h": 40
+          },
+          "designCrop": {
+            "x": 1088,
+            "y": 152,
+            "w": 168,
+            "h": 40
+          },
+          "pixels": 698
+        },
+        {
+          "state": "hover",
+          "rect": {
+            "x": 1088,
+            "y": 152,
+            "w": 168,
+            "h": 40
+          },
+          "crop": {
+            "x": 1088,
+            "y": 152,
+            "w": 168,
+            "h": 40
+          },
+          "designCrop": {
+            "x": 1088,
+            "y": 152,
+            "w": 168,
+            "h": 40
+          },
+          "pixels": 698
+        },
+        {
+          "state": "focus",
+          "rect": {
+            "x": 1088,
+            "y": 152,
+            "w": 168,
+            "h": 40
+          },
+          "crop": {
+            "x": 1088,
+            "y": 152,
+            "w": 168,
+            "h": 40
+          },
+          "designCrop": {
+            "x": 1088,
+            "y": 152,
+            "w": 168,
+            "h": 40
+          },
+          "pixels": 698
+        }
+      ],
+      "design": [],
+      "designMore": 0,
+      "app": [],
+      "appMore": 0,
+      "hints": [],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/loading/152-1088.png",
+          "width": 724,
+          "height": 114
+        }
+      ],
+      "image": "evidence/worklist/loading/152-1088.png",
+      "score": 624
+    },
+    {
+      "key": "wl:focus:232,280",
+      "screen": null,
+      "state": "focus",
+      "alsoIn": [],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 280,
+        "y": 232,
+        "w": 1112,
+        "h": 112
+      },
+      "designRect": {
+        "x": 280,
+        "y": 232,
+        "w": 1112,
+        "h": 112
+      },
+      "pixels": 53040,
+      "faint": 31615,
+      "percentOfPage": 4.09,
+      "crop": {
+        "x": 280,
+        "y": 232,
+        "w": 1112,
+        "h": 112
+      },
+      "designCrop": {
+        "x": 280,
+        "y": 232,
+        "w": 1112,
+        "h": 112
+      },
+      "occurrences": [],
+      "design": [],
+      "designMore": 0,
+      "app": [
+        {
+          "selector": ".orders-row:focus-visible",
+          "path": ".orders-row:focus-visible",
+          "text": null,
+          "rect": {
+            "x": 284,
+            "y": 264,
+            "w": 1104,
+            "h": 48
+          },
+          "props": {},
+          "vars": null
+        }
+      ],
+      "appMore": 0,
+      "hints": [
+        {
+          "kind": "faint",
+          "text": "low-contrast difference (a background, border or shade slightly off): check the colours with inspect.mjs"
+        }
+      ],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/focus/232-280.png",
+          "width": 1100,
+          "height": 344
+        }
+      ],
+      "image": "evidence/worklist/focus/232-280.png",
+      "score": 32739
+    },
+    {
+      "key": "wl:with-data:152,264",
+      "screen": null,
+      "state": "with-data",
+      "alsoIn": [],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 264,
+        "y": 152,
+        "w": 320,
+        "h": 36
+      },
+      "designRect": {
+        "x": 264,
+        "y": 152,
+        "w": 320,
+        "h": 36
+      },
+      "pixels": 594,
+      "faint": 0,
+      "percentOfPage": 0.05,
+      "crop": {
+        "x": 264,
+        "y": 152,
+        "w": 320,
+        "h": 36
+      },
+      "designCrop": {
+        "x": 264,
+        "y": 152,
+        "w": 320,
+        "h": 36
+      },
+      "occurrences": [],
+      "design": [],
+      "designMore": 0,
+      "app": [
+        {
+          "selector": "[data-testid=orders-search] input",
+          "path": "[data-testid=orders-search] input",
+          "text": null,
+          "rect": {
+            "x": 264,
+            "y": 152,
+            "w": 320,
+            "h": 36
+          },
+          "props": {
+            "border-radius": "6px"
+          },
+          "vars": null
+        }
+      ],
+      "appMore": 0,
+      "hints": [],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/with-data/152-264.png",
+          "width": 740,
+          "height": 114
+        }
+      ],
+      "image": "evidence/worklist/with-data/152-264.png",
+      "score": 507
+    },
+    {
+      "key": "wl:loading:160,392",
+      "screen": null,
+      "state": "loading",
+      "alsoIn": [
+        "error",
+        "hover",
+        "focus"
+      ],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 392,
+        "y": 160,
+        "w": 112,
+        "h": 16
+      },
+      "designRect": {
+        "x": 392,
+        "y": 160,
+        "w": 112,
+        "h": 16
+      },
+      "pixels": 594,
+      "faint": 0,
+      "percentOfPage": 0.05,
+      "crop": {
+        "x": 392,
+        "y": 160,
+        "w": 112,
+        "h": 16
+      },
+      "designCrop": {
+        "x": 392,
+        "y": 160,
+        "w": 112,
+        "h": 16
+      },
+      "occurrences": [
+        {
+          "state": "error",
+          "rect": {
+            "x": 392,
+            "y": 160,
+            "w": 112,
+            "h": 16
+          },
+          "crop": {
+            "x": 392,
+            "y": 160,
+            "w": 112,
+            "h": 16
+          },
+          "designCrop": {
+            "x": 392,
+            "y": 160,
+            "w": 112,
+            "h": 16
+          },
+          "pixels": 594
+        },
+        {
+          "state": "hover",
+          "rect": {
+            "x": 392,
+            "y": 160,
+            "w": 112,
+            "h": 16
+          },
+          "crop": {
+            "x": 392,
+            "y": 160,
+            "w": 112,
+            "h": 16
+          },
+          "designCrop": {
+            "x": 392,
+            "y": 160,
+            "w": 112,
+            "h": 16
+          },
+          "pixels": 594
+        },
+        {
+          "state": "focus",
+          "rect": {
+            "x": 392,
+            "y": 160,
+            "w": 112,
+            "h": 16
+          },
+          "crop": {
+            "x": 392,
+            "y": 160,
+            "w": 112,
+            "h": 16
+          },
+          "designCrop": {
+            "x": 392,
+            "y": 160,
+            "w": 112,
+            "h": 16
+          },
+          "pixels": 594
+        }
+      ],
+      "design": [],
+      "designMore": 0,
+      "app": [],
+      "appMore": 0,
+      "hints": [],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/loading/160-392.png",
+          "width": 724,
+          "height": 114
+        }
+      ],
+      "image": "evidence/worklist/loading/160-392.png",
+      "score": 507
+    },
+    {
+      "key": "wl:focus:376,968",
+      "screen": null,
+      "state": "focus",
+      "alsoIn": [],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 968,
+        "y": 376,
+        "w": 384,
+        "h": 256
+      },
+      "designRect": {
+        "x": 968,
+        "y": 376,
+        "w": 384,
+        "h": 256
+      },
+      "pixels": 9268,
+      "faint": 0,
+      "percentOfPage": 0.72,
+      "parts": 12,
+      "partRects": [
+        {
+          "x": 984,
+          "y": 376,
+          "w": 176,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 376,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 976,
+          "y": 424,
+          "w": 184,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 424,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 992,
+          "y": 472,
+          "w": 168,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 472,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 968,
+          "y": 520,
+          "w": 192,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 520,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 984,
+          "y": 568,
+          "w": 176,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 568,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 992,
+          "y": 616,
+          "w": 168,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 616,
+          "w": 96,
+          "h": 16
+        }
+      ],
+      "partCrops": [
+        {
+          "x": 984,
+          "y": 376,
+          "w": 176,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 376,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 976,
+          "y": 424,
+          "w": 184,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 424,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 992,
+          "y": 472,
+          "w": 168,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 472,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 968,
+          "y": 520,
+          "w": 192,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 520,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 984,
+          "y": 568,
+          "w": 176,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 568,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 992,
+          "y": 616,
+          "w": 168,
+          "h": 16
+        },
+        {
+          "x": 1256,
+          "y": 616,
+          "w": 96,
+          "h": 16
+        }
+      ],
+      "crop": {
+        "x": 968,
+        "y": 376,
+        "w": 384,
+        "h": 256
+      },
+      "designCrop": {
+        "x": 968,
+        "y": 376,
+        "w": 384,
+        "h": 256
+      },
+      "occurrences": [],
+      "design": [],
+      "designMore": 0,
+      "app": [],
+      "appMore": 0,
+      "hints": [],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/focus/376-968.png",
+          "width": 868,
+          "height": 322
+        }
+      ],
+      "image": "evidence/worklist/focus/376-968.png",
+      "score": 11372
+    },
+    {
+      "key": "wl:with-data:72,264",
+      "screen": null,
+      "state": "with-data",
+      "alsoIn": [
+        "loading",
+        "error",
+        "hover",
+        "focus"
+      ],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 264,
+        "y": 78,
+        "w": 80,
+        "h": 32
+      },
+      "designRect": {
+        "x": 264,
+        "y": 78,
+        "w": 80,
+        "h": 32
+      },
+      "pixels": 99,
+      "faint": 0,
+      "percentOfPage": 0.01,
+      "crop": {
+        "x": 264,
+        "y": 78,
+        "w": 80,
+        "h": 32
+      },
+      "designCrop": {
+        "x": 264,
+        "y": 78,
+        "w": 80,
+        "h": 32
+      },
+      "occurrences": [
+        {
+          "state": "loading",
+          "rect": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "crop": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "designCrop": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "pixels": 99
+        },
+        {
+          "state": "error",
+          "rect": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "crop": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "designCrop": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "pixels": 99
+        },
+        {
+          "state": "hover",
+          "rect": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "crop": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "designCrop": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "pixels": 99
+        },
+        {
+          "state": "focus",
+          "rect": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "crop": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "designCrop": {
+            "x": 264,
+            "y": 78,
+            "w": 80,
+            "h": 32
+          },
+          "pixels": 99
+        }
+      ],
+      "design": [],
+      "designMore": 0,
+      "app": [
+        {
+          "selector": "h1.page-title",
+          "path": "h1.page-title",
+          "text": null,
+          "rect": {
+            "x": 264,
+            "y": 78,
+            "w": 75,
+            "h": 32
+          },
+          "props": {},
+          "vars": null
+        }
+      ],
+      "appMore": 0,
+      "hints": [],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/with-data/72-264.png",
+          "width": 724,
+          "height": 114
+        }
+      ],
+      "image": "evidence/worklist/with-data/72-264.png",
+      "score": 136
+    },
+    {
+      "key": "wl:focus:376,296",
+      "screen": null,
+      "state": "focus",
+      "alsoIn": [],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 296,
+        "y": 376,
+        "w": 272,
+        "h": 256
+      },
+      "designRect": {
+        "x": 296,
+        "y": 376,
+        "w": 272,
+        "h": 256
+      },
+      "pixels": 7944,
+      "faint": 0,
+      "percentOfPage": 0.61,
+      "parts": 12,
+      "partRects": [
+        {
+          "x": 296,
+          "y": 376,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 376,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 296,
+          "y": 424,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 424,
+          "w": 104,
+          "h": 16
+        },
+        {
+          "x": 296,
+          "y": 472,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 472,
+          "w": 104,
+          "h": 16
+        },
+        {
+          "x": 296,
+          "y": 520,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 520,
+          "w": 112,
+          "h": 16
+        },
+        {
+          "x": 296,
+          "y": 568,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 568,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 296,
+          "y": 616,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 616,
+          "w": 120,
+          "h": 16
+        }
+      ],
+      "partCrops": [
+        {
+          "x": 296,
+          "y": 376,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 376,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 296,
+          "y": 424,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 424,
+          "w": 104,
+          "h": 16
+        },
+        {
+          "x": 296,
+          "y": 472,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 472,
+          "w": 104,
+          "h": 16
+        },
+        {
+          "x": 296,
+          "y": 520,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 520,
+          "w": 112,
+          "h": 16
+        },
+        {
+          "x": 296,
+          "y": 568,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 568,
+          "w": 96,
+          "h": 16
+        },
+        {
+          "x": 296,
+          "y": 616,
+          "w": 80,
+          "h": 16
+        },
+        {
+          "x": 448,
+          "y": 616,
+          "w": 120,
+          "h": 16
+        }
+      ],
+      "crop": {
+        "x": 296,
+        "y": 376,
+        "w": 272,
+        "h": 256
+      },
+      "designCrop": {
+        "x": 296,
+        "y": 376,
+        "w": 272,
+        "h": 256
+      },
+      "occurrences": [],
+      "design": [],
+      "designMore": 0,
+      "app": [],
+      "appMore": 0,
+      "hints": [],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/focus/376-296.png",
+          "width": 724,
+          "height": 322
+        }
+      ],
+      "image": "evidence/worklist/focus/376-296.png",
+      "score": 11085
+    },
+    {
+      "key": "wl:focus:376,760",
+      "screen": null,
+      "state": "focus",
+      "alsoIn": [],
+      "kind": "region",
+      "side": null,
+      "at": null,
+      "rect": {
+        "x": 760,
+        "y": 376,
+        "w": 72,
+        "h": 256
+      },
+      "designRect": {
+        "x": 760,
+        "y": 376,
+        "w": 72,
+        "h": 256
+      },
+      "pixels": 2624,
+      "faint": 0,
+      "percentOfPage": 0.2,
+      "parts": 6,
+      "partRects": [
+        {
+          "x": 760,
+          "y": 376,
+          "w": 56,
+          "h": 16
+        },
+        {
+          "x": 760,
+          "y": 424,
+          "w": 56,
+          "h": 16
+        },
+        {
+          "x": 760,
+          "y": 472,
+          "w": 64,
+          "h": 16
+        },
+        {
+          "x": 760,
+          "y": 520,
+          "w": 56,
+          "h": 16
+        },
+        {
+          "x": 760,
+          "y": 568,
+          "w": 72,
+          "h": 16
+        },
+        {
+          "x": 760,
+          "y": 616,
+          "w": 56,
+          "h": 16
+        }
+      ],
+      "partCrops": [
+        {
+          "x": 760,
+          "y": 376,
+          "w": 56,
+          "h": 16
+        },
+        {
+          "x": 760,
+          "y": 424,
+          "w": 56,
+          "h": 16
+        },
+        {
+          "x": 760,
+          "y": 472,
+          "w": 64,
+          "h": 16
+        },
+        {
+          "x": 760,
+          "y": 520,
+          "w": 56,
+          "h": 16
+        },
+        {
+          "x": 760,
+          "y": 568,
+          "w": 72,
+          "h": 16
+        },
+        {
+          "x": 760,
+          "y": 616,
+          "w": 56,
+          "h": 16
+        }
+      ],
+      "crop": {
+        "x": 760,
+        "y": 376,
+        "w": 72,
+        "h": 256
+      },
+      "designCrop": {
+        "x": 760,
+        "y": 376,
+        "w": 72,
+        "h": 256
+      },
+      "occurrences": [],
+      "design": [],
+      "designMore": 0,
+      "app": [],
+      "appMore": 0,
+      "hints": [],
+      "tier": 1,
+      "images": [
+        {
+          "path": "evidence/worklist/focus/376-760.png",
+          "width": 724,
+          "height": 322
+        }
+      ],
+      "image": "evidence/worklist/focus/376-760.png",
+      "score": 3003
+    }
+  ],
+  "unlisted": [],
+  "warnings": []
+}

@@ -2,13 +2,13 @@
 // Fetch a Figma frame over the REST API: figma-spec.json (flattened layers,
 // components, styles, variables, discovered states) plus a PNG per state.
 import path from 'node:path';
-import { CliError, displayPath, ensureDir, oneLine, parseCli, runMain, toNumber, usageError, writeFileAtomic, writeJson } from './lib/args.mjs';
+import { CliError, displayPath, ensureDir, oneLine, parseCli, readJsonFile, runMain, toNumber, usageError, writeFileAtomic, writeJson } from './lib/args.mjs';
 import { buildFigmaSpec, siblingFrames } from './lib/figma-spec.mjs';
 import { figmaDesignUrl, normalizeNodeId, parseFigmaUrl } from './lib/figma-url.mjs';
 import { apiBaseUrl, describeUrl, fetchWithRetry, readBody, readJsonResponse, retryMessage } from './lib/http.mjs';
 import { decodePng } from './lib/png.mjs';
-import { discoverScreens } from './lib/screens.mjs';
-import { normalizeStateName, stateFromName } from './lib/state-discovery.mjs';
+import { GROUPING_TYPES, designCensus, frameSpecStates, mergeScreenStates, normalizeFrameMap } from './lib/screens.mjs';
+import { exactStateName, stateFromName, stateId } from './lib/state-discovery.mjs';
 
 const HELP = `Fetch a Figma frame (spec + PNG per designed state) over the REST API.
 
@@ -16,6 +16,7 @@ Usage:
   node scripts/figma-fetch.mjs --url <figma-url> --out <dir> [--node <id>]
       [--states auto|<id,id,…>] [--scale 1] [--format png]
   node scripts/figma-fetch.mjs --url <page-or-section-or-frame-url> --screens auto --out <dir>
+      [--frame-map <file>]
 
 Options:
   --url <link>       Figma design/file/proto link (node-id taken from the link)
@@ -29,7 +30,13 @@ Options:
                      differ only by a state segment ("Cart", "Cart – Empty") are one screen
                      with several states. Writes <out>/screens.json and, per screen,
                      <out>/screens/<id>/figma-spec.json + <out>/screens/<id>/figma/<state>.png
-                     (capture each screen with --out <dir>/evidence/screens/<id>)
+                     (capture each screen with --out <dir>/evidence/screens/<id>).
+                     Implied when the node is a page or a section (unless --states lists
+                     ids): every top-level frame becomes a screen, a state, a breakpoint
+                     variant "<screen>-<width>" (own frame size) or an overlay state;
+                     frames that are a judgement call are printed as unmapped
+  --frame-map <file> confirmed frame mappings, for --screens auto or a single frame
+                     (see state-discovery.mjs --help)
   --scale <n>        export scale (default 1 — keep 1 to diff against DPR-1 captures)
   --format <fmt>     png (default) | jpg | svg | pdf
   --out <dir>        output directory (required)
@@ -52,6 +59,9 @@ Retries HTTP 429/5xx and network errors up to 3 times with backoff (Retry-After 
 honoured). Each request times out after 30 s (DESIGN_QA_HTTP_TIMEOUT_MS, in ms). The token is
 only sent to FIGMA_API_BASE: a redirect to another host is refused. Images larger than 50 MB
 are skipped (recorded as a degradation).
+
+No token? Read the design with the Figma MCP and convert it with figma-mcp-spec.mjs
+(same files, no FIGMA_TOKEN).
 
 Exit codes: 0 ok · 1 error (node not found, render/download failure) · 2 bad arguments ·
 6 authentication (FIGMA_TOKEN missing or rejected)`;
@@ -130,9 +140,15 @@ async function exportImages({ api, fileKey, format, scale, warn }, items, degrad
  * --screens auto: one figma-spec.json and one image per state for every screen of the
  * fetched page/section (or of the fetched frame's page), plus screens.json.
  */
-async function fetchScreens({ spec, nodesJson, variables, outDir, exporter, log, warn, values, degradations }) {
+async function fetchScreens({ spec, nodesJson, variables, outDir, exporter, log, warn, values, degradations, frameMap }) {
   const { api, fileKey, format } = exporter;
-  const screens = discoverScreens(spec);
+  let census;
+  try {
+    census = designCensus(spec, { frameMap, siblings: 'screens' });
+  } catch (err) {
+    throw usageError(`--frame-map: ${oneLine(err.message)}`);
+  }
+  const screens = census.screens;
   if (!screens.length) {
     throw new CliError(`no screens found under ${oneLine(spec.name)} (${oneLine(spec.nodeId)}): link a page, a section or a top-level frame`, 1);
   }
@@ -159,11 +175,9 @@ async function fetchScreens({ spec, nodesJson, variables, outDir, exporter, log,
       .filter((s) => s.nodeId !== screen.nodeId)
       .map((s) => ({ id: s.nodeId, name: s.name, type: known.get(s.nodeId)?.type ?? 'FRAME', absoluteBoundingBox: known.get(s.nodeId)?.absoluteBoundingBox ?? null }));
     const sSpec = buildFigmaSpec({ fileKey, nodeId: screen.nodeId, url: figmaDesignUrl(fileKey, screen.nodeId), response, variables, siblings, degradations: screenDegradations });
-    // Frames grouped as this screen's states that state discovery did not name.
-    for (const st of screen.states) {
-      if (!sSpec.states.some((x) => x.state === st.state)) sSpec.states.push(st);
-    }
-    sSpec.screen = { id: screen.id, name: screen.name };
+    // The census names every frame of the screen; discovery adds what is inside the frame.
+    sSpec.states = mergeScreenStates(sSpec.states, screen.states);
+    sSpec.screen = { id: screen.id, name: screen.name, ...(screen.variantOf ? { variantOf: screen.variantOf } : {}) };
     const dir = path.join(outDir, 'screens', screen.id);
     for (const st of sSpec.states) {
       if (st.nodeId === screen.nodeId && sSpec.type === 'COMPONENT_SET') continue;
@@ -191,6 +205,7 @@ async function fetchScreens({ spec, nodesJson, variables, outDir, exporter, log,
       designRef: screen.nodeId,
       url: sSpec.url,
       frame: sSpec.frame.width ? sSpec.frame : screen.frame,
+      ...(screen.variantOf ? { variantOf: screen.variantOf } : {}),
       states: sSpec.states.map((st) => st.state),
       spec: `screens/${screen.id}/figma-spec.json`,
       images: sSpec.exports.map((e) => `screens/${screen.id}/${e.path}`),
@@ -215,6 +230,9 @@ async function fetchScreens({ spec, nodesJson, variables, outDir, exporter, log,
         `capture with --width ${oneLine(s.frame.width)} --height ${oneLine(s.frame.height)} --out <dir>/evidence/screens/${oneLine(s.id)}`,
     );
   }
+  for (const u of census.unmapped) {
+    warn(`frame ${u.nodeId} "${u.name}" (${u.frame.width}×${u.frame.height}) is unmapped: ${u.reason} Provisionally ${u.suggestion?.screen}/${u.suggestion?.state}; confirm it in a frame map (--frame-map)`);
+  }
   for (const d of degradations) warn(`${d.step}: ${d.reason} — ${d.impact}`);
   log(`Wrote ${oneLine(displayPath(path.join(outDir, 'screens.json')))}`);
   if (items.length && !entries.length) throw new CliError('no Figma image could be exported (see warnings above)', 1);
@@ -230,6 +248,7 @@ async function main(argv) {
     scale: { type: 'string' },
     format: { type: 'string' },
     out: { type: 'string' },
+    'frame-map': { type: 'string' },
     quiet: { type: 'boolean' },
   });
   if (values.help) {
@@ -250,9 +269,16 @@ async function main(argv) {
   const scale = toNumber(values.scale ?? '1', 'scale', { min: 0.01, max: 4 });
   const format = (values.format ?? 'png').toLowerCase();
   if (!FORMATS.includes(format)) throw usageError(`--format must be one of ${FORMATS.join(', ')} (got "${oneLine(values.format)}")`);
-  if (scale !== 1) warn(`--scale ${scale}: diff.mjs refuses to compare images at different scales; captures run at DPR 1`);
+  if (scale !== 1) warn(`--scale ${scale}: captures run at DPR 1, so a ${scale}× export cannot be pixel-diffed (diff.mjs refuses a width that is an integer multiple of the frame or the app image, exit 2; other scales are compared as wrongly sized images); export at --scale 1 for the diff`);
   if (values.screens !== undefined && values.screens !== 'auto') throw usageError(`--screens: only "auto" is supported (got "${oneLine(values.screens)}")`);
-  const screensMode = values.screens === 'auto';
+  let screensMode = values.screens === 'auto';
+  let frameMap;
+  try {
+    frameMap = normalizeFrameMap(values['frame-map'] ? readJsonFile(values['frame-map'], 'frame map') : null);
+  } catch (err) {
+    if (err instanceof CliError) throw err;
+    throw usageError(`--frame-map: ${oneLine(err.message)}`);
+  }
   if (screensMode && values.states !== undefined && values.states !== 'auto') {
     throw usageError('--screens auto discovers each screen\'s states; it cannot be combined with an explicit --states list');
   }
@@ -321,7 +347,22 @@ async function main(argv) {
   const spec = buildFigmaSpec({ fileKey, nodeId, url: values.url, response: nodesJson, variables, siblings, degradations });
   const exporter = { api, fileKey, format, scale, warn };
 
-  if (screensMode) return fetchScreens({ spec, nodesJson, variables, outDir, exporter, log, warn, values, degradations });
+  // A page or a section is several frames: the wider node wins and every frame is covered.
+  if (!screensMode && !explicitIds && GROUPING_TYPES.has(spec.type)) {
+    log(`${oneLine(spec.name)} (${nodeId}) is a ${spec.type.toLowerCase()}: fetching every frame in it as screens (--screens auto)`);
+    screensMode = true;
+  }
+  if (screensMode) return fetchScreens({ spec, nodesJson, variables, outDir, exporter, log, warn, values, degradations, frameMap });
+
+  // The census names the frame and the state frames beside it, as state discovery does.
+  let census;
+  try {
+    census = designCensus(spec, { frameMap });
+  } catch (err) {
+    throw usageError(`--frame-map: ${oneLine(err.message)}`);
+  }
+  const { screen: own, states: censusStates } = frameSpecStates(spec, census);
+  if (!explicitIds) spec.states = censusStates;
 
   // 4. Explicit state nodes replace auto-discovery.
   if (explicitIds) {
@@ -343,8 +384,9 @@ async function main(argv) {
         degradations.push({ step: 'figma-states', reason: `node ${id} not found`, impact: 'That state has no Figma reference image.' });
         continue;
       }
-      let state = normalizeStateName(doc.name) || fileSafe(id);
-      for (let n = 2; used.has(state); n++) state = `${normalizeStateName(doc.name)}-${n}`;
+      const base = own?.states.find((st) => st.nodeId === id)?.state ?? exactStateName(doc.name) ?? stateId(doc.name) ?? fileSafe(id);
+      let state = base;
+      for (let n = 2; used.has(state); n++) state = `${base}-${n}`;
       used.add(state);
       states.push({ state, nodeId: id, name: doc.name, source: 'frame-name' });
     }

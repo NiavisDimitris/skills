@@ -57,10 +57,15 @@
       "ticket": "none",
       "prototypeCapture": "script"
     },
+    "build": {
+      "tool": "build-report",
+      "version": "fixture",
+      "findings": null,
+      "evidence": []
+    },
     "degradations": []
   },
   "scorecard": {
-    "parity": 25,
     "verdict": "FAIL",
     "bySeverity": {
       "BLOCKER": 1,
@@ -83,7 +88,14 @@
       "designed": 4,
       "specified": 0,
       "implemented": 4,
-      "verified": 4
+      "verified": 4,
+      "partial": 0
+    },
+    "match": null,
+    "matchByState": {},
+    "settled": {
+      "count": 0,
+      "total": 3
     },
     "unexplained": 3,
     "debt": {
@@ -93,10 +105,11 @@
     "loopClosed": false,
     "dismissed": 0,
     "designSystem": {
-      "tokens": 0,
-      "components": 0,
+      "tokens": null,
+      "components": null,
       "motion": 1
-    }
+    },
+    "unpinned": 1
   },
   "stateMatrix": [
     {
@@ -115,7 +128,18 @@
       "captured": {
         "design": "evidence/design/with-data.png",
         "app": "evidence/app/with-data.png",
-        "diff": "evidence/diff/with-data.png"
+        "diff": "evidence/diff/with-data.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 6
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -140,7 +164,18 @@
       "captured": {
         "design": "evidence/design/empty.png",
         "app": null,
-        "diff": null
+        "diff": null,
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 6
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -162,7 +197,18 @@
       "captured": {
         "design": "evidence/design/hover.png",
         "app": "evidence/app/hover.png",
-        "diff": "evidence/diff/hover.png"
+        "diff": "evidence/diff/hover.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 6
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -186,7 +232,18 @@
       "captured": {
         "design": "evidence/design/error.png",
         "app": "evidence/app/error.png",
-        "diff": "evidence/diff/error.png"
+        "diff": "evidence/diff/error.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 6
+        }
       },
       "result": "PASS",
       "note": null,
@@ -296,7 +353,8 @@
       "signoff": null,
       "knownDrift": null,
       "acRef": null,
-      "screen": "cart"
+      "screen": "cart",
+      "unpinnedReason": "The remove button is absent from every line item, so there is no element on the capture to point at."
     },
     {
       "id": "DQ-003",

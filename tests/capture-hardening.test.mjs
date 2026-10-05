@@ -167,9 +167,9 @@ browserTest('capture: ${ENV} secrets never reach capture.json, dom/, error messa
   const server = await startServer((req, res) => {
     const u = new URL(req.url, 'http://x');
     if (u.pathname === '/api/items') return sendJson(res, 200, ITEMS);
-    if (u.pathname === '/login') return html(res, '<!doctype html><title>Sign in</title><h1>Sign in</h1>');
+    if (u.pathname === '/elsewhere') return html(res, '<!doctype html><title>Elsewhere</title><h1>Elsewhere</h1>');
     if (u.searchParams.get('go') === 'away') {
-      res.writeHead(302, { location: `/login?next=${encodeURIComponent(req.url)}` });
+      res.writeHead(302, { location: `/elsewhere?next=${encodeURIComponent(req.url)}` });
       return res.end();
     }
     return html(res, APP_HTML);
@@ -190,7 +190,7 @@ browserTest('capture: ${ENV} secrets never reach capture.json, dom/, error messa
     assert.ok(server.requests.some((r) => r.url.includes(TOKEN)), 'the secret was really used');
     for (const file of listFiles(out)) assert.ok(!readFileSync(file).includes(TOKEN), `${path.relative(out, file)} leaks the secret`);
     assert.ok(!res.stdout.includes(TOKEN) && !res.stderr.includes(TOKEN), 'nothing printed');
-    assert.match(res.stderr, /state "error" failed: ended on .*\/login\?next=.*\$\{TOKEN\}/);
+    assert.match(res.stderr, /state "error" failed: ended on .*\/elsewhere\?next=.*\$\{TOKEN\}/);
 
     const manifest = json(path.join(out, 'capture.json'));
     assert.deepEqual(manifest.states['with-data'].driver.storage, { local: { authToken: '${TOKEN}' } }, 'drivers are written as templates');
@@ -205,26 +205,29 @@ browserTest('capture: ${ENV} secrets never reach capture.json, dom/, error messa
 });
 
 browserTest('capture: a redirect or navigation away fails the state; every state redirected exits 5', async () => {
+  // Redirects to another route that is not a sign-in page (those exit 6: capture-signin.test.mjs).
   const server = await startServer((req, res) => {
     const u = new URL(req.url, 'http://x');
     if (u.pathname === '/protected') {
-      res.writeHead(302, { location: '/login' });
+      res.writeHead(302, { location: '/elsewhere' });
       return res.end();
     }
-    if (u.pathname === '/login') return html(res, '<!doctype html><title>Sign in</title><h1>Please sign in</h1>');
-    if (u.pathname === '/away') return html(res, '<!doctype html><h1>Orders</h1><script>setTimeout(() => { location.href = "/login"; }, 200)</script>');
-    return html(res, '<!doctype html><title>Orders</title><h1>Orders</h1><a id="next" href="/login">Sign out</a>');
+    if (u.pathname === '/elsewhere') return html(res, '<!doctype html><title>Elsewhere</title><h1>Another page</h1>');
+    if (u.pathname === '/away') return html(res, '<!doctype html><h1>Orders</h1><script>setTimeout(() => { location.href = "/elsewhere"; }, 200)</script>');
+    return html(res, '<!doctype html><title>Orders</title><h1>Orders</h1><a id="next" href="/elsewhere">Archive</a>');
   });
   try {
     const dir = tmpDir();
     const both = writeStates(dir, { 'with-data': {}, empty: { query: 'state=empty' } });
     const denied = await run(CAPTURE, ['--url', `${server.url}/protected`, '--width', '400', '--height', '300', '--states', both, '--out', path.join(dir, 'denied')], { env: captureEnv, cwd: dir });
     assert.equal(denied.code, 5, denied.stderr);
-    assert.match(denied.stderr, /every state ended on another page \(last: .*\/login\).*authentication or routing problem/);
+    assert.match(denied.stderr, /every state ended on another page \(last: .*\/elsewhere\).*routing problem/);
     const deniedManifest = json(path.join(dir, 'denied', 'capture.json'));
-    assert.match(deniedManifest.states['with-data'].error, /ended on .*\/login instead of .*\/protected .*the server redirected/);
+    assert.match(deniedManifest.states['with-data'].error, /ended on .*\/elsewhere instead of .*\/protected .*the server redirected/);
     assert.equal(deniedManifest.states['with-data'].screenshot, null);
-    assert.ok(!existsSync(path.join(dir, 'denied', 'app', 'with-data.png')), 'no sign-in page saved as with-data');
+    assert.equal(deniedManifest.states['with-data'].failure.kind, 'navigation');
+    assert.equal(deniedManifest.failure.kind, 'navigation');
+    assert.ok(!existsSync(path.join(dir, 'denied', 'app', 'with-data.png')), 'no other page saved as with-data');
 
     const away = await run(CAPTURE, ['--url', `${server.url}/away`, '--width', '400', '--height', '300', '--wait', 'h1', '--out', path.join(dir, 'away')], { env: captureEnv, cwd: dir });
     assert.equal(away.code, 5, 'a script navigating away is caught too');
@@ -450,7 +453,7 @@ browserTest('capture: --header never follows a redirect off the app origin; same
       res.writeHead(200, { 'content-type': 'text/javascript' });
       return res.end('window.thirdScript = true;');
     }
-    if (req.url.startsWith('/sso')) return html(res, '<!doctype html><title>SSO</title><h1>Sign in</h1>');
+    if (req.url.startsWith('/landing')) return html(res, '<!doctype html><title>Landing</title><h1>Landing</h1>');
     return png(res);
   });
   const page =
@@ -473,7 +476,7 @@ browserTest('capture: --header never follows a redirect off the app origin; same
     if (u.pathname === '/api/me') return sendJson(res, 200, { cookie: req.headers.cookie ?? '' });
     if (u.pathname === '/home') return redirect(res, '/en/', 302, { 'set-cookie': 'lang=en; Path=/' });
     if (u.pathname === '/en/') return html(res, '<!doctype html><title>English</title><h1>English</h1>');
-    if (u.pathname === '/start') return redirect(res, `${third.url}/sso`);
+    if (u.pathname === '/start') return redirect(res, `${third.url}/landing`);
     return html(res, 'not found', 404);
   });
   try {
@@ -481,7 +484,7 @@ browserTest('capture: --header never follows a redirect off the app origin; same
     const states = writeStates(dir, {
       'with-data': { fixture: 'page', wait: '#out[data-done]' },
       english: { fixture: 'home', allowNavigation: true },
-      sso: { fixture: 'start' },
+      offsite: { fixture: 'start' },
     });
     const res = await run(
       CAPTURE,
@@ -490,7 +493,7 @@ browserTest('capture: --header never follows a redirect off the app origin; same
     );
     assert.equal(res.code, 1, `${res.stdout}\n${res.stderr}`);
     const thirdPaths = third.requests.map((r) => r.url);
-    for (const p of ['/cdn.png', '/lib.js', '/sso']) assert.ok(thirdPaths.includes(p), `the redirect to ${p} was followed`);
+    for (const p of ['/cdn.png', '/lib.js', '/landing']) assert.ok(thirdPaths.includes(p), `the redirect to ${p} was followed`);
     for (const r of third.requests) {
       assert.equal(r.headers['x-bypass'], undefined, `${r.url}: no bypass header off the app origin`);
       assert.equal(r.headers.authorization, undefined, `${r.url}: no bearer token off the app origin`);
@@ -507,7 +510,7 @@ browserTest('capture: --header never follows a redirect off the app origin; same
     assert.match(texts, /cdn:1 local:1 script:true cookie:sid=fromapp/, 'redirected assets load and the Set-Cookie from the page is sent back');
     const manifest = json(path.join(dir, 'capture.json'));
     assert.equal(manifest.states.english.screenshot, 'app/english.png');
-    assert.match(manifest.states.sso.error, /ended on .*\/sso instead of .*\/start \(the server redirected\)/);
+    assert.match(manifest.states.offsite.error, /ended on .*\/landing instead of .*\/start \(the server redirected\)/);
   } finally {
     await app.close();
     await third.close();

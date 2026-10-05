@@ -7,7 +7,7 @@ import { collectImagePaths } from '../skills/design-qa/scripts/render-report.mjs
 import { validateReport } from '../skills/design-qa/scripts/lib/schema-check.mjs';
 import { applyTriage, buildTriage } from '../skills/design-qa/scripts/lib/triage.mjs';
 import { createPng, writePng } from '../skills/design-qa/scripts/lib/png.mjs';
-import { rankFindings } from '../skills/design-qa/scripts/lib/ranking.mjs';
+import { computeScorecard, rankFindings } from '../skills/design-qa/scripts/lib/ranking.mjs';
 import { SKILL, fixture, loadFixture, run, script, tmpDir } from './_helpers.mjs';
 
 const RENDER = script('render-report.mjs');
@@ -118,19 +118,19 @@ test('invalid reports fail; scorecard drift needs --recompute; --write-back save
   assert.match(res.stderr, /findings\[0\]\.severity: expected one of/);
 
   const drift = loadFixture('report-valid.json');
-  drift.scorecard.parity = 99;
+  drift.scorecard.match = 99;
   drift.scorecard.verdict = 'PASS';
   const driftFile = writeReport(dir, drift);
   const refused = await run(RENDER, ['--in', driftFile, '--template', TEMPLATE, '--out', path.join(dir, 'r.html')]);
   assert.equal(refused.code, 1);
-  assert.match(refused.stderr, /scorecard\.parity: expected 38/);
+  assert.match(refused.stderr, /scorecard\.match: expected 73/);
   assert.match(refused.stderr, /--recompute/);
 
   const fixed = await run(RENDER, ['--in', driftFile, '--template', TEMPLATE, '--out', path.join(dir, 'r.html'), '--recompute', '--write-back']);
   assert.equal(fixed.code, 0, fixed.stderr);
   const html = readFileSync(path.join(dir, 'r.html'), 'utf8');
   const data = JSON.parse(scriptContent(html, 'design-qa-data'));
-  assert.equal(data.scorecard.parity, 38);
+  assert.equal(data.scorecard.match, 73);
   assert.equal(data.scorecard.verdict, 'FAIL');
   const saved = JSON.parse(readFileSync(driftFile, 'utf8'));
   assert.equal(saved.scorecard.verdict, 'FAIL');
@@ -189,17 +189,19 @@ test('fix plan: section order, fix-now ordering, paste block, design-system mism
   ]);
   assert.ok(!/sync|Paste to your design agent/i.test(md), 'nothing points back at the design');
   const lines = md.split('\n');
-  assert.equal(lines[1], 'Verdict: FAIL · Parity 38% · States: 3/5 verified (5 designed, 3 specified, 4 implemented)');
-  assert.equal(
-    lines[2],
-    'Source: figma https://www.figma.com/design/AbCdEf123456/Items?node-id=1-2 · App: http://localhost:3000/items (local) · Ticket: ABC-12 · Generated: 2026-09-23T10:00:00Z',
-  );
+  assert.equal(lines[1], 'Verdict: FAIL · match 73% · 1 of 6 findings settled · 3 of 5 states verified · 5 designed, 3 specified, 4 implemented');
+  assert.equal(lines[2], '**Partial coverage:** the match covers 3 of 5 designed states; the other 2 were not compared (see Missing states and Cannot verify).');
   assert.equal(
     lines[3],
+    'Source: figma https://www.figma.com/design/AbCdEf123456/Items?node-id=1-2 · App: http://localhost:3000/items (local) · Ticket: ABC-12 · Generated: 2026-09-23T10:00:00Z',
+  );
+  assert.equal(lines[4], 'Capture: whole page in 3 of 3 verified states');
+  assert.equal(
+    lines[5],
     'Triage: recommended (top 2 by rank). Choose in report.html and click "Review and send", or type /design-qa triage ABC-12 --fix DQ-001,DQ-003',
   );
-  assert.equal(lines[4], 'Dismissed: 1 · accepted as intentional: 1');
-  assert.equal(lines[5], '');
+  assert.equal(lines[6], 'Dismissed: 1 · accepted as intentional: 1');
+  assert.equal(lines[7], '');
   const section = (from, to) => md.slice(md.indexOf(from), md.indexOf(to));
 
   const fixNow = section('## Fix now', '## Design-system mismatches');
@@ -265,7 +267,7 @@ test('fix plan: the recommendation keeps every blocker in fix now; prototype sou
   const md = renderFixplan({ ...report, findings: rankFindings(report.findings, { topN: 0 }) }, { topN: 0 });
   assert.ok(md.includes('## Fix now (1)\n1. **DQ-001'), 'a blocker in the debt bucket is still fixed now');
   assert.ok(md.includes('## Debt (4) — tickets\n- DQ-003'));
-  assert.ok(md.split('\n')[3].endsWith('--fix DQ-001'));
+  assert.ok(md.split('\n')[5].endsWith('--fix DQ-001'));
 
   const multi = loadFixture('report-multiscreen.json');
   const plan = renderFixplan(multi);
@@ -273,7 +275,7 @@ test('fix plan: the recommendation keeps every blocker in fix now; prototype sou
   assert.equal(lines[2], 'Source: prototype https://acme-checkout.framer.website/cart · App: http://localhost:5173/cart (local) · Ticket: – · Generated: 2026-10-01T09:30:00Z');
   assert.ok(!plan.includes('Dismissed: '), 'no Dismissed line when nothing is dismissed');
   assert.ok(plan.includes('### Tokens (1)\n- DQ-001 — Cart total uses a hard-coded colour instead of the brand token — expected --color-text-strong (rgb(17, 24, 39)) · actual rgb(31, 41, 55)'));
-  assert.ok(plan.includes('### Components (0)\n- None'));
+  assert.ok(plan.includes('### Components (not checked)\n- Not checked: no design-system audit was run'), 'never 0 for a check that did not run');
   assert.ok(plan.includes('### Motion (1)\n- DQ-002 — Pay button has no press animation — expected 120ms ease-out on transform · actual none'));
   assert.ok(plan.includes('(WARNING, style, state cart/with-data)'));
   assert.ok(plan.includes('## Dismissed (0)\n- None'));
@@ -349,8 +351,8 @@ test('fix plan with triage: the decisions fill Fix now and Debt', () => {
   assert.deepEqual(validateReport(triaged).errors, []);
   const md = renderFixplan(triaged);
   const lines = md.split('\n');
-  assert.equal(lines[3], 'Triage: 2 fix now · 3 debt (1 ticketed) · Dana, 2026-09-24');
-  assert.equal(lines[4], 'Dismissed: 1 · accepted as intentional: 1');
+  assert.equal(lines[5], 'Triage: 2 fix now · 3 debt (1 ticketed) · Dana, 2026-09-24');
+  assert.equal(lines[6], 'Dismissed: 1 · accepted as intentional: 1');
   const section = (from, to) => md.slice(md.indexOf(from), md.indexOf(to));
   const fixNow = section('## Fix now', '## Design-system mismatches');
   assert.ok(fixNow.startsWith('## Fix now (2)\n1. **DQ-001'), 'the BLOCKER stays in fix now');
@@ -393,7 +395,7 @@ test('agentPrompt format (snapshot)', () => {
       "Fix: Use the space.4 token for the row's vertical padding",
       'Patch hint: padding: var(--space-4) var(--space-6);',
       'Files: src/Row.css',
-      'Evidence: computed/with-data.json',
+      'Evidence: computed/with-data.json, app/with-data.png',
     ].join('\n'),
   );
   assert.equal(
@@ -418,12 +420,16 @@ test('renderFixplan handles empty sections', () => {
   report.findings = report.findings.filter((f) => f.severity === 'PASS');
   report.stateMatrix = [];
   report.openDecisions = [];
+  report.scorecard = computeScorecard(report);
   const md = renderFixplan({ ...report, findings: rankFindings(report.findings) });
   assert.ok(md.includes('## Fix now (0)\n- None'));
   assert.ok(!md.includes('Paste to your coding agent'));
-  assert.equal(md.split('\n')[3], 'Triage: nothing to triage');
-  assert.equal(md.split('\n')[4], '', 'no Dismissed line');
-  assert.ok(md.includes('## Design-system mismatches\n### Tokens (0)\n- None\n### Components (0)\n- None\n### Motion (0)\n- None'));
+  const lines = md.split('\n');
+  assert.equal(lines[1], 'Verdict: INCOMPLETE · match not measured · 0 of 0 findings settled · 0 of 0 states verified · 0 designed, 0 specified, 0 implemented');
+  assert.match(lines[2], /^\*\*Incomplete: this is not a result\.\*\* no state was verified: the state matrix is empty; nothing was captured and compared: fix the capture/);
+  assert.equal(lines[4], 'Triage: nothing to triage');
+  assert.equal(lines[5], '', 'no Dismissed line');
+  assert.ok(md.includes('## Design-system mismatches\n**No design-system audit was run:** token and component mismatches were not looked for, so empty lists below do not mean the screen uses the design system correctly.\n### Tokens (not checked)\n- Not checked\n### Components (not checked)\n- Not checked\n### Motion (0)\n- None'));
   assert.ok(md.includes('## Debt (0) — tickets\n- None'));
   assert.ok(md.includes('## Missing states / needs decision\n- None'));
   assert.ok(md.includes('## Dismissed (0)\n- None'));
@@ -476,4 +482,59 @@ test('shipped template: pins, the Annotations rail and the triage board share on
   for (const hook of ["id: 'ann-panel'", "role: 'dialog'", "'data-open-fid'", "'aria-haspopup': 'dialog'", "'data-show-fid'", 'function showOnCapture(', 'function lockReason(']) {
     assert.ok(src.includes(hook), `missing ${hook}`);
   }
+});
+
+test('fix plan and render output: coverage next to match; incomplete, remote-target, unpinned and audit lines', async () => {
+  // Full coverage: no coverage line.
+  const multi = renderFixplan(loadFixture('report-multiscreen.json')).split('\n');
+  assert.equal(multi[1], 'Verdict: REVIEW · match 99% · 0 of 2 findings settled · 3 of 3 states verified · 3 designed, 3 implemented', 'no ticket and nothing specified: the zero count is left out');
+  assert.ok(multi[2].startsWith('Source: '));
+
+  // A deployed target, one finding without a pin (with its reason), and a recorded audit.
+  const r = loadFixture('report-valid.json');
+  r.meta.app.url = 'https://staging.acme.dev/items';
+  r.meta.target = { kind: 'remote', localCommit: '1a2b3c4d5e6f7a8b', deployedCommit: '9f3c2a1e7b4d8c06' };
+  r.meta.degradations = [{ step: 'source trace', reason: 'Local checkout differs from the deployed build.', impact: 'File references are hints.' }];
+  r.findings[2].evidence[0].crop = null;
+  r.findings[2].unpinnedReason = 'The hover tooltip never renders, so nothing on the capture marks it.';
+  r.meta.tools.dsAudit = 'script';
+  r.meta.dsAudit = { elementsChecked: 1480, offTokenValues: 7, nonSystemComponents: 2, output: 'evidence/ds-audit.json' };
+  r.scorecard = computeScorecard(r);
+  assert.deepEqual(validateReport(r).errors, []);
+  const md = renderFixplan(r);
+  const lines = md.split('\n');
+  assert.equal(lines[4], 'Target: deployed build. Findings are grounded in the captured DOM; file references are hints from a local checkout (local 1a2b3c4d5e6f, deployed 9f3c2a1e7b4d) that may differ from the deployed build.');
+  assert.equal(lines[5], 'Capture: whole page in 3 of 3 verified states');
+  assert.equal(lines[8], 'Without a pin: 1 finding (no place on any capture): DQ-003');
+  assert.ok(md.includes('## Design-system mismatches\nAudit: script · 1480 elements checked · 7 off-token values · 2 non-system components\n### Tokens (2)'));
+  assert.ok(!md.includes('No design-system audit was run'), 'token findings exist and the audit ran');
+
+  // render-report.mjs prints the same headline, and says an INCOMPLETE pass is not a result.
+  const dir = tmpDir();
+  const file = path.join(dir, 'report.json');
+  writeFileSync(file, JSON.stringify(r));
+  const partial = await run(RENDER, ['--in', file, '--template', TEMPLATE, '--out', path.join(dir, 'r.html')]);
+  assert.equal(partial.code, 0, partial.stderr);
+  assert.match(partial.stdout, /— FAIL · match \d+% \(1 without a pin\) · 1 of 6 findings settled · 3 of 5 states verified · 9 finding\(s\)/);
+  const empty = loadFixture('report-valid.json');
+  empty.stateMatrix = empty.stateMatrix.map((row) => ({ ...row, result: 'CANNOT_VERIFY' }));
+  empty.findings = empty.findings.filter((f) => f.severity === 'PASS' || f.severity === 'CANNOT_VERIFY');
+  for (const k of Object.keys(empty.ledgers)) empty.ledgers[k] = [];
+  for (const row of empty.stateMatrix) row.findings = [];
+  empty.openDecisions = [];
+  empty.fixLoop = [];
+  writeFileSync(file, JSON.stringify(empty));
+  const incomplete = await run(RENDER, ['--in', file, '--template', TEMPLATE, '--out', path.join(dir, 'r.html'), '--recompute']);
+  assert.equal(incomplete.code, 0, incomplete.stderr);
+  assert.match(incomplete.stdout, /— INCOMPLETE · match not measured · 0 of 0 findings settled · 0 of 5 states verified · 2 finding\(s\)/);
+  assert.match(incomplete.stderr, /warning: verdict INCOMPLETE: nothing was captured and compared: fix the capture/);
+});
+
+test('fix plan Capture line: parts of a page, scroll panels that still hide content, missing records', () => {
+  const r = loadFixture('report-valid.json');
+  r.stateMatrix[0].captured.page = { width: 1440, height: 4292, fullPage: false, clipped: 0 };
+  r.stateMatrix[1].captured.page.clipped = 2;
+  delete r.stateMatrix[4].captured.page;
+  const line = renderFixplan(r).split('\n').find((l) => l.startsWith('Capture: '));
+  assert.equal(line, 'Capture: whole page in 1 of 3 verified states · only part of the page: With data (1440×900 of 1440×4292) · scroll panels still hiding content: Empty (2) · not recorded: 1');
 });

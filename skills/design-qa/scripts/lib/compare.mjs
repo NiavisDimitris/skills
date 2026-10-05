@@ -762,6 +762,8 @@ export function motionFromLonghands(sample) {
   return out;
 }
 
+const validBox = (r) => r && typeof r === 'object' && ['x', 'y', 'w', 'h'].every((k) => Number.isFinite(r[k]));
+
 /** A getAnimations() entry as a motion spec. */
 export function motionFromRuntime(entry) {
   const base = {
@@ -770,6 +772,8 @@ export function motionFromRuntime(entry) {
     delayMs: typeof entry.delayMs === 'number' ? round(entry.delayMs, 2) : 0,
     source: 'runtime',
     target: entry.target ?? null,
+    // The element's recorded path and box (captures since 0.2.2), to pin a finding on it.
+    at: typeof entry.selector === 'string' && entry.selector ? { selector: entry.selector, rect: validBox(entry.rect) ? entry.rect : null } : null,
   };
   if (entry.type === 'CSSTransition') return { type: 'transition', property: entry.transitionProperty ?? 'all', ...base };
   const iterations = entry.iterations === null || entry.iterations === undefined ? '1' : String(entry.iterations);
@@ -813,6 +817,8 @@ const NONE = { type: 'none', durationMs: null, easing: null, delayMs: null, deta
 
 function motionRow({ state, selector, trigger, expected, observed, result, reasons, elementClass = null, index = null, figmaNodeId = null, property = null }) {
   const prop = property ?? (expected?.type === 'none' ? observed?.property : expected?.property) ?? (expected?.type === 'animation' ? 'animation' : 'all');
+  // A running animation on an element that was not grabbed: where it runs (app side first).
+  const at = observed?.at ?? expected?.at ?? null;
   return {
     state,
     selector,
@@ -831,6 +837,7 @@ function motionRow({ state, selector, trigger, expected, observed, result, reaso
       reasons,
       expectedText: expected?.type === 'none' ? 'none' : describeMotion(expected),
       observedText: describeMotion(observed),
+      ...(at ? { target: { side: observed?.at ? 'app' : 'design', ...at } } : {}),
     },
   };
 }

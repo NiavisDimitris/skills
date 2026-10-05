@@ -1,8 +1,12 @@
-# Design QA fix plan — Orders list
-Verdict: FAIL · Parity 45% · States: 5/8 verified (7 designed, 4 specified, 6 implemented)
-Source: figma https://www.figma.com/design/aBcD3fGh1JkLmN0pQrStUv/Acme-Console?node-id=1204-3310 · App: https://acme-console-git-feat-orders-acme.vercel.app/orders (preview) · Ticket: ACME-482 · Generated: 2026-09-22T14:32:08Z
+# Design QA fix plan — orders
+Verdict: FAIL · match 73% · 3 of 14 findings settled · 5 of 8 states verified · 7 designed, 4 specified, 6 implemented
+**Partial coverage:** the match covers 5 of 8 designed states; the other 3 were not compared (see Missing states and Cannot verify).
+Source: figma https://www.figma.com/design/aBcD3fGh1JkLmN0pQrStUv/?node-id=1204-3310 · App: https://acme-console-git-feat-orders-acme.vercel.app/orders (preview) · Ticket: ACME-482 · Generated: 2026-10-05T06:27:48.096Z
+Target: deployed build. Findings are grounded in the captured DOM; file references are hints from a local checkout (local 9f3c2a1e7b4d, deployed unknown) that may differ from the deployed build.
+Capture: whole page in 5 of 5 verified states
+Rejected by the agent: 9 worklist regions (largest share 17.7% of Row focus), 0 audit candidates, 0 compare rows
 Triage: 4 fix now · 6 debt (6 ticketed) · Maya Chen, 2026-09-22
-Dismissed: 1 · accepted as intentional: 1
+Dismissed: 1 · accepted as intentional: 3
 
 ## Fix now (4)
 1. **DQ-001 — Empty state is not implemented** (BLOCKER, state, state empty)
@@ -36,7 +40,7 @@ Actual: Table header over an empty <tbody>; no message or action (token: none) a
 Fix: Render the Acme DS EmptyState when there are no orders, with the 'Create order' primary action.
 Patch hint: if (!orders.length) return <EmptyState icon="inbox" title="No orders yet" description="Orders you create or import will appear here." action={<Button variant="primary" onClick={onCreate}>Create order</Button>} />;
 Files: src/features/orders/OrdersTable.tsx, src/features/orders/OrdersPage.tsx
-Evidence: evidence/figma/empty.png
+Evidence: evidence/figma/empty.png, evidence/dom/empty.json
 
 [DQ-002] Table header is a hand-styled <thead>, not Acme DS Table.Header
 Ledger: component · State: with-data · Severity: BLOCKER · Resolution: FIX_CODE
@@ -78,6 +82,7 @@ Evidence: evidence/figma/hover.png, evidence/app/hover.png, evidence/diff/hover.
 ```
 
 ## Design-system mismatches
+Audit: manual · 214 elements checked · 4 off-token values · 1 non-system components
 ### Tokens (4)
 - DQ-003 — Row hover background is a hardcoded hex, not --ads-color-surface-hover — expected --ads-color-surface-hover (#F0F4FA) · actual #CFD8E6
 - DQ-004 — Card padding is 20px instead of --ads-space-6 (24px) — expected --ads-space-6 (24px) · actual 20px
@@ -102,12 +107,27 @@ Evidence: evidence/figma/hover.png, evidence/app/hover.png, evidence/diff/hover.
 - Long content: NOT_SPECIFIED — Not designed, specified or driven. Suggest a long-names fixture and a truncation rule in the ticket.
 - OD-2: Pagination: keep it in the toolbar (as built) or move it below the table (as designed)? Resolved on 2026-09-18. — options: Keep it in the toolbar (as built): Page controls stay above the fold on 12-row pages; the deviation is recorded as signed off (DQ-011).; Move it below the table (as designed): Matches the frame; page controls fall below the fold at 900px viewport height. — recommendation: Keep as built: signed off by Product on 2026-09-18 (DQ-011).
 
-## Dismissed (2)
-- DQ-011 — Pagination moved from below the table to the toolbar — intentional — "Top pagination keeps page controls above the fold on 12-row pages. Approved in design review." — by Product, 2026-09-18
+## Dismissed (4)
+- DQ-011 — Pagination moved from below the table to the toolbar — intentional — "Accepted in the review: top pagination keeps the page controls above the fold on 12-row pages." — by Product, 2026-09-22
+- DQ-012 — Table shows 12 rows; the design sample shows 8 — intentional — "Accepted in the review: the row count follows the order data; the design shows a sample of 8." — by Product, 2026-09-22
+- DQ-013 — Order totals differ from the design's sample values — intentional — "Accepted in the review: totals are order data; their format matches the design." — by Product, 2026-09-22
 - DQ-022 — Status badge radius is 11px, the design says 12px — not-an-issue — "The badge is 22px tall, so any radius of 11px or more renders as the same full pill; the 12px in the frame and the 11px in code look identical." — by Maya Chen, 2026-09-22
+
+## Rejected by the agent (9)
+### duplicate (4)
+- wl:error:224,280 (worklist) — Error — 0.43% of the page — duplicate of dq-004 — "The 20px card padding (DQ-004) shifts the error banner and the focused row by 4px; nothing else differs."
+- wl:focus:232,280 (worklist) — Row focus — 4.09% of the page — duplicate of dq-004 — "The 20px card padding (DQ-004) shifts the error banner and the focused row by 4px; nothing else differs."
+- wl:loading:160,392 (worklist) — Loading — 0.05% of the page — duplicate of dq-018 — "The same search placeholder copy as DQ-018, seen in the other states."
+- wl:focus:376,968 (worklist) — Row focus — 0.72% of the page — duplicate of dq-010 — "The extra Updated column (DQ-010) and the dates in it; the Created column only differs by its data."
+### DATA (5)
+- wl:focus:664,264 (worklist) — Row focus — 12.1% of the page — "The focus fixture has more orders, so rows continue where the design's shorter table ends; the rows look like the ones above."
+- wl:with-data:152,1056 (worklist) — With data — 0.05% of the page — "The toolbar page range and page buttons show because the fixture has more than one page; the design frame has one page."
+- wl:loading:152,1088 (worklist) — Loading — 0.05% of the page — "The same toolbar page range from the fixture's order count, in the loading, error, hover and focus states."
+- wl:focus:376,296 (worklist) — Row focus — 0.61% of the page — "Order numbers and customer names in the focus fixture differ in length from the design's sample text; type and colour match."
+- wl:focus:376,760 (worklist) — Row focus — 0.2% of the page — "Status badge labels come from each fixture order's status; badge colours, radius and padding match the design."
 
 ## Cannot verify
 - DQ-014 — Selected row background cannot be verified (no driver for the selected state) — Not captured: add surfaces.orders.states.selected
-- Row selected: Designed and implemented, but no driver hook: add surfaces.orders.states.selected to design-qa.config.json so capture can open a row.
+- Row selected: Not captured: not captured: no runtime driver (needs a fixture, query, mock, storage, action or viewport).
 
 Next step — design backfill: 2 undesigned state(s) found; see report-backfill.md.

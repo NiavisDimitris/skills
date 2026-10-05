@@ -24,6 +24,7 @@ import { DISMISSIBLE_SEVERITIES, fingerprint, mdCell } from './lib/dismissals.mj
 import { DASH, sourceLocation } from './lib/fixplan.mjs';
 import { compareIds, isOpen, triageIndex } from './lib/ranking.mjs';
 import { resolveReviewConfig } from './lib/review-context.mjs';
+import { assertRunOwnsDir, callerRunId } from './lib/run-lock.mjs';
 import { validateConfig, validateReport } from './lib/schema-check.mjs';
 import { DEBT_OWNER, kebab, reportSlug } from './lib/triage.mjs';
 
@@ -31,7 +32,7 @@ const HELP = `Update the design-debt log from a triaged report.
 
 Usage:
   node scripts/debt-log.mjs --report <report.json> [--log <design-debt.json>] [--md <design-debt.md>]
-      [--config design-qa.config.json] [--quiet]
+      [--config design-qa.config.json] [--run <id>] [--quiet]
 
 Options:
   --report <file>   triaged report.json (see triage.mjs)
@@ -43,6 +44,8 @@ Options:
                     relative to the config file and inside its folder, symlinks
                     followed). Default: the rendered report's config, else the nearest
                     ancestor design-qa.config.json
+  --run <id>        your run id (or DESIGN_QA_RUN_ID); needed while the report's run
+                    is not finished
   --quiet           only print warnings and errors
   -h, --help        show this help
 
@@ -242,6 +245,7 @@ async function main(argv) {
     log: { type: 'string' },
     md: { type: 'string' },
     config: { type: 'string' },
+    run: { type: 'string' },
     quiet: { type: 'boolean' },
   });
   if (values.help) {
@@ -253,6 +257,8 @@ async function main(argv) {
   if (!values.report) throw usageError('--report <report.json> is required (see --help)');
 
   const reportFile = path.resolve(values.report);
+  // Only the run that owns the report folder logs its debt (a finished run's report needs no id).
+  assertRunOwnsDir(path.dirname(reportFile), { runId: callerRunId(values.run) });
   const report = readJsonFile(reportFile, 'report', 2);
   const check = validateReport(report, { skipScorecard: true, skipRanks: true });
   if (!check.valid) {

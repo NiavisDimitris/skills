@@ -14,47 +14,32 @@ The design can be a Figma file, frame, page or section (one screen or many), a F
 
 ## How it works
 
+A pass is a handful of commands. `pass.mjs` runs everything mechanical in a fixed order, and every stage ends with `Next: <command>`, runnable as printed, with anything the agent or the person must do first on `Do:` lines just above it. The agent's own judgment goes into one file, `findings.json`; the scripts build, check and render the report from it. That keeps different models, small and large, on the same path.
+
 ```
- Figma link / proto link    coded prototype     Jira ticket     target URL
-          |                       |                  |               |
-          v                       v                  v               v
-   figma-fetch.mjs     capture.mjs --side design  jira-fetch.mjs  (used directly)
-          |                       |                  |               |
-          +------ expected screens, states, tokens, components, motion, criteria
-                          |
-                          v
-                design-qa.config.json
-          (surfaces, state drivers, tolerances,
-                 ranking, design system refs)
-                          |
-                          v
-                    capture.mjs -- Playwright --> screenshots, computed
-                          |                        styles, DOM, motion, per state
-                          v
-          compare.mjs + diff.mjs  <-- design captures / Figma images + tokens
-                          |          (style, token, component, motion rows; pixelmatch)
-                          v
-       classified findings + state coverage grid  <-- earlier dismissals re-applied
-                                                      (dismiss.mjs --apply-log)
-                          |
-                          v
-                 render-report.mjs
-                    /            \
-                   v              v
-          report.json      report.html
-          report-fixplan.md (interactive, single file)
-          (agent-readable)   (human-readable)
-                          |
-                          v
-         review.mjs opens report.html: you choose fix now or later,
-         dismiss with a reason, tick "Create tickets", click Send
-                          |
-                          v
-         apply-decisions.mjs records it all in report.json
-                /                     |                      \
-               v                      v                       v
-      fix loop on the        debt tickets, if ticked     dismissed log
-      fix-now set            + design-debt log           (qa-reports/dismissed.md)
+ pass.mjs start      setup check (tools, config, app reachable and signed in), at most
+        |            4 questions on a first run, a report folder of its own (run lock)
+        v
+ the design          Figma: figma-fetch.mjs (FIGMA_TOKEN), or Figma MCP + figma-mcp-spec.mjs
+        |            (no token); a coded prototype needs nothing here; ticket: Jira MCP or jira-fetch.mjs
+        v
+ pass.mjs evidence   every design frame mapped to a screen or state; every designed state
+        |            captured over the whole page at its frame size; pixel diff; design-system
+        |            audit of every element; a short worklist of the places that differ
+        v
+ findings.json       the agent decides each worklist item, audit candidate and compare row:
+        |            a finding (pinned by a key or a selector) or a rejection with a reason
+        v
+ pass.mjs report     build-report.mjs -> report.json, earlier dismissals re-applied,
+        |            render-report.mjs -> report.html + report-fixplan.md, validate.mjs
+        v
+ pass.mjs review     opens report.html: you choose fix now or later, dismiss with
+        |            a reason, tick "Create tickets", click Send
+        v
+ apply-decisions.mjs -> fix loop on the fix-now set (evidence --recapture re-checks it),
+        |              debt tickets if ticked, logs
+        v
+ pass.mjs finish     (in CI: pass.mjs gate turns the verdict into the job's result)
 ```
 
 ## What you get
@@ -66,7 +51,7 @@ The design can be a Figma file, frame, page or section (one screen or many), a F
 - **`report-backfill.md`** — step 2: the states the app has and the design lacks, which ones to build in Figma, and a paste-to-design-agent block that builds them from the design-system library. See [Two steps](#two-steps-parity-then-design-backfill).
 - **`report.html`** — a single-file interactive report for humans. The annotated capture is the page: the design and the app screenshot side by side, overlaid, wiped or diffed, per screen and state, with numbered pins on the capture coloured by severity that open each finding's detail with its design-versus-app crop. Below it: a "Choose what to fix" board, the fix-now list with copyable agent prompts, a Dismiss button on every finding, one review bar that sends all your decisions back to your agent, a Design system view (token, component and motion mismatches), collapsed debt and dismissed lists, a findings table with facet filters, state coverage and decisions. Styled on shadcn/ui (Neutral theme, Geist embedded under its OFL licence), implemented in plain CSS so the file opens offline with no network calls.
 
-See a rendered example at [`examples/sample/report.html`](examples/sample/report.html), and a five-screen one at [`examples/mock-five-frames/report.html`](examples/mock-five-frames/report.html).
+See a rendered example at [`examples/sample/report.html`](examples/sample/report.html), and a five-screen one at [`examples/mock-five-frames/report.html`](examples/mock-five-frames/report.html) (assembled by hand before the builder existed, so its page says "Not built by build-report.mjs").
 
 ![The design-qa report: the annotated capture with numbered pins, the annotations rail with Fix now / Debt and Dismiss on each finding](docs/report-preview.png)
 
@@ -117,7 +102,7 @@ claude plugin marketplace add NiavisDimitris/skills
 claude plugin install design-qa@niavis-skills
 ```
 
-This repo is its own plugin marketplace: the first command registers it under the name `niavis-skills` (see [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)); it is not listed in Anthropic's marketplace. The second installs the `design-qa` plugin, which is just the [`skills/design-qa`](skills/design-qa) folder (about 1 MB; the examples, tests and docs stay out). Claude Code normally runs `npm install` for it, from the folder's own `package.json` and lockfile; if the packages are missing, the doctor below says so and prints the fix.
+This repo is its own plugin marketplace: the first command registers it under the name `niavis-skills` (see [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)); it is not listed in Anthropic's marketplace. The second installs the `design-qa` plugin, which is just the [`skills/design-qa`](skills/design-qa) folder (the examples, tests and docs stay out). Claude Code normally runs `npm install` for it, from the folder's own `package.json` and lockfile; if the packages are missing, the doctor below says so and prints the fix.
 
 Capture needs Playwright's Chromium, a one-time download of about 100 MB that the plugin install does not do. On first use the skill runs `node scripts/doctor.mjs`, which checks Node, the packages and Chromium and prints the exact command for anything missing; it asks you before downloading the browser. To do it up front, run the doctor yourself from the installed skill folder (Claude Code keeps it under `~/.claude/plugins/cache/niavis-skills/design-qa/<version>/`):
 
@@ -133,33 +118,54 @@ node ~/.claude/plugins/cache/niavis-skills/design-qa/*/scripts/doctor.mjs
 
 ## Quickstart
 
-Create `design-qa.config.json` at your project root. Start from [`examples/design-qa.config.example.json`](examples/design-qa.config.example.json) and fill in your surfaces, Figma file keys or prototype URLs, and design system references.
-
-Then invoke the skill with whatever you have on hand (shown with Claude Code's `/design-qa`; in Codex type `$design-qa`, in Cursor pick it with `/`):
+Invoke the skill with whatever you have on hand (shown with Claude Code's `/design-qa`; in Codex type `$design-qa`, in Cursor pick it with `/`):
 
 ```
 /design-qa https://www.figma.com/design/<key>/...?node-id=1-23 --url http://localhost:3000/orders
 /design-qa ACME-482
 /design-qa orders --mode fix
-/design-qa ACME-482 --url https://<preview>.vercel.app/orders --mode audit --states empty,loading,error
+/design-qa ACME-482 --url https://<preview>.vercel.app/orders --states empty,loading,error
 /design-qa https://www.figma.com/proto/<key>/...?node-id=4-12 --url http://localhost:3000/checkout
 /design-qa checkout --prototype https://checkout-proto.framer.website --url http://localhost:3000/checkout
 ```
 
-A Jira ticket key alone (`ACME-482`) is often enough — the skill pulls Figma links, acceptance criteria and a preview URL from the ticket itself.
+A Jira ticket key alone (`ACME-482`) is often enough: the skill pulls Figma links, acceptance criteria and a preview URL from the ticket itself.
+
+**No config to write first.** On the first run, `setup.mjs` reads the repository (the dev command and port, token files and themes in code, the component libraries the source imports, design docs), lists what it assumed, and asks at most four questions in one round, only those that change what a pass can find. `design-qa.config.json` is written only after you agree. An app behind sign-in gets `setup.mjs save-session`, asked in the same round as the other questions: a browser window opens and you sign in yourself; the agent never types or sees a password. Without a screen (SSH, a cloud session) it prints the command to run on your own computer, and `save-session --existing` records the session file you copy over. A set-up project gets no questions. A complete example config: [`examples/design-qa.config.example.json`](examples/design-qa.config.example.json).
 
 **Modes:**
 
-- `audit` (default) — compare, report and open the review; no code changes until you click Send.
-- `fix` — audit, let you choose what to fix now in the review, fix that set and re-verify; the rest becomes debt.
-- `ci` — like audit, but non-interactive: fixed output paths, no questions, exits with a verdict.
+- `audit` (default): compare, report and open the review; no code changes until you click Send.
+- `fix`: audit, let you choose what to fix now in the review, fix that set and re-verify; the rest becomes debt.
+- `ci`: like audit, but non-interactive: no questions, exits with a verdict.
 
-**Commands** on an existing report. You rarely need them: the review in `report.html` does the same in one step. They stay for typing by hand.
+**Commands** on an existing report. You rarely need them: the review in `report.html` does the same in one step.
 
-- `apply` — `/design-qa apply <slug>` applies the decisions you sent from the report (see [Review and send](#review-and-send-fix-now-later-or-dismiss)).
-- `triage` — `/design-qa triage <slug> --fix DQ-001,DQ-004` applies your fix-now choice (see below).
-- `dismiss` — `/design-qa dismiss <slug>` records findings that are not an issue, with your reasons (see below).
-- `backfill` — `/design-qa backfill <slug>` builds the undesigned states' frames in Figma from the design-system library, after production matches the design (see [Two steps](#two-steps-parity-then-design-backfill)).
+- `apply`: `/design-qa apply <slug>` applies the decisions you sent from the report (see [Review and send](#review-and-send-fix-now-later-or-dismiss)).
+- `triage`: `/design-qa triage <slug> --fix DQ-001,DQ-004` applies your fix-now choice.
+- `dismiss`: `/design-qa dismiss <slug>` records findings that are not an issue, with your reasons.
+- `backfill`: `/design-qa backfill <slug>` builds the undesigned states' frames in Figma from the design-system library, after production matches the design (see [Two steps](#two-steps-parity-then-design-backfill)).
+
+## What a pass guarantees
+
+- **The whole page.** Every state is captured over its full scroll height and width: lazy content is scrolled into view, inner scroll panels (an app shell's main panel) are unrolled, and a page wider than the viewport is captured at its full width. A panel that unrolls into blank space or moves pinned chrome is put back, and an endless page is cut once it has grown by twice the frame's height; such a state is marked "captured in part". When the app page is taller, shorter, wider or narrower than the design, the part only one image has is not counted as differing pixels: it is a size difference with its own REVIEW reason. The report shows the whole page, with pins anywhere on it, and what was hidden or masked before the compare. The config's `capture.viewportOnly` opts out for a design that is about the first screen.
+- **Every designed frame accounted for.** A Figma page or section is read as a whole: every top-level frame becomes a screen, a state, a breakpoint variant or an overlay, and the pass stops until any frame whose mapping is a judgement call is confirmed in a frame map. Each mapped frame gets a state row of its own (`Hover tile` is `hover-tile`, never folded into `hover`); two frames that would share an id stop the pass.
+- **No result from nothing.** A pass that captured nothing (a sign-in page, no driver for any state), or where fewer than half of the designed states have a result, is `INCOMPLETE` unless something makes it `FAIL`; never a 100% match. A sign-in page is never saved as a state: on the first state captured it stops capture with exit 6; on a later one that state is marked and the evidence stage asks for a fix. A state counts as verified only with a design image and a pixel diff against it. The headline has two numbers and the coverage: `FAIL · match 91% · 4 of 27 findings settled · 8 of 9 states verified`. Match comes from the pixel diff: the share of each compared page that does not differ, or whose difference a settled finding or a rejection backed by a computed hint accounts for. Differences nobody decided, including those beyond the worklist's caps, count against it and hold the verdict at REVIEW. Findings settled is how many of the findings are fixed, signed off or otherwise no longer open. The verdict carries severity: a page can match 97% and still FAIL on a blocker.
+- **Grounded, pinned findings.** Every open finding carries a pin on the capture; on a deployed target, findings come from the captured page, not from a local checkout. A difference the agent resolves as data counts only on a region with a computed data hint (or with a person's sign-off), never for a token, component, motion or state finding, and the verdict names it for a person to check. The validator rejects a report that breaks these rules.
+- **Design-system audit.** Every rendered element is checked against your tokens (off-token values, near misses) and your component libraries (raw third-party or native controls where the design system has a component). A check that could not run reads "not checked", with the reason, never 0.
+- **Run isolation.** Each pass gets its own report folder and run lock; writing into the folder of a run that is not finished needs that run's `--run` id. A busy folder gives the next run a sibling folder; an earlier pass is archived, never deleted, and a fresh pass inherits nothing but dismissals. Review servers are stopped by their own registration, never by pattern.
+
+## Cost and model choice
+
+The skill is built so a smaller, cheaper model can run it the same way a large one does, and so a run does not spend tokens on what a script can do:
+
+- **Short instructions.** `SKILL.md` is a numbered procedure with one command per step. Reference files are read only when their "Read when" line applies; a normal pass reads two of them (the worklist and the findings guide), plus the onboarding guide on a first run.
+- **Scripts do the sequencing.** `pass.mjs` decides the order, skips what is up to date, and prints one `Next:` line, so the agent never has to plan the pass or re-read long documentation to find the next step.
+- **Small inputs to judge.** The agent reads `worklist.md` (at most 30 items by default, with computed hints and small side-by-side crops) and the one-line list `pass.mjs report --check` prints. It never opens a full-page screenshot or a raw evidence file; `inspect.mjs` answers a question about one element, on either side.
+- **No arithmetic.** Pins come from a worklist key, an audit key or a selector; the build computes every box, id, rank and score.
+- **Quick partial passes.** `--states <a,b>` captures only the states you name; the report then says the coverage is partial, and if they are fewer than half of the designed states the verdict is `INCOMPLETE`.
+
+Measured: on the bundled five-screen mock (coded prototype, no sign-in), two cold runs by a Sonnet agent, given only the links, each finished a valid report in about 3 minutes, about 120,000 tokens and about 20 tool calls (17 and 22 commands). Both printed the same match (98%) and verdict (FAIL). They filed 18 and 13 findings for the same differences: one filed each wrong value separately, the other grouped them under two wrong-component findings. A finished pass on a Figma design or behind sign-in has not been measured on a real project.
 
 ## Two steps: parity, then design backfill
 
@@ -172,9 +178,9 @@ Choose on the report's Design backfill tab (sent with the rest of your review) o
 
 | You give | It reads |
 |---|---|
-| A Figma file, frame, page or section link | The Figma MCP, or the REST API with `FIGMA_TOKEN`: layers, variables, components, reactions, 1x PNGs per state. A page or section with several screens becomes a multi-screen pass (`<screen>/<state>` ids). |
+| A Figma file, frame, page or section link | With `FIGMA_TOKEN`, the REST API (`figma-fetch.mjs`). Without a token, the Figma MCP: the agent saves `get_metadata` and `get_screenshot` results and `figma-mcp-spec.mjs` turns them into the same spec and 1x PNGs (it refuses a screenshot that is not exactly 1x). A page or section with several screens becomes a multi-screen pass (`<screen>/<state>` ids). `--url` is the route of the one screen it can be matched to; a screen with no route stops the evidence stage with the `screens` entry to write in `states.json`. |
 | A Figma prototype link (`figma.com/proto/…`) | The same, starting from the prototype's node; the flow's frames are screens and states, its transitions are the expected motion. |
-| A coded prototype (`--prototype <url>`): Figma Make, Framer, v0, Lovable, HTML, localhost | Captured with the same viewport and state drivers as the app (`capture.mjs --side design`), then compared element by element (`compare.mjs`): styles, tokens, components, motion, structure. |
+| A coded prototype (`--prototype <url>`): Figma Make, Framer, v0, Lovable, HTML, localhost | Captured with the same frame size and state drivers as the app (`capture.mjs --side design`), then compared element by element (`compare.mjs`): styles, tokens, components, motion, structure. Several screens: declare them in the pass's `states.json` (`screens`, with each one's prototype URL and app route). |
 
 Details: [`references/prototype-source.md`](skills/design-qa/references/prototype-source.md).
 
@@ -204,7 +210,7 @@ DQ-007 remove — shared header, owned by the platform team
 by: A. Lee
 ```
 
-Each dismissal is recorded in `report.json` (resolution `DISMISSED` with kind, reason, author and date, or `INTENTIONAL` with a sign-off) and in the cumulative `qa-reports/dismissed.md` / `.json`. Dismissed findings leave the parity count. Every later pass re-applies them before ranking, so they are not raised again; if the difference itself changed, the finding comes back and the skill tells you.
+Each dismissal is recorded in `report.json` (resolution `DISMISSED` with kind, reason, author and date, or `INTENTIONAL` with a sign-off) and in the cumulative `qa-reports/dismissed.md` / `.json`. Dismissed findings leave the counts. Every later pass re-applies them before ranking, so they are not raised again; if the difference itself changed, the finding comes back and the skill tells you.
 
 ## States
 
@@ -212,7 +218,7 @@ Only the design defines which states exist. Three places feed the state matrix, 
 
 1. **The design** — defines the states: variants, state-named frames, prototype reactions, and annotations on the frame; or the routes, toggles and interactions of a coded prototype.
 2. **The ticket** — acceptance criteria add behaviour and motion checks to the designed states they mention (Jira today; see [Contributing](#contributing) to add another tracker). A state only the ticket names is not added.
-3. **The config** — `surfaces.<name>.states`, each with a driver that puts the app into a designed state: `fixture`, `query`, `mock`, `storage`, or `action` (see the example config for all five). A configured state the design lacks is not added either.
+3. **The drivers**: `qa-reports/<feature>/states.json` for one pass, or `surfaces.<name>.states` in the config, each with a driver that puts the app into a designed state: `fixture`, `query`, `mock`, `storage`, or `action` (see the example config for all five). The evidence stage suggests drivers for the states it could not reach, and stops until each has a driver or a recorded reason why it cannot be reached. With a Figma design, a `states.json` key (`<state>` or `<screen>/<state>`) that names no designed state stops it too, listing the designed ids. A configured state the design lacks is not added either.
 
 The state coverage grid in the report classifies every designed state:
 
@@ -227,36 +233,44 @@ Transitions and animations are part of the contract. The expected motion comes f
 
 ## Scripts
 
-All under `skills/design-qa/scripts/`. The example paths are relative to a clone of this repo; when installed as a plugin the skill folder is elsewhere, and `node scripts/doctor.mjs` prints where.
+All under `skills/design-qa/scripts/`. An agent normally runs only `pass.mjs` and what its `Next:` lines name; every script has `--help`. The example paths are relative to the project root; when installed as a plugin the skill folder is elsewhere, and `node scripts/doctor.mjs` prints where.
 
-| Script | Purpose | Example |
-|---|---|---|
-| `capture.mjs` | Drives the target app (or, with `--side design`, a coded prototype) with Playwright and records every designed state: screenshot, computed styles, DOM and motion | `node skills/design-qa/scripts/capture.mjs --url http://localhost:3000/orders --width 1440 --height 900 --states states.json --grab grab.json --out qa-reports/orders/evidence`<br>short form via config: `--config design-qa.config.json --surface orders --width 1440 --height 900 --out qa-reports/orders/evidence` |
-| `compare.mjs` | Compares a prototype capture with the app capture: style, token, component, motion and structure rows | `node skills/design-qa/scripts/compare.mjs --design qa-reports/checkout/evidence --app qa-reports/checkout/evidence --out qa-reports/checkout/evidence/compare.json` |
-| `diff.mjs` | Pixel-diffs a capture against its design reference (Figma export or prototype capture) | `node skills/design-qa/scripts/diff.mjs qa-reports/orders/evidence/figma/with-data.png qa-reports/orders/evidence/app/with-data.png --out qa-reports/orders/evidence/diff/with-data.png`<br>batch: `--pairs pairs.json --out-dir qa-reports/orders/evidence/diff` |
-| `figma-fetch.mjs` | Resolves a Figma link (design or prototype) to reference images and a per-state design spec with reactions; `--screens auto` for multi-screen pages | `FIGMA_TOKEN=... node skills/design-qa/scripts/figma-fetch.mjs --url "https://www.figma.com/design/AbCdEfGhIjKlMnOp/Orders?node-id=12-345" --states auto --out qa-reports/orders/evidence` |
-| `jira-fetch.mjs` | Resolves a ticket key to its Figma links, acceptance criteria and preview URL; creates debt tickets from a triaged report | `JIRA_BASE_URL=... JIRA_EMAIL=... JIRA_API_TOKEN=... node skills/design-qa/scripts/jira-fetch.mjs --issue ACME-482 --out qa-reports/orders/evidence`<br>debt tickets (dry run until `--write`): `node skills/design-qa/scripts/jira-fetch.mjs --tickets-from qa-reports/ACME-482/report.json --parent ACME-482 --write` |
-| `render-report.mjs` | Renders `report.json` into `report.html` and `report-fixplan.md` | `node skills/design-qa/scripts/render-report.mjs --in qa-reports/report.json --out qa-reports/report.html --embed-images --fixplan qa-reports/report-fixplan.md` |
-| `validate.mjs` | Validates a `report.json`, `design-qa.config.json`, `state-matrix.json` or `decisions.json` (type inferred from shape, or set with `--type`) | `node skills/design-qa/scripts/validate.mjs qa-reports/report.json` |
-| `review.mjs` | Opens `report.html` on a local server (127.0.0.1, one-time token) and waits for Send; saves `decisions.json` and exits 0 (3 when nothing was sent) | `node skills/design-qa/scripts/review.mjs --report qa-reports/ACME-482/report.json`<br>no browser: `--no-open` · stop waiting after n minutes: `--timeout-min 60` |
-| `apply-decisions.mjs` | Applies the reviewer's decisions (fix now / later, dismissals, backfill, tickets yes or no) to `report.json` and the logs, and prints the fix-now list and the next commands | `node skills/design-qa/scripts/apply-decisions.mjs --report qa-reports/ACME-482/report.json`<br>a pasted message saved to a file: `--from review-message.txt` · preview: `--dry-run` |
-| `triage.mjs` | Records which findings are fixed now and which become debt (blockers can't be debt) | `node skills/design-qa/scripts/triage.mjs --report qa-reports/ACME-482/report.json --fix DQ-001,DQ-004 --by "A. Lee" --source chat`<br>default split: `--default` · preview: `--dry-run` |
-| `dismiss.mjs` | Records dismissals with a reason in `report.json` and the cumulative `qa-reports/dismissed.json` / `.md`; `--apply-log` re-applies earlier ones | `node skills/design-qa/scripts/dismiss.mjs --report qa-reports/ACME-482/report.json --id DQ-004 --kind not-an-issue --reason "Anti-aliasing only" --by "A. Lee" --source chat`<br>a saved `/design-qa dismiss` message: `--from message.txt` · undo: `--undo DQ-004` · each pass: `--apply-log` |
-| `backfill.mjs` | Step 2: records undesigned-state candidates, build / not-needed decisions, the gate override and built Figma frames in `report.json` `backfill` | `node skills/design-qa/scripts/backfill.mjs --report qa-reports/ACME-482/report.json --candidates qa-reports/ACME-482/backfill-candidates.json`<br>decide: `--build BF-001,BF-002` · `--not-needed BF-003 --reason "Transient"` · a saved `/design-qa backfill` message: `--from message.txt` · built: `--record BF-001 --figma-url <url> --round-trip 0.4` |
-| `doctor.mjs` | Checks Node, the script packages and Playwright's Chromium, prints the skill folder and the command for anything missing | `node skills/design-qa/scripts/doctor.mjs` |
-| `debt-log.mjs` | Updates the cumulative design-debt log from a triaged report; entries are marked resolved when a later pass shows them fixed | `node skills/design-qa/scripts/debt-log.mjs --report qa-reports/ACME-482/report.json --log qa-reports/design-debt.json --md qa-reports/design-debt.md` |
+| Script | Purpose |
+|---|---|
+| `pass.mjs` | Runs a pass in stages: `start`, `evidence`, `report`, `review`, `finish`, plus `status` (the single next command), `save-drivers` and `gate` (the CI result, read only from a report that validates). Each ends with `Do:` lines and a `Next:` command. |
+| `setup.mjs` | `check`: what is ready, what is missing, and at most 4 questions. `apply`: writes the answers to `design-qa.config.json` (validated, atomic; refuses anything that looks like a secret). `save-session`: the person signs in in a browser window; the session is saved outside the repository. `export-theme`: turns a JS or TS theme into token JSON, only when the person agrees. |
+| `run.mjs` | The run lock: a report folder per pass, a sibling folder when one is busy, earlier passes archived, never deleted. |
+| `figma-fetch.mjs` | Reads a Figma link over REST (`FIGMA_TOKEN`): spec and 1x PNG per state; a page or section becomes a multi-screen pass. |
+| `figma-mcp-spec.mjs` | The same spec from saved Figma MCP output, without a token; saves `get_screenshot` images after checking they are exactly 1x. |
+| `jira-fetch.mjs` | Converts a saved Atlassian MCP issue (`--from-issue`) or fetches one over REST into `ticket.json`; creates debt tickets from a triaged report. |
+| `capture.mjs` | Drives the app (or, with `--side design`, a coded prototype) with Playwright: screenshot over the whole page, computed styles, DOM, motion and a design-system audit file per state. `--probe` checks the target is reachable and signed in. |
+| `diff.mjs` | Pixel-diffs the design image against the app capture; the part only one image has is reported as a size difference, not compared. A design image exported at another scale (2x, 1.5x, 0.75x) is refused. |
+| `compare.mjs` | Compares a prototype capture with the app capture: style, token, component, motion and structure rows. |
+| `ds-audit.mjs` | Checks every rendered element against the design system's tokens and component libraries. |
+| `worklist.mjs` | Turns the comparison into a short list of the places that differ, with hints and side-by-side crops. |
+| `inspect.mjs` | Answers one question about the evidence: what is at this place, on the app and in the design. |
+| `build-report.mjs` | Builds `report.json` from `findings.json` and the evidence; checks that every worklist item, audit candidate and compare row is accounted for, and records a fingerprint that `validate.mjs` and the review check, so a hand-edited report is refused. |
+| `render-report.mjs` | Renders `report.json` into `report.html`, `report-fixplan.md` and `report-backfill.md`. |
+| `validate.mjs` | Validates a report, config, state matrix or decisions document. |
+| `review.mjs` | Opens `report.html` on 127.0.0.1 with a one-time token and waits for Send; `--status` and `--stop` for its own server only. |
+| `apply-decisions.mjs` | Applies the reviewer's decisions to `report.json` and the logs, and prints the fix-now list. |
+| `triage.mjs`, `dismiss.mjs`, `debt-log.mjs` | Record a fix-now choice, a dismissal with its reason, and the cumulative debt log. |
+| `backfill.mjs` | Step 2: undesigned-state candidates, decisions, the gate override and built Figma frames. |
+| `doctor.mjs` | Checks Node, the packages and Playwright's Chromium, and prints the command for anything missing. |
 
-App auth, when the target app needs it, is env-only: `DESIGN_QA_APP_USER` / `DESIGN_QA_APP_PASS` / `DESIGN_QA_APP_COOKIE` / `DESIGN_QA_APP_STORAGE_STATE`. Never put credentials in `design-qa.config.json` — it's meant to be committed.
+App auth, when the target app needs it: `setup.mjs save-session` (you sign in yourself in a browser window; only the session file's path goes into the config), or environment variables in CI: `DESIGN_QA_APP_USER` / `DESIGN_QA_APP_PASS` / `DESIGN_QA_APP_COOKIE` / `DESIGN_QA_APP_STORAGE_STATE`. Never put credentials in `design-qa.config.json`: it is meant to be committed.
 
 ## CI
 
 A ready-to-copy adopter workflow lives at [`examples/github-actions/design-qa.yml`](examples/github-actions/design-qa.yml); the full walkthrough is in [`skills/design-qa/references/ci.md`](skills/design-qa/references/ci.md).
 
-It runs the skill headlessly against a PR's preview URL and gates the PR on:
+It runs the skill headlessly against a PR's preview URL and fails the check on a `FAIL` verdict:
 
 - any open **BLOCKER** finding,
 - a designed state **missing in the implementation**,
-- a pixel diff **above the review band** (`tolerances.pixelDiff.review` in the config) in a state with an unexplained finding or no findings.
+- a pixel diff **above the review band** (`tolerances.pixelDiff.review` in the config) in a state with an unexplained finding, or with more than that share of the page left unexplained,
+
+and on `INCOMPLETE` (nothing, or fewer than half of the designed states, captured and compared: a sign-in page, an unreachable target, missing drivers), which is never a pass. `pass.mjs gate` validates `report.json` against the evidence and `findings.json` before it reads the verdict, so a report edited by hand fails the check.
 
 In CI the skill records the default triage, never creates tickets, and lists the proposed debt in the PR comment for a person to confirm.
 
@@ -267,7 +281,7 @@ The workflow skips pull requests from forks and from Dependabot (they get no sec
 ## How it stays honest
 
 - One direction: the design is the reference; the code is what changes. Nothing in the parity pass asks the design to change; design backfill only adds frames for states the design never had, after the code matches.
-- Viewport matches the design frame's dimensions at device scale 1 — no shrink-to-fit comparisons. A coded prototype is captured at the same viewport as the app.
+- Captures run at the design frame's width, at device scale 1, over the whole page: no shrink-to-fit comparisons and nothing cut off below the fold. A coded prototype is captured at the same size as the app.
 - Comparisons run on computed styles read from the live page, never eyeballed from a screenshot.
 - Every visual claim traces back to a design token, or is named as a known exception — no "close enough."
 - Every finding is classified against the config's severity and ledger, not left as a loose note. A dismissal always carries a written reason.

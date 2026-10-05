@@ -3,13 +3,16 @@
 // optionally, the Markdown fix plan). See --help.
 import { createHash } from 'node:crypto';
 import { closeSync, constants as fsConstants, fstatSync, openSync, readFileSync, readSync, realpathSync, statSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CliError, displayPath, parseCli, readJsonFile, runMain, toNumber, usageError, writeJson, writeText } from './lib/args.mjs';
 import { renderFixplan } from './lib/fixplan.mjs';
 import { renderBackfillPlan } from './lib/backfill-plan.mjs';
-import { computeScorecard, rankFindings, resolveOptions } from './lib/ranking.mjs';
-import { validateConfig, validateReport } from './lib/schema-check.mjs';
+import { computeScorecard, explainVerdict, deriveStateResults, rankFindings, resolveOptions, scorecardHeadline } from './lib/ranking.mjs';
+import { isGateIssue, validateConfig, validateReport } from './lib/schema-check.mjs';
+import { assertRunOwnsOutput } from './lib/pass.mjs';
+import { assertRunOwnsDir, callerRunId, probeReviewServer, readReviewRegistration, registrationAlive } from './lib/run-lock.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_TEMPLATE = path.resolve(HERE, '../templates/report.html');
@@ -49,7 +52,9 @@ Options:
                        each and 100 MB in all (DESIGN_QA_EMBED_BUDGET_BYTES). Anything else
                        (missing, outside, a URL, over budget) is skipped with a warning and
                        stays a relative path. The page never loads a URL image.
-  --fixplan <file>     also write the Markdown fix plan: Source, Triage and Dismissed lines,
+  --fixplan <file>     also write the Markdown fix plan: the headline (match, findings settled,
+                       states verified), Incomplete or Partial coverage, Source, Target (a
+                       deployed build), Triage, Dismissed and Without a pin lines,
                        Fix now (+ paste block for a coding agent), Design-system mismatches
                        (Tokens, Components, Motion), Debt — tickets, Missing states / needs
                        decision, Dismissed, Cannot verify. With a triage block the person's
@@ -64,17 +69,25 @@ Options:
                        Built, Not needed, Pending decision. Not written without items
   --recompute          rewrite the derived values from the rules instead of failing when the
                        stored ones disagree: every finding's rank and the scorecard
-                       (severity/resolution counts, parity, verdict, pixel-diff bands,
+                       (severity/resolution counts, match, verdict, pixel-diff bands,
                        state coverage, unexplained, debt, loopClosed, dismissed,
-                       designSystem, and backfill when the report has a backfill block)
+                       designSystem, unpinned, rejected, and backfill when the report
+                       has a backfill block), and the PASS / FAIL result of every
+                       captured state row (FAIL exactly when one of its findings is open). Other keys of a pixel-diff entry (designHeight,
+                       appHeight, padded, structuralPercent, …) are kept
   --write-back         save the rendered report (ranks filled, scorecard recomputed with
                        --recompute) back to the --in file
   --config <file>      design-qa.config.json: tolerances.pixelDiff, report.topN,
                        report.ranking and report.embedImages
   --top-n <n>          number of "fix now" findings (default: config report.topN or 5);
                        re-ranks every finding
+  --run <id>           this pass's run id (default: DESIGN_QA_RUN_ID); refused (exit 5)
+                       when the report folder's run lock names another run
   --quiet              print errors only
   -h, --help           show this help
+
+When a live review server (review.mjs) is registered for the report's folder, one
+more line says so: the reviewer reloads report.html to see the new version.
 
 Before rendering, the report is validated (same rules as validate.mjs) and the
 command fails on any error. When any finding has "rank": null (or with --top-n /
@@ -83,6 +96,16 @@ ledger×10 + (6 − effort) for FIX_CODE findings with severity BLOCKER, WARNING
 DS_CANDIDATE; by score the top N are "fix-now", the rest "debt"; everything else
 (INTENTIONAL, DATA, DISMISSED, UNCLASSIFIED, PASS, CANNOT_VERIFY) is "none".
 Without --recompute the stored scorecard must equal the derived one.
+
+The success line is the headline: "FAIL · match 86% · 0 of 18 findings settled · 8 of 9
+states verified" (match: how much of the designed pages the app matches; findings
+settled: how far the fix loop has got; "match not measured" when no state was verified,
+"(n without a pin)" after the match when open findings have no pin).
+An INCOMPLETE verdict (nothing was captured and compared) still renders, with a
+warning: it is not a result, fix the capture and run the pass again. The evidence
+gates (pins, crops inside their image, grounding on a deployed target, full-length
+comparison) are warnings here, so a draft still renders; a closing warning says
+validate.mjs will reject the report until they are fixed.
 
 Template contract: the template must contain
   <script id="design-qa-data" type="application/json">${PLACEHOLDERS.data}</script>
@@ -98,7 +121,8 @@ when the --in file is inside the working directory, else {} (never an absolute p
 the HTML is shared). The page names that path in the message it copies for an agent;
 review.mjs adds { live, token } to it when it serves the page.
 
-Exit codes: 0 rendered · 1 invalid report, template or IO error · 2 bad arguments`;
+Exit codes: 0 rendered · 1 invalid report, template or IO error · 2 bad arguments ·
+5 another run owns the report folder`;
 
 const SCRIPT_ESCAPES = { '<': '\\u003c', '>': '\\u003e', '&': '\\u0026', '\u2028': '\\u2028', '\u2029': '\\u2029', __DESIGN_QA_: '\\u005f_DESIGN_QA_' };
 /**
@@ -407,7 +431,12 @@ export function prepareReport(input, { options = {}, recompute = false, rerank =
   const inputFindings = Array.isArray(input?.findings) ? input.findings : [];
   const needsRank = rerank || recompute || inputFindings.some((f) => !f || f.rank === null || f.rank === undefined);
   // --recompute derives the scorecard, so a report written without one (or with a partial one) is fine.
-  if (recompute && input && typeof input === 'object') input = { ...input, scorecard: computeScorecard(input, o) };
+  // --recompute also re-derives the PASS / FAIL rows from the findings (as build-report.mjs does), so a
+  // dismissal or sign-off applied after the build moves its state row and the state ledger too.
+  if (recompute && input && typeof input === 'object' && !Array.isArray(input)) {
+    input = deriveStateResults(input);
+    input = { ...input, scorecard: computeScorecard(input, o) };
+  }
   const first = validateReport(input, { options: o, skipScorecard: recompute, skipRanks: needsRank });
   if (!first.valid) return { report: input, errors: first.errors, warnings: first.warnings };
   let report = input;
@@ -439,6 +468,7 @@ async function main(argv) {
     'write-back': { type: 'boolean' },
     config: { type: 'string' },
     'top-n': { type: 'string' },
+    run: { type: 'string' },
     quiet: { type: 'boolean' },
   });
   if (values.help) {
@@ -450,6 +480,12 @@ async function main(argv) {
   const warn = values.quiet ? () => {} : (msg) => console.error(`warning: ${msg}`);
 
   const inFile = path.resolve(values.in);
+  const outFile = path.resolve(values.out || path.join(path.dirname(inFile), 'report.html'));
+  // Nothing is read or written for another run: the --in folder and every output's folder must be this run's.
+  assertRunOwnsDir(path.dirname(inFile), { runId: callerRunId(values.run) });
+  for (const target of [outFile, values.fixplan, values['backfill-plan']]) {
+    if (target) assertRunOwnsOutput(path.resolve(target), values.run);
+  }
   const input = readJsonFile(inFile, 'report', 2);
 
   let config = {};
@@ -468,7 +504,13 @@ async function main(argv) {
     recompute: Boolean(values.recompute),
     rerank: topN !== undefined,
   });
-  for (const w of warnings) warn(`${w.path}: ${w.message}`);
+  // Near-identical warnings (the same problem on many findings) are one line.
+  for (const w of groupIssues(warnings)) warn(`${w.path}: ${w.message}`);
+  // A draft still renders (people need to see it), but say plainly that the Phase 8 gate will refuse it.
+  const gateProblems = warnings.filter(isGateIssue).length;
+  if (gateProblems) {
+    warn(`validate.mjs will reject this report: ${gateProblems} evidence-gate problem${gateProblems === 1 ? '' : 's'} above (pins, crops, deployed-target grounding, full-length comparison); fix them before handing the report over`);
+  }
   if (errors.length) {
     const derivedDrift = errors.some((e) => e.path.startsWith('scorecard') || /^findings\[\d+\]\.rank/.test(e.path));
     const hint = derivedDrift && !values.recompute
@@ -515,13 +557,14 @@ async function main(argv) {
   }
   const html = fillTemplate(template, report, assets, context);
 
-  const outFile = path.resolve(values.out || path.join(path.dirname(inFile), 'report.html'));
   writeText(outFile, html);
   const sc = report.scorecard;
   log(
-    `Rendered ${displayPath(outFile)} — ${sc.verdict} · parity ${sc.parity}% · ${report.findings.length} finding(s)` +
+    `Rendered ${displayPath(outFile)} — ${scorecardHeadline(sc)} · ${report.findings.length} finding(s)` +
       (embed ? ` · ${Object.keys(assets).length} image(s) embedded` : ''),
   );
+  // Its own last reason: nothing compared, or too few states with a result.
+  if (sc.verdict === 'INCOMPLETE') warn(`verdict INCOMPLETE: ${explainVerdict(report, options).reasons.at(-1)}`);
 
   if (values.fixplan) {
     const planFile = path.resolve(values.fixplan);
@@ -542,7 +585,53 @@ async function main(argv) {
     writeJson(inFile, report);
     log(`Updated ${displayPath(inFile)}`);
   }
+  // Printed even with --quiet: a reviewer looking at the served page sees the old version until it reloads.
+  const port = await liveReviewPort(path.dirname(inFile));
+  if (port !== null) console.log(`Review server open (port ${port}): ask the reviewer to reload report.html in their browser to see this version.`);
   return 0;
+}
+
+/**
+ * The port of the live review server registered in `dir` (review.mjs registers it next
+ * to report.json), else null. The server is asked who it is (short timeout): it counts
+ * when it answers as that registration, not when nothing listens on the port or
+ * something else answers; when the probe is inconclusive (a timeout, or a server on
+ * another host), a live registration counts. Never reads or prints the token.
+ */
+async function liveReviewPort(dir) {
+  let reg;
+  try {
+    reg = readReviewRegistration(dir);
+  } catch {
+    return null;
+  }
+  if (!reg || reg.invalid) return null;
+  if (reg.host && reg.host !== os.hostname()) return registrationAlive(reg) ? reg.port : null;
+  const probe = await probeReviewServer(reg, { timeoutMs: 1500 });
+  if (probe.ok) return reg.port;
+  if (/^nothing listens|answered, but not as/.test(probe.error ?? '')) return null;
+  return registrationAlive(reg) ? reg.port : null;
+}
+
+/**
+ * Issues that differ only in their array indexes (findings[0].evidence, findings[3].evidence…)
+ * become one { path, message } when there are at least `min` of them: the path with [*]
+ * and the indexes listed, e.g. "findings[*].evidence (5×: 0, 1, 2, 3, 7)". Others are kept as they are.
+ */
+function groupIssues(issues, min = 3) {
+  const star = (s) => String(s).replace(/\[\d+\]/g, '[*]');
+  const groups = new Map();
+  for (const issue of issues) {
+    const key = `${star(issue.path)}\u0000${star(issue.message)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(issue);
+  }
+  return [...groups.values()].flatMap((list) => {
+    if (list.length < min) return list;
+    const at = list.map((i) => (String(i.path).match(/\[(\d+)\]/g) ?? []).map((m) => m.slice(1, -1)).join('.'));
+    const shown = at.length > 12 ? `${at.slice(0, 12).join(', ')}, …` : at.join(', ');
+    return [{ path: `${star(list[0].path)} (${list.length}×: ${shown})`, message: star(list[0].message) }];
+  });
 }
 
 runMain(import.meta.url, main);

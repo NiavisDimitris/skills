@@ -1,6 +1,8 @@
 # Design QA fix plan — Checkout v3
-Verdict: FAIL · Parity 41% · States: 8/9 verified (9 designed, 8 specified, 8 implemented)
+Verdict: FAIL · match 88% · 2 of 15 findings settled · 8 of 9 states verified · 9 designed, 8 specified, 8 implemented
+**Partial coverage:** the match covers 8 of 9 designed states; the other 1 was not compared (see Missing states and Cannot verify).
 Source: figma https://www.figma.com/design/Ck3fQ9xYzA1/Checkout-v3?node-id=2140-118 · App: http://localhost:5179/checkout/cart (local) · Ticket: CHK-214 · Generated: 2026-10-03T09:40:00Z
+Capture: whole page in 8 of 8 verified states
 Triage: recommended (top 5 by rank). Choose in report.html and click "Review and send", or type /design-qa triage CHK-214 --fix DQ-001,DQ-007,DQ-016,DQ-017,DQ-011
 Dismissed: 1 · accepted as intentional: 1
 
@@ -120,6 +122,9 @@ Evidence: evidence/screens/payment/figma/with-data.png, evidence/screens/payment
 ## Dismissed (2)
 - DQ-004 — Line-item thumbnail corner is 8px; the design binds --ads-radius-md (10px) — not-an-issue — "The thumbnail is the shared ProductImage, whose 8px corner is the catalogue-wide standard (grid, product page, mini-cart). On a 64px photo the 2px difference is not visible at 1x or 2x; checked on device." — by Maya Chen, 2026-10-03
 - DQ-021 — Confirmation heading drops the customer’s first name — intentional — "Confirmation pages are often left open on shared and in-store screens; Legal asked to keep the customer’s name off the heading. Approved in the Checkout v3 design review." — by Priya Raman (Product), 2026-09-29
+
+## Data differences (1)
+- DQ-022 — Order number differs (#AC-10517 in the app, #AC-10482 in the frame) (WARNING, state confirmation/with-data) — "The order number comes from the API for each order; its type, colour and position match the frame."
 
 ## Cannot verify
 - DQ-014 — Payment / With data: Card number focus ring cannot be verified (no focus driver) — Not captured: add surfaces.checkout.screens.payment.states.focus

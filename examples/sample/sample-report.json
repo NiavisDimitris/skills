@@ -1,14 +1,15 @@
 {
   "schemaVersion": "2.0",
   "meta": {
-    "feature": "Orders list",
-    "generatedAt": "2026-09-22T14:32:08Z",
-    "skillVersion": "0.2.0",
+    "feature": "orders",
+    "generatedAt": "2026-10-05T06:27:48.096Z",
+    "skillVersion": "0.2.2",
     "mode": "fix",
+    "runId": "20260922T140000Z-a1b2c3",
     "source": {
       "kind": "figma",
-      "url": "https://www.figma.com/design/aBcD3fGh1JkLmN0pQrStUv/Acme-Console?node-id=1204-3310",
-      "label": "Orders list (Figma)",
+      "url": "https://www.figma.com/design/aBcD3fGh1JkLmN0pQrStUv/?node-id=1204-3310",
+      "label": "Orders / With data (Figma)",
       "tool": null,
       "frame": {
         "width": 1440,
@@ -24,7 +25,7 @@
     "figma": {
       "fileKey": "aBcD3fGh1JkLmN0pQrStUv",
       "nodeId": "1204:3310",
-      "url": "https://www.figma.com/design/aBcD3fGh1JkLmN0pQrStUv/Acme-Console?node-id=1204-3310",
+      "url": "https://www.figma.com/design/aBcD3fGh1JkLmN0pQrStUv/?node-id=1204-3310",
       "frame": {
         "width": 1440,
         "height": 900
@@ -34,7 +35,7 @@
       "url": "https://acme-console-git-feat-orders-acme.vercel.app/orders",
       "kind": "preview",
       "route": "/orders",
-      "commit": "9f3c2a1e7b4d8c06a5f2e19d3b7c4a8e0f6d2b51",
+      "commit": null,
       "branch": "feat/orders-list",
       "viewport": {
         "width": 1440,
@@ -42,14 +43,41 @@
       },
       "dpr": 1
     },
-    "fixture": "fixtures/orders/with-data.json",
+    "fixture": null,
+    "target": {
+      "kind": "remote",
+      "localCommit": "9f3c2a1e7b4d8c06a5f2e19d3b7c4a8e0f6d2b51",
+      "deployedCommit": null
+    },
     "tools": {
       "figmaAccess": "mcp",
       "capture": "script",
       "prototypeCapture": null,
-      "ticket": "mcp"
+      "ticket": "mcp",
+      "dsAudit": "manual"
+    },
+    "dsAudit": {
+      "elementsChecked": 214,
+      "offTokenValues": 4,
+      "nonSystemComponents": 1,
+      "output": null
     },
     "degradations": [
+      {
+        "step": "source trace",
+        "reason": "the deployed commit is unknown (local checkout 9f3c2a1e7b4d); set pass.target.deployedCommit when the deployment reports it",
+        "impact": "file references in findings are hints from the local checkout; findings come from the captured page"
+      },
+      {
+        "step": "capture:selected",
+        "reason": "Not captured: not captured: no runtime driver (needs a fixture, query, mock, storage, action or viewport).",
+        "impact": "\"selected\" is CANNOT_VERIFY: it was not compared"
+      },
+      {
+        "step": "capture:selected",
+        "reason": "no runtime driver (needs a fixture, query, mock, storage, action or viewport)",
+        "impact": "State \"selected\" cannot be verified (CANNOT_VERIFY)."
+      },
       {
         "step": "capture:selected",
         "reason": "No driver hook for the selected state (surfaces.orders.states.selected is not defined).",
@@ -60,10 +88,70 @@
         "reason": "Motion variables (Acme DS / Motion) are not published to the library, so the MCP returned no motion tokens.",
         "impact": "The 160 ms / ease-out expectation in DQ-008 comes from the Figma prototype reaction; the --ads-motion-base token name comes from design-rules."
       }
-    ]
+    ],
+    "build": {
+      "tool": "build-report",
+      "version": "0.2.2",
+      "findings": {
+        "path": "findings.json",
+        "sha256": "328c86023cb1948fa609ef94c63c1904902a37c180c40af7ca949c464bb65d7f"
+      },
+      "config": {
+        "path": "design-qa.config.json",
+        "sha256": "fc9d7a9bf171ac0e48710e8732e99e9196dbd81ddf70df3cc704ef60172fea6b"
+      },
+      "evidence": [
+        {
+          "path": "state-matrix.json",
+          "sha256": "adcba2cb95012f976748ad172a16aa1488739e99597cdd876560c34ea24fc947"
+        },
+        {
+          "path": "evidence/capture.json",
+          "sha256": "c910fe6589fff4374fd0f99130be2d65909c8f089589ba27c039e5b31d563a31"
+        },
+        {
+          "path": "evidence/diff.json",
+          "sha256": "71ced7bc95e6a569dd8dd46851fdb463aac04de6b7f5bd394a4be9394abc672f"
+        },
+        {
+          "path": "evidence/worklist.json",
+          "sha256": "b5c5fd1195fe4572ece95f1c0278d6517481d207f8f0445723eb56f9d79d2127"
+        },
+        {
+          "path": "evidence/figma-spec.json",
+          "sha256": "2eafe67695a9d002ff72424c3a0ce27a707252677483e4c3b9361a207dae7810"
+        },
+        {
+          "path": "design-qa/known-drifts.md",
+          "sha256": "30d765215bcba0e55c3508cdd104e588a113ef9911f8b212548547739074d892"
+        }
+      ],
+      "identities": {
+        "DQ-001": "ref:dq-001",
+        "DQ-002": "ref:dq-002",
+        "DQ-003": "ref:dq-003",
+        "DQ-004": "ref:dq-004",
+        "DQ-005": "ref:dq-005",
+        "DQ-006": "ref:dq-006",
+        "DQ-007": "ref:dq-007",
+        "DQ-008": "ref:dq-008",
+        "DQ-010": "ref:dq-010",
+        "DQ-011": "ref:dq-011",
+        "DQ-012": "ref:dq-012",
+        "DQ-013": "ref:dq-013",
+        "DQ-014": "ref:dq-014",
+        "DQ-015": "ref:dq-015",
+        "DQ-016": "ref:dq-016",
+        "DQ-017": "ref:dq-017",
+        "DQ-018": "ref:dq-018",
+        "DQ-019": "ref:dq-019",
+        "DQ-020": "ref:dq-020",
+        "DQ-021": "ref:dq-021",
+        "DQ-022": "ref:dq-022"
+      }
+    }
   },
   "scorecard": {
-    "parity": 45,
     "verdict": "FAIL",
     "bySeverity": {
       "BLOCKER": 2,
@@ -74,8 +162,8 @@
     },
     "byResolution": {
       "FIX_CODE": 10,
-      "INTENTIONAL": 1,
-      "DATA": 2,
+      "INTENTIONAL": 3,
+      "DATA": 0,
       "DISMISSED": 1,
       "NONE": 6,
       "UNCLASSIFIED": 1
@@ -84,27 +172,47 @@
       "with-data": {
         "percent": 3.55,
         "band": "review",
-        "image": "evidence/diff/with-data.png"
+        "image": "evidence/diff/with-data.png",
+        "designHeight": 900,
+        "appHeight": 900,
+        "designWidth": 1440,
+        "appWidth": 1440
       },
       "loading": {
         "percent": 3.88,
         "band": "review",
-        "image": "evidence/diff/loading.png"
+        "image": "evidence/diff/loading.png",
+        "designHeight": 900,
+        "appHeight": 900,
+        "designWidth": 1440,
+        "appWidth": 1440
       },
       "error": {
         "percent": 0.54,
         "band": "pass",
-        "image": "evidence/diff/error.png"
+        "image": "evidence/diff/error.png",
+        "designHeight": 900,
+        "appHeight": 900,
+        "designWidth": 1440,
+        "appWidth": 1440
       },
       "hover": {
         "percent": 7.05,
         "band": "fail",
-        "image": "evidence/diff/hover.png"
+        "image": "evidence/diff/hover.png",
+        "designHeight": 900,
+        "appHeight": 900,
+        "designWidth": 1440,
+        "appWidth": 1440
       },
       "focus": {
         "percent": 4.25,
         "band": "review",
-        "image": "evidence/diff/focus.png"
+        "image": "evidence/diff/focus.png",
+        "designHeight": 900,
+        "appHeight": 900,
+        "designWidth": 1440,
+        "appWidth": 1440
       }
     },
     "stateCoverage": {
@@ -112,7 +220,21 @@
       "designed": 7,
       "specified": 4,
       "implemented": 6,
-      "verified": 5
+      "verified": 5,
+      "partial": 0
+    },
+    "match": 73,
+    "matchByState": {
+      "with-data": 83,
+      "empty": 0,
+      "loading": 94,
+      "error": 99,
+      "hover": 80,
+      "focus": 82
+    },
+    "settled": {
+      "count": 3,
+      "total": 14
     },
     "unexplained": 5,
     "debt": {
@@ -125,6 +247,13 @@
       "tokens": 4,
       "components": 1,
       "motion": 2
+    },
+    "unpinned": 0,
+    "rejected": {
+      "worklist": 9,
+      "audit": 0,
+      "compare": 0,
+      "pageShare": 17.7
     },
     "backfill": {
       "candidates": 2,
@@ -151,13 +280,8 @@
         "driver": "fixture",
         "detail": "fixtures/orders/with-data.json (12 orders)"
       },
-      "captured": {
-        "design": "evidence/figma/with-data.png",
-        "app": "evidence/app/with-data.png",
-        "diff": "evidence/diff/with-data.png"
-      },
-      "result": "PASS",
-      "note": "Designed, specified and implemented; the layout matches. Element-level deltas (header component, padding, title weight, extra column, copy, data) are tracked as findings.",
+      "result": "FAIL",
+      "note": null,
       "findings": [
         "DQ-002",
         "DQ-004",
@@ -170,7 +294,27 @@
         "DQ-018",
         "DQ-020",
         "DQ-022"
-      ]
+      ],
+      "captured": {
+        "design": "evidence/figma/with-data.png",
+        "app": "evidence/app/with-data.png",
+        "diff": "evidence/diff/with-data.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
+      }
     },
     {
       "state": "empty",
@@ -184,16 +328,21 @@
         "text": "When there are no orders, show the empty state with a 'Create order' action."
       },
       "implemented": null,
-      "captured": {
-        "design": "evidence/figma/empty.png",
-        "app": null,
-        "diff": null
-      },
       "result": "MISSING_IN_CODE",
       "note": "Designed and specified (AC-2) but not implemented: with no orders the page renders the table header over an empty body.",
       "findings": [
         "DQ-001"
-      ]
+      ],
+      "captured": {
+        "design": "evidence/figma/empty.png",
+        "app": null,
+        "diff": null,
+        "comparison": {
+          "pixelDiff": false,
+          "worklist": false,
+          "compareRows": 0
+        }
+      }
     },
     {
       "state": "loading",
@@ -210,18 +359,34 @@
         "driver": "mock",
         "detail": "Mock handler delays GET /api/orders by 2 s"
       },
-      "captured": {
-        "design": "evidence/figma/loading.png",
-        "app": "evidence/app/loading.png",
-        "diff": "evidence/diff/loading.png"
-      },
       "result": "FAIL",
-      "note": "Skeleton exists, but bar radius (DQ-007) and card inset spacing (DQ-004) differ, and it appears immediately instead of after 300 ms (DQ-016).",
+      "note": null,
       "findings": [
+        "DQ-006",
         "DQ-007",
         "DQ-016",
         "DQ-021"
-      ]
+      ],
+      "captured": {
+        "design": "evidence/figma/loading.png",
+        "app": "evidence/app/loading.png",
+        "diff": "evidence/diff/loading.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
+      }
     },
     {
       "state": "error",
@@ -238,17 +403,33 @@
         "driver": "mock",
         "detail": "Mock handler returns 500 for GET /api/orders"
       },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-006",
+        "DQ-015",
+        "DQ-019"
+      ],
       "captured": {
         "design": "evidence/figma/error.png",
         "app": "evidence/app/error.png",
-        "diff": "evidence/diff/error.png"
-      },
-      "result": "PASS",
-      "note": "Alert and Retry match the design; Retry re-requests the orders.",
-      "findings": [
-        "DQ-015",
-        "DQ-019"
-      ]
+        "diff": "evidence/diff/error.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
+      }
     },
     {
       "state": "hover",
@@ -262,17 +443,34 @@
         "driver": "action",
         "detail": "hover '[data-testid=orders-table] tbody tr:nth-child(2)'"
       },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-003",
+        "DQ-004",
+        "DQ-006",
+        "DQ-008"
+      ],
       "captured": {
         "design": "evidence/figma/hover.png",
         "app": "evidence/app/hover.png",
-        "diff": "evidence/diff/hover.png"
-      },
-      "result": "FAIL",
-      "note": "Hover background is a hardcoded hex instead of --ads-color-surface-hover, with a 400 ms transition.",
-      "findings": [
-        "DQ-003",
-        "DQ-008"
-      ]
+        "diff": "evidence/diff/hover.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
+      }
     },
     {
       "state": "focus",
@@ -286,16 +484,32 @@
         "driver": "action",
         "detail": "press Tab ×6 to focus the first row"
       },
+      "result": "FAIL",
+      "note": null,
+      "findings": [
+        "DQ-006",
+        "DQ-017"
+      ],
       "captured": {
         "design": "evidence/figma/focus.png",
         "app": "evidence/app/focus.png",
-        "diff": "evidence/diff/focus.png"
-      },
-      "result": "PASS",
-      "note": "Inset focus ring matches the design rules.",
-      "findings": [
-        "DQ-017"
-      ]
+        "diff": "evidence/diff/focus.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
+      }
     },
     {
       "state": "selected",
@@ -309,16 +523,21 @@
         "driver": "source",
         "detail": "OrdersTable.tsx:88 sets aria-selected and .is-selected on the open row"
       },
+      "result": "CANNOT_VERIFY",
+      "note": "Not captured: not captured: no runtime driver (needs a fixture, query, mock, storage, action or viewport).",
+      "findings": [
+        "DQ-014"
+      ],
       "captured": {
         "design": "evidence/figma/selected.png",
         "app": null,
-        "diff": null
-      },
-      "result": "CANNOT_VERIFY",
-      "note": "Designed and implemented, but no driver hook: add surfaces.orders.states.selected to design-qa.config.json so capture can open a row.",
-      "findings": [
-        "DQ-014"
-      ]
+        "diff": null,
+        "comparison": {
+          "pixelDiff": false,
+          "worklist": false,
+          "compareRows": 0
+        }
+      }
     },
     {
       "state": "overflow",
@@ -326,10 +545,19 @@
       "designed": null,
       "specified": null,
       "implemented": null,
-      "captured": null,
       "result": "NOT_SPECIFIED",
       "note": "Not designed, specified or driven. Suggest a long-names fixture and a truncation rule in the ticket.",
-      "findings": []
+      "findings": [],
+      "captured": {
+        "design": null,
+        "app": null,
+        "diff": null,
+        "comparison": {
+          "pixelDiff": false,
+          "worklist": false,
+          "compareRows": 0
+        }
+      }
     }
   ],
   "findings": [
@@ -364,13 +592,13 @@
       "delta": "State missing in code",
       "tolerance": "State must exist",
       "fix": {
-        "summary": "Render the Acme DS EmptyState when there are no orders, with the 'Create order' primary action.",
         "patchHint": "if (!orders.length) return <EmptyState icon=\"inbox\" title=\"No orders yet\" description=\"Orders you create or import will appear here.\" action={<Button variant=\"primary\" onClick={onCreate}>Create order</Button>} />;",
         "files": [
           "src/features/orders/OrdersTable.tsx",
           "src/features/orders/OrdersPage.tsx"
         ],
-        "effort": 2
+        "effort": 2,
+        "summary": "Render the Acme DS EmptyState when there are no orders, with the 'Create order' primary action."
       },
       "evidence": [
         {
@@ -383,15 +611,21 @@
             "h": 400
           },
           "state": "empty"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/dom/empty.json",
+          "crop": null,
+          "state": "empty"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-2",
       "rank": {
         "score": 334,
         "bucket": "fix-now"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": "AC-2"
+      }
     },
     {
       "id": "DQ-002",
@@ -424,13 +658,13 @@
       "delta": "Component mismatch; sorting unavailable",
       "tolerance": "Same DS component",
       "fix": {
-        "summary": "Replace the hand-built <thead> with Table.Header and Table.HeaderCell (sortable on Total and Created); delete the .orders-th styles.",
         "patchHint": "<Table.Header sticky>{columns.map((c) => <Table.HeaderCell key={c.id} sortable={c.sortable} align={c.align}>{c.label}</Table.HeaderCell>)}</Table.Header>",
         "files": [
           "src/features/orders/OrdersTable.tsx",
           "src/features/orders/orders.css"
         ],
-        "effort": 3
+        "effort": 3,
+        "summary": "Replace the hand-built <thead> with Table.Header and Table.HeaderCell (sortable on Total and Created); delete the .orders-th styles."
       },
       "evidence": [
         {
@@ -447,12 +681,7 @@
         {
           "type": "screenshot",
           "path": "evidence/app/with-data.png",
-          "crop": {
-            "x": 284,
-            "y": 224,
-            "w": 1104,
-            "h": 40
-          },
+          "crop": null,
           "state": "with-data"
         },
         {
@@ -462,13 +691,13 @@
           "state": "with-data"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 333,
         "bucket": "fix-now"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-003",
@@ -501,12 +730,12 @@
       "delta": "ΔL* −10 (visibly darker), untokenised",
       "tolerance": "Token match",
       "fix": {
-        "summary": "Replace the hardcoded hover colour with the surface-hover token.",
         "patchHint": ".orders-row:hover { background: var(--ads-color-surface-hover); }",
         "files": [
           "src/features/orders/orders.css"
         ],
-        "effort": 1
+        "effort": 1,
+        "summary": "Replace the hardcoded hover colour with the surface-hover token."
       },
       "evidence": [
         {
@@ -523,23 +752,13 @@
         {
           "type": "screenshot",
           "path": "evidence/app/hover.png",
-          "crop": {
-            "x": 284,
-            "y": 312,
-            "w": 1104,
-            "h": 48
-          },
+          "crop": null,
           "state": "hover"
         },
         {
           "type": "diff",
           "path": "evidence/diff/hover.png",
-          "crop": {
-            "x": 284,
-            "y": 312,
-            "w": 1104,
-            "h": 48
-          },
+          "crop": null,
           "state": "hover"
         },
         {
@@ -549,13 +768,13 @@
           "state": "hover"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 225,
         "bucket": "fix-now"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-004",
@@ -588,12 +807,12 @@
       "delta": "−4px on every side",
       "tolerance": "±1px",
       "fix": {
-        "summary": "Use the spacing token for the card padding.",
         "patchHint": ".orders-card { padding: var(--ads-space-6); }",
         "files": [
           "src/features/orders/orders.css"
         ],
-        "effort": 1
+        "effort": 1,
+        "summary": "Use the spacing token for the card padding."
       },
       "evidence": [
         {
@@ -610,12 +829,7 @@
         {
           "type": "screenshot",
           "path": "evidence/app/with-data.png",
-          "crop": {
-            "x": 264,
-            "y": 204,
-            "w": 1144,
-            "h": 656
-          },
+          "crop": null,
           "state": "with-data"
         },
         {
@@ -625,13 +839,13 @@
           "state": "with-data"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 225,
         "bucket": "fix-now"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-005",
@@ -683,13 +897,13 @@
           "state": "with-data"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 0,
         "bucket": "none"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-006",
@@ -722,12 +936,12 @@
       "delta": "−100",
       "tolerance": "Exact",
       "fix": {
-        "summary": "Use the semibold weight token for page titles (shared PageHeader).",
         "patchHint": ".title { font-weight: var(--ads-font-weight-semibold); }",
         "files": [
           "src/components/PageHeader.module.css"
         ],
-        "effort": 1
+        "effort": 1,
+        "summary": "Use the semibold weight token for page titles (shared PageHeader)."
       },
       "evidence": [
         {
@@ -744,12 +958,7 @@
         {
           "type": "screenshot",
           "path": "evidence/app/with-data.png",
-          "crop": {
-            "x": 264,
-            "y": 78,
-            "w": 75,
-            "h": 32
-          },
+          "crop": null,
           "state": "with-data"
         },
         {
@@ -759,13 +968,13 @@
           "state": "with-data"
         }
       ],
+      "signoff": null,
+      "knownDrift": "KD-2",
+      "acRef": null,
       "rank": {
         "score": 225,
         "bucket": "debt"
-      },
-      "signoff": null,
-      "knownDrift": "KD-2",
-      "acRef": null
+      }
     },
     {
       "id": "DQ-007",
@@ -798,12 +1007,12 @@
       "delta": "−4px",
       "tolerance": "Token match",
       "fix": {
-        "summary": "Drop the inline radius override so Skeleton uses --ads-radius-md.",
         "patchHint": "<Skeleton className=\"orders-skel\" />",
         "files": [
           "src/features/orders/OrdersSkeleton.tsx"
         ],
-        "effort": 1
+        "effort": 1,
+        "summary": "Drop the inline radius override so Skeleton uses --ads-radius-md."
       },
       "evidence": [
         {
@@ -820,23 +1029,13 @@
         {
           "type": "screenshot",
           "path": "evidence/app/loading.png",
-          "crop": {
-            "x": 300,
-            "y": 282,
-            "w": 84,
-            "h": 12
-          },
+          "crop": null,
           "state": "loading"
         },
         {
           "type": "diff",
           "path": "evidence/diff/loading.png",
-          "crop": {
-            "x": 300,
-            "y": 282,
-            "w": 84,
-            "h": 12
-          },
+          "crop": null,
           "state": "loading"
         },
         {
@@ -846,13 +1045,13 @@
           "state": "loading"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 225,
         "bucket": "debt"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-008",
@@ -885,14 +1084,25 @@
       "delta": "+240ms, easing differs",
       "tolerance": "±20ms",
       "fix": {
-        "summary": "Use the motion tokens for the row hover transition (160ms, ease-out).",
         "patchHint": ".orders-row { transition: background-color var(--ads-motion-base) var(--ads-ease-standard); }",
         "files": [
           "src/features/orders/orders.css"
         ],
-        "effort": 1
+        "effort": 1,
+        "summary": "Use the motion tokens for the row hover transition (160ms, ease-out)."
       },
       "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/hover.png",
+          "crop": {
+            "x": 284,
+            "y": 264,
+            "w": 1104,
+            "h": 48
+          },
+          "state": "hover"
+        },
         {
           "type": "motion",
           "path": "evidence/motion/hover.json",
@@ -904,26 +1114,15 @@
           "path": "evidence/computed/hover.json",
           "crop": null,
           "state": "hover"
-        },
-        {
-          "type": "screenshot",
-          "path": "evidence/app/hover.png",
-          "crop": {
-            "x": 284,
-            "y": 264,
-            "w": 1104,
-            "h": 48
-          },
-          "state": "hover"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 225,
         "bucket": "debt"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-010",
@@ -956,12 +1155,12 @@
       "delta": "+1 column (added in ACME-497 after the frame was drawn)",
       "tolerance": "Exact",
       "fix": {
-        "summary": "Remove the 'Updated' column so the table matches the design: Order · Customer · Status · Total · Created.",
         "patchHint": "// columns.ts: delete { id: 'updated', header: 'Updated', cell: (o) => formatDateTime(o.updatedAt) },",
         "files": [
           "src/features/orders/columns.ts"
         ],
-        "effort": 1
+        "effort": 1,
+        "summary": "Remove the 'Updated' column so the table matches the design: Order · Customer · Status · Total · Created."
       },
       "evidence": [
         {
@@ -978,12 +1177,7 @@
         {
           "type": "screenshot",
           "path": "evidence/app/with-data.png",
-          "crop": {
-            "x": 1244,
-            "y": 224,
-            "w": 136,
-            "h": 40
-          },
+          "crop": null,
           "state": "with-data"
         },
         {
@@ -993,13 +1187,13 @@
           "state": "with-data"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 235,
         "bucket": "fix-now"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-011",
@@ -1032,10 +1226,10 @@
       "delta": "Moved above the table",
       "tolerance": "Exact position",
       "fix": {
-        "summary": "No code change (signed off).",
         "patchHint": null,
         "files": [],
-        "effort": 1
+        "effort": 1,
+        "summary": "No code change (signed off)."
       },
       "evidence": [
         {
@@ -1052,26 +1246,21 @@
         {
           "type": "screenshot",
           "path": "evidence/app/with-data.png",
-          "crop": {
-            "x": 1060,
-            "y": 152,
-            "w": 196,
-            "h": 36
-          },
+          "crop": null,
           "state": "with-data"
         }
       ],
+      "signoff": {
+        "by": "Product",
+        "date": "2026-09-22T15:30:00.000Z",
+        "reason": "Accepted in the review: top pagination keeps the page controls above the fold on 12-row pages."
+      },
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 0,
         "bucket": "none"
-      },
-      "signoff": {
-        "by": "Product",
-        "date": "2026-09-18",
-        "reason": "Top pagination keeps page controls above the fold on 12-row pages. Approved in design review."
-      },
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-012",
@@ -1079,7 +1268,7 @@
       "ledger": "structure",
       "state": "with-data",
       "severity": "WARNING",
-      "resolution": "DATA",
+      "resolution": "INTENTIONAL",
       "region": "Table rows",
       "element": {
         "selector": "[data-testid=orders-table] tbody tr",
@@ -1104,12 +1293,12 @@
       "delta": "+4 rows",
       "tolerance": "Data-dependent",
       "fix": {
-        "summary": "No code change: the count comes from the fixture. Optionally trim the fixture to 8 orders so screenshots line up.",
         "patchHint": null,
         "files": [
           "fixtures/orders/with-data.json"
         ],
-        "effort": 1
+        "effort": 1,
+        "summary": "No code change: the count comes from the fixture. Optionally trim the fixture to 8 orders so screenshots line up."
       },
       "evidence": [
         {
@@ -1131,13 +1320,19 @@
           "state": "with-data"
         }
       ],
+      "signoff": {
+        "by": "Product",
+        "date": "2026-09-22T15:30:00.000Z",
+        "reason": "Accepted in the review: the row count follows the order data; the design shows a sample of 8.",
+        "previousResolution": "DATA"
+      },
+      "knownDrift": null,
+      "acRef": null,
+      "dataReason": "The fixture has 12 orders and the design sample shows 8; row height, dividers and type of every row match.",
       "rank": {
         "score": 0,
         "bucket": "none"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-013",
@@ -1145,7 +1340,7 @@
       "ledger": "structure",
       "state": "with-data",
       "severity": "WARNING",
-      "resolution": "DATA",
+      "resolution": "INTENTIONAL",
       "region": "Table rows",
       "element": {
         "selector": "td.col-total",
@@ -1185,22 +1380,23 @@
         {
           "type": "screenshot",
           "path": "evidence/app/with-data.png",
-          "crop": {
-            "x": 904,
-            "y": 264,
-            "w": 150,
-            "h": 48
-          },
+          "crop": null,
           "state": "with-data"
         }
       ],
+      "signoff": {
+        "by": "Product",
+        "date": "2026-09-22T15:30:00.000Z",
+        "reason": "Accepted in the review: totals are order data; their format matches the design.",
+        "previousResolution": "DATA"
+      },
+      "knownDrift": null,
+      "acRef": null,
+      "dataReason": "Totals come from the fixture orders; currency, two decimals and tabular figures match the design.",
       "rank": {
         "score": 0,
         "bucket": "none"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-014",
@@ -1233,12 +1429,12 @@
       "delta": "Not captured: add surfaces.orders.states.selected",
       "tolerance": "Token match",
       "fix": {
-        "summary": "Add a selected-state driver so the next pass can capture it.",
         "patchHint": "\"surfaces\": { \"orders\": { \"states\": { \"selected\": { \"action\": \"click\", \"selector\": \"tbody tr:nth-child(3)\" } } } }",
         "files": [
           "design-qa.config.json"
         ],
-        "effort": 1
+        "effort": 1,
+        "summary": "Add a selected-state driver so the next pass can capture it."
       },
       "evidence": [
         {
@@ -1253,13 +1449,13 @@
           "state": "selected"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 0,
         "bucket": "none"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-015",
@@ -1311,13 +1507,13 @@
           "state": "error"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-3",
       "rank": {
         "score": 0,
         "bucket": "none"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": "AC-3"
+      }
     },
     {
       "id": "DQ-016",
@@ -1350,13 +1546,13 @@
       "delta": "Shown 300 ms early",
       "tolerance": "±50 ms",
       "fix": {
-        "summary": "Delay the skeleton by 300 ms so fast responses never flash it.",
         "patchHint": "const showSkeleton = useDelayedFlag(isLoading, 300);\nif (showSkeleton) return <OrdersSkeleton />;",
         "files": [
           "src/features/orders/OrdersPage.tsx",
           "src/hooks/useDelayedFlag.ts"
         ],
-        "effort": 2
+        "effort": 2,
+        "summary": "Delay the skeleton by 300 ms so fast responses never flash it."
       },
       "evidence": [
         {
@@ -1377,13 +1573,13 @@
           "state": "loading"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": "AC-4",
       "rank": {
         "score": 224,
         "bucket": "debt"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": "AC-4"
+      }
     },
     {
       "id": "DQ-017",
@@ -1431,12 +1627,7 @@
         {
           "type": "screenshot",
           "path": "evidence/app/focus.png",
-          "crop": {
-            "x": 284,
-            "y": 264,
-            "w": 1104,
-            "h": 48
-          },
+          "crop": null,
           "state": "focus"
         },
         {
@@ -1446,13 +1637,13 @@
           "state": "focus"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 0,
         "bucket": "none"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-018",
@@ -1485,12 +1676,12 @@
       "delta": "Copy differs",
       "tolerance": "Exact copy",
       "fix": {
-        "summary": "Confirm with content design. If the change is not intentional, restore 'Search orders'.",
         "patchHint": "placeholder={t('orders.search.placeholder')} // \"Search orders\"",
         "files": [
           "src/features/orders/OrdersToolbar.tsx"
         ],
-        "effort": 1
+        "effort": 1,
+        "summary": "Confirm with content design. If the change is not intentional, restore 'Search orders'."
       },
       "evidence": [
         {
@@ -1507,22 +1698,17 @@
         {
           "type": "screenshot",
           "path": "evidence/app/with-data.png",
-          "crop": {
-            "x": 264,
-            "y": 152,
-            "w": 320,
-            "h": 36
-          },
+          "crop": null,
           "state": "with-data"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 0,
         "bucket": "none"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-019",
@@ -1570,22 +1756,17 @@
         {
           "type": "screenshot",
           "path": "evidence/app/error.png",
-          "crop": {
-            "x": 284,
-            "y": 224,
-            "w": 1104,
-            "h": 72
-          },
+          "crop": null,
           "state": "error"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 0,
         "bucket": "none"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-020",
@@ -1633,22 +1814,17 @@
         {
           "type": "screenshot",
           "path": "evidence/app/with-data.png",
-          "crop": {
-            "x": 264,
-            "y": 78,
-            "w": 1144,
-            "h": 58
-          },
+          "crop": null,
           "state": "with-data"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 0,
         "bucket": "none"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-021",
@@ -1681,20 +1857,14 @@
       "delta": "No transition",
       "tolerance": "±20ms",
       "fix": {
-        "summary": "Cross-fade the skeleton out and the rows in: opacity 200ms ease-out.",
         "patchHint": "<Fade show={!isLoading} duration={200} easing=\"ease-out\">…</Fade>",
         "files": [
           "src/features/orders/OrdersPage.tsx"
         ],
-        "effort": 2
+        "effort": 2,
+        "summary": "Cross-fade the skeleton out and the rows in: opacity 200ms ease-out."
       },
       "evidence": [
-        {
-          "type": "motion",
-          "path": "evidence/motion/loading.json",
-          "crop": null,
-          "state": "loading"
-        },
         {
           "type": "screenshot",
           "path": "evidence/app/loading.png",
@@ -1707,19 +1877,25 @@
           "state": "loading"
         },
         {
+          "type": "motion",
+          "path": "evidence/motion/loading.json",
+          "crop": null,
+          "state": "loading"
+        },
+        {
           "type": "dom",
           "path": "evidence/dom/loading.json",
           "crop": null,
           "state": "loading"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 224,
         "bucket": "debt"
-      },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null
+      }
     },
     {
       "id": "DQ-022",
@@ -1751,7 +1927,14 @@
       },
       "delta": "−1px",
       "tolerance": "±1px",
-      "fix": null,
+      "fix": {
+        "patchHint": null,
+        "files": [
+          "src/features/orders/StatusPill.tsx"
+        ],
+        "effort": 1,
+        "summary": "Use the Acme DS Badge radius token on the status pill"
+      },
       "evidence": [
         {
           "type": "screenshot",
@@ -1771,13 +1954,13 @@
           "state": "with-data"
         }
       ],
+      "signoff": null,
+      "knownDrift": null,
+      "acRef": null,
       "rank": {
         "score": 0,
         "bucket": "none"
       },
-      "signoff": null,
-      "knownDrift": null,
-      "acRef": null,
       "dismissal": {
         "kind": "not-an-issue",
         "reason": "The badge is 22px tall, so any radius of 11px or more renders as the same full pill; the 12px in the frame and the 11px in code look identical.",
@@ -1789,334 +1972,13 @@
     }
   ],
   "ledgers": {
-    "structure": [
-      {
-        "region": "Page header",
-        "figma": {
-          "present": true,
-          "order": 1,
-          "label": "Orders · Track and manage customer orders"
-        },
-        "app": {
-          "present": true,
-          "order": 1,
-          "label": "Orders · Track and manage customer orders"
-        },
-        "result": "PASS",
-        "findingIds": [
-          "DQ-020"
-        ]
-      },
-      {
-        "region": "Toolbar",
-        "figma": {
-          "present": true,
-          "order": 2,
-          "label": "Search orders · All statuses · New order"
-        },
-        "app": {
-          "present": true,
-          "order": 2,
-          "label": "Search by order ID or customer · All statuses · Pagination · New order"
-        },
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-018"
-        ]
-      },
-      {
-        "region": "Table header",
-        "figma": {
-          "present": true,
-          "order": 3,
-          "label": "Order · Customer · Status · Total · Created"
-        },
-        "app": {
-          "present": true,
-          "order": 3,
-          "label": "Order · Customer · Status · Total · Created · Updated"
-        },
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-010"
-        ]
-      },
-      {
-        "region": "Table rows",
-        "figma": {
-          "present": true,
-          "order": 4,
-          "label": "8 sample orders"
-        },
-        "app": {
-          "present": true,
-          "order": 4,
-          "label": "12 fixture orders"
-        },
-        "result": "DATA",
-        "findingIds": [
-          "DQ-012",
-          "DQ-013"
-        ]
-      },
-      {
-        "region": "Pagination",
-        "figma": {
-          "present": true,
-          "order": 5,
-          "label": "1–8 of 124 · pages (below the table)"
-        },
-        "app": {
-          "present": true,
-          "order": 2,
-          "label": "1–12 of 124 · prev/next (in the toolbar)"
-        },
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-011"
-        ]
-      },
-      {
-        "region": "Empty state",
-        "figma": {
-          "present": true,
-          "order": 4,
-          "label": "No orders yet · Create order"
-        },
-        "app": {
-          "present": false,
-          "order": null,
-          "label": null
-        },
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-001"
-        ]
-      },
-      {
-        "region": "Error banner",
-        "figma": {
-          "present": true,
-          "order": 3,
-          "label": "Couldn't load orders · Retry"
-        },
-        "app": {
-          "present": true,
-          "order": 3,
-          "label": "Couldn't load orders · Retry"
-        },
-        "result": "PASS",
-        "findingIds": [
-          "DQ-019"
-        ]
-      }
-    ],
-    "component": [
-      {
-        "figmaComponent": "Table.Header",
-        "variant": "Sticky=True",
-        "expectedComponent": "Table.Header",
-        "actualComponent": "<thead class=\"orders-th\"> (hand-styled)",
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-002"
-        ]
-      },
-      {
-        "figmaComponent": "Badge",
-        "variant": "Status=Success",
-        "expectedComponent": "Badge",
-        "actualComponent": "Badge",
-        "result": "PASS",
-        "findingIds": [
-          "DQ-005"
-        ]
-      },
-      {
-        "figmaComponent": "Button",
-        "variant": "Variant=Primary, Size=md",
-        "expectedComponent": "Button",
-        "actualComponent": "Button",
-        "result": "PASS",
-        "findingIds": []
-      },
-      {
-        "figmaComponent": "Input",
-        "variant": "Size=md, Icon=Leading",
-        "expectedComponent": "Input",
-        "actualComponent": "Input",
-        "result": "PASS",
-        "findingIds": []
-      },
-      {
-        "figmaComponent": "Pagination",
-        "variant": "Position=Bottom",
-        "expectedComponent": "Pagination",
-        "actualComponent": "Pagination (compact)",
-        "result": "PASS",
-        "findingIds": []
-      },
-      {
-        "figmaComponent": "Skeleton",
-        "variant": "Shape=Text",
-        "expectedComponent": "Skeleton",
-        "actualComponent": "Skeleton (inline radius override)",
-        "result": "PASS",
-        "findingIds": []
-      },
-      {
-        "figmaComponent": "Alert",
-        "variant": "Variant=Critical",
-        "expectedComponent": "Alert",
-        "actualComponent": "Alert",
-        "result": "PASS",
-        "findingIds": [
-          "DQ-019"
-        ]
-      },
-      {
-        "figmaComponent": "EmptyState",
-        "variant": "Size=md",
-        "expectedComponent": "EmptyState",
-        "actualComponent": null,
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-001"
-        ]
-      }
-    ],
-    "style": [
-      {
-        "elementClass": "Card",
-        "selector": ".orders-card",
-        "property": "padding",
-        "figma": "24px",
-        "token": "--ads-space-6",
-        "computed": "20px",
-        "sourceValue": "20px",
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-004"
-        ]
-      },
-      {
-        "elementClass": "Page title",
-        "selector": "h1.page-title",
-        "property": "font-weight",
-        "figma": 600,
-        "token": "--ads-font-weight-semibold",
-        "computed": "500",
-        "sourceValue": "var(--ads-font-weight-medium)",
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-006"
-        ]
-      },
-      {
-        "elementClass": "Page title",
-        "selector": "h1.page-title",
-        "property": "font-size",
-        "figma": "24px",
-        "token": "--ads-font-size-xl",
-        "computed": "24px",
-        "sourceValue": "var(--ads-font-size-xl)",
-        "result": "PASS",
-        "findingIds": []
-      },
-      {
-        "elementClass": "Table row (hover)",
-        "selector": ".orders-row:hover",
-        "property": "background-color",
-        "figma": "#F0F4FA",
-        "token": "--ads-color-surface-hover",
-        "computed": "rgb(207, 216, 230)",
-        "sourceValue": "#CFD8E6",
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-003"
-        ]
-      },
-      {
-        "elementClass": "Skeleton bar",
-        "selector": ".orders-skeleton .ads-skeleton",
-        "property": "border-radius",
-        "figma": "6px",
-        "token": "--ads-radius-md",
-        "computed": "2px",
-        "sourceValue": "borderRadius: 2 (inline)",
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-007"
-        ]
-      },
-      {
-        "elementClass": "Table row (selected)",
-        "selector": ".orders-row[aria-selected=true]",
-        "property": "background-color",
-        "figma": "#E6EEFF",
-        "token": "--ads-color-surface-selected",
-        "computed": null,
-        "sourceValue": "var(--ads-color-surface-selected)",
-        "result": "CANNOT_VERIFY",
-        "findingIds": [
-          "DQ-014"
-        ]
-      },
-      {
-        "elementClass": "Table cell text",
-        "selector": "tbody td",
-        "property": "color",
-        "figma": "#111827",
-        "token": "--ads-color-text-primary",
-        "computed": "rgb(17, 24, 39)",
-        "sourceValue": "var(--ads-color-text-primary)",
-        "result": "PASS",
-        "findingIds": []
-      },
-      {
-        "elementClass": "Row focus ring",
-        "selector": ".orders-row:focus-visible",
-        "property": "outline",
-        "figma": "2px inset #2563EB",
-        "token": "--ads-color-focus-ring",
-        "computed": "2px solid rgb(37, 99, 235)",
-        "sourceValue": "var(--ads-focus-ring)",
-        "result": "PASS",
-        "findingIds": [
-          "DQ-017"
-        ]
-      },
-      {
-        "elementClass": "Status badge",
-        "selector": ".ads-badge--success",
-        "property": "background-color",
-        "figma": "#DCFCE7",
-        "token": "--ads-color-success-subtle",
-        "computed": "rgb(220, 252, 231)",
-        "sourceValue": "Badge variant=success",
-        "result": "PASS",
-        "findingIds": [
-          "DQ-005"
-        ]
-      },
-      {
-        "elementClass": "Status badge",
-        "selector": "td.col-status .ads-badge",
-        "property": "border-radius",
-        "figma": "12px",
-        "token": null,
-        "computed": "11px",
-        "sourceValue": "11px",
-        "result": "PASS",
-        "findingIds": [
-          "DQ-022"
-        ]
-      }
-    ],
+    "structure": [],
+    "component": [],
+    "style": [],
     "state": [
       {
         "state": "with-data",
-        "result": "PASS",
+        "result": "FAIL",
         "findingIds": [
           "DQ-002",
           "DQ-004",
@@ -2142,6 +2004,7 @@
         "state": "loading",
         "result": "FAIL",
         "findingIds": [
+          "DQ-006",
           "DQ-007",
           "DQ-016",
           "DQ-021"
@@ -2149,8 +2012,9 @@
       },
       {
         "state": "error",
-        "result": "PASS",
+        "result": "FAIL",
         "findingIds": [
+          "DQ-006",
           "DQ-015",
           "DQ-019"
         ]
@@ -2160,13 +2024,16 @@
         "result": "FAIL",
         "findingIds": [
           "DQ-003",
+          "DQ-004",
+          "DQ-006",
           "DQ-008"
         ]
       },
       {
         "state": "focus",
-        "result": "PASS",
+        "result": "FAIL",
         "findingIds": [
+          "DQ-006",
           "DQ-017"
         ]
       },
@@ -2183,155 +2050,8 @@
         "findingIds": []
       }
     ],
-    "behavior": [
-      {
-        "state": "error",
-        "trigger": "GET /api/orders returns 500",
-        "expected": "Error banner with a Retry button",
-        "observed": "Alert (critical) with Retry; clicking it re-sends GET /api/orders",
-        "acRef": "AC-3",
-        "result": "PASS",
-        "findingIds": [
-          "DQ-015"
-        ]
-      },
-      {
-        "state": "loading",
-        "trigger": "GET /api/orders delayed by 2 s",
-        "expected": "Skeleton appears only after 300 ms",
-        "observed": "Skeleton visible on the first frame (0 ms)",
-        "acRef": "AC-4",
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-016"
-        ]
-      },
-      {
-        "state": "empty",
-        "trigger": "GET /api/orders returns []",
-        "expected": "Empty state with a 'Create order' action",
-        "observed": "Empty table body; no message or action",
-        "acRef": "AC-2",
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-001"
-        ]
-      },
-      {
-        "state": "with-data",
-        "trigger": "Click the 'Created' column header",
-        "expected": "Sorts by created date (sortable Table.HeaderCell)",
-        "observed": "Header is not interactive; no sorting",
-        "acRef": null,
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-002"
-        ]
-      },
-      {
-        "state": "hover",
-        "trigger": "Pointer over row 2",
-        "expected": "Background eases to --ads-color-surface-hover over 160 ms",
-        "observed": "Background #CFD8E6 over 400 ms",
-        "acRef": null,
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-003",
-          "DQ-008"
-        ]
-      },
-      {
-        "state": "focus",
-        "trigger": "Tab to the first row",
-        "expected": "Inset 2px focus ring (--ads-color-focus-ring)",
-        "observed": "Inset 2px ring, rgb(37, 99, 235)",
-        "acRef": null,
-        "result": "PASS",
-        "findingIds": [
-          "DQ-017"
-        ]
-      },
-      {
-        "state": "selected",
-        "trigger": "Open an order from the list",
-        "expected": "Row shows the selected surface and accent",
-        "observed": "Not captured: no driver hook",
-        "acRef": null,
-        "result": "CANNOT_VERIFY",
-        "findingIds": [
-          "DQ-014"
-        ]
-      }
-    ],
-    "motion": [
-      {
-        "state": "hover",
-        "selector": ".orders-row",
-        "figmaNodeId": "1204:3324",
-        "trigger": "hover",
-        "property": "background-color",
-        "expected": {
-          "type": "smart-animate",
-          "durationMs": 160,
-          "easing": "ease-out",
-          "delayMs": null,
-          "detail": "Figma prototype: ON_HOVER → Row State=Hover"
-        },
-        "observed": {
-          "type": "transition",
-          "durationMs": 400,
-          "easing": "ease",
-          "delayMs": 0,
-          "detail": "transition: background-color 400ms ease"
-        },
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-008"
-        ]
-      },
-      {
-        "state": "loading",
-        "selector": "[data-testid=orders-skeleton]",
-        "figmaNodeId": "1204:3402",
-        "trigger": "timeout",
-        "property": "opacity",
-        "expected": {
-          "type": "dissolve",
-          "durationMs": 200,
-          "easing": "ease-out",
-          "delayMs": null,
-          "detail": "Figma prototype: after timeout, Orders / Loading → Orders / With data"
-        },
-        "observed": null,
-        "result": "FAIL",
-        "findingIds": [
-          "DQ-021"
-        ]
-      },
-      {
-        "state": "focus",
-        "selector": ".orders-row:focus-visible",
-        "figmaNodeId": "1204:3440",
-        "trigger": "focus",
-        "property": "outline",
-        "expected": {
-          "type": "none",
-          "durationMs": null,
-          "easing": null,
-          "delayMs": null,
-          "detail": "Focus ring appears instantly (no transition specified)"
-        },
-        "observed": {
-          "type": "none",
-          "durationMs": null,
-          "easing": null,
-          "delayMs": null,
-          "detail": null
-        },
-        "result": "PASS",
-        "findingIds": []
-      }
-    ]
+    "behavior": [],
+    "motion": []
   },
   "openDecisions": [
     {
@@ -2380,10 +2100,390 @@
       "pixelDiffAfter": null
     }
   ],
+  "rejections": [
+    {
+      "kind": "worklist",
+      "key": "wl:error:224,280",
+      "state": "error",
+      "screen": null,
+      "reason": "duplicate",
+      "detail": "The 20px card padding (DQ-004) shifts the error banner and the focused row by 4px; nothing else differs.",
+      "percentOfPage": 0.43,
+      "crop": {
+        "x": 280,
+        "y": 224,
+        "w": 1108,
+        "h": 80
+      },
+      "knownDrift": null,
+      "duplicateOf": "dq-004",
+      "coveredBy": null
+    },
+    {
+      "kind": "worklist",
+      "key": "wl:focus:232,280",
+      "state": "focus",
+      "screen": null,
+      "reason": "duplicate",
+      "detail": "The 20px card padding (DQ-004) shifts the error banner and the focused row by 4px; nothing else differs.",
+      "percentOfPage": 4.09,
+      "crop": {
+        "x": 280,
+        "y": 232,
+        "w": 1112,
+        "h": 112
+      },
+      "knownDrift": null,
+      "duplicateOf": "dq-004",
+      "coveredBy": null
+    },
+    {
+      "kind": "worklist",
+      "key": "wl:loading:160,392",
+      "state": "loading",
+      "screen": null,
+      "reason": "duplicate",
+      "detail": "The same search placeholder copy as DQ-018, seen in the other states.",
+      "percentOfPage": 0.05,
+      "crop": {
+        "x": 392,
+        "y": 160,
+        "w": 112,
+        "h": 16
+      },
+      "knownDrift": null,
+      "duplicateOf": "dq-018",
+      "coveredBy": null
+    },
+    {
+      "kind": "worklist",
+      "key": "wl:focus:376,968",
+      "state": "focus",
+      "screen": null,
+      "reason": "duplicate",
+      "detail": "The extra Updated column (DQ-010) and the dates in it; the Created column only differs by its data.",
+      "percentOfPage": 0.72,
+      "crop": {
+        "x": 968,
+        "y": 376,
+        "w": 384,
+        "h": 256
+      },
+      "knownDrift": null,
+      "duplicateOf": "dq-010",
+      "coveredBy": null
+    },
+    {
+      "kind": "worklist",
+      "key": "wl:focus:664,264",
+      "state": "focus",
+      "screen": null,
+      "reason": "DATA",
+      "detail": "The focus fixture has more orders, so rows continue where the design's shorter table ends; the rows look like the ones above.",
+      "percentOfPage": 12.1,
+      "crop": {
+        "x": 264,
+        "y": 664,
+        "w": 1144,
+        "h": 192
+      },
+      "knownDrift": null,
+      "duplicateOf": null,
+      "coveredBy": null
+    },
+    {
+      "kind": "worklist",
+      "key": "wl:with-data:152,1056",
+      "state": "with-data",
+      "screen": null,
+      "reason": "DATA",
+      "detail": "The toolbar page range and page buttons show because the fixture has more than one page; the design frame has one page.",
+      "percentOfPage": 0.05,
+      "crop": {
+        "x": 1060,
+        "y": 152,
+        "w": 196,
+        "h": 40
+      },
+      "knownDrift": null,
+      "duplicateOf": null,
+      "coveredBy": null
+    },
+    {
+      "kind": "worklist",
+      "key": "wl:loading:152,1088",
+      "state": "loading",
+      "screen": null,
+      "reason": "DATA",
+      "detail": "The same toolbar page range from the fixture's order count, in the loading, error, hover and focus states.",
+      "percentOfPage": 0.05,
+      "crop": {
+        "x": 1088,
+        "y": 152,
+        "w": 168,
+        "h": 40
+      },
+      "knownDrift": null,
+      "duplicateOf": null,
+      "coveredBy": null
+    },
+    {
+      "kind": "worklist",
+      "key": "wl:focus:376,296",
+      "state": "focus",
+      "screen": null,
+      "reason": "DATA",
+      "detail": "Order numbers and customer names in the focus fixture differ in length from the design's sample text; type and colour match.",
+      "percentOfPage": 0.61,
+      "crop": {
+        "x": 296,
+        "y": 376,
+        "w": 272,
+        "h": 256
+      },
+      "knownDrift": null,
+      "duplicateOf": null,
+      "coveredBy": null
+    },
+    {
+      "kind": "worklist",
+      "key": "wl:focus:376,760",
+      "state": "focus",
+      "screen": null,
+      "reason": "DATA",
+      "detail": "Status badge labels come from each fixture order's status; badge colours, radius and padding match the design.",
+      "percentOfPage": 0.2,
+      "crop": {
+        "x": 760,
+        "y": 376,
+        "w": 72,
+        "h": 256
+      },
+      "knownDrift": null,
+      "duplicateOf": null,
+      "coveredBy": null
+    }
+  ],
+  "differences": {
+    "with-data": {
+      "differing": 16.96,
+      "regions": [
+        {
+          "key": "wl:with-data:200,264",
+          "percent": 16.85,
+          "findings": [
+            "DQ-004"
+          ]
+        },
+        {
+          "key": "wl:with-data:152,1056",
+          "percent": 0.05,
+          "rejected": "DATA",
+          "supported": false
+        },
+        {
+          "key": "wl:with-data:152,264",
+          "percent": 0.05,
+          "findings": [
+            "DQ-018"
+          ]
+        },
+        {
+          "key": "wl:with-data:72,264",
+          "percent": 0.01,
+          "findings": [
+            "DQ-006"
+          ]
+        }
+      ],
+      "unlisted": {
+        "count": 0,
+        "percent": 0
+      }
+    },
+    "loading": {
+      "differing": 6.15,
+      "regions": [
+        {
+          "key": "wl:loading:200,264",
+          "percent": 6.03,
+          "findings": [
+            "DQ-016"
+          ]
+        },
+        {
+          "key": "wl:loading:152,1088",
+          "percent": 0.05,
+          "rejected": "DATA",
+          "supported": false
+        },
+        {
+          "key": "wl:loading:160,392",
+          "percent": 0.05,
+          "rejected": "duplicate",
+          "findings": [
+            "DQ-018"
+          ]
+        },
+        {
+          "key": "wl:with-data:72,264",
+          "percent": 0.01,
+          "findings": [
+            "DQ-006"
+          ]
+        }
+      ],
+      "unlisted": {
+        "count": 0,
+        "percent": 0
+      }
+    },
+    "error": {
+      "differing": 0.54,
+      "regions": [
+        {
+          "key": "wl:error:224,280",
+          "percent": 0.43,
+          "rejected": "duplicate",
+          "findings": [
+            "DQ-004"
+          ]
+        },
+        {
+          "key": "wl:loading:152,1088",
+          "percent": 0.05,
+          "rejected": "DATA",
+          "supported": false
+        },
+        {
+          "key": "wl:loading:160,392",
+          "percent": 0.05,
+          "rejected": "duplicate",
+          "findings": [
+            "DQ-018"
+          ]
+        },
+        {
+          "key": "wl:with-data:72,264",
+          "percent": 0.01,
+          "findings": [
+            "DQ-006"
+          ]
+        }
+      ],
+      "unlisted": {
+        "count": 0,
+        "percent": 0
+      }
+    },
+    "hover": {
+      "differing": 20.47,
+      "regions": [
+        {
+          "key": "wl:with-data:200,264",
+          "percent": 20.36,
+          "findings": [
+            "DQ-004"
+          ]
+        },
+        {
+          "key": "wl:loading:152,1088",
+          "percent": 0.05,
+          "rejected": "DATA",
+          "supported": false
+        },
+        {
+          "key": "wl:loading:160,392",
+          "percent": 0.05,
+          "rejected": "duplicate",
+          "findings": [
+            "DQ-018"
+          ]
+        },
+        {
+          "key": "wl:with-data:72,264",
+          "percent": 0.01,
+          "findings": [
+            "DQ-006"
+          ]
+        }
+      ],
+      "unlisted": {
+        "count": 0,
+        "percent": 0
+      }
+    },
+    "focus": {
+      "differing": 17.83,
+      "regions": [
+        {
+          "key": "wl:focus:664,264",
+          "percent": 12.1,
+          "rejected": "DATA",
+          "supported": false
+        },
+        {
+          "key": "wl:loading:152,1088",
+          "percent": 0.05,
+          "rejected": "DATA",
+          "supported": false
+        },
+        {
+          "key": "wl:focus:232,280",
+          "percent": 4.09,
+          "rejected": "duplicate",
+          "findings": [
+            "DQ-004"
+          ]
+        },
+        {
+          "key": "wl:loading:160,392",
+          "percent": 0.05,
+          "rejected": "duplicate",
+          "findings": [
+            "DQ-018"
+          ]
+        },
+        {
+          "key": "wl:focus:376,968",
+          "percent": 0.72,
+          "rejected": "duplicate",
+          "findings": [
+            "DQ-010"
+          ]
+        },
+        {
+          "key": "wl:with-data:72,264",
+          "percent": 0.01,
+          "findings": [
+            "DQ-006"
+          ]
+        },
+        {
+          "key": "wl:focus:376,296",
+          "percent": 0.61,
+          "rejected": "DATA",
+          "supported": false
+        },
+        {
+          "key": "wl:focus:376,760",
+          "percent": 0.2,
+          "rejected": "DATA",
+          "supported": false
+        }
+      ],
+      "unlisted": {
+        "count": 0,
+        "percent": 0
+      }
+    }
+  },
   "evidence": {
     "figmaSpec": "evidence/figma-spec.json",
     "ticket": "evidence/ticket.json",
     "capture": "evidence/capture.json",
+    "prototypeCapture": null,
+    "compare": null,
     "states": {
       "with-data": {
         "design": "evidence/figma/with-data.png",

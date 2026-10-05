@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
@@ -300,6 +301,10 @@ test('capture: one screenshot, computed styles and DOM per state at the exact vi
       { type: 'CSSAnimation', target: 'div.spinner', element: null, durationMs: 1000, easing: 'linear', iterations: 'infinite' },
       'the loading spinner is running (not grabbed, so element is null)',
     );
+    // Its path (the audit's form) and untransformed box, so a finding about it can be pinned.
+    assert.equal(spin.selector, 'main#app > div.spinner');
+    assert.deepEqual([spin.rect.w, spin.rect.h], [30, 30], 'the layout box, not the rotated bounding box');
+    assert.ok(spin.rect.x >= 24 && spin.rect.y >= 24, JSON.stringify(spin.rect));
     assert.match(motion.loading.keyframes.spin, /@keyframes spin/);
     assert.equal(motion['with-data'].animations.length, 0, 'nothing animates once the rows are shown');
 
@@ -333,7 +338,7 @@ test('capture: one screenshot, computed styles and DOM per state at the exact vi
   }
 });
 
-test('capture: __rect is in screenshot pixels for viewport and full-page captures, even after scrolling', { timeout: 120000 }, async (t) => {
+test('capture: __rect is in screenshot pixels for --viewport-only and whole-page captures, even after scrolling', { timeout: 120000 }, async (t) => {
   if (!CHROMIUM) {
     t.skip(SKIP_REASON);
     return;
@@ -355,8 +360,8 @@ test('capture: __rect is in screenshot pixels for viewport and full-page capture
       return { manifest, rects, image: (state) => readPng(path.join(out, manifest.states[state].screenshot)) };
     };
 
-    // Viewport capture: the hover scrolled the page, so boxes are viewport coordinates.
-    const viewport = await capture('viewport');
+    // Viewport-only capture: the hover scrolled the page, so boxes are viewport coordinates.
+    const viewport = await capture('viewport', ['--viewport-only']);
     const scrolled = viewport.manifest.states.hover.scroll;
     assert.equal(viewport.manifest.states['with-data'].scroll.y, 0);
     assert.ok(scrolled.y > 0, 'hovering the last row scrolled the page');
@@ -364,8 +369,10 @@ test('capture: __rect is in screenshot pixels for viewport and full-page capture
     assert.equal(last.y, viewport.rects('with-data')[2].y - scrolled.y, 'shifted by the scroll offset');
     assert.ok(last.y >= 0 && last.y + last.h <= 150, `hovered row is inside the 150 px image: ${JSON.stringify(last)}`);
 
-    // Full-page capture: boxes are document coordinates, the same with or without scrolling.
-    const full = await capture('full', ['--full-page']);
+    // Whole-page capture (the default; --full-page is accepted): boxes are document
+    // coordinates, the same with or without scrolling.
+    const full = await capture('full');
+    assert.equal((await capture('compat', ['--full-page'])).manifest.fullPage, true, '--full-page is still accepted');
     assert.deepEqual(full.rects('hover'), full.rects('with-data'));
     const image = full.image('with-data');
     assert.ok(image.height > 150, 'the full page is taller than the viewport');
@@ -375,7 +382,7 @@ test('capture: __rect is in screenshot pixels for viewport and full-page capture
   }
 });
 
-test('capture: cookie auth, and exit 5 on authentication or navigation failure', { timeout: 120000 }, async (t) => {
+test('capture: cookie auth; HTTP 401 is a sign-in failure (exit 6); an unreachable app exits 5', { timeout: 120000 }, async (t) => {
   if (!CHROMIUM) {
     t.skip(SKIP_REASON);
     return;
@@ -390,10 +397,12 @@ test('capture: cookie auth, and exit 5 on authentication or navigation failure',
     assert.equal(readPng(path.join(dir, 'ok', 'app', 'with-data.png')).width, 640);
 
     const denied = await run(CAPTURE, ['--url', `${server.url}/`, '--width', '640', '--height', '480', '--out', path.join(dir, 'denied')], { env: captureEnv, cwd: dir });
-    assert.equal(denied.code, 5);
-    assert.match(denied.stderr, /HTTP 401 — the page needs authentication/);
+    assert.equal(denied.code, 6, denied.stderr);
+    assert.match(denied.stderr, /answered HTTP 401: the page needs a signed-in session/);
+    assert.match(denied.stderr, /DESIGN_QA_APP_STORAGE_STATE/, 'says how to supply a session');
     const manifest = JSON.parse(readFileSync(path.join(dir, 'denied', 'capture.json'), 'utf8'));
     assert.equal(manifest.degradations[0].step, 'capture:with-data');
+    assert.deepEqual(manifest.states['with-data'].failure, { kind: 'sign-in', finalUrl: `${server.url}/`, detail: 'HTTP 401' });
   } finally {
     await server.close();
   }
@@ -401,6 +410,8 @@ test('capture: cookie auth, and exit 5 on authentication or navigation failure',
   const gone = await run(CAPTURE, ['--url', 'http://127.0.0.1:9/', '--width', '320', '--height', '240', '--timeout', '5000', '--out', dir], { env: captureEnv, cwd: dir });
   assert.equal(gone.code, 5, gone.stderr);
   assert.match(gone.stderr, /could not load http:\/\/127\.0\.0\.1:9\//);
+  const goneManifest = JSON.parse(readFileSync(path.join(dir, 'capture.json'), 'utf8'));
+  assert.equal(goneManifest.failure.kind, 'unreachable');
 });
 
 test('capture: --config/--surface supply the URL and states; undrivable states are skipped', { timeout: 120000 }, async (t) => {
@@ -501,4 +512,165 @@ test('capture: a motion-trace failure never fails the state; it is recorded as a
   } finally {
     await server.close();
   }
+});
+
+// ---------------------------------------------------------------------------
+// Design-system audit collector, saved sessions (app.auth.storageState) and run ownership
+// ---------------------------------------------------------------------------
+
+const DS_PAGE = readFileSync(fixture('ds-audit-page.html'));
+const htmlServer = (html) =>
+  startServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end(html);
+  });
+
+test('capture: audit/<state>.json for every captured state (hover included), consumed by ds-audit.mjs end to end', { timeout: 180000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const server = await htmlServer(DS_PAGE);
+  try {
+    const dir = tmpDir();
+    const evidence = path.join(dir, 'evidence');
+    copyFileSync(fixture('ds-audit-tokens.json'), path.join(dir, 'tokens.json'));
+    copyFileSync(fixture('ds-audit-catalog.json'), path.join(dir, 'catalog.json'));
+    const config = path.join(dir, 'design-qa.config.json');
+    writeFileSync(
+      config,
+      JSON.stringify({
+        app: { baseUrl: server.url },
+        surfaces: { orders: { route: '/', states: { 'with-data': {}, hover: { action: 'hover', selector: 'button' }, ghost: { wait: '.nothing' } } } },
+        designSystem: {
+          name: 'Acme DS',
+          tokens: ['tokens.json'],
+          componentCatalog: 'catalog.json',
+          libraries: [{ name: 'Mui', kind: 'third-party', classPrefix: 'Mui' }, { name: 'Old UI', kind: 'legacy', classPrefix: 'legacy-' }],
+        },
+      }),
+    );
+    // A stale audit file of a state that is skipped this time is deleted with its other files.
+    mkdirSync(path.join(evidence, 'audit'), { recursive: true });
+    writeFileSync(path.join(evidence, 'audit', 'ghost.json'), '{"stale":true}');
+    const res = await run(CAPTURE, ['--config', config, '--width', '800', '--height', '600', '--out', evidence], { env: captureEnv, cwd: dir });
+    assert.equal(res.code, 0, res.stderr);
+    const manifest = JSON.parse(readFileSync(path.join(evidence, 'capture.json'), 'utf8'));
+    assert.equal(manifest.states['with-data'].audit, 'audit/with-data.json');
+    assert.equal(manifest.states.hover.audit, 'audit/hover.json');
+    assert.equal(manifest.states.ghost.audit, null, 'skipped (no runtime driver): no audit');
+    assert.equal(existsSync(path.join(evidence, 'audit', 'ghost.json')), false, 'the stale audit file is gone');
+    const text = readFileSync(path.join(evidence, 'audit', 'with-data.json'), 'utf8');
+    assert.equal(text.trim().split('\n').length, 1, 'compact JSON');
+    const audit = JSON.parse(text);
+    assert.equal(audit.fullPage, true);
+    assert.ok(audit.page.h > 1800, 'the whole page');
+    const card = audit.elements.find((e) => e.text === 'Card three');
+    assert.ok(card.rect.y > 1500, 'below the fold, in screenshot (document) pixels');
+    assert.ok(audit.selectors.some((x) => x.selector === "[data-ds-component='Button']"), 'the catalog selectors are evaluated in the page');
+    const hover = JSON.parse(readFileSync(path.join(evidence, 'audit', 'hover.json'), 'utf8'));
+    assert.ok(hover.elements.length > 20, 'hover state audited too');
+    assert.ok(!manifest.degradations.some((d) => /^audit:/.test(d.step)), 'no collector degradation');
+
+    const ds = await run(script('ds-audit.mjs'), ['--evidence', evidence, '--config', config], { cwd: dir });
+    assert.equal(ds.code, 0, ds.stderr);
+    const out = JSON.parse(readFileSync(path.join(evidence, 'ds-audit.json'), 'utf8'));
+    assert.deepEqual(Object.keys(out.states).sort(), ['hover', 'with-data']);
+    const keys = out.candidates.map((c) => c.key);
+    for (const key of ['component:mui:mui-button>acme-button', 'style:space:13px', 'style:color:#3a3f47']) assert.ok(keys.includes(key), key);
+    for (const c of out.candidates) assert.ok(c.evidence.some((e) => e.crop), `${c.key} is pinned`);
+  } finally {
+    await server.close();
+  }
+});
+
+test('resolveAuth storage-state: the variable wins, else app.auth.storageState expanded (~, ${ENV}, relative to the config folder)', () => {
+  const base = '/work/repo';
+  const fromEnv = resolveAuth('storage-state', 'APP', { APP_STORAGE_STATE: '/tmp/env-state.json' }, 'http://x.test', { storageState: '~/s.json', configDir: base });
+  assert.equal(fromEnv.storageStatePath, '/tmp/env-state.json');
+  assert.equal(fromEnv.storageStateSource, 'env');
+  const home = resolveAuth('storage-state', 'APP', {}, 'http://x.test', { storageState: '~/.design-qa/sessions/acme.json', configDir: base });
+  assert.equal(home.storageStatePath, path.join(os.homedir(), '.design-qa', 'sessions', 'acme.json'));
+  assert.equal(home.storageStateSource, 'config');
+  assert.equal(resolveAuth('storage-state', 'APP', { SESSIONS: '/srv/s' }, 'http://x.test', { storageState: '${SESSIONS}/a.json', configDir: base }).storageStatePath, '/srv/s/a.json');
+  assert.equal(resolveAuth('storage-state', 'APP', {}, 'http://x.test', { storageState: '.auth/a.json', configDir: base }).storageStatePath, path.join(base, '.auth', 'a.json'));
+  assert.throws(() => resolveAuth('storage-state', 'APP', {}, 'http://x.test'), /APP_STORAGE_STATE.*app\.auth\.storageState.*setup\.mjs save-session/s);
+  assert.throws(() => resolveAuth('storage-state', 'APP', {}, 'http://x.test', { storageState: '${NOPE}/a.json' }), /NOPE is not set/);
+  assert.equal(configDefaults({ app: { baseUrl: 'http://x.test', auth: { type: 'storageState', storageState: '~/a.json' } }, surfaces: { s: { route: '/' } } }).storageState, '~/a.json');
+  assert.equal(configDefaults({ app: { baseUrl: 'http://x.test', auth: { type: 'storageState', storageState: '~/a.json' } }, surfaces: { s: { route: '/', prototype: 'http://p.test/' } } }, 's', { side: 'design' }).storageState, null, 'app side only');
+});
+
+test('capture: the saved session from app.auth.storageState signs in; the env var wins; a missing file names the path and save-session; the content never shows', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const SECRET = 'sess-0f9e8d7c6b5a4321-never-print';
+  const server = await startServer((req, res) => {
+    if (!(req.headers.cookie || '').includes(`sid=${SECRET}`)) {
+      res.writeHead(401, { 'content-type': 'text/plain' });
+      return res.end('unauthorised');
+    }
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end('<!doctype html><title>App</title><nav data-testid="app-nav">Acme</nav><h1>Orders</h1>');
+  });
+  try {
+    const dir = tmpDir();
+    const host = new URL(server.url).hostname;
+    const session = { cookies: [{ name: 'sid', value: SECRET, domain: host, path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' }], origins: [] };
+    mkdirSync(path.join(dir, '.auth'), { recursive: true });
+    writeFileSync(path.join(dir, '.auth', 'good.json'), JSON.stringify(session));
+    writeFileSync(path.join(dir, '.auth', 'bad.json'), JSON.stringify({ cookies: [], origins: [] }));
+    const config = (pointer) => {
+      const file = path.join(dir, 'design-qa.config.json');
+      writeFileSync(file, JSON.stringify({ app: { baseUrl: server.url, auth: { type: 'storageState', ...(pointer ? { storageState: pointer } : {}), signedInSelector: '[data-testid=app-nav]' } }, surfaces: { orders: { route: '/' } } }));
+      return file;
+    };
+    const env = { ...captureEnv, DESIGN_QA_APP_STORAGE_STATE: '' };
+    const all = [];
+    const cap = async (args, extra = {}) => {
+      const r = await run(CAPTURE, args, { env: { ...env, ...extra }, cwd: dir });
+      all.push(r.stdout, r.stderr);
+      return r;
+    };
+    // The config pointer, relative to the config's folder.
+    const ok = await cap(['--config', config('.auth/good.json'), '--width', '320', '--height', '240', '--out', path.join(dir, 'ev1')]);
+    assert.equal(ok.code, 0, ok.stderr);
+    // --probe uses the same resolution.
+    const probe = await cap(['--probe', '--config', config('.auth/good.json')]);
+    assert.equal(probe.code, 0, probe.stderr);
+    assert.equal(JSON.parse(probe.stdout).signIn, false);
+    // The variable wins over the config pointer.
+    const envWins = await cap(['--probe', '--config', config('.auth/good.json')], { DESIGN_QA_APP_STORAGE_STATE: path.join(dir, '.auth', 'bad.json') });
+    assert.equal(envWins.code, 6, 'the (signed-out) session from the variable is used');
+    assert.match(envWins.stderr, /setup\.mjs save-session/);
+    // A missing file: the path and save-session.
+    const missing = await cap(['--config', config('.auth/gone.json'), '--width', '320', '--height', '240', '--out', path.join(dir, 'ev2')]);
+    assert.equal(missing.code, 2);
+    assert.match(missing.stderr, /saved session .*\.auth\/gone\.json \(from app\.auth\.storageState\) does not exist\. Sign in again: node \S*scripts\/setup\.mjs save-session/);
+    // Neither: both sources named.
+    const neither = await cap(['--config', config(null), '--width', '320', '--height', '240', '--out', path.join(dir, 'ev3')]);
+    assert.equal(neither.code, 2);
+    assert.match(neither.stderr, /DESIGN_QA_APP_STORAGE_STATE.*app\.auth\.storageState.*setup\.mjs save-session/);
+    for (const text of all) assert.doesNotMatch(text, new RegExp(SECRET), 'the session content never appears');
+    for (const f of ['capture.json', 'dom/with-data.json']) assert.doesNotMatch(readFileSync(path.join(dir, 'ev1', f), 'utf8'), new RegExp(SECRET));
+  } finally {
+    await server.close();
+  }
+});
+
+test('capture --run: another run\'s report folder is refused before anything is written; no id, or an --out outside a locked folder, works', { timeout: 120000 }, async (t) => {
+  const dir = tmpDir();
+  const report = path.join(dir, 'qa-reports', 'abc-123');
+  mkdirSync(path.join(report, 'evidence', 'screens', 'cart'), { recursive: true });
+  writeFileSync(path.join(report, '.design-qa-run.json'), JSON.stringify({ kind: 'design-qa-run', version: 1, runId: '20261004T113201Z-a1b2c3', label: null, status: 'active', startedAt: '2026-10-04T11:32:01Z', finishedAt: null }));
+  const args = (out) => ['--url', 'http://127.0.0.1:9/', '--width', '320', '--height', '240', '--out', out];
+  for (const out of [path.join(report, 'evidence'), path.join(report, 'evidence', 'screens', 'cart')]) {
+    const refused = await run(CAPTURE, [...args(out), '--run', '20261004T113202Z-bbbbbb'], { cwd: dir });
+    assert.equal(refused.code, 5, refused.stderr);
+    assert.match(refused.stderr, /belongs to run 20261004T113201Z-a1b2c3/);
+    assert.equal(existsSync(path.join(out, 'capture.json')), false);
+    const env = await run(CAPTURE, args(out), { cwd: dir, env: { DESIGN_QA_RUN_ID: '20261004T113202Z-bbbbbb' } });
+    assert.equal(env.code, 5, 'DESIGN_QA_RUN_ID is the fallback');
+  }
+  if (!CHROMIUM) return;
+  // No run id: not refused (the unreachable app is what fails, exit 5 with a load error).
+  const noId = await run(CAPTURE, args(path.join(report, 'evidence')), { cwd: dir, env: { DESIGN_QA_RUN_ID: '' } });
+  assert.doesNotMatch(noId.stderr, /belongs to run/);
+  const own = await run(CAPTURE, [...args(path.join(dir, 'elsewhere')), '--run', '20261004T113202Z-bbbbbb'], { cwd: dir });
+  assert.doesNotMatch(own.stderr, /belongs to run/, 'an --out under no locked folder is not checked');
 });

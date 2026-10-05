@@ -490,3 +490,70 @@ export function displayPath(file) {
   const rel = path.relative(realPathOf(process.cwd()), path.join(realPathOf(path.dirname(abs)), path.basename(abs)));
   return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : file;
 }
+
+// ---------------------------------------------------------------------------
+// Printed commands: runnable as printed, from the working directory
+// ---------------------------------------------------------------------------
+
+const HAS_CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
+const CONTROL_RE = new RegExp(HAS_CONTROL.source, 'g');
+const ansiEscape = (c) => {
+  const code = c.charCodeAt(0);
+  return code < 0x100 ? `\\x${code.toString(16).padStart(2, '0')}` : `\\u${code.toString(16).padStart(4, '0')}`;
+};
+
+/**
+ * The one shell quoting of every printed command: plain words stay bare, anything else is
+ * single-quoted, and a value with a line break or another control character uses $'\u2026'
+ * (bash, zsh), so the command stays on one line and keeps the exact value.
+ */
+export const shellArg = (value) => {
+  const s = String(value);
+  if (/^[A-Za-z0-9_./:@=-]+$/.test(s)) return s;
+  if (HAS_CONTROL.test(s)) return `$'${s.replace(/[\\']/g, '\\$&').replace(CONTROL_RE, ansiEscape)}'`;
+  return `'${s.replace(/'/g, "'\\''")}'`;
+};
+const shellWord = shellArg;
+
+/**
+ * This skill's scripts folder as it was invoked: the folder of the script node was asked
+ * to run (process.argv[1], symbolic links NOT resolved, so a skill linked into the project
+ * stays inside it) when it is this very skill, else this module's real location.
+ */
+export function skillScriptsDir() {
+  const real = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+  const main = process.argv[1] ? path.resolve(process.argv[1]) : null;
+  if (main) {
+    let dir = path.dirname(main);
+    if (path.basename(dir) === 'lib') dir = path.dirname(dir);
+    try {
+      if (dir !== real && realpathSync(dir) === realpathSync(real)) return dir;
+    } catch {
+      // not this skill
+    }
+  }
+  return real;
+}
+
+/**
+ * The path to type for one of this skill's scripts ("pass.mjs", "lib/state-discovery.mjs")
+ * so a printed command runs as printed from the working directory, wherever the skill is
+ * installed: relative to the working directory when the skill is inside it
+ * (.claude/skills/design-qa/scripts/pass.mjs), else under the home folder as ~/… (the ~
+ * left unquoted so the shell expands it), else absolute; shell-quoted where needed. On
+ * Windows always the absolute path.
+ */
+export function scriptShellPath(name, { cwd = process.cwd(), platform = process.platform, home = os.homedir(), scriptsDir = skillScriptsDir() } = {}) {
+  const abs = path.join(scriptsDir, name);
+  if (platform === 'win32') return `"${abs}"`;
+  const rel = path.relative(cwd, abs);
+  if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) return shellWord(rel.split(path.sep).join('/'));
+  const fromHome = home ? path.relative(home, abs) : '';
+  if (fromHome && !fromHome.startsWith('..') && !path.isAbsolute(fromHome)) return `~/${shellWord(fromHome.split(path.sep).join('/'))}`;
+  return shellWord(abs);
+}
+
+/** "node <script path>": the start of every command a script prints for an agent to run. */
+export function scriptCommand(name, opts) {
+  return `node ${scriptShellPath(name, opts)}`;
+}

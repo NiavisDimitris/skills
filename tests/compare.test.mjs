@@ -647,3 +647,22 @@ test('dedupeRepeats keeps one row per difference across states', () => {
   assert.equal(states['with-data'].style.length, 2, 'PASS rows and first occurrences stay');
   assert.deepEqual(states.hover.style.map((r) => r.property), ['background-color'], 'the hover-only difference stays');
 });
+
+test('compareState: an animation on an element that was not grabbed carries that element\'s recorded path and box', () => {
+  const ran = (name, durationMs, easing, extra = {}) => ({ type: 'CSSAnimation', target: 'div.confirm-icon', element: null, animationName: name, durationMs, delayMs: 0, easing, iterations: 1, playState: 'running', ...extra });
+  const sideOf = (animations) => ({ driver: {}, computed: {}, motion: { elements: {}, actionTarget: null, animations, keyframes: {} } });
+  const at = { selector: 'main > section.card > div[data-testid="confirm-icon"]', rect: { x: 684, y: 161, w: 72, h: 72 } };
+  const rows = compareState({ state: 'with-data', design: sideOf([ran('pop-in', 320, 'cubic-bezier(0,0,0.58,1)', { selector: at.selector, rect: { x: 684, y: 160, w: 72, h: 72 } })]), app: sideOf([ran('pop', 600, 'linear', at)]) });
+  assert.equal(rows.motion.length, 1);
+  const [row] = rows.motion;
+  assert.equal(row.result, 'FAIL');
+  assert.equal(row.selector, 'div.confirm-icon');
+  assert.deepEqual(row._compare.target, { side: 'app', ...at }, 'the app side names the element first');
+  assert.deepEqual(Object.keys(row), ['state', 'selector', 'figmaNodeId', 'trigger', 'property', 'expected', 'observed', 'result', 'findingIds', '_compare'], 'the ledger row shape is unchanged');
+  // Only the design animates it: the design's element is named.
+  const missing = compareState({ state: 'with-data', design: sideOf([ran('pop-in', 320, 'ease-out', at)]), app: sideOf([]) });
+  assert.equal(missing.motion[0]._compare.target.side, 'design');
+  // A capture from before 0.2.2 (no path or box recorded): no target, as before.
+  const old = compareState({ state: 'with-data', design: sideOf([ran('pop-in', 320, 'ease-out')]), app: sideOf([ran('pop', 600, 'linear')]) });
+  assert.equal(old.motion[0]._compare.target, undefined);
+});

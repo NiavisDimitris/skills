@@ -1,0 +1,21 @@
+Currently selected nodes:
+- 12:300 Orders
+<section id="12:300" name="Orders" x="-200" y="400" width="4000" height="2400">
+  <frame id="12:345" name="Orders" x="0" y="0" width="1440" height="1024">
+    <frame id="12:346" name="Header" x="0" y="0" width="1440" height="72">
+      <text id="12:347" name="Title" x="40" y="20" width="200" height="32" />
+      <instance id="12:348" name="Button" x="1240" y="16" width="160" height="40"/>
+    </frame>
+    <instance id="I12:349;5:1" name="Row" x="40" y="120" width="1360" height="56" />
+    <unknown-thing id="12:350" name="Mystery &amp; co" foo="bar" x="0" y="0" width="10" height="10"/>
+  </frame>
+  <frame id="12:400" name="Orders – Empty" x="1500" y="0" width="1440" height="1024" />
+  <frame id="12:410" name="Orders – Side panel" x="3000" y="0" width="1440" height="1024" />
+  <frame id="12:420" name="Orders 600" x="0" y="1100" width="600" height="1600" />
+  <frame id="12:430" name="Row menu" x="700" y="1100" width="240" height="180" />
+  <frame id="12:440" name="Loading" x="1000" y="1100" width="1440" height="1024" />
+  <frame id="12:450" name="Bulk edit" x="2500" y="1100" width="1440" height="1024" />
+  <frame id="12:460" name="Old draft" x="4000" y="1100" width="1440" height="1024" hidden="true" />
+  <text id="12:470" name="Notes for devs" x="0" y="-80" width="400" height="40" />
+</section>
+Use get_design_context on these node IDs for code.

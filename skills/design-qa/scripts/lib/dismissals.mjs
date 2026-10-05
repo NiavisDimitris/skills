@@ -366,6 +366,20 @@ export function upsertLogEntries(previous, report, changes = [], { now = new Dat
   return { log: { version: 1, updatedAt: changes.length ? now : previous?.updatedAt ?? null, entries }, stats };
 }
 
+const norm = (v) => oneLine(v ?? '').toLowerCase();
+
+/**
+ * Is a log entry the same finding, not only the same place? Ledger and property must agree
+ * as recorded; with no values to compare (or no element), the title must agree too, so a
+ * new difference on the same element is never hidden by an old dismissal.
+ */
+function sameFinding(e, f) {
+  if (norm(e.ledger) !== norm(f.ledger) || norm(e.property) !== norm(f.property)) return false;
+  const el = isObj(f.element) ? f.element : {};
+  const weak = (e.expectedValue == null && e.actualValue == null) || !(el.selector || el.figmaLayerPath || f.region);
+  return !weak || (norm(e.title) !== '' && norm(e.title) === norm(f.title));
+}
+
 /**
  * Re-apply earlier passes' dismissals: every active entry of this report's feature
  * whose fingerprint matches an open finding (FIX_CODE / UNCLASSIFIED) and whose
@@ -381,13 +395,13 @@ export function applyPriorDismissals(report, log) {
     (e) => e && e.status === 'active' && String(e.feature ?? '').trim().toLowerCase() === feature,
   );
   const byFp = new Map();
-  for (const e of active) if (!byFp.has(e.fingerprint)) byFp.set(e.fingerprint, e);
+  for (const e of active) byFp.set(e.fingerprint, [...(byFp.get(e.fingerprint) ?? []), e]);
   let next = report;
   const applied = [];
   const changed = [];
   for (const f of Array.isArray(report?.findings) ? report.findings : []) {
     if (!f || !OPEN_RESOLUTIONS.includes(f.resolution) || !DISMISSIBLE_SEVERITIES.includes(f.severity)) continue;
-    const e = byFp.get(fingerprint(f));
+    const e = (byFp.get(fingerprint(f)) ?? []).find((x) => sameFinding(x, f));
     if (!e) continue;
     const nowValues = { expectedValue: f.expected?.value ?? null, actualValue: f.actual?.value ?? null };
     const wasValues = { expectedValue: e.expectedValue ?? null, actualValue: e.actualValue ?? null };

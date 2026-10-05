@@ -6,6 +6,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// The unit-test fixtures (tests/fixtures/report-*.json, ui-report*.json) are assembled by hand, so they cannot
+// pass build verification (meta.build against findings.json and the evidence). Every script a test runs
+// skips it, announcing it on stderr; tests of the verification itself unset it (env: { DESIGN_QA_TEST_SKIP_BUILD_VERIFY: '' }).
+process.env.DESIGN_QA_TEST_SKIP_BUILD_VERIFY = '1';
+
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const SKILL = path.join(ROOT, 'skills', 'design-qa');
 export const SCRIPTS = path.join(SKILL, 'scripts');

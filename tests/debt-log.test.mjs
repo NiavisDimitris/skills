@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { renderDebtLog, updateDebtLog, whereOf } from '../skills/design-qa/scripts/debt-log.mjs';
 import { computeScorecard } from '../skills/design-qa/scripts/lib/ranking.mjs';
 import { applyTriage, buildTriage } from '../skills/design-qa/scripts/lib/triage.mjs';
-import { ROOT, loadFixture, run, script, tmpDir } from './_helpers.mjs';
+import { ROOT, fixture, loadFixture, run, script, tmpDir } from './_helpers.mjs';
 
 const DEBT_LOG = script('debt-log.mjs');
 const TICKET = { provider: 'jira', key: 'ABC-99', url: 'https://example.atlassian.net/browse/ABC-99', createdAt: '2026-09-24T09:05:00Z' };
@@ -327,4 +327,27 @@ test('debt-log.mjs: a config report.debtLog outside the config folder ("../", or
   assert.equal(flag.code, 0, flag.stderr);
   assert.ok(existsSync(path.join(home, 'debt.md')) && existsSync(path.join(home, 'debt.json')));
   untouched();
+});
+
+test('debt-log.mjs: a report folder whose run is not finished needs that run id', async (t) => {
+  const RUN = '20261004T100000Z-abc123';
+  const root = tmpDir();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const dir = path.join(root, 'qa-reports', 'abc-1');
+  mkdirSync(dir, { recursive: true });
+  const report = path.join(dir, 'report.json');
+  copyFileSync(fixture('report-valid.json'), report);
+  const lock = { kind: 'design-qa-run', version: 1, runId: RUN, label: null, status: 'active', startedAt: '2026-10-04T10:00:00.000Z' };
+  writeFileSync(path.join(dir, '.design-qa-run.json'), JSON.stringify(lock));
+  const noEnv = { DESIGN_QA_RUN_ID: '' };
+  const refused = await run(DEBT_LOG, ['--report', report], { cwd: root, env: noEnv });
+  assert.equal(refused.code, 5, refused.stderr);
+  assert.match(refused.stderr, /belongs to a run that is not finished/);
+  assert.ok(!existsSync(path.join(root, 'qa-reports', 'design-debt.json')), 'nothing written');
+  assert.equal((await run(DEBT_LOG, ['--report', report, '--run', '20260101T000000Z-abcdef'], { cwd: root, env: noEnv })).code, 5);
+  const ok = await run(DEBT_LOG, ['--report', report, '--run', RUN], { cwd: root, env: noEnv });
+  assert.equal(ok.code, 0, ok.stderr);
+  // Once the run is finished, no id is needed.
+  writeFileSync(path.join(dir, '.design-qa-run.json'), JSON.stringify({ ...lock, status: 'finished', finishedAt: '2026-10-04T11:00:00.000Z' }));
+  assert.equal((await run(DEBT_LOG, ['--report', report], { cwd: root, env: noEnv })).code, 0);
 });

@@ -24,6 +24,11 @@
           "properties": {
             "type": { "enum": ["none", "basic", "cookie", "storageState", "login"] },
             "envPrefix": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$", "default": "DESIGN_QA_APP" },
+            "storageState": {
+              "type": "string",
+              "minLength": 1,
+              "description": "PATH of a Playwright storage-state file a person saved by signing in themselves (scripts/setup.mjs save-session; default ~/.design-qa/sessions/<repo>-<host>.json). Never the session itself. ~ and ${ENV} are expanded; a relative path is relative to the config file. Used for auth type storageState when <envPrefix>_STORAGE_STATE is not set (the variable wins). The file must be outside the repository or git-ignored."
+            },
             "login": {
               "type": ["object", "null"],
               "required": ["url", "userSelector", "passSelector", "submitSelector"],
@@ -34,10 +39,21 @@
                 "submitSelector": { "type": "string" },
                 "successSelector": { "type": "string" }
               }
+            },
+            "signedInSelector": {
+              "type": "string",
+              "minLength": 1,
+              "description": "CSS selector of an element only the signed-in app renders (the app shell's navigation, the user menu), present in every state. capture.mjs fails a state where it is not visible as a sign-in page (exit 6); when it is visible, the sign-in-form heuristics are skipped, so an app page with a password field (a settings screen) is never flagged."
+            },
+            "signInUrlPattern": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Regular expression (case-insensitive) matched against the whole final URL of each state: a match that the planned URL does not have is a sign-in page (exit 6). For identity providers or sign-in routes the built-in heuristic misses."
             }
           }
         },
-        "headers": { "type": "object", "additionalProperties": { "type": "string" } }
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "preCapture": { "$ref": "#/definitions/preCapture" }
       }
     },
     "surfaces": {
@@ -48,10 +64,43 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
+        "figmaLibrary": {
+          "type": ["string", "null"],
+          "pattern": "^(https://([\\w-]+\\.)?figma\\.com/|\\$\\{)",
+          "errorMessage": "must be a https://figma.com link (or an environment-variable placeholder), or null",
+          "description": "Link to the design system's Figma library file: used to tell library components from lookalikes and to name variables. null: no library (asked once by setup.mjs)."
+        },
         "componentCatalog": { "type": ["string", "null"] },
         "tokenMap": { "type": ["string", "null"] },
         "knownDrifts": { "type": ["string", "null"] },
-        "designRules": { "type": ["string", "null"] }
+        "designRules": { "type": ["string", "null"] },
+        "tokens": {
+          "type": ["array", "null"],
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Token files the design-system audit (scripts/ds-audit.mjs) checks every rendered value against, relative to this file: JSON (a { \"--token\": value } map, W3C design tokens with $value, Style Dictionary, a theme object exported to JSON) or CSS custom properties. A JS or TS theme is exported to JSON once."
+        },
+        "libraries": {
+          "type": ["array", "null"],
+          "description": "Component libraries the design-system audit tells apart: the design system, raw third-party primitives and legacy components. An element belongs to the first library whose classPrefix or selector matches it.",
+          "items": {
+            "type": "object",
+            "required": ["name", "kind"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "kind": { "enum": ["design-system", "third-party", "legacy"] },
+              "classPrefix": { "type": "string", "minLength": 1, "description": "A class name prefix that marks the library's elements (e.g. \"Mui\")." },
+              "selector": { "type": "string", "minLength": 1, "description": "A CSS selector that marks the library's elements (e.g. \"[data-ds-component]\")." },
+              "wraps": { "type": "string", "minLength": 1, "description": "design-system only: the name of the third-party library entry it is built on (same classes on the page). ds-audit then tells wrapper and raw use apart from the source: package (an npm name, or the wrapper's folder) is where the third-party library may be imported." },
+              "package": {
+                "type": ["string", "array"],
+                "items": { "type": "string", "minLength": 1 },
+                "description": "npm package name(s), for ds-audit.mjs --source: which local files import the library (a hint only)."
+              }
+            },
+            "anyOf": [{ "required": ["classPrefix"] }, { "required": ["selector"] }],
+            "errorMessage": "needs a classPrefix or a selector to recognise the library's elements"
+          }
+        }
       }
     },
     "tolerances": {
@@ -81,6 +130,7 @@
       "type": "object",
       "properties": {
         "outDir": { "type": "string" },
+        "commit": { "type": "boolean", "description": "Whether reports in outDir are committed with the code (true) or kept out of git (false; outDir belongs in .gitignore). Asked once by setup.mjs; setup.mjs check reports a mismatch with .gitignore." },
         "topN": { "type": "integer", "minimum": 0 },
         "embedImages": { "type": "boolean" },
         "debtLog": {
@@ -146,18 +196,61 @@
       "properties": {
         "driver": { "enum": ["script", "playwright-mcp", "builtin"] },
         "reducedMotion": { "type": "boolean" },
-        "allowNavigation": { "type": "boolean", "description": "Do not fail states that end on another URL (an app that always redirects, say to a locale prefix or www); same as capture --allow-navigation. A state's own allowNavigation wins." }
+        "allowNavigation": { "type": "boolean", "description": "Do not fail states that end on another URL (an app that always redirects, say to a locale prefix or www); same as capture --allow-navigation. A state's own allowNavigation wins. Sign-in pages are still detected." },
+        "maxViewportHeight": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 20000,
+          "description": "Tallest design frame laid out at exactly W×H (default 1440, or 1000 for frames narrower than 768 px); a taller frame is laid out at W × maxViewportHeight so 100vh sections get a real screen height. It sets the layout viewport only: every capture covers the whole page. Same as capture --max-viewport-height."
+        },
+        "viewportOnly": {
+          "type": "boolean",
+          "description": "Opt-out: capture only the layout viewport (the old above-the-fold screenshot) instead of the whole page, for every state. Same as capture --viewport-only; a state's own viewportOnly wins. Rarely right: content below the fold is then never compared."
+        }
       }
     }
   },
   "definitions": {
+    "preCapture": {
+      "type": "object",
+      "description": "Applied to every state of the app side before capture: storage set before the app's scripts run, elements hidden or removed with CSS, dismiss buttons clicked once if present. capture.json records the keys and selectors, never the storage values.",
+      "properties": {
+        "localStorage": { "type": "object", "description": "Key → value set in localStorage before the page's scripts run (non-strings are JSON-encoded). A state's own storage wins on the same key." },
+        "sessionStorage": { "type": "object", "description": "Key → value set in sessionStorage before the page's scripts run." },
+        "hide": { "type": "array", "items": { "$ref": "#/definitions/preCaptureSelector" }, "description": "Selectors made invisible (visibility: hidden): they keep their space in the layout." },
+        "remove": { "type": "array", "items": { "$ref": "#/definitions/preCaptureSelector" }, "description": "Selectors taken out of the layout (display: none) and removed from the DOM before the page is read." },
+        "click": { "type": "array", "items": { "$ref": "#/definitions/preCaptureSelector" }, "description": "Selectors clicked once, in order, when visible (a dismiss button); absent ones are skipped." }
+      }
+    },
+    "preCaptureSelector": {
+      "oneOf": [
+        { "$ref": "#/definitions/cssSelector" },
+        {
+          "type": "object",
+          "description": "A selector that applies only to the named states.",
+          "required": ["selector", "states"],
+          "properties": {
+            "selector": { "$ref": "#/definitions/cssSelector" },
+            "states": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "cssSelector": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^{}]+$",
+      "errorMessage": "must be a CSS selector without { or }"
+    },
     "surface": {
       "type": "object",
       "required": ["route"],
       "properties": {
         "route": { "type": "string", "description": "Route template; may contain {id}/{fixture}, replaced by a state's fixture value." },
         "fixture": { "type": ["string", "null"] },
-        "fullPage": { "type": "boolean" },
+        "fullPage": { "type": "boolean", "description": "Accepted for compatibility and ignored: every capture covers the whole page (see capture.viewportOnly for the opt-out)." },
+        "preCapture": { "$ref": "#/definitions/preCapture", "description": "Merged over app.preCapture for this surface: its storage keys win, its selectors are added." },
         "figma": {
           "type": "object",
           "required": ["fileKey", "nodeId"],
@@ -232,7 +325,9 @@
         },
         "reducedMotion": { "type": "boolean" },
         "wait": { "type": "string", "description": "Selector to wait for in this state (overrides capture --wait)." },
-        "allowNavigation": { "type": "boolean", "description": "The state may end on another URL (an action that navigates); otherwise a redirect or navigation away fails the state." },
+        "allowNavigation": { "type": "boolean", "description": "The state may end on another URL (an action that navigates); otherwise a redirect or navigation away fails the state. Sign-in pages are still detected (see allowSignIn)." },
+        "viewportOnly": { "type": "boolean", "description": "Capture only the layout viewport for this state (true), or the whole page even when capture.viewportOnly is set (false)." },
+        "allowSignIn": { "type": "boolean", "description": "The state is meant to show a sign-in page (a sign-out flow, QA of the sign-in screen): skip sign-in detection for it." },
         "source": { "type": "string", "description": "Implemented in code but not drivable at runtime (file reference); the state is reported as CANNOT_VERIFY." }
       }
     }

@@ -1,0 +1,1326 @@
+{
+  "kind": "design-qa-findings",
+  "version": 1,
+  "findings": [
+    {
+      "ref": "dq-001",
+      "title": "Empty state is not implemented",
+      "ledger": "state",
+      "state": "empty",
+      "severity": "BLOCKER",
+      "resolution": "FIX_CODE",
+      "region": "Empty state",
+      "element": {
+        "selector": "[data-testid=orders-table] tbody",
+        "figmaLayerPath": "Orders / Empty / EmptyState",
+        "figmaNodeId": "1204:3391"
+      },
+      "property": "presence",
+      "expected": {
+        "value": "EmptyState: 'No orders yet', helper text and a primary 'Create order' button",
+        "token": "EmptyState",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Table header over an empty <tbody>; no message or action",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersTable.tsx",
+          "line": 64,
+          "snippet": "<tbody>{orders.map((o) => <OrderRow key={o.id} order={o} />)}</tbody>"
+        }
+      },
+      "delta": "State missing in code",
+      "tolerance": "State must exist",
+      "fix": {
+        "summary": "Render the Acme DS EmptyState when there are no orders, with the 'Create order' primary action.",
+        "patchHint": "if (!orders.length) return <EmptyState icon=\"inbox\" title=\"No orders yet\" description=\"Orders you create or import will appear here.\" action={<Button variant=\"primary\" onClick={onCreate}>Create order</Button>} />;",
+        "files": [
+          "src/features/orders/OrdersTable.tsx",
+          "src/features/orders/OrdersPage.tsx"
+        ],
+        "effort": 2
+      },
+      "evidence": [
+        {
+          "type": "dom",
+          "path": "evidence/dom/empty.json",
+          "crop": null,
+          "state": "empty"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 264,
+          "y": 204,
+          "w": 1144,
+          "h": 400
+        }
+      },
+      "acRef": "AC-2"
+    },
+    {
+      "ref": "dq-002",
+      "title": "Table header is a hand-styled <thead>, not Acme DS Table.Header",
+      "ledger": "component",
+      "state": "with-data",
+      "severity": "BLOCKER",
+      "resolution": "FIX_CODE",
+      "region": "Table header",
+      "element": {
+        "selector": "[data-testid=orders-table] thead",
+        "figmaLayerPath": "Orders / With data / Card / Table.Header",
+        "figmaNodeId": "1204:3322"
+      },
+      "property": "component",
+      "expected": {
+        "value": "Table.Header (sticky) with sortable Table.HeaderCell for Total and Created",
+        "token": "Table.Header",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Native <thead class=\"orders-th\">: bold uppercase labels, 2px rule, no sort affordance",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersTable.tsx",
+          "line": 41,
+          "snippet": "<thead className=\"orders-th\">\n  <tr>{columns.map((c) => <th key={c.id}>{c.label}</th>)}</tr>\n</thead>"
+        }
+      },
+      "delta": "Component mismatch; sorting unavailable",
+      "tolerance": "Same DS component",
+      "fix": {
+        "summary": "Replace the hand-built <thead> with Table.Header and Table.HeaderCell (sortable on Total and Created); delete the .orders-th styles.",
+        "patchHint": "<Table.Header sticky>{columns.map((c) => <Table.HeaderCell key={c.id} sortable={c.sortable} align={c.align}>{c.label}</Table.HeaderCell>)}</Table.Header>",
+        "files": [
+          "src/features/orders/OrdersTable.tsx",
+          "src/features/orders/orders.css"
+        ],
+        "effort": 3
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": null,
+          "state": "with-data"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/dom/with-data.json",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 288,
+          "y": 228,
+          "w": 1096,
+          "h": 40
+        }
+      }
+    },
+    {
+      "ref": "dq-003",
+      "title": "Row hover background is a hardcoded hex, not --ads-color-surface-hover",
+      "ledger": "style",
+      "state": "hover",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Table rows",
+      "element": {
+        "selector": ".orders-row:hover",
+        "figmaLayerPath": "Orders / Row / State=Hover",
+        "figmaNodeId": "1204:3431"
+      },
+      "property": "background-color",
+      "expected": {
+        "value": "#F0F4FA",
+        "token": "--ads-color-surface-hover",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "#CFD8E6",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/orders.css",
+          "line": 29,
+          "snippet": ".orders-row:hover { background: #CFD8E6; }"
+        }
+      },
+      "delta": "ΔL* −10 (visibly darker), untokenised",
+      "tolerance": "Token match",
+      "fix": {
+        "summary": "Replace the hardcoded hover colour with the surface-hover token.",
+        "patchHint": ".orders-row:hover { background: var(--ads-color-surface-hover); }",
+        "files": [
+          "src/features/orders/orders.css"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/hover.png",
+          "crop": null,
+          "state": "hover"
+        },
+        {
+          "type": "diff",
+          "path": "evidence/diff/hover.png",
+          "crop": null,
+          "state": "hover"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/computed/hover.json",
+          "crop": null,
+          "state": "hover"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 288,
+          "y": 316,
+          "w": 1096,
+          "h": 48
+        }
+      }
+    },
+    {
+      "ref": "dq-004",
+      "title": "Card padding is 20px instead of --ads-space-6 (24px)",
+      "ledger": "style",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Card",
+      "element": {
+        "selector": ".orders-card",
+        "figmaLayerPath": "Orders / With data / Card",
+        "figmaNodeId": "1204:3320"
+      },
+      "property": "padding",
+      "expected": {
+        "value": "24px",
+        "token": "--ads-space-6",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "20px",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/orders.css",
+          "line": 12,
+          "snippet": ".orders-card { padding: 20px; }"
+        }
+      },
+      "delta": "−4px on every side",
+      "tolerance": "±1px",
+      "fix": {
+        "summary": "Use the spacing token for the card padding.",
+        "patchHint": ".orders-card { padding: var(--ads-space-6); }",
+        "files": [
+          "src/features/orders/orders.css"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": null,
+          "state": "with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/computed/with-data.json",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 264,
+          "y": 204,
+          "w": 1144,
+          "h": 520
+        }
+      },
+      "worklist": "wl:with-data:200,264"
+    },
+    {
+      "ref": "dq-005",
+      "title": "Status badge variants match the design (fixed in fix-loop iteration 1)",
+      "ledger": "component",
+      "state": "with-data",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Table rows",
+      "element": {
+        "selector": "td.col-status .ads-badge",
+        "figmaLayerPath": "Orders / With data / Card / Row 1 / Status badge",
+        "figmaNodeId": "1204:3325"
+      },
+      "property": "variant",
+      "expected": {
+        "value": "Badge variant=success for Shipped",
+        "token": "Badge/Success",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Badge variant=success (was neutral before iteration 1)",
+        "token": "Badge/Success",
+        "source": {
+          "file": "src/features/orders/statusBadge.ts",
+          "line": 9,
+          "snippet": "shipped: 'success',"
+        }
+      },
+      "delta": "None after fix",
+      "tolerance": "Same variant",
+      "evidence": [
+        {
+          "type": "computed",
+          "path": "evidence/computed/with-data.json",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "pin": {
+        "crop": {
+          "x": 750,
+          "y": 277,
+          "w": 66,
+          "h": 22
+        }
+      }
+    },
+    {
+      "ref": "dq-006",
+      "title": "Page title weight is 500 instead of --ads-font-weight-semibold (600)",
+      "ledger": "style",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Page header",
+      "element": {
+        "selector": "h1.page-title",
+        "figmaLayerPath": "Orders / With data / Page title",
+        "figmaNodeId": "1204:3314"
+      },
+      "property": "font-weight",
+      "expected": {
+        "value": "600",
+        "token": "--ads-font-weight-semibold",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "500",
+        "token": "--ads-font-weight-medium",
+        "source": {
+          "file": "src/components/PageHeader.module.css",
+          "line": 8,
+          "snippet": ".title { font-weight: var(--ads-font-weight-medium); }"
+        }
+      },
+      "delta": "−100",
+      "tolerance": "Exact",
+      "fix": {
+        "summary": "Use the semibold weight token for page titles (shared PageHeader).",
+        "patchHint": ".title { font-weight: var(--ads-font-weight-semibold); }",
+        "files": [
+          "src/components/PageHeader.module.css"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": null,
+          "state": "with-data"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/computed/with-data.json",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 264,
+          "y": 78,
+          "w": 82,
+          "h": 32
+        }
+      },
+      "knownDrift": "KD-2",
+      "worklist": "wl:with-data:72,264"
+    },
+    {
+      "ref": "dq-007",
+      "title": "Skeleton bars use a 2px radius instead of --ads-radius-md (6px)",
+      "ledger": "style",
+      "state": "loading",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Skeleton",
+      "element": {
+        "selector": ".orders-skeleton .ads-skeleton",
+        "figmaLayerPath": "Orders / Loading / Skeleton / Row",
+        "figmaNodeId": "1204:3405"
+      },
+      "property": "border-radius",
+      "expected": {
+        "value": "6px",
+        "token": "--ads-radius-md",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "2px",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersSkeleton.tsx",
+          "line": 14,
+          "snippet": "<Skeleton className=\"orders-skel\" style={{ borderRadius: 2 }} />"
+        }
+      },
+      "delta": "−4px",
+      "tolerance": "Token match",
+      "fix": {
+        "summary": "Drop the inline radius override so Skeleton uses --ads-radius-md.",
+        "patchHint": "<Skeleton className=\"orders-skel\" />",
+        "files": [
+          "src/features/orders/OrdersSkeleton.tsx"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/loading.png",
+          "crop": null,
+          "state": "loading"
+        },
+        {
+          "type": "diff",
+          "path": "evidence/diff/loading.png",
+          "crop": null,
+          "state": "loading"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/computed/loading.json",
+          "crop": null,
+          "state": "loading"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 304,
+          "y": 286,
+          "w": 84,
+          "h": 12
+        }
+      }
+    },
+    {
+      "ref": "dq-008",
+      "title": "Row hover transition is 400ms ease instead of 160ms ease-out (--ads-motion-base)",
+      "ledger": "motion",
+      "state": "hover",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Table rows",
+      "element": {
+        "selector": ".orders-row",
+        "figmaLayerPath": "Orders / With data / Card / Row 1",
+        "figmaNodeId": "1204:3324"
+      },
+      "property": "transition-duration",
+      "expected": {
+        "value": "160ms ease-out on background-color",
+        "token": "--ads-motion-base",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "400ms ease on background-color",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/orders.css",
+          "line": 31,
+          "snippet": ".orders-row { transition: background-color 400ms ease; }"
+        }
+      },
+      "delta": "+240ms, easing differs",
+      "tolerance": "±20ms",
+      "fix": {
+        "summary": "Use the motion tokens for the row hover transition (160ms, ease-out).",
+        "patchHint": ".orders-row { transition: background-color var(--ads-motion-base) var(--ads-ease-standard); }",
+        "files": [
+          "src/features/orders/orders.css"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "motion",
+          "path": "evidence/motion/hover.json",
+          "crop": null,
+          "state": "hover"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/computed/hover.json",
+          "crop": null,
+          "state": "hover"
+        }
+      ],
+      "pin": {
+        "crop": {
+          "x": 284,
+          "y": 264,
+          "w": 1104,
+          "h": 48
+        }
+      }
+    },
+    {
+      "ref": "dq-010",
+      "title": "App renders an extra 'Updated' column that is not in the design",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Table header",
+      "element": {
+        "selector": "th[data-col=updated]",
+        "figmaLayerPath": "Orders / With data / Card / Table.Header",
+        "figmaNodeId": "1204:3322"
+      },
+      "property": "columns",
+      "expected": {
+        "value": "Order · Customer · Status · Total · Created",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Order · Customer · Status · Total · Created · Updated",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/columns.ts",
+          "line": 42,
+          "snippet": "{ id: 'updated', header: 'Updated', cell: (o) => formatDateTime(o.updatedAt) },"
+        }
+      },
+      "delta": "+1 column (added in ACME-497 after the frame was drawn)",
+      "tolerance": "Exact",
+      "fix": {
+        "summary": "Remove the 'Updated' column so the table matches the design: Order · Customer · Status · Total · Created.",
+        "patchHint": "// columns.ts: delete { id: 'updated', header: 'Updated', cell: (o) => formatDateTime(o.updatedAt) },",
+        "files": [
+          "src/features/orders/columns.ts"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": null,
+          "state": "with-data"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/dom/with-data.json",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 1248,
+          "y": 228,
+          "w": 136,
+          "h": 40
+        }
+      }
+    },
+    {
+      "ref": "dq-011",
+      "title": "Pagination moved from below the table to the toolbar",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "INTENTIONAL",
+      "region": "Pagination",
+      "element": {
+        "selector": "[data-testid=orders-pagination]",
+        "figmaLayerPath": "Orders / With data / Card / Pagination",
+        "figmaNodeId": "1204:3340"
+      },
+      "property": "position",
+      "expected": {
+        "value": "Below the table, inside the card",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Compact pagination in the toolbar, above the table",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersToolbar.tsx",
+          "line": 31,
+          "snippet": "<Pagination compact page={page} total={total} onChange={setPage} />"
+        }
+      },
+      "delta": "Moved above the table",
+      "tolerance": "Exact position",
+      "fix": {
+        "summary": "No code change (signed off).",
+        "patchHint": null,
+        "files": [],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 288,
+          "y": 668,
+          "w": 1096,
+          "h": 32
+        }
+      },
+      "signoff": {
+        "by": "Product",
+        "date": "2026-09-18",
+        "reason": "Top pagination keeps page controls above the fold on 12-row pages. Approved in design review."
+      }
+    },
+    {
+      "ref": "dq-012",
+      "title": "Table shows 12 rows; the design sample shows 8",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "DATA",
+      "region": "Table rows",
+      "element": {
+        "selector": "[data-testid=orders-table] tbody tr",
+        "figmaLayerPath": "Orders / With data / Card / Row 1",
+        "figmaNodeId": "1204:3324"
+      },
+      "property": "row count",
+      "expected": {
+        "value": "8 rows",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "12 rows from the fixture",
+        "token": null,
+        "source": {
+          "file": "fixtures/orders/with-data.json",
+          "line": 1,
+          "snippet": "[ { \"id\": \"ORD-10482\", … } ]  // 12 orders"
+        }
+      },
+      "delta": "+4 rows",
+      "tolerance": "Data-dependent",
+      "fix": {
+        "summary": "No code change: the count comes from the fixture. Optionally trim the fixture to 8 orders so screenshots line up.",
+        "patchHint": null,
+        "files": [
+          "fixtures/orders/with-data.json"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "figma",
+          "path": "evidence/figma/with-data.png",
+          "crop": null,
+          "state": "with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": null,
+          "state": "with-data"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/dom/with-data.json",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "dataReason": "The fixture has 12 orders and the design sample shows 8; row height, dividers and type of every row match.",
+      "signoff": {
+        "by": "Product",
+        "date": "2026-09-18",
+        "reason": "Row count follows the order data; the design shows a sample of 8. Checked in design review."
+      }
+    },
+    {
+      "ref": "dq-013",
+      "title": "Order totals differ from the design's sample values",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "DATA",
+      "region": "Table rows",
+      "element": {
+        "selector": "td.col-total",
+        "figmaLayerPath": "Orders / With data / Card / Row 1 / Total",
+        "figmaNodeId": "1204:3326"
+      },
+      "property": "text",
+      "expected": {
+        "value": "$1,240.00 · $2,015.10 · $930.20 (rows 1, 4, 6)",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "$1,204.00 · $215.10 · $9,302.00",
+        "token": null,
+        "source": {
+          "file": "fixtures/orders/with-data.json",
+          "line": 7,
+          "snippet": "\"total\": { \"amount\": 120400, \"currency\": \"USD\" },"
+        }
+      },
+      "delta": "Values differ; format matches (USD, 2 decimals, tabular figures)",
+      "tolerance": "Format only",
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 908,
+          "y": 268,
+          "w": 150,
+          "h": 48
+        }
+      },
+      "dataReason": "Totals come from the fixture orders; currency, two decimals and tabular figures match the design.",
+      "signoff": {
+        "by": "Product",
+        "date": "2026-09-18",
+        "reason": "Order totals are data; their format matches the design. Checked in design review."
+      }
+    },
+    {
+      "ref": "dq-014",
+      "title": "Selected row background cannot be verified (no driver for the selected state)",
+      "ledger": "style",
+      "state": "selected",
+      "severity": "CANNOT_VERIFY",
+      "resolution": "NONE",
+      "region": "Table rows",
+      "element": {
+        "selector": ".orders-row[aria-selected=true]",
+        "figmaLayerPath": "Orders / Row / State=Selected",
+        "figmaNodeId": "1204:3452"
+      },
+      "property": "background-color",
+      "expected": {
+        "value": "#E6EEFF with a 3px brand accent on the left",
+        "token": "--ads-color-surface-selected",
+        "source": "figma"
+      },
+      "actual": {
+        "value": null,
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersTable.tsx",
+          "line": 88,
+          "snippet": "className={cx('orders-row', { 'is-selected': order.id === selectedId })}"
+        }
+      },
+      "delta": "Not captured: add surfaces.orders.states.selected",
+      "tolerance": "Token match",
+      "fix": {
+        "summary": "Add a selected-state driver so the next pass can capture it.",
+        "patchHint": "\"surfaces\": { \"orders\": { \"states\": { \"selected\": { \"action\": \"click\", \"selector\": \"tbody tr:nth-child(3)\" } } } }",
+        "files": [
+          "design-qa.config.json"
+        ],
+        "effort": 1
+      },
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 288,
+          "y": 364,
+          "w": 1096,
+          "h": 48
+        }
+      }
+    },
+    {
+      "ref": "dq-015",
+      "title": "Retry button is shown when the request fails (AC-3)",
+      "ledger": "behavior",
+      "state": "error",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Error banner",
+      "element": {
+        "selector": "[data-testid=orders-error] button",
+        "figmaLayerPath": "Orders / Error / Alert / Retry",
+        "figmaNodeId": "1204:3420"
+      },
+      "property": "behavior",
+      "expected": {
+        "value": "Error banner with a Retry button that re-requests the orders",
+        "token": null,
+        "source": "ticket"
+      },
+      "actual": {
+        "value": "Alert (critical) with Retry; clicking it re-sends GET /api/orders",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersPage.tsx",
+          "line": 41,
+          "snippet": "<Alert variant=\"critical\" action={<Button size=\"sm\" onClick={refetch}>Retry</Button>}>"
+        }
+      },
+      "delta": null,
+      "tolerance": null,
+      "evidence": [
+        {
+          "type": "dom",
+          "path": "evidence/dom/error.json",
+          "crop": null,
+          "state": "error"
+        }
+      ],
+      "pin": {
+        "crop": {
+          "x": 1288,
+          "y": 244,
+          "w": 84,
+          "h": 32
+        }
+      },
+      "acRef": "AC-3"
+    },
+    {
+      "ref": "dq-016",
+      "title": "Loading skeleton appears immediately instead of after 300 ms (AC-4)",
+      "ledger": "behavior",
+      "state": "loading",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Skeleton",
+      "element": {
+        "selector": "[data-testid=orders-skeleton]",
+        "figmaLayerPath": "Orders / Loading / Skeleton / Row",
+        "figmaNodeId": "1204:3405"
+      },
+      "property": "appearance delay",
+      "expected": {
+        "value": "Skeleton appears only when loading takes longer than 300 ms",
+        "token": null,
+        "source": "ticket"
+      },
+      "actual": {
+        "value": "Skeleton renders on the first frame (0 ms) and flashes on fast responses",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersPage.tsx",
+          "line": 37,
+          "snippet": "if (isLoading) return <OrdersSkeleton />;"
+        }
+      },
+      "delta": "Shown 300 ms early",
+      "tolerance": "±50 ms",
+      "fix": {
+        "summary": "Delay the skeleton by 300 ms so fast responses never flash it.",
+        "patchHint": "const showSkeleton = useDelayedFlag(isLoading, 300);\nif (showSkeleton) return <OrdersSkeleton />;",
+        "files": [
+          "src/features/orders/OrdersPage.tsx",
+          "src/hooks/useDelayedFlag.ts"
+        ],
+        "effort": 2
+      },
+      "evidence": [
+        {
+          "type": "dom",
+          "path": "evidence/dom/loading.json",
+          "crop": null,
+          "state": "loading"
+        }
+      ],
+      "pin": {
+        "crop": {
+          "x": 284,
+          "y": 264,
+          "w": 1104,
+          "h": 384
+        }
+      },
+      "acRef": "AC-4",
+      "worklist": "wl:loading:200,264"
+    },
+    {
+      "ref": "dq-017",
+      "title": "Row focus ring matches the design rules",
+      "ledger": "state",
+      "state": "focus",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Table rows",
+      "element": {
+        "selector": ".orders-row:focus-visible",
+        "figmaLayerPath": "Orders / Row / State=Focus",
+        "figmaNodeId": "1204:3440"
+      },
+      "property": "outline",
+      "expected": {
+        "value": "2px inset ring",
+        "token": "--ads-color-focus-ring",
+        "source": "design-rules"
+      },
+      "actual": {
+        "value": "2px solid rgb(37, 99, 235), offset -2px",
+        "token": "--ads-color-focus-ring",
+        "source": {
+          "file": "src/features/orders/orders.css",
+          "line": 34,
+          "snippet": ".orders-row:focus-visible { outline: var(--ads-focus-ring); outline-offset: -2px; }"
+        }
+      },
+      "delta": null,
+      "tolerance": "Token match",
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/focus.png",
+          "crop": null,
+          "state": "focus"
+        },
+        {
+          "type": "computed",
+          "path": "evidence/computed/focus.json",
+          "crop": null,
+          "state": "focus"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 288,
+          "y": 268,
+          "w": 1096,
+          "h": 48
+        }
+      }
+    },
+    {
+      "ref": "dq-018",
+      "title": "Search placeholder copy differs from the design",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "UNCLASSIFIED",
+      "region": "Toolbar",
+      "element": {
+        "selector": "[data-testid=orders-search] input",
+        "figmaLayerPath": "Orders / With data / Toolbar / Search",
+        "figmaNodeId": "1204:3317"
+      },
+      "property": "placeholder",
+      "expected": {
+        "value": "Search orders",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Search by order ID or customer",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersToolbar.tsx",
+          "line": 23,
+          "snippet": "placeholder=\"Search by order ID or customer\""
+        }
+      },
+      "delta": "Copy differs",
+      "tolerance": "Exact copy",
+      "fix": {
+        "summary": "Confirm with content design. If the change is not intentional, restore 'Search orders'.",
+        "patchHint": "placeholder={t('orders.search.placeholder')} // \"Search orders\"",
+        "files": [
+          "src/features/orders/OrdersToolbar.tsx"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 264,
+          "y": 152,
+          "w": 320,
+          "h": 36
+        }
+      },
+      "worklist": "wl:with-data:152,264"
+    },
+    {
+      "ref": "dq-019",
+      "title": "Error banner uses Acme DS Alert (critical) as designed",
+      "ledger": "component",
+      "state": "error",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Error banner",
+      "element": {
+        "selector": "[data-testid=orders-error]",
+        "figmaLayerPath": "Orders / Error / Alert",
+        "figmaNodeId": "1204:3419"
+      },
+      "property": "component",
+      "expected": {
+        "value": "Alert variant=critical",
+        "token": "Alert",
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Alert variant=critical",
+        "token": "Alert",
+        "source": {
+          "file": "src/features/orders/OrdersPage.tsx",
+          "line": 41,
+          "snippet": "<Alert variant=\"critical\" action={<Button size=\"sm\" onClick={refetch}>Retry</Button>}>"
+        }
+      },
+      "delta": null,
+      "tolerance": "Same DS component",
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/error.png",
+          "crop": null,
+          "state": "error"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 288,
+          "y": 228,
+          "w": 1096,
+          "h": 72
+        }
+      }
+    },
+    {
+      "ref": "dq-020",
+      "title": "Page title and subtitle copy match the design",
+      "ledger": "structure",
+      "state": "with-data",
+      "severity": "PASS",
+      "resolution": "NONE",
+      "region": "Page header",
+      "element": {
+        "selector": "header.page-header",
+        "figmaLayerPath": "Orders / With data / Page title",
+        "figmaNodeId": "1204:3314"
+      },
+      "property": "text",
+      "expected": {
+        "value": "Orders — Track and manage customer orders",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "Orders — Track and manage customer orders",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersPage.tsx",
+          "line": 22,
+          "snippet": "<PageHeader title=\"Orders\" subtitle=\"Track and manage customer orders\" />"
+        }
+      },
+      "delta": null,
+      "tolerance": "Exact copy",
+      "evidence": [
+        {
+          "type": "screenshot",
+          "path": "evidence/app/with-data.png",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "pin": {
+        "side": "design",
+        "crop": {
+          "x": 264,
+          "y": 78,
+          "w": 236,
+          "h": 58
+        }
+      }
+    },
+    {
+      "ref": "dq-021",
+      "title": "Skeleton is swapped for the rows with no fade (missing 200ms dissolve)",
+      "ledger": "motion",
+      "state": "loading",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Table",
+      "element": {
+        "selector": "[data-testid=orders-skeleton]",
+        "figmaLayerPath": "Orders / Loading",
+        "figmaNodeId": "1204:3402"
+      },
+      "property": "animation",
+      "expected": {
+        "value": "200ms ease-out dissolve (opacity) from the skeleton to the rows",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "none: the rows replace the skeleton on the next frame",
+        "token": null,
+        "source": {
+          "file": "src/features/orders/OrdersPage.tsx",
+          "line": 41,
+          "snippet": "{isLoading ? <OrdersSkeleton /> : <OrdersTable rows={rows} />}"
+        }
+      },
+      "delta": "No transition",
+      "tolerance": "±20ms",
+      "fix": {
+        "summary": "Cross-fade the skeleton out and the rows in: opacity 200ms ease-out.",
+        "patchHint": "<Fade show={!isLoading} duration={200} easing=\"ease-out\">…</Fade>",
+        "files": [
+          "src/features/orders/OrdersPage.tsx"
+        ],
+        "effort": 2
+      },
+      "evidence": [
+        {
+          "type": "motion",
+          "path": "evidence/motion/loading.json",
+          "crop": null,
+          "state": "loading"
+        },
+        {
+          "type": "dom",
+          "path": "evidence/dom/loading.json",
+          "crop": null,
+          "state": "loading"
+        }
+      ],
+      "pin": {
+        "crop": {
+          "x": 284,
+          "y": 264,
+          "w": 1104,
+          "h": 384
+        }
+      }
+    },
+    {
+      "ref": "dq-022",
+      "title": "Status badge radius is 11px, the design says 12px",
+      "ledger": "style",
+      "state": "with-data",
+      "severity": "WARNING",
+      "resolution": "FIX_CODE",
+      "region": "Table rows",
+      "element": {
+        "selector": "td.col-status .ads-badge",
+        "figmaLayerPath": "Orders / With data / Card / Row 1 / Status badge",
+        "figmaNodeId": "1204:3325"
+      },
+      "property": "border-radius",
+      "expected": {
+        "value": "12px",
+        "token": null,
+        "source": "figma"
+      },
+      "actual": {
+        "value": "11px",
+        "token": null,
+        "source": {
+          "file": "src/components/Badge.module.css",
+          "line": 6,
+          "snippet": ".badge { border-radius: 11px; }"
+        }
+      },
+      "delta": "−1px",
+      "tolerance": "±1px",
+      "fix": {
+        "summary": "Use the Acme DS Badge radius token on the status pill",
+        "files": [
+          "src/features/orders/StatusPill.tsx"
+        ],
+        "effort": 1
+      },
+      "evidence": [
+        {
+          "type": "computed",
+          "path": "evidence/computed/with-data.json",
+          "crop": null,
+          "state": "with-data"
+        }
+      ],
+      "pin": {
+        "crop": {
+          "x": 750,
+          "y": 277,
+          "w": 66,
+          "h": 22
+        }
+      }
+    }
+  ],
+  "openDecisions": [
+    {
+      "id": "OD-2",
+      "question": "Pagination: keep it in the toolbar (as built) or move it below the table (as designed)? Resolved on 2026-09-18.",
+      "options": [
+        {
+          "label": "Keep it in the toolbar (as built)",
+          "consequence": "Page controls stay above the fold on 12-row pages; the deviation is recorded as signed off (DQ-011)."
+        },
+        {
+          "label": "Move it below the table (as designed)",
+          "consequence": "Matches the frame; page controls fall below the fold at 900px viewport height."
+        }
+      ],
+      "recommendation": "Keep as built: signed off by Product on 2026-09-18 (DQ-011).",
+      "relatedFindings": [
+        "dq-011"
+      ]
+    }
+  ],
+  "pass": {
+    "feature": "orders",
+    "target": {
+      "localCommit": "9f3c2a1e7b4d8c06a5f2e19d3b7c4a8e0f6d2b51"
+    },
+    "tools": {
+      "figmaAccess": "mcp",
+      "capture": "script",
+      "ticket": "mcp",
+      "dsAudit": "manual"
+    },
+    "degradations": [
+      {
+        "step": "capture:selected",
+        "reason": "No driver hook for the selected state (surfaces.orders.states.selected is not defined).",
+        "impact": "Selected row not captured; DQ-014 is reported as CANNOT_VERIFY."
+      },
+      {
+        "step": "figma:variables",
+        "reason": "Motion variables (Acme DS / Motion) are not published to the library, so the MCP returned no motion tokens.",
+        "impact": "The 160 ms / ease-out expectation in DQ-008 comes from the Figma prototype reaction; the --ads-motion-base token name comes from design-rules."
+      }
+    ],
+    "dsAudit": {
+      "elementsChecked": 214,
+      "offTokenValues": 4,
+      "nonSystemComponents": 1,
+      "output": null
+    }
+  },
+  "rejected": [
+    {
+      "worklist": [
+        "wl:error:224,280",
+        "wl:focus:232,280"
+      ],
+      "reason": "duplicate",
+      "duplicateOf": "dq-004",
+      "detail": "The 20px card padding (DQ-004) shifts the error banner and the focused row by 4px; nothing else differs."
+    },
+    {
+      "worklist": [
+        "wl:loading:160,392"
+      ],
+      "reason": "duplicate",
+      "duplicateOf": "dq-018",
+      "detail": "The same search placeholder copy as DQ-018, seen in the other states."
+    },
+    {
+      "worklist": [
+        "wl:focus:376,968"
+      ],
+      "reason": "duplicate",
+      "duplicateOf": "dq-010",
+      "detail": "The extra Updated column (DQ-010) and the dates in it; the Created column only differs by its data."
+    },
+    {
+      "worklist": [
+        "wl:focus:664,264"
+      ],
+      "reason": "DATA",
+      "detail": "The focus fixture has more orders, so rows continue where the design's shorter table ends; the rows look like the ones above."
+    },
+    {
+      "worklist": [
+        "wl:with-data:152,1056"
+      ],
+      "reason": "DATA",
+      "detail": "The toolbar page range and page buttons show because the fixture has more than one page; the design frame has one page."
+    },
+    {
+      "worklist": [
+        "wl:loading:152,1088"
+      ],
+      "reason": "DATA",
+      "detail": "The same toolbar page range from the fixture's order count, in the loading, error, hover and focus states."
+    },
+    {
+      "worklist": [
+        "wl:focus:376,296"
+      ],
+      "reason": "DATA",
+      "detail": "Order numbers and customer names in the focus fixture differ in length from the design's sample text; type and colour match."
+    },
+    {
+      "worklist": [
+        "wl:focus:376,760"
+      ],
+      "reason": "DATA",
+      "detail": "Status badge labels come from each fixture order's status; badge colours, radius and padding match the design."
+    }
+  ]
+}

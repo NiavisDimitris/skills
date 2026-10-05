@@ -3,15 +3,20 @@
     "baseUrl": "http://localhost:3000",
     "start": "npm run dev",
     "readyUrl": "/",
-    "auth": { "type": "none", "envPrefix": "DESIGN_QA_APP", "login": null },
-    "headers": {}
+    "auth": { "type": "none", "envPrefix": "DESIGN_QA_APP", "login": null, "signedInSelector": "[data-testid=app-nav]", "storageState": "~/.design-qa/sessions/acme-web-localhost-3000.json" },
+    "headers": {},
+    "preCapture": {
+      "localStorage": { "acme:promo-banner-dismissed": "1" },
+      "hide": ["[data-testid=chat-launcher]"],
+      "click": ["[data-testid=cookie-notice] button[aria-label=Close]"]
+    }
   },
   "surfaces": {
     "orders": {
       "route": "/orders",
       "fixture": "rich-orders",
-      "fullPage": false,
       "figma": { "fileKey": "AbCdEfGhIjKlMnOp", "nodeId": "12:345" },
+      "preCapture": { "remove": ["[data-testid=whats-new-ribbon]"] },
       "states": {
         "with-data": { "fixture": "rich-orders" },
         "empty":     { "mock": { "urlPattern": "**/api/orders*", "status": 200, "body": { "items": [] } } },
@@ -47,15 +52,23 @@
   },
   "designSystem": {
     "name": "Acme DS",
+    "figmaLibrary": "https://www.figma.com/design/ZyXwVuTsRqPoNmLk/Acme-DS-Library",
     "componentCatalog": "design-qa/components.json",
     "tokenMap": "design-qa/token-map.md",
     "knownDrifts": "design-qa/known-drifts.md",
-    "designRules": "design.md"
+    "designRules": "design.md",
+    "tokens": ["design-qa/tokens.json"],
+    "libraries": [
+      { "name": "Acme DS", "kind": "design-system", "selector": "[data-ds-component]", "package": "@acme/ds" },
+      { "name": "Mui", "kind": "third-party", "classPrefix": "Mui", "package": "@mui/material" },
+      { "name": "Legacy UI", "kind": "legacy", "classPrefix": "legacy-", "package": "@acme/legacy-ui" }
+    ]
   },
   "tolerances": { "px": 1, "colorDeltaE": 1.5, "pixelDiff": { "pass": 1, "review": 5 } },
   "commands": { "test": "npm test", "lint": [], "cwd": "." },
   "report": {
     "outDir": "qa-reports",
+    "commit": false,
     "topN": 5,
     "embedImages": true,
     "ranking": {
@@ -65,5 +78,5 @@
   },
   "ticket": { "provider": "jira", "baseUrl": "https://acme.atlassian.net", "writeBack": false, "trustPreviewUrl": false },
   "figma": { "access": ["mcp", "rest"] },
-  "capture": { "driver": "script", "reducedMotion": false }
+  "capture": { "driver": "script", "reducedMotion": false, "maxViewportHeight": 1440 }
 }

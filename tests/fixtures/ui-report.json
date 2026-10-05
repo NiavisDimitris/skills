@@ -49,10 +49,15 @@
       "ticket": "rest",
       "prototypeCapture": null
     },
+    "build": {
+      "tool": "build-report",
+      "version": "fixture",
+      "findings": null,
+      "evidence": []
+    },
     "degradations": []
   },
   "scorecard": {
-    "parity": 31,
     "verdict": "FAIL",
     "bySeverity": {
       "BLOCKER": 3,
@@ -96,7 +101,20 @@
       "designed": 6,
       "specified": 0,
       "implemented": 6,
-      "verified": 4
+      "verified": 4,
+      "partial": 0
+    },
+    "match": 76,
+    "matchByState": {
+      "with-data": 88,
+      "empty": 0,
+      "loading": 94,
+      "hover": 99,
+      "error": 100
+    },
+    "settled": {
+      "count": 2,
+      "total": 11
     },
     "unexplained": 9,
     "debt": {
@@ -109,7 +127,8 @@
       "tokens": 3,
       "components": 1,
       "motion": 2
-    }
+    },
+    "unpinned": 0
   },
   "stateMatrix": [
     {
@@ -127,7 +146,18 @@
       "captured": {
         "design": "evidence/design/with-data.png",
         "app": "evidence/app/with-data.png",
-        "diff": "evidence/diff/with-data.png"
+        "diff": "evidence/diff/with-data.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -181,7 +211,18 @@
       "captured": {
         "design": "evidence/design/loading.png",
         "app": "evidence/app/loading.png",
-        "diff": "evidence/diff/loading.png"
+        "diff": "evidence/diff/loading.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -205,7 +246,18 @@
       "captured": {
         "design": "evidence/design/hover.png",
         "app": "evidence/app/hover.png",
-        "diff": "evidence/diff/hover.png"
+        "diff": "evidence/diff/hover.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -229,7 +281,18 @@
       "captured": {
         "design": "evidence/design/error.png",
         "app": "evidence/app/error.png",
-        "diff": "evidence/diff/error.png"
+        "diff": "evidence/diff/error.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
       },
       "result": "PASS",
       "note": null,
@@ -859,7 +922,8 @@
       },
       "signoff": null,
       "knownDrift": null,
-      "acRef": null
+      "acRef": null,
+      "dataReason": "The fixture has different values here; layout, type and colour around them match the design."
     },
     {
       "id": "DQ-011",
@@ -1255,6 +1319,7 @@
   "openDecisions": [],
   "fixLoop": [],
   "triage": null,
+  "differences": { "with-data": { "differing": 12, "regions": [{ "key": "wl:with-data:120,96", "percent": 10, "findings": ["DQ-004"] }], "unlisted": { "count": 0, "percent": 0 } } },
   "evidence": {
     "figmaSpec": "evidence/figma-spec.json",
     "ticket": null,

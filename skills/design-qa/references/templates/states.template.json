@@ -1,4 +1,5 @@
 {
+  "$comment": "Save as <dir>/states.json. Keys: a state id, or <screen>/<state> (it wins over the plain key); $ keys are comments. \"screens\" adds or completes screens for this pass. Driver keys: references/state-matrix.md, \"Reachability drivers\".",
   "with-data": {
     "fixture": "rich-orders",
     "wait": "[data-testid=orders-table]"
@@ -7,9 +8,12 @@
     "mock": { "urlPattern": "**/api/orders*", "status": 200, "body": { "items": [], "total": 0 }, "contentType": "application/json" },
     "wait": "[data-testid=empty-state]"
   },
-  "hover": {
+  "orders/hover": {
     "action": "hover",
     "selector": "[data-testid=order-row]:first-child",
     "settleMs": 250
+  },
+  "screens": {
+    "order-detail": { "route": "/orders/1042" }
   }
 }

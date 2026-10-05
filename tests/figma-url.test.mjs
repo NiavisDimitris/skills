@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { figmaDesignUrl, normalizeNodeId, parseFigmaUrl, toUrlNodeId } from '../skills/design-qa/scripts/lib/figma-url.mjs';
+import { figmaDesignUrl, figmaNodeRefs, normalizeNodeId, parseFigmaUrl, toUrlNodeId } from '../skills/design-qa/scripts/lib/figma-url.mjs';
 
 test('design links: file key, node id in URL form', () => {
   const r = parseFigmaUrl('https://www.figma.com/design/AbCdEf123456/Items-list?node-id=12-345&t=abc-1');
@@ -71,4 +71,22 @@ test('normalizeNodeId accepts URL, API, encoded and instance forms', () => {
   assert.equal(toUrlNodeId('1-23'), '1-23');
   assert.equal(toUrlNodeId('x'), null);
   assert.equal(figmaDesignUrl('KEY', '1:2'), 'https://www.figma.com/design/KEY/?node-id=1-2');
+});
+
+test('figmaNodeRefs: the nodes a ticket links, deduplicated, branch keys used', () => {
+  assert.deepEqual(
+    figmaNodeRefs([
+      'https://www.figma.com/design/AbCdEf123456/Items?node-id=27-100',
+      'https://www.figma.com/file/AbCdEf123456/Items?node-id=27%3A100',
+      'https://www.figma.com/design/AbCdEf123456/branch/BrAnCh1/Items?node-id=1-2',
+      'https://www.figma.com/design/AbCdEf123456/Items',
+      'https://example.com/not-figma',
+    ]).map((r) => [r.fileKey, r.mainFileKey, r.nodeId]),
+    [
+      ['AbCdEf123456', 'AbCdEf123456', '27:100'],
+      ['BrAnCh1', 'AbCdEf123456', '1:2'],
+      ['AbCdEf123456', 'AbCdEf123456', null],
+    ],
+  );
+  assert.deepEqual(figmaNodeRefs(null), []);
 });

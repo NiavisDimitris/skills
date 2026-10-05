@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Prototype</title>
+<style>
+  body { margin: 0; font: 16px/1.5 Arial, Helvetica, sans-serif; }
+  .row { height: 60px; box-sizing: border-box; border-bottom: 1px solid #dddddd; }
+  #cta { display: block; margin: 16px; padding: 8px 16px; background: #2244aa; color: #ffffff; border: 0; }
+  #cta:hover { background: #112266; }
+  #dot { position: absolute; left: 0; top: 0; width: 1px; height: 1px; background: #ffffff; }
+  .footer-note { height: 60px; background: #f4f5f7; }
+</style>
+</head>
+<body>
+<div id="dot"></div>
+<button id="cta" type="button">Start</button>
+<div id="rows"></div>
+<p class="footer-note" id="footer">Below the fold</p>
+<script>
+  // A coded prototype: 20 rows push the footer far below a 360 px fold. It ignores
+  // ?promo=1 (a state it never implemented); ?px=1 changes exactly one pixel.
+  const rows = document.getElementById('rows');
+  for (let i = 1; i <= 20; i++) rows.insertAdjacentHTML('beforeend', '<div class="row">Row ' + i + '</div>');
+  if (new URLSearchParams(location.search).get('px') === '1') document.getElementById('dot').style.background = '#000000';
+</script>
+</body>
+</html>

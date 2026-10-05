@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Long page</title>
+<style>
+  body { margin: 0; font: 16px/1.5 Arial, Helvetica, sans-serif; }
+  section { height: 600px; padding: 24px; box-sizing: border-box; border-bottom: 1px solid #dddddd; }
+  .hero { height: 100vh; background: #eef2ff; }
+  #lazy { min-height: 20px; }
+  .loaded { height: 600px; background: #fff7e6; }
+</style>
+</head>
+<body>
+<section class="hero"><h1>Hero</h1></section>
+<section><h2>Section one</h2></section>
+<section><h2>Section two</h2></section>
+<section><h2>Section three</h2></section>
+<div id="lazy"></div>
+<script>
+  // Lazy content: rendered only once its placeholder scrolls into view (an infinite
+  // list or a lazily loaded section), so a capture that never scrolls misses it.
+  const lazy = document.getElementById('lazy');
+  new IntersectionObserver((entries, observer) => {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    observer.disconnect();
+    lazy.innerHTML = '<section class="loaded"><h2>Lazy section loaded</h2></section>';
+  }).observe(lazy);
+</script>
+</body>
+</html>

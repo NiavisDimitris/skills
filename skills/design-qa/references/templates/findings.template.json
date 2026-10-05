@@ -1,0 +1,110 @@
+{
+  "$comment": "findings.json: the only file of a pass you write (references/filing.md). Keys starting with $ are comments; unknown keys and wrong types are errors (a line number is a number, never \"12\"). Never write ids, ranks, meta, the state matrix, the pixel diff or the scorecard.",
+  "kind": "design-qa-findings",
+  "version": 1,
+  "pass": {
+    "$comment": "Optional: only what the evidence cannot tell (references/report.md).",
+    "mode": "audit",
+    "fixture": "rich-orders",
+    "target": { "deployedCommit": null },
+    "tools": { "ticket": "mcp" },
+    "degradations": [
+      { "step": "behaviour:with-data", "reason": "The export menu needs a feature flag the staging account lacks.", "impact": "The export flow was not checked; its button is compared as a static element." }
+    ]
+  },
+  "findings": [
+    {
+      "ref": "title-size",
+      "title": "Page title is 28px instead of heading/lg (32px)",
+      "ledger": "style",
+      "state": "with-data",
+      "severity": "WARNING",
+      "region": "Header",
+      "element": { "figmaLayerPath": "Orders / Header / Title", "figmaNodeId": "1:10" },
+      "property": "font-size",
+      "expected": { "value": "32px", "token": "heading/lg" },
+      "actual": { "value": "28px", "token": null, "source": { "file": "src/orders/OrdersPage.tsx", "line": 12, "snippet": "<h1 className=\"title\">" } },
+      "delta": "-4px",
+      "tolerance": "±1px",
+      "fix": { "summary": "Apply the heading/lg text style to the page title.", "patchHint": "className=\"ds-heading-lg\"", "files": ["src/orders/OrdersPage.tsx"], "effort": 1 },
+      "pins": [
+        { "selector": "h1" },
+        { "side": "design", "figmaNode": "1:10" }
+      ],
+      "acRef": "AC-1"
+    },
+    {
+      "ref": "row-height",
+      "worklist": ["wl:with-data:1480,100", "wl:with-data:1580,100"],
+      "title": "Order rows are 48px tall instead of 52px",
+      "ledger": "style",
+      "severity": "WARNING",
+      "region": "Orders table",
+      "property": "height",
+      "expected": { "value": "52px", "token": "size/row" },
+      "actual": { "value": "48px", "token": null },
+      "fix": { "summary": "Use the size/row token for the table row height." }
+    },
+    {
+      "ref": "order-count",
+      "worklist": "wl:with-data:96,32",
+      "title": "Order count reads 248 orders; the frame shows 12",
+      "ledger": "structure",
+      "severity": "WARNING",
+      "resolution": "DATA",
+      "dataReason": "The count comes from the API; the frame shows a sample value.",
+      "region": "Header",
+      "expected": { "value": "12 orders" },
+      "actual": { "value": "248 orders" }
+    },
+    {
+      "auditKey": "style:border-radius:999px",
+      "severity": "BLOCKER",
+      "fix": { "summary": "Render <Badge variant=\"success\"> instead of the hand-styled pill.", "files": ["src/orders/StatusCell.tsx"], "effort": 2 }
+    },
+    {
+      "ref": "reviews-missing",
+      "worklist": "wl:with-data:missing:2140",
+      "title": "Detail page does not render the Reviews section",
+      "ledger": "structure",
+      "severity": "BLOCKER",
+      "region": "Reviews",
+      "expected": { "value": "Reviews section with rating summary and three review cards" },
+      "actual": { "value": "absent" },
+      "fix": { "summary": "Render <ReviewsSection> below the specifications." }
+    }
+  ],
+  "rejected": [
+    { "auditKey": "style:color:#3a3f47", "reason": "DATA", "detail": "The colour comes from the customer's own logo upload, which is data." },
+    { "auditKeys": ["style:padding:13px", "style:gap:7px"], "reason": "out-of-scope", "detail": "The third-party date picker is not this team's surface." },
+    { "worklist": ["wl:with-data:120,32", "wl:empty:40,32"], "reason": "same", "detail": "Anti-aliasing on icon edges only; nothing a person would call different." },
+    { "worklist": "wl:with-data:900,1200", "reason": "covered-by-audit", "coveredBy": "style:border-radius:999px", "detail": "The status badges in this region are the filed audit finding." },
+    { "compare": { "kind": "style", "state": "with-data", "elementClass": "row", "property": "height" }, "reason": "duplicate", "duplicateOf": "title-size", "detail": "Row height follows from the title's line height; fixing the title fixes it." }
+  ],
+  "openDecisions": [
+    {
+      "question": "The ticket and the design disagree on the empty-state copy. Which ships?",
+      "options": [
+        { "label": "The design's copy", "consequence": "Matches the frame; the ticket's wording is dropped." },
+        { "label": "The ticket's copy", "consequence": "The finding is signed off as intentional by the product owner." }
+      ],
+      "recommendation": "Ask the product owner; the design's copy is the default.",
+      "relatedFindings": ["reviews-missing"]
+    }
+  ],
+  "states": {
+    "$comment": "Optional: CANNOT_VERIFY or MISSING_IN_CODE, always with a note. Never PASS or FAIL.",
+    "promo-applied": { "result": "MISSING_IN_CODE", "note": "Apply has no handler on the deployed build; checked by hand on staging." }
+  },
+  "fixLoop": [
+    { "$comment": "Optional: one entry per fix iteration (references/fix-loop.md).",
+      "iteration": 1, "action": "Applied heading/lg to the page title", "findings": ["title-size"],
+      "testsRun": "npm test", "result": "green", "pixelDiffAfter": { "with-data": 1.2 } }
+  ],
+  "ledgers": {
+    "$comment": "Optional: rows no script produces (references/ledgers.md); \"findings\" lists refs or audit keys.",
+    "behavior": [
+      { "state": "with-data", "trigger": "Click a row", "expected": "Opens the order detail", "observed": "Opens the order detail", "acRef": "AC-2", "result": "PASS", "findings": [] }
+    ]
+  }
+}

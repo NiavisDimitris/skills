@@ -1,0 +1,26 @@
+{
+  "color": {
+    "$type": "color",
+    "text": { "primary": { "$value": "#1a1d23" }, "inverse": { "$value": "{color.surface.default}" } },
+    "surface": { "default": { "$value": "#ffffff" } },
+    "brand": { "primary": { "$value": "#2563eb" } },
+    "border": { "subtle": { "$value": "#d0d4da" } }
+  },
+  "space": {
+    "$type": "dimension",
+    "2": { "$value": "8px" },
+    "3": { "$value": "12px" },
+    "4": { "$value": { "value": 1, "unit": "rem" } }
+  },
+  "radius": { "$type": "dimension", "control": { "$value": "6px" }, "full": { "$value": "9999px" } },
+  "border-width": { "$type": "dimension", "hairline": { "$value": "1px" } },
+  "font": {
+    "family": { "sans": { "$type": "fontFamily", "$value": ["Arial", "Helvetica", "sans-serif"] } }
+  },
+  "typography": {
+    "$type": "typography",
+    "heading": { "lg": { "$value": { "fontFamily": "Arial", "fontSize": "24px", "lineHeight": "32px", "fontWeight": 700, "letterSpacing": "0px" } } },
+    "body": { "md": { "$value": { "fontFamily": "Arial", "fontSize": "16px", "lineHeight": 1.5, "fontWeight": 400 } } },
+    "label": { "md": { "$value": { "fontFamily": "Arial", "fontSize": "14px", "lineHeight": "20px", "fontWeight": 600 } } }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "$comment": "Figma component to design-system component map for the design-qa component ledger. Copy to design-qa/components.json and point designSystem.componentCatalog at it. Keys under components are Figma main-component names as they appear in figma-spec.json (componentName). props maps each Figma variant property to a code prop and its values; the string \"state\" marks a property that is an interactive state, verified through the state matrix instead of a prop. rawPrimitives lists DOM patterns that mean a design-system component should have been used.",
+  "$comment": "Copy to design-qa/components.json and set designSystem.componentCatalog. components: Figma main-component name (componentName in the spec) → code component, import path, DOM selector, and each variant property → prop (\"state\" marks an interactive state, checked through the state matrix). Set \"kind\" (button, textbox, select, checkbox, radio, switch, tab, slider, tag, link, dialog, tooltip, menu, alert, table) when the name does not say it. rawPrimitives: DOM patterns that mean a design-system component should have been used; the design-system audit reads them too.",
   "designSystem": "Your DS",
   "components": {
     "Button": {
@@ -24,6 +24,7 @@
     },
     "Text field": {
       "component": "TextField",
+      "kind": "textbox",
       "importPath": "@your-ds/react",
       "selector": "[data-ds-component='TextField']",
       "props": {

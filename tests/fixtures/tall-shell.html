@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>App shell</title>
+<style>
+  /* An app shell: the document never scrolls; the main panel does (overflow: auto). */
+  body { margin: 0; height: 100vh; display: flex; font: 16px/1.5 Arial, Helvetica, sans-serif; }
+  aside { width: 120px; flex: none; background: #eeeeee; }
+  main { flex: 1; overflow: auto; }
+  h1 { margin: 0; height: 40px; font-size: 20px; }
+  .row { height: 40px; box-sizing: border-box; border-bottom: 1px solid #dddddd; background: #ffffff; }
+  .row.last { background: rgb(255, 0, 0); }
+  /* A wide table inside a sideways scroller: cut off on purpose, never unrolled. */
+  .wide { width: 200px; height: 60px; overflow-x: auto; overflow-y: hidden; }
+  .wide table { width: 800px; }
+</style>
+</head>
+<body>
+<aside>Navigation</aside>
+<main id="panel">
+  <h1>Rows</h1>
+  <div class="wide"><table><tr><td>A wide table</td></tr></table></div>
+  <div id="rows"></div>
+  <div id="more"></div>
+</main>
+<script>
+  const rows = document.getElementById('rows');
+  for (let i = 1; i <= 50; i++) rows.insertAdjacentHTML('beforeend', '<div class="row">Row ' + i + '</div>');
+  // Lazy rows: loaded when the end of the panel scrolls into view (inside the panel).
+  const more = document.getElementById('more');
+  new IntersectionObserver((entries, observer) => {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    observer.disconnect();
+    let html = '';
+    for (let i = 1; i <= 10; i++) html += '<div class="row">Lazy row ' + i + '</div>';
+    more.innerHTML = html + '<div class="row last">End of list</div>';
+  }, { root: document.getElementById('panel') }).observe(more);
+</script>
+</body>
+</html>

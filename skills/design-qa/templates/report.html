@@ -426,6 +426,31 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 .dot-text { display: inline-flex; align-items: center; gap: 0.375rem; white-space: nowrap; }
 .band-fail { color: var(--destructive); } .band-review { color: var(--amber-fg); } .band-pass { color: var(--emerald-fg); }
 .verdict-FAIL { background: var(--destructive-bg); color: #fff; } .verdict-REVIEW { background: var(--pin-warning); color: #fff; } .verdict-PASS { background: var(--pin-pass); color: #fff; }
+.verdict-INCOMPLETE { background: var(--primary); color: var(--primary-foreground); }
+.alert-incomplete { border-color: var(--destructive); } .alert-incomplete .alert-title, .alert-incomplete > svg { color: var(--destructive); }
+.alert-partial .alert-title, .alert-partial > svg { color: var(--amber-fg); }
+.page-alerts { display: grid; gap: 0.5rem; margin-top: 0.5rem; }
+.badge-partial { border-color: var(--amber); color: var(--amber-fg); }
+.stage-coverage { margin: 0 0 0.375rem; font-size: 0.8125rem; line-height: 1.25rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.stage-coverage[data-whole="false"] { color: var(--amber-fg); }
+.match-note { font-size: 0.875rem; line-height: 1.25rem; color: var(--destructive); }
+.match-note[hidden] { display: none; }
+.tab-match { font-weight: 400; }
+.stage-match { margin: 0; font-size: 0.875rem; line-height: 1.25rem; color: var(--muted-foreground); } .stage-match b { color: var(--foreground); font-weight: 600; }
+.stage-coverage-wrap { display: grid; gap: 0.375rem; margin-bottom: 0.375rem; }
+.state-flag { justify-self: start; display: inline-flex; gap: 0.375rem; align-items: center; font-size: 0.875rem; padding: 0.25rem 0.625rem; border: 1px solid var(--amber); color: var(--amber-fg); background: color-mix(in oklab, var(--amber) 12%, transparent); }
+.state-flag[data-flag="uncompared"] { border-color: var(--destructive); color: var(--destructive); background: color-mix(in oklab, var(--destructive) 10%, transparent); }
+.state-flag svg { width: 1rem; height: 1rem; }
+.tab-flag { font-size: 0.6875rem; font-weight: 600; color: var(--amber-fg); }
+.tab-flag[data-flag="uncompared"] { color: var(--destructive); }
+.reject-outline { position: absolute; border: 1.5px dashed var(--muted-foreground); background: color-mix(in oklab, var(--muted-foreground) 14%, transparent); opacity: 0.55; pointer-events: none; border-radius: 2px; }
+.reject-outline.focus { opacity: 1; border-color: var(--foreground); box-shadow: 0 0 0 2px var(--background); }
+.reject-outline > span { position: absolute; top: 2px; left: 2px; font-size: 10px; line-height: 1; padding: 1px 3px; border-radius: 2px; background: var(--muted-foreground); color: var(--background); }
+.rej-list { display: grid; gap: 0.75rem; } .rej-list ul { display: grid; gap: 0.375rem; margin-top: 0.25rem; }
+.rej-list li { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; font-size: 0.875rem; }
+.hollow-note { margin: 0 0 0.375rem; font-size: 0.8125rem; color: var(--muted-foreground); }
+.stage-padded { margin: 0 0 0.5rem; font-size: 0.875rem; line-height: 1.25rem; color: var(--muted-foreground); display: flex; gap: 0.375rem; align-items: flex-start; }
+.stage-padded svg { width: 1rem; height: 1rem; flex-shrink: 0; transform: translateY(0.125rem); color: var(--amber-fg); }
 
 /* ===== 5. Page layout ===== */
 .site-header { border-bottom: 1px solid var(--border); background: var(--background); }
@@ -924,14 +949,12 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   var DASH = '–';
   function blank(v) { return v === null || v === undefined || v === ''; }
   function orDash(v) { return blank(v) ? DASH : String(v); }
-  function orNone(v) { return blank(v) ? 'none' : String(v); }
   // One line: oneLine() of scripts/lib/args.mjs. Line breaks, U+2028/2029, U+0085 and other control characters become a
   // space, so a value quoted from the app or the design never starts a line of its own in a prompt or message.
   function oneLine(v) { return String(v === null || v === undefined ? '' : v).replace(/[\s\u0000-\u001f\u007f-\u009f]+/g, ' ').trim(); }
   function line1(v) { return oneLine(v) || DASH; }
   function arr(v) { return Array.isArray(v) ? v : []; }
   function badge(v, extra) { return h('span', { class: 'badge badge-outline' + (extra ? ' ' + extra : '') }, String(v)); } // neutral: colour only means severity
-  function outlineBadge(text, tip) { return h('span', { class: 'badge badge-outline', 'data-tip': tip || null }, text); }
   function btn(label, o) {
     o = o || {};
     return h('button', { type: 'button', id: o.id || null, class: 'btn btn-' + (o.variant || 'outline') + (o.size ? ' btn-' + o.size : '') + (o.cls ? ' ' + o.cls : ''),
@@ -1127,6 +1150,13 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var i = String(state).indexOf('/'); return i > 0 ? String(state).slice(0, i) : null;
   }
   function screenName(id) { var s = screenById[id]; return s ? s.name || s.id : String(id); }
+  // A breakpoint screen (meta.screens[].variantOf): "Orders 600 · 600 px variant of Orders" in the screen picker.
+  function screenOption(id) {
+    var s = screenById[id], parent = s && !blank(s.variantOf) ? screenById[s.variantOf] : null;
+    if (!parent) return screenName(id);
+    var w = s.frame && typeof s.frame.width === 'number' ? s.frame.width + ' px ' : '';
+    return screenName(id) + ' \u00b7 ' + w + 'variant of ' + screenName(parent.id);
+  }
   function stateShort(id) {
     var r = stateRow[id]; if (r && r.label) return r.label;
     var i = String(id).indexOf('/'); return SCREENS.length && i > 0 ? String(id).slice(i + 1) : id;
@@ -1167,7 +1197,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       'Files: ' + (arr(fx.files).length ? fx.files.map(function (x) { return oneLine(x); }).join(', ') : DASH), 'Evidence: ' + (paths.length ? paths.join(', ') : DASH));
     return lines.join('\n');
   }
-  function csvCell(v) { var s = blank(v) ? '' : String(v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+  // A cell a spreadsheet would read as a formula (=, +, -, @, tab or CR first: titles come from the app and Figma) gets a leading '.
+  function csvCell(v) { var s = blank(v) ? '' : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
 
   /* ===== 7. UI state, theme, sign-off store ===== */
   var S = {
@@ -1208,7 +1239,10 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   };
   var ORIG = {}; // the report's own values, restored on Undo
   findings.forEach(function (f) { ORIG[f.id] = { resolution: f.resolution, rank: f.rank, dismissal: f.dismissal || null, signoff: f.signoff || null }; });
-  function canDismiss(f) { var o = ORIG[f.id]; return !!o && (o.resolution === 'FIX_CODE' || o.resolution === 'UNCLASSIFIED') && !!SEV_W[f.severity]; }
+  // A sign-off that came through findings.json (signoff.enteredBy "agent"): open until a person accepts it here.
+  var AGENT_SIGNOFF = 'Sign-off entered by the agent, not confirmed in the review';
+  function agentSigned(f) { return !!(f && f.signoff && typeof f.signoff === 'object' && f.signoff.enteredBy === 'agent'); }
+  function canDismiss(f) { var o = ORIG[f.id]; return !!o && (o.resolution === 'FIX_CODE' || o.resolution === 'UNCLASSIFIED' || agentSigned(o)) && !!SEV_W[f.severity]; }
   var DIS = (function () { // drop entries the report already records (dismissed, fixed, gone) so "not recorded yet" stays true
     var v = null, out = {};
     try { v = JSON.parse(store.get(DIS_KEY) || 'null'); } catch (e) { v = null; }
@@ -1234,7 +1268,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function savedName() { var n = store.get(NAME_KEY); return n ? String(n).trim() : ''; }
   function dismissalOf(f) { // { kind, reason, by, date, local, source } for a DISMISSED or INTENTIONAL finding
     if (f.resolution === 'DISMISSED') { var d = f.dismissal || {}; return { kind: d.kind, reason: d.reason, by: d.by, date: d.date, source: d.source, local: !!f.__local }; }
-    if (f.resolution === 'INTENTIONAL') { var s = f.signoff || {}; return { kind: 'intentional', reason: s.reason, by: s.by, date: s.date, source: null, local: !!f.__local }; }
+    if (f.resolution === 'INTENTIONAL') { var s = f.signoff || {}; return { kind: 'intentional', reason: s.reason, by: s.by, date: s.date, source: null, local: !!f.__local, agent: agentSigned(f) }; }
     return null;
   }
   function fmtDay(iso) { return blank(iso) ? DASH : String(iso).slice(0, 10); }
@@ -1261,7 +1295,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     DS_CANDIDATE: 'DS_CANDIDATE', CANNOT_VERIFY: 'CANNOT_VERIFY', skipped: 'CANNOT_VERIFY', PASS: 'PASS', pass: 'PASS', green: 'PASS' };
   function dot(v) { return h('span', { class: 'dot', 'data-sev': DOT[v] || null, 'aria-hidden': 'true' }); }
   function dotText(v, label) { return h('span', { class: 'dot-text' }, dot(v), label === undefined ? String(v) : label); }
-  function isOpen(f) { return f.resolution === 'FIX_CODE' || f.resolution === 'UNCLASSIFIED'; }
+  function isOpen(f) { return f.resolution === 'FIX_CODE' || f.resolution === 'UNCLASSIFIED' || ((f.resolution === 'INTENTIONAL' || f.resolution === 'DATA') && agentSigned(f)); }
   function refocus(container, sel) { var el = container.querySelector(sel); if (el) el.focus(); }
   function fidBtn(id) { return h('button', { type: 'button', class: 'link-btn fid', 'data-tip': byId[id] ? byId[id].title : 'Unknown finding', onclick: function () { openFinding(id); } }, id); }
   function fidLinks(ids) { ids = arr(ids); return ids.length ? h('span', { class: 'row', style: 'gap:0.375rem' }, ids.map(fidBtn)) : h('span', { class: 'muted' }, DASH); }
@@ -1270,11 +1304,6 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     return h('div', { class: 'row muted', style: 'gap:0.5rem;font-size:0.875rem' }, h('span', { class: 'fid' }, f.id), dotText(f.severity),
       sc ? h('span', { class: 'badge badge-outline', 'data-screen': sc }, screenName(sc)) : null,
       h('span', null, [LEDGER_LABEL[f.ledger] || f.ledger, f.state ? (sc ? stateShort(f.state) : stateLabel(f.state)) : null, f.resolution + (f.__local ? ' (not recorded yet)' : '')].filter(Boolean).join(' · ')));
-  }
-  function eaLine(f) {
-    var ex = f.expected || {}, ac = f.actual || {};
-    return h('span', null, orDash(ex.value), ex.token ? [' ', h('span', { class: 'tok' }, ex.token)] : null, h('span', { class: 'arrow', 'aria-hidden': 'true' }, '→'),
-      h('span', { class: 'sr-only' }, ' actual: '), orDash(ac.value), ac.token ? [' ', h('span', { class: 'tok' }, ac.token)] : null);
   }
   function whereText(f) { var sel = f.element && f.element.selector, loc = sourceLocation(f); return loc + (sel ? ' · ' + sel : ''); }
   function cardHead(title, desc, actions, id, klass) {
@@ -1307,17 +1336,101 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var open = findings.filter(isOpen);
     return { tokens: open.filter(isTokenMismatch), components: open.filter(function (f) { return f.ledger === 'component'; }), motion: open.filter(function (f) { return f.ledger === 'motion'; }) };
   }
-  function dsCounts() { // the scorecard's numbers, recomputed when this browser has dismissed something (or when they are absent)
-    var d = SC.designSystem, g = dsGroups();
-    if (d && typeof d === 'object' && !pendingIds().length && ['tokens', 'components', 'motion'].every(function (k) { return typeof d[k] === 'number'; })) return d;
-    return { tokens: g.tokens.length, components: g.components.length, motion: g.motion.length };
+  function dsCounts() { // the scorecard's numbers (null: not checked), recomputed when this browser has dismissed something (or when they are absent)
+    var d = SC.designSystem, g = dsGroups(), nc = function (k) { return NOT_CHECKED[k] && !g[k].length ? null : g[k].length; };
+    if (d && typeof d === 'object' && !pendingIds().length && ['tokens', 'components', 'motion'].every(function (k) { return typeof d[k] === 'number' || (k !== 'motion' && d[k] === null); })) return d;
+    return { tokens: nc('tokens'), components: nc('components'), motion: g.motion.length };
   }
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many || one + 's'); }
-  var summaryEl = h('p', { class: 'summary', id: 'summary' });
+  // Coverage, target and audit (scripts/lib/ranking.mjs has the same rules): parity is null when no state
+  // was verified, INCOMPLETE means nothing was captured and compared, a remote target is a deployed build.
+  function parityText(p) { return typeof p === 'number' && isFinite(p) ? p + '%' : 'not measured'; }
+  var COV = SC.stateCoverage || {};
+  var INCOMPLETE = SC.verdict === 'INCOMPLETE';
+  var PARTIAL = typeof COV.verified === 'number' && typeof COV.total === 'number' && COV.total > 0 && COV.verified < COV.total;
+  function targetKindOf(url) {
+    var u; try { u = new URL(String(url)); } catch (e) { return null; }
+    if (u.protocol === 'file:') return 'local';
+    var host = u.hostname.toLowerCase().replace(/\.$/, '');
+    return host === 'localhost' || /\.localhost$/.test(host) || host === '[::1]' || /^127(\.\d{1,3}){3}$/.test(host) ? 'local' : 'remote';
+  }
+  var REMOTE = targetKindOf((meta.app || {}).url) === 'remote';
+  var DS_AUDITED = !!(meta.tools && (meta.tools.dsAudit === 'script' || meta.tools.dsAudit === 'manual'));
+  var NOT_CHECKED = (function () { // scripts/lib/ranking.mjs designSystemNotChecked: why a check did not run, or null
+    var n = meta.notChecked && typeof meta.notChecked === 'object' ? meta.notChecked : {}, none = DS_AUDITED ? null : 'no design-system audit was run';
+    return { tokens: n.tokens || none, components: n.components || none };
+  })();
+  // A pin (scripts/lib/ranking.mjs pinProblem): a state that is a matrix row, a crop on an image file, at least 64 px².
+  function hasPinF(f) {
+    return arr(f.evidence).some(function (e) {
+      var c = e && e.crop;
+      return e && typeof e.state === 'string' && stateRow[e.state] && c && typeof c === 'object' && isImage(e.path) && typeof c.w === 'number' && typeof c.h === 'number' && c.w * c.h >= 64;
+    });
+  }
+  // How a state row was compared (scripts/lib/ranking.mjs comparisonOf): null = captured, not compared.
+  function comparedHow(r) {
+    if (!r || !(r.result === 'PASS' || r.result === 'FAIL')) return null;
+    var c = r.captured && r.captured.comparison;
+    if (c && typeof c === 'object') return c.pixelDiff === true ? 'pixel diff' : null;
+    if ((SC.pixelDiff || {})[r.state]) return 'pixel diff';
+    var L = R.ledgers || {};
+    if (['motion', 'behavior'].some(function (k) { return arr(L[k]).some(function (x) { return x && x.state === r.state; }); })) return 'ledger rows';
+    return findings.some(function (f) { return f.state === r.state && arr(f.evidence).some(function (e) { return e && ['computed', 'diff', 'motion'].indexOf(e.type) !== -1; }); }) ? 'computed values' : null;
+  }
+  // A state captured only in part: declared (captured.page.partial) or an app image smaller than the page.
+  function partialOf(r) {
+    var pg = r && r.captured && r.captured.page; if (!pg) return false;
+    if (pg.partial === true) return true;
+    var a = meta.app || {}, d = a.dpr || 1, e = (SC.pixelDiff || {})[r.state] || {};
+    var im = pg.image && typeof pg.image.width === 'number' ? pg.image : typeof e.appWidth === 'number' && typeof e.appHeight === 'number' ? { width: e.appWidth, height: e.appHeight }
+      : pg.fullPage === false && a.viewport ? { width: a.viewport.width * d, height: a.viewport.height * d } : null;
+    return !!im && typeof pg.width === 'number' && (im.width < pg.width * d - 1 || im.height < pg.height * d - 1);
+  }
+  // Rejections (report.rejections): what the agent decided not to report, and each state's rejected worklist share.
+  var REJ = arr(R.rejections).filter(function (x) { return x && typeof x === 'object'; });
+  var REJ_LOUD = 5; // percent of a page: the default review band of the pixel diff
+  function rejShares() {
+    var out = {};
+    REJ.forEach(function (x) { if (x.kind === 'worklist' && !blank(x.state) && typeof x.percentOfPage === 'number') { var e = out[x.state] = out[x.state] || { share: 0, reasons: [] }; e.share = Math.min(100, Math.round((e.share + x.percentOfPage) * 10) / 10); if (!blank(x.reason) && e.reasons.indexOf(x.reason) === -1) e.reasons.push(x.reason); } });
+    return out;
+  }
+  function unpinnedList() { return findings.filter(function (f) { return f.resolution === 'FIX_CODE' && !hasPinF(f); }); }
+  function coverageText() { return orDash(COV.verified) + ' of ' + orDash(COV.total) + (COV.total === 1 ? ' state' : ' states') + ' verified'; }
+  // Match (scripts/lib/ranking.mjs stateDifference, matchByState): per compared state, 100 minus the share of its page
+  // that differs and no settled finding or supported rejection names; 0 for a missing state. Recomputed here only after a local dismissal.
+  function isDivergentF(f) { return f.severity === 'BLOCKER' || f.severity === 'WARNING' || f.severity === 'DS_CANDIDATE'; }
+  function boundedPct(v, anyOpen) { var r = Math.round(v); if (anyOpen) r = Math.min(r, 99); if (r === 0 && v > 0) r = 1; return Math.max(0, Math.min(100, r)); }
+  function localMatchByState() {
+    var out = {}, open = findings.filter(function (f) { return isOpen(f) && isDivergentF(f); }), byId = {};
+    findings.forEach(function (f) { byId[f.id] = f; });
+    matrix.forEach(function (r) {
+      var c = (R.differences || {})[r.state] || {}, e = (SC.pixelDiff || {})[r.state] || {};
+      if (r.result === 'MISSING_IN_CODE' || (comparedHow(r) && r.captured.sameAs && open.some(function (f) { return f.ledger === 'state' && f.state === r.state; }))) { out[r.state] = 0; return; }
+      var m = [c.differing, e.percent].filter(function (v) { return typeof v === 'number' && v >= 0; });
+      if (!comparedHow(r) || !m.length) return;
+      var settled = 0, left = (c.unlisted && c.unlisted.count) || 0;
+      arr(c.regions).forEach(function (x) {
+        var ids = arr(x && x.findings);
+        if (ids.length ? ids.every(function (id) { var f = byId[id]; return f && isDivergentF(f) && !isOpen(f); }) : x && x.supported === true) settled += x.percent || 0; else left++;
+      });
+      var here = open.some(function (f) { return f.state === r.state || arr(f.evidence).some(function (x) { return x && x.state === r.state; }); });
+      out[r.state] = boundedPct(100 - Math.max(0, Math.max.apply(null, m) - settled), here || left > 0);
+    });
+    return out;
+  }
+  function matchNow() { // { match, byState } as the scorecard has them, or recomputed after a local dismissal
+    if (!pendingIds().length) return { match: typeof SC.match === 'number' ? SC.match : null, byState: SC.matchByState || {} };
+    if (typeof SC.match !== 'number') return { match: null, byState: {} };
+    var by = localMatchByState(), vals = Object.keys(by).map(function (k) { return by[k]; });
+    return { match: vals.length ? boundedPct(vals.reduce(function (a, b) { return a + b; }, 0) / vals.length, findings.some(function (f) { return isOpen(f) && isDivergentF(f); })) : null, byState: by };
+  }
+  function settledNow() { var list = findings.filter(function (f) { return isDivergentF(f) && f.resolution !== 'DISMISSED'; }); return { count: list.filter(function (f) { return !isOpen(f); }).length, total: list.length }; }
+  var summaryEl = h('p', { class: 'summary', id: 'summary' }), matchNoteEl = h('p', { class: 'match-note', id: 'match-note', hidden: true });
   function paintSummary() {
-    var cov = SC.stateCoverage || {}, worst = worstPx(), local = pendingIds().length, open = findings.filter(isOpen).length;
+    var worst = worstPx(), local = pendingIds().length, open = findings.filter(isOpen).length;
     var dismissed = findings.filter(function (f) { return f.resolution === 'DISMISSED'; }).length, ds = dsCounts();
-    var parity = local ? (open ? Math.min(99, Math.round(100 * (1 - open / Math.max(1, findings.length - dismissed)))) : 100) : SC.parity;
+    var mt = matchNow(), st = settledNow();
+    var unpinned = unpinnedList().length;
     var unexplained = typeof SC.unexplained === 'number'
       ? Math.max(0, SC.unexplained - pendingIds().filter(function (id) { var t = triItem[id]; return !(t && t.decision === 'debt' && t.ticket && t.ticket.key); }).length) : null;
     var dsTotal = (ds.tokens || 0) + (ds.components || 0) + (ds.motion || 0);
@@ -1326,14 +1439,26 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       append(summaryEl, ['Loop closed · ', h('b', null, String(arr(R.triage && R.triage.items).filter(function (i) { return i && i.decision === 'fix-now'; }).length)), ' fixed · ',
         h('b', null, String(SC.debt && typeof SC.debt.count === 'number' ? SC.debt.count : 0)), ' tracked as debt']);
     } else {
-      append(summaryEl, ['Parity ', h('b', null, typeof parity === 'number' ? parity + '%' : DASH), ' · ',
-        h('b', null, open + ' of ' + (findings.length - dismissed)), ' findings open · ', h('b', null, orDash(cov.verified) + '/' + orDash(cov.total)), ' states verified',
+      // Match, how far the fix loop has got, and coverage, side by side: none of them alone is the result.
+      append(summaryEl, ['Match ', h('b', { id: 'summary-match' }, parityText(mt.match)),
+        unpinned ? [' (', h('b', { id: 'summary-unpinned' }, String(unpinned)), unpinned === 1 ? ' finding without a pin)' : ' findings without a pin)'] : null,
+        ' · ', h('b', { id: 'summary-settled' }, st.count + ' of ' + st.total), st.total === 1 ? ' finding settled' : ' findings settled',
+        ' · ', h('b', { id: 'summary-coverage' }, coverageText()),
+        PARTIAL ? [' ', h('span', { class: 'badge badge-outline badge-partial', id: 'summary-partial' }, INCOMPLETE ? 'nothing compared' : 'partial')] : null,
         worst ? [' · worst pixel diff ', h('b', null, pct(worst.p)), ' (' + stateLabel(worst.s) + ')'] : null,
         typeof unexplained === 'number' ? [' · ', h('b', null, String(unexplained)), ' unexplained'] : null]);
     }
+    // A high match with a FAIL verdict: the verdict follows the severity of what is open, not the share of the page.
+    var blockers = findings.filter(function (f) { return isOpen(f) && f.severity === 'BLOCKER'; }).length, missing = matrix.filter(function (r) { return r.result === 'MISSING_IN_CODE'; }).length;
+    clear(matchNoteEl);
+    matchNoteEl.hidden = !(SC.verdict === 'FAIL' && typeof mt.match === 'number' && mt.match >= 90);
+    if (!matchNoteEl.hidden) matchNoteEl.textContent = 'The page matches ' + mt.match + '%, but the verdict is FAIL: it follows the severity of what is still open' +
+      (blockers || missing ? ' (' + [blockers ? plural(blockers, 'open blocker') : null, missing ? plural(missing, 'missing state') : null].filter(Boolean).join(', ') + ')' : '') + ', not the share of the page.';
+    if (REJ.length) append(summaryEl, [' · ', h('button', { type: 'button', class: 'link-btn', id: 'summary-rejected', onclick: function () { openAcc('h-rejected'); } }, h('b', null, String(REJ.length)), ' rejected by the agent')]);
     append(summaryEl, [dismissed ? [' · ', h('b', null, String(dismissed)), ' dismissed'] : null,
       ' · ', h('button', { type: 'button', class: 'link-btn', id: 'summary-ds', onclick: function () { setTab('design-system'); } }, 'Design system'), ': ',
-      dsTotal ? [h('b', null, String(ds.tokens || 0)), ' token · ', h('b', null, String(ds.components || 0)), ' component · ', h('b', null, String(ds.motion || 0)), ' motion'] : 'no mismatches']);
+      ds.tokens === null && ds.components === null && !ds.motion ? 'not audited' : !dsTotal && ds.tokens !== null && ds.components !== null ? 'no mismatches'
+        : [['tokens', ' token'], ['components', ' component'], ['motion', ' motion']].map(function (x, i) { return [i ? ' · ' : null, ds[x[0]] === null ? x[0] + ' not checked' : [h('b', null, String(ds[x[0]])), x[1]]]; })]);
   }
   function sourceLine() {
     var fig = meta.figma || {}, url = SRC.url || fig.url;
@@ -1358,13 +1483,72 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         app.commit ? h('span', { 'data-tip': app.commit + (app.branch ? ' on ' + app.branch : '') }, icon('git-branch', 'icon-3-5'), h('kbd', { class: 'kbd mono' }, String(app.commit).slice(0, 7))) : null),
       degr.length ? h('div', { class: 'meta' }, h('span', null, icon('info', 'icon-3-5'), degr.length + (degr.length === 1 ? ' check' : ' checks') + ' ran with reduced fidelity.',
         h('button', { type: 'button', class: 'link-btn', onclick: openRunDetails }, 'Run details'))) : null,
-      summaryEl);
+      summaryEl, matchNoteEl, pageAlerts());
+  }
+  // Incomplete pass, partial coverage, deployed target: said once, at the top, in plain words.
+  function pageAlerts() {
+    var out = [], app = meta.app || {}, tg = meta.target && typeof meta.target === 'object' ? meta.target : {};
+    if (INCOMPLETE) {
+      var counts = {};
+      matrix.forEach(function (r) { counts[r.result] = (counts[r.result] || 0) + 1; });
+      var parts = ['CANNOT_VERIFY', 'NOT_SPECIFIED'].filter(function (k) { return counts[k]; }).map(function (k) { return counts[k] + ' ' + k; });
+      // Nothing compared, or (scripts/lib/ranking.mjs isIncomplete) fewer than half of the designed states have a result.
+      var some = COV.verified > 0 || counts.MISSING_IN_CODE > 0;
+      out.push(h('div', { class: 'alert alert-incomplete', role: 'alert', id: 'alert-incomplete' }, icon('triangle-alert'),
+        h('div', { class: 'alert-title' }, 'Incomplete: this is not a result'),
+        h('div', { class: 'alert-description' }, h('p', { style: 'margin:0' }, some
+          ? 'Fewer than half of the designed states were compared: ' + coverageText() + (parts.length ? ' (' + parts.join(', ') + ')' : '') + '. Match covers only those. Capture and compare the other designed states, or mark a state the app lacks MISSING_IN_CODE, and run the pass again.'
+          : 'Nothing was captured and compared: ' + (matrix.length ? coverageText() + (parts.length ? ' (' + parts.join(', ') + ')' : '') : 'the state matrix is empty') +
+          '. Match is not measured. Fix the capture (sign-in, URL, state drivers) and run the pass again.'))));
+    } else if (PARTIAL) {
+      var rest = COV.total - COV.verified;
+      out.push(h('div', { class: 'alert alert-partial', role: 'note', id: 'alert-partial' }, icon('info'),
+        h('div', { class: 'alert-title' }, 'Partial coverage: ' + coverageText()),
+        h('div', { class: 'alert-description' }, h('p', { style: 'margin:0' }, 'The match covers ' + COV.verified + ' of ' + COV.total + ' designed states; ' + plural(rest, 'state was', 'states were') + ' not compared. See the States tab.'))));
+    }
+    if (!meta.build || typeof meta.build !== 'object') {
+      out.push(h('div', { class: 'alert alert-partial', role: 'note', id: 'alert-unbuilt' }, icon('triangle-alert'),
+        h('div', { class: 'alert-title' }, 'Not built by build-report.mjs'),
+        h('div', { class: 'alert-description' }, h('p', { style: 'margin:0' }, 'This report was assembled by hand, not built from findings.json and the evidence, so nothing checked its findings against the captures. validate.mjs refuses it.'))));
+    }
+    var shares = rejShares(), loud = Object.keys(shares).filter(function (k) { return shares[k].share > REJ_LOUD; });
+    if (loud.length) {
+      out.push(h('div', { class: 'alert alert-partial', role: 'note', id: 'alert-rejected' }, icon('triangle-alert'),
+        h('div', { class: 'alert-title' }, 'Large regions were rejected by the agent'),
+        h('div', { class: 'alert-description' }, h('p', { style: 'margin:0' }, loud.map(function (k) { return shares[k].share + '% of ' + stateLabel(k) + ' was rejected as ' + (shares[k].reasons.join('/') || 'not a finding'); }).join('; ') + ': check the rejected regions. ',
+          h('button', { type: 'button', class: 'link-btn', onclick: function () { openAcc('h-rejected'); } }, 'Show what was rejected')))));
+    }
+    var unl = matrix.filter(function (r) { var u = comparedHow(r) && ((R.differences || {})[r.state] || {}).unlisted; return u && u.count; });
+    if (unl.length) {
+      out.push(h('div', { class: 'alert alert-partial', role: 'note', id: 'alert-unlisted' }, icon('triangle-alert'),
+        h('div', { class: 'alert-title' }, 'Differences nobody decided'),
+        h('div', { class: 'alert-description' }, h('p', { style: 'margin:0' }, unl.map(function (r) { var u = R.differences[r.state].unlisted; return stateLabel(r.state) + ': ' + plural(u.count, 'difference') + ', ' + u.percent + '% of the page'; }).join('; ') +
+          ', beyond the worklist\'s caps. They count against match: list them with worklist.mjs --max-per-state and --max-total, then file or reject each.'))));
+    }
+    var uncompared = matrix.filter(function (r) { return (r.result === 'PASS' || r.result === 'FAIL') && !comparedHow(r); });
+    if (uncompared.length) {
+      out.push(h('div', { class: 'alert alert-incomplete', role: 'alert', id: 'alert-uncompared' }, icon('triangle-alert'),
+        h('div', { class: 'alert-title' }, plural(uncompared.length, 'state was', 'states were') + ' captured but not compared'),
+        h('div', { class: 'alert-description' }, h('p', { style: 'margin:0' }, uncompared.map(function (r) { return stateLabel(r.state) + ' (marked ' + r.result + ')'; }).join(', ') + ': no pixel diff against a design image, so they do not count as verified.'))));
+    }
+    if (REMOTE) {
+      var lc = blank(tg.localCommit) ? '' : String(tg.localCommit).toLowerCase(), dc = blank(tg.deployedCommit) ? (blank(app.commit) ? '' : String(app.commit).toLowerCase()) : String(tg.deployedCommit).toLowerCase();
+      var short = function (c) { return c ? c.slice(0, 12) : 'unknown'; }, same = lc && dc && (lc.indexOf(dc) === 0 || dc.indexOf(lc) === 0);
+      out.push(h('div', { class: 'alert', role: 'note', id: 'alert-target' }, icon('info'),
+        h('div', { class: 'alert-title' }, 'Deployed build: findings come from the captured page'),
+        h('div', { class: 'alert-description' }, h('p', { style: 'margin:0' }, 'Every finding is grounded in the captured DOM and screenshots. ' + (same
+          ? 'Source file references come from a local checkout at the deployed commit (' + short(lc) + ').'
+          : 'Source file references are hints from a local checkout (commit ' + short(lc) + ') that may differ from the deployed build (commit ' + short(dc) + ').')))));
+    }
+    return out.length ? h('div', { class: 'page-alerts' }, out) : null;
   }
 
   /* ===== 9. Hero: the annotated capture ===== */
   var FRAME_SRC = (SRC.frame && SRC.frame.width ? SRC.frame : null) || (meta.figma && meta.figma.frame) || {};
   var FRAME = { w: FRAME_SRC.width || 1440, h: FRAME_SRC.height || 900 };
-  var sizesMatch = (function () { var a = meta.app || {}, v = a.viewport || {}, d = a.dpr || 1; return v.width * d === FRAME.w && v.height * d === FRAME.h; })();
+  // App crops can stand in for design pins when both images share a pixel scale: the same width (a full-page
+  // capture and a full-length frame differ in height, not in scale).
+  var sizesMatch = (function () { var a = meta.app || {}, v = a.viewport || {}, d = a.dpr || 1; return v.width * d === FRAME.w; })();
   var RESULT_RANK = { MISSING_IN_CODE: 0, FAIL: 1, CANNOT_VERIFY: 2, PASS: 3, NOT_SPECIFIED: 4 };
   function diffOf(s) { var p = (SC.pixelDiff || {})[s]; return p && typeof p.percent === 'number' ? p.percent : -1; }
   // Open on the state with the most pins; ties: worst result, then higher pixel diff. #state=<id> still wins (readHash runs after).
@@ -1434,25 +1618,33 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     }
     return { box: ib, img: im };
   }
-  function addPins(ib, img, kind, P) {
+  // over: the app image laid over the design (Overlay, Wipe). Both images keep their own pixel scale inside a box
+  // as wide as the wider and as tall as the taller of the two, so a crop (measured in its own image's pixels)
+  // lands on its element anywhere on the full page: far below the fold or in a right-padded area.
+  function addPins(ib, img, kind, P, over) {
     if (!img) return;
     var layer = h('div', { class: 'pins', hidden: !S.pins });
     ib.appendChild(layer);
     var items = [];
     function place() {
-      var W = img.naturalWidth || FRAME.w, H = img.naturalHeight || FRAME.h;
+      var W = img.naturalWidth || FRAME.w, H = img.naturalHeight || FRAME.h, k = 1, offDesign = 0;
+      if (over && over.naturalWidth) { W = Math.max(W, over.naturalWidth); H = Math.max(H, over.naturalHeight); }
       items = [];
       // Re-placing (image load) rebuilds the pins: keep keyboard focus on the same finding.
       var ae = document.activeElement, focusFid = ae && layer.contains(ae) ? ae.getAttribute('data-fid') : null;
       clear(layer);
       P.placed.forEach(function (p) {
         var crop = kind === 'app' ? p.app : p.design, hollow = false;
-        if (!crop && kind === 'design' && S.designPins && sizesMatch && p.app) { crop = p.app; hollow = true; }
+        if (!crop && kind === 'design' && S.designPins && sizesMatch && p.app) {
+          // The app spot has no counterpart on a shorter or narrower design: no pin there, the note says how many.
+          if (p.app.x >= (img.naturalWidth || FRAME.w) || p.app.y >= (img.naturalHeight || FRAME.h)) { offDesign++; return; }
+          crop = p.app; hollow = true;
+        }
         if (!crop) return;
-        var cx = crop.x + crop.w / 2, cy = crop.y + crop.h / 2;
+        var cx = (crop.x + crop.w / 2) * k, cy = (crop.y + crop.h / 2) * k;
         var off = !!S.sevOff[p.f.severity];
         layer.appendChild(h('span', { class: 'crop-outline', 'data-sev': p.f.severity, 'data-fid': p.f.id, hidden: off,
-          style: 'left:' + (crop.x / W * 100) + '%;top:' + (crop.y / H * 100) + '%;width:' + (crop.w / W * 100) + '%;height:' + (crop.h / H * 100) + '%' }));
+          style: 'left:' + (crop.x * k / W * 100) + '%;top:' + (crop.y * k / H * 100) + '%;width:' + (crop.w * k / W * 100) + '%;height:' + (crop.h * k / H * 100) + '%' }));
         var leader = h('span', { class: 'pin-leader', 'data-sev': p.f.severity, 'data-fid': p.f.id, 'aria-hidden': 'true', hidden: off });
         layer.appendChild(leader);
         var pin = h('button', { type: 'button', class: 'pin' + (hollow ? ' hollow' : '') + (FLASH.fid === p.f.id ? ' flash' : ''), 'data-sev': p.f.severity, 'data-fid': p.f.id, 'data-n': String(p.n), hidden: off,
@@ -1468,12 +1660,23 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         items.push({ x: cx / W, y: cy / H, pin: pin, leader: leader });
       });
       spreadPins(layer, items);
+      // Rejected worklist regions of this state: dimmed dashed outlines, distinct from finding pins (app-side images only).
+      if (kind === 'app') REJ.forEach(function (x) {
+        var c = x.crop; if (x.state !== S.state || !c || typeof c.x !== 'number') return;
+        var show = S.rejected || S.rejFocus === x.key;
+        layer.appendChild(h('span', { class: 'reject-outline' + (S.rejFocus === x.key ? ' focus' : ''), 'data-rej': x.key || '', hidden: !show, 'aria-hidden': 'true',
+          style: 'left:' + (c.x / W * 100) + '%;top:' + (c.y / H * 100) + '%;width:' + (c.w / W * 100) + '%;height:' + (c.h / H * 100) + '%' }, h('span', null, 'rejected: ' + (x.reason || ''))));
+      });
+      var hn = ib.parentNode && ib.parentNode.querySelector(':scope > .hollow-note');
+      if (hn) hn.remove();
+      if (offDesign && ib.parentNode) ib.parentNode.insertBefore(h('p', { class: 'hollow-note', role: 'note' }, plural(offDesign, 'app pin has', 'app pins have') + ' no counterpart on the design (below or right of its edge): see them in App or Overlay.'), ib);
       var sel = function (fid) { return layer.querySelector('.pin[data-fid="' + String(fid).replace(/"/g, '') + '"]'); };
       if (focusFid && sel(focusFid)) sel(focusFid).focus({ preventScroll: true });
       markPanel();
     }
     place();
     if (!(img.complete && img.naturalWidth)) img.addEventListener('load', place);
+    if (over && !(over.complete && over.naturalWidth)) over.addEventListener('load', place);
     // Fit, zoom, fullscreen, side by side, a window resize or a tab coming back: re-spread at the new rendered size.
     if (window.ResizeObserver) {
       var ro = new ResizeObserver(function () { if (!layer.isConnected) { ro.disconnect(); return; } spreadPins(layer, items); });
@@ -1519,6 +1722,9 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var c = r.captured || {}, des = designOf(c), m = effMode(c), label = stateLabel(r.state), P = statePins(r.state), zoom = S.zoom === 'fit' ? 0 : Number(S.zoom) / 100;
     var noApp = 'not captured — ' + (r.note || 'no app screenshot for this state'), noFig = 'no design for this state';
     var stage = h('div', { class: 'stage' + (zoom && m !== 'side' ? ' zoomed' : '') + (full ? ' fullscreen' : ''), 'data-mode': m });
+    var covNote = coverageLine(r, P), padNote = paddedNote(r.state);
+    if (covNote) box.appendChild(covNote);
+    if (padNote) box.appendChild(padNote);
     box.appendChild(stage);
     if (fallbackNote(m)) box.appendChild(h('span', { class: 'badge badge-secondary stage-note', role: 'note' }, fallbackNote(m)));
     if (m === 'none') { stage.appendChild(missingBox(noApp)); return; }
@@ -1537,9 +1743,23 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var base = m === 'app' ? c.app : m === 'diff' ? c.diff : des;
     var ib = imgBox(base, (m === 'app' ? 'Implementation (app), ' : m === 'diff' ? 'Pixel diff, ' : DESIGN_LABEL + ', ') + label, zoom);
     stage.appendChild(ib.box);
+    var over = null;
     if (m === 'overlay' || m === 'wipe') {
-      var over = h('img', { src: imgSrc(c.app), alt: 'Implementation (app), ' + label, draggable: 'false', class: 'over' });
+      over = h('img', { src: imgSrc(c.app), alt: 'Implementation (app), ' + label, draggable: 'false', class: 'over' });
       ib.box.insertBefore(over, ib.box.firstChild.nextSibling);
+      // A taller or wider app page (the design was padded) must not spill out of the box or be squeezed: the box
+      // spans the larger of the two in each axis and each image keeps its own size inside it.
+      var fitBox = function () {
+        var bi = ib.img;
+        if (!bi || !bi.naturalWidth || !over.naturalWidth) return;
+        var W = Math.max(bi.naturalWidth, over.naturalWidth), H = Math.max(bi.naturalHeight, over.naturalHeight);
+        bi.style.width = (bi.naturalWidth / W * 100) + '%'; over.style.width = (over.naturalWidth / W * 100) + '%';
+        ib.box.style.aspectRatio = W + ' / ' + H;
+        if (zoom) ib.box.style.width = (W * zoom) + 'px';
+      };
+      fitBox();
+      if (ib.img) ib.img.addEventListener('load', fitBox);
+      over.addEventListener('load', fitBox);
       if (m === 'overlay') over.style.opacity = String(S.opacity / 100);
       else {
         var handle = h('div', { class: 'wipe-handle', role: 'slider', tabindex: '0', 'aria-label': 'Wipe divider: design on the left, app on the right', 'aria-valuemin': '0', 'aria-valuemax': '100' });
@@ -1560,8 +1780,49 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         setWipe(S.wipe);
       }
     }
-    addPins(ib.box, ib.img, m === 'design' ? 'design' : 'app', P);
+    addPins(ib.box, ib.img, m === 'design' ? 'design' : 'app', P, over);
     if (zoom && m !== 'wipe') dragPan(stage);
+  }
+  // diff.mjs padded the smaller image of this state (bottom: padded, right: paddedRight): say so in plain words.
+  function paddedNote(state) {
+    var e = (SC.pixelDiff || {})[state] || {}, out = [];
+    function ok(p, unit) { return p && typeof p[unit] === 'number' && p[unit] >= 1 && (p.side === 'app' || p.side === 'design'); }
+    function n(v) { return Math.round(v).toLocaleString('en-US') + ' px'; }
+    if (ok(e.padded, 'rows')) out.push(e.padded.side === 'app'
+      ? 'The app page is ' + n(e.padded.rows) + ' shorter than the design; the missing part is not compared.'
+      : 'The design is ' + n(e.padded.rows) + ' shorter than the app page; the extra part is not compared.');
+    if (ok(e.paddedRight, 'cols')) out.push(e.paddedRight.side === 'app'
+      ? 'The app page is ' + n(e.paddedRight.cols) + ' narrower than the design; the missing part is not compared.'
+      : 'The app page is ' + n(e.paddedRight.cols) + ' wider than the design; the extra part is not compared.');
+    if (!out.length) return null;
+    return h('p', { class: 'stage-padded', role: 'note', 'data-padded': [ok(e.padded, 'rows') ? 'bottom' : null, ok(e.paddedRight, 'cols') ? 'right' : null].filter(Boolean).join(' ') }, icon('info'), h('span', null, out.join(' ')));
+  }
+  // What the app capture of this state covered (stateMatrix[].captured.page), and how many annotations sit below the
+  // first screen, so a tall page never looks finished at the fold.
+  function coverageLine(r, P) {
+    var pg = r && r.captured && r.captured.page, parts = [], a = meta.app || {}, d = a.dpr || 1;
+    var fold = a.viewport && typeof a.viewport.height === 'number' ? a.viewport.height * d : null;
+    if (pg && typeof pg.width === 'number' && typeof pg.height === 'number') {
+      var e = (SC.pixelDiff || {})[r.state] || {}, im = pg.image && typeof pg.image.width === 'number' ? pg.image
+        : typeof e.appWidth === 'number' && typeof e.appHeight === 'number' ? { width: e.appWidth, height: e.appHeight }
+        : pg.fullPage === false && a.viewport && typeof a.viewport.width === 'number' ? { width: a.viewport.width * d, height: a.viewport.height * d } : null;
+      var whole = im ? im.width >= pg.width * d - 1 && im.height >= pg.height * d - 1 : pg.fullPage !== false;
+      parts.push(whole ? 'Whole page, ' + pg.width + '\u00d7' + pg.height : 'Only part of the page was captured: ' + (im ? im.width + '\u00d7' + im.height + ' of ' : '') + pg.width + '\u00d7' + pg.height);
+      if (pg.clipped > 0) parts.push(plural(pg.clipped, 'panel still hides', 'panels still hide') + ' content');
+    }
+    var below = fold ? P.placed.filter(function (p) { var c = p.app || p.design; return c && c.y >= fold; }).length : 0;
+    if (below) parts.push(plural(below, 'annotation') + ' below the first screen \u2193');
+    // Not compared on purpose: what capture hid or removed (preCapture) and what the diff masked.
+    var gone = arr(((EVI.states || {})[r.state] || {}).hidden).map(function (x) { return (x.kind === 'remove' ? 'removed ' : 'hidden ') + x.selector + ' (' + x.count + ', ' + Number(x.areaPx || 0).toLocaleString('en-US') + ' px\u00b2)'; });
+    var masked = arr(((SC.pixelDiff || {})[r.state] || {}).masks).map(function (m) { return 'masked ' + (m.label || m.x + ',' + m.y) + ' (' + m.w + '\u00d7' + m.h + ')'; });
+    if (gone.length || masked.length) parts.push('Not compared: ' + gone.concat(masked).join(', '));
+    var flags = [];
+    if ((r.result === 'PASS' || r.result === 'FAIL') && !comparedHow(r)) flags.push(h('span', { class: 'badge state-flag', 'data-flag': 'uncompared' }, icon('triangle-alert'), 'Captured, not compared: marked ' + r.result + ' without a pixel diff against a design image'));
+    else if (partialOf(r)) flags.push(h('span', { class: 'badge state-flag', 'data-flag': 'partial' }, icon('triangle-alert'), 'Captured only in part: this state counts as verified only in part'));
+    var sm = matchNow().byState[r.state], spx = (SC.pixelDiff || {})[r.state];
+    var matchLine = typeof sm === 'number' ? h('p', { class: 'stage-match', id: 'stage-match' }, stateLabel(r.state) + ' \u00b7 match ', h('b', null, sm + '%'), spx ? ' \u00b7 pixel diff ' + pct(spx.percent) : null) : null;
+    if (!parts.length && !flags.length && !matchLine) return null;
+    return h('div', { class: 'stage-coverage-wrap' }, flags, matchLine, parts.length ? h('p', { class: 'stage-coverage', 'data-whole': String(!!(pg && !partialOf(r) && parts[0].indexOf('Whole') === 0)) }, parts.join(' \u00b7 ')) : null);
   }
   var heroTabs = h('div', { class: 'tabs-list state-tabs', role: 'tablist', 'aria-label': 'State' });
   var heroBar = h('div', { class: 'hero-bar', role: 'toolbar', 'aria-label': 'Capture view' });
@@ -1569,7 +1830,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   var heroRail = h('aside', { class: 'rail', 'aria-label': 'Annotations' });
   // Multi-screen: a screen select next to the state tabs; the tabs list that screen's states.
   var screenSelect = SCREENS.length ? h('select', { class: 'native-select', 'data-size': 'sm', id: 'screen-select', 'aria-label': 'Screen' },
-    SCREENS.map(function (sc) { return h('option', { value: sc.id }, screenName(sc.id)); })) : null;
+    SCREENS.map(function (sc) { return h('option', { value: sc.id }, screenOption(sc.id)); })) : null;
   if (screenSelect) screenSelect.addEventListener('change', function () {
     var st = defaultState(screenSelect.value); S.screen = screenSelect.value;
     if (st) selectState(st, false); else renderHero();
@@ -1590,7 +1851,10 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       var on = r.state === S.state, px = (SC.pixelDiff || {})[r.state];
       heroTabs.appendChild(h('button', { type: 'button', role: 'tab', class: 'tabs-trigger', 'aria-selected': String(on), tabindex: on ? '0' : '-1', 'data-state': r.state, 'aria-controls': 'hero-stage',
         onclick: function () { selectState(r.state, false); writeHash(); } },
-        dot(r.result), stateShort(r.state), px ? h('span', { class: 'muted tabular', style: 'font-weight:400' }, pct(px.percent)) : null, h('span', { class: 'sr-only' }, ', ' + r.result)));
+        dot(r.result), stateShort(r.state), typeof matchNow().byState[r.state] === 'number' ? h('span', { class: 'muted tabular tab-match', 'data-tip': 'Match: how much of this designed page the app matches' + (px ? ' · pixel diff ' + pct(px.percent) : '') }, matchNow().byState[r.state] + '%') : px ? h('span', { class: 'muted tabular tab-match' }, pct(px.percent) + ' diff') : null,
+        (r.result === 'PASS' || r.result === 'FAIL') && !comparedHow(r) ? h('span', { class: 'tab-flag', 'data-flag': 'uncompared' }, 'not compared')
+          : partialOf(r) ? h('span', { class: 'tab-flag', 'data-flag': 'partial' }, 'part') : null,
+        h('span', { class: 'sr-only' }, ', ' + r.result)));
     });
   }
   heroTabs.addEventListener('keydown', function (e) {
@@ -1620,6 +1884,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     }
     heroBar.appendChild(switchCtl('Pins', S.pins, function (on) { S.pins = on; Array.prototype.forEach.call(document.querySelectorAll('.pins'), function (l) { l.hidden = !on; }); }, 'pins-switch'));
     heroBar.appendChild(switchCtl('Show on design', S.designPins, function (on) { S.designPins = on; renderStage(heroStage, false); }, 'design-pins-switch'));
+    if (REJ.some(function (x) { return x.state === S.state && x.crop; })) heroBar.appendChild(switchCtl('Rejected regions', S.rejected, function (on) { S.rejected = on; S.rejFocus = null; renderStage(heroStage, false); }, 'rejected-switch'));
     heroBar.appendChild(btn('Fullscreen', { variant: 'ghost', size: 'sm', icon: 'maximize', id: 'btn-fullscreen', cls: 'end', onclick: openFullscreen }));
   }
   function fallbackNote(m) {
@@ -1771,6 +2036,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     heroSection.classList.toggle('ann-open', host === heroSection);
     annDock.hidden = false;
     markRail(fid); markPanel(); placeDock(); revealRow(fid);
+    if (o.kind === 'row' && S.pins) revealPin(heroStage.querySelector('.pins .pin[data-fid="' + String(fid).replace(/"/g, '') + '"]:not([hidden])'));
     fillPanel(o.focus === undefined ? 'title' : o.focus);
     layoutBars();
     if (document.body.classList.contains('ann-sheet')) closeSend(false); // one bottom sheet at a time on narrow screens
@@ -1816,7 +2082,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         onclick: function () { if (x) openPanel(x.f.id, { host: PANEL.host, focus: dir }); } }, icon(dir === 'prev' ? 'chevron-left' : 'chevron-right'));
     }
     var dd = dismissalOf(f);
-    var hint = !d ? (dd ? [h('b', null, (DKIND_DONE[dd.kind] || 'Dismissed') + ' · by ' + orDash(dd.by) + (dd.local ? ' (not recorded yet)' : '') + '. '), orDash(dd.reason)]
+    var hint = !d ? (dd ? [h('b', null, (DKIND_DONE[dd.kind] || 'Dismissed') + ' · by ' + orDash(dd.by) + (dd.local ? ' (not recorded yet)' : '') + '. '), dd.agent ? h('b', { class: 'agent-signoff' }, AGENT_SIGNOFF + '. ') : null, orDash(dd.reason)]
       : isOpen(f) ? ['Needs a decision: fix it in code, or dismiss it with a reason.'] : ['Not triaged: ' + orDash(f.resolution) + ' findings stay out of Fix now and Debt.'])
       : lock ? [icon('lock', 'icon-3-5'), h('span', null, h('b', null, 'Locked in Fix now. '), lock)]
         : d === 'fix-now' ? [h('span', null, 'Your agent gets this when you review and send.')]
@@ -1849,6 +2115,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
           row('Design layer', blank(el.figmaLayerPath) ? null : [String(el.figmaLayerPath), el.figmaNodeId ? h('span', { class: 'muted mono' }, ' ' + el.figmaNodeId) : null]),
           row('Ticket', t ? h('a', { class: 'link-btn', href: safeHref(t.url), target: '_blank', rel: 'noopener noreferrer' }, t.key) : null),
           row('Known drift', f.knownDrift || null),
+          row('Data', f.resolution === 'DATA' ? (blank(f.dataReason) ? 'No reason given' : String(f.dataReason)) : null),
           row('Evidence', evAll.length ? (evImgs.length && !inDialog
             ? h('button', { type: 'button', class: 'link-btn', 'data-focus-key': 'evidence', onclick: function () { openLightbox(evImgs.map(evItem), 0, f.id + ' · ' + f.title); } }, 'View ' + evImgs.length + (evImgs.length === 1 ? ' image' : ' images'))
             : h('span', { class: 'path' }, evAll.map(function (e) { return e.path; }).join(', '))) : null))),
@@ -1907,10 +2174,21 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     if (S.sevOff[f.severity]) delete S.sevOff[f.severity]; // the chip filter would hide it
     if (S.state !== loc.state) selectState(loc.state, false); else applySevFilter();
     writeHash();
-    heroSection.scrollIntoView({ block: 'start', behavior: reduceMotion() ? 'auto' : 'smooth' });
     markRail(fid); flash(fid);
     var row = revealRow(fid), pin = S.pins ? heroStage.querySelector('.pins .pin[data-fid="' + String(fid).replace(/"/g, '') + '"]:not([hidden])') : null;
+    // A pinned finding scrolls its pin into view (anywhere on the full page, also far below the fold);
+    // one without a pin shows the top of the capture.
+    if (pin) pin.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+    else heroSection.scrollIntoView({ block: 'start', behavior: reduceMotion() ? 'auto' : 'smooth' });
     (pin || row || heroSection).focus({ preventScroll: true });
+  }
+  // Scroll a pin into view: the stage (zoomed) and the page both scroll, so a pin at y 4,000 is reachable.
+  function revealPin(pin) {
+    if (!pin || !pin.scrollIntoView) return;
+    var r = pin.getBoundingClientRect(), vh = window.innerHeight || document.documentElement.clientHeight, vw = window.innerWidth || document.documentElement.clientWidth;
+    var stage = pin.closest('.stage.zoomed, .pane.zoomed'), sr = stage ? stage.getBoundingClientRect() : null;
+    var inside = r.top >= 0 && r.bottom <= vh && r.left >= 0 && r.right <= vw && (!sr || (r.top >= sr.top && r.bottom <= sr.bottom && r.left >= sr.left && r.right <= sr.right));
+    if (!inside) pin.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
   }
   function sevLabel(v) { return v.replace('_', ' ').toLowerCase(); }
   // Severity chips filter the rail rows and every pin layer (hero + fullscreen) without re-numbering.
@@ -2244,7 +2522,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
           h('div', { class: 'dis-title' }, dot(f.severity), h('button', { type: 'button', class: 'link-btn', onclick: function () { openFinding(f.id); } }, f.title)),
           h('div', { class: 'dis-meta' }, h('span', { class: 'fid' }, f.id), SCREENS.length && f.screen ? h('span', null, screenName(f.screen)) : null,
             h('span', { class: 'badge badge-outline dis-kind' }, DKIND_DONE[d.kind] || orDash(d.kind)),
-            h('span', null, 'by ' + orDash(d.by) + ' · ' + fmtDay(d.date)),
+            h('span', null, 'by ' + orDash(d.by) + ' · ' + fmtDay(d.date)), d.agent ? h('span', { class: 'badge badge-secondary agent-signoff' }, AGENT_SIGNOFF) : null,
             d.local ? h('span', { class: 'badge badge-secondary' }, 'Not recorded yet') : d.source === 'prior-pass' ? h('span', { 'data-tip': 'Re-applied from the dismissed log' }, 'from an earlier pass') : null),
           h('p', { class: 'dis-reason' }, orDash(d.reason))),
         undoBtn(f, null, { focusAfter: disTrigger() }));
@@ -2258,6 +2536,50 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     t.scrollIntoView({ block: 'start' }); t.focus({ preventScroll: true });
   }
   function sectionDismissed() { paintDismissed(); return accItem('h-dismissed', 'Dismissed', disCount, null, disBody); }
+  function openAcc(id) {
+    setTab('overview');
+    var t = document.getElementById(id); if (!t) return;
+    if (t.getAttribute('aria-expanded') !== 'true') t.click();
+    t.scrollIntoView({ block: 'start' }); t.focus({ preventScroll: true });
+  }
+  // "Rejected by the agent": what the agent looked at and decided not to report, grouped by reason.
+  function sectionRejected() {
+    if (!REJ.length && !Array.isArray(R.rejections)) return null;
+    var groups = {}, order = [];
+    REJ.forEach(function (x) { var k = blank(x.reason) ? DASH : String(x.reason); if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(x); });
+    var KIND = { worklist: 'region', audit: 'audit candidate', compare: 'compare row' };
+    var body = REJ.length ? h('div', { class: 'rej-list', id: 'rejected-list' }, order.map(function (k) {
+      return h('div', { 'data-reason': k }, h('div', { class: 'section-label' }, k + ' (' + groups[k].length + ')'),
+        h('ul', null, groups[k].map(function (x) {
+          return h('li', { 'data-rej': x.key || '' }, h('span', { class: 'fid' }, orDash(x.key)), h('span', { class: 'badge badge-outline' }, KIND[x.kind] || orDash(x.kind)),
+            blank(x.state) ? null : h('span', null, stateLabel(x.state)),
+            typeof x.percentOfPage === 'number' ? h('b', { class: 'tabular' }, x.percentOfPage + '% of the page') : null,
+            blank(x.knownDrift) ? null : h('span', null, 'known drift ' + x.knownDrift), blank(x.duplicateOf) ? null : h('span', null, 'duplicate of ' + x.duplicateOf), blank(x.coveredBy) ? null : h('span', null, 'covered by ' + x.coveredBy),
+            blank(x.detail) ? null : h('span', { class: 'muted' }, '\u201c' + x.detail + '\u201d'),
+            x.crop && stateRow[x.state] ? h('button', { type: 'button', class: 'link-btn tri-show', 'data-show-rej': x.key || '', onclick: function () { showRejected(x); } }, icon('map-pin', 'icon-3'), 'Show on capture') : null);
+        })));
+    })) : h('p', { class: 'muted' }, 'The agent rejected nothing: every worklist region, audit candidate and compare row it looked at is a finding.');
+    return accItem('h-rejected', 'Rejected by the agent', h('span', { class: 'num-muted', id: 'count-rejected' }, String(REJ.length)), null,
+      [h('p', { class: 'muted', style: 'font-size:0.875rem;margin:0 0 0.75rem' }, 'What the agent looked at and decided not to report, with its reason. Check the large ones: a region rejected as the same or as data is not compared again.'), body]);
+  }
+  // "Resolved as data by the agent": divergences the agent settled as DATA without a person's signoff (scripts/lib/ranking.mjs agentDataFindings).
+  function sectionAgentData() {
+    var list = findings.filter(function (f) { return f.resolution === 'DATA' && (!(f.signoff && typeof f.signoff === 'object') || agentSigned(f)) && ['BLOCKER', 'WARNING', 'DS_CANDIDATE'].indexOf(f.severity) >= 0; });
+    if (!list.length) return null;
+    return accItem('h-agent-data', 'Resolved as data by the agent', h('span', { class: 'num-muted', id: 'count-agent-data' }, String(list.length)), null,
+      [h('p', { class: 'muted', style: 'font-size:0.875rem;margin:0 0 0.75rem' }, 'Differences the agent decided are content (values, names, dates, counts, rows), each backed by a computed data hint or by a sign-off the agent entered. Hint-backed ones count as settled; agent sign-offs stay open until you accept them. Check them, and reopen any that is design.'),
+        h('ul', { class: 'rej-list', id: 'agent-data-list' }, list.map(function (f) {
+          return h('li', { 'data-finding': f.id }, fidBtn(f.id), dotText(f.severity, sevLabel(f.severity)), blank(f.state) ? null : h('span', null, stateLabel(f.state)),
+            h('span', null, orDash(f.title)), agentSigned(f) ? h('span', { class: 'badge badge-secondary agent-signoff' }, AGENT_SIGNOFF) : null, blank(f.dataReason) ? null : h('span', { class: 'muted' }, '\u201c' + f.dataReason + '\u201d'));
+        }))]);
+  }
+  function showRejected(x) {
+    setTab('overview', { hash: false });
+    S.rejFocus = x.key; S.mode = 'app';
+    if (S.state !== x.state) selectState(x.state, false); else renderHero();
+    var el = heroStage.querySelector('.reject-outline[data-rej="' + String(x.key).replace(/"/g, '') + '"]');
+    if (el) el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+  }
   // Re-derive everything a dismissal touches: board, table, pins, summary, design-system view, lists, bar, open sheet.
   function refreshAll() {
     closeDismiss(false);
@@ -2573,9 +2895,11 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var d = dismissalOf(f), slot = h('div', { class: 'dp-slot' });
     var status = d ? h('div', { class: 'alert', id: 'sheet-dismissal', role: 'note' }, icon(d.kind === 'intentional' ? 'circle-check' : 'ban'),
         h('div', { class: 'alert-title' }, (DKIND_DONE[d.kind] || 'Dismissed') + ' · by ' + orDash(d.by) + ', ' + fmtDay(d.date) + (d.local ? ' (this browser, not recorded yet)' : d.source === 'prior-pass' ? ' (earlier pass)' : '')),
-        h('div', { class: 'alert-description' }, h('p', { class: 'dis-reason', style: 'margin:0;color:inherit' }, orDash(d.reason)), undoBtn(f, 'sheet-undo', { variant: 'outline', size: 'xs' })))
+        h('div', { class: 'alert-description' }, d.agent ? h('p', { class: 'agent-signoff', style: 'margin:0;font-weight:600' }, AGENT_SIGNOFF + ': it stays open until you accept it.') : null, h('p', { class: 'dis-reason', style: 'margin:0;color:inherit' }, orDash(d.reason)), undoBtn(f, 'sheet-undo', { variant: 'outline', size: 'xs' })))
       : f.resolution === 'UNCLASSIFIED' ? h('div', { class: 'alert', role: 'note' }, icon('triangle-alert'), h('div', { class: 'alert-title' }, 'Needs a decision'),
-        h('div', { class: 'alert-description' }, 'Fix it in code, or dismiss it with a reason: not an issue, remove from QA, or accept as intentional.')) : null;
+        h('div', { class: 'alert-description' }, 'Fix it in code, or dismiss it with a reason: not an issue, remove from QA, or accept as intentional.'))
+      : f.resolution === 'DATA' ? h('div', { class: 'alert' + (blank(f.dataReason) ? ' alert-partial' : ''), role: 'note', id: 'sheet-data' }, icon('info'), h('div', { class: 'alert-title' }, 'Data difference: not fixed in code'),
+        h('div', { class: 'alert-description' }, agentSigned(f) ? h('p', { class: 'agent-signoff', style: 'margin:0;font-weight:600' }, AGENT_SIGNOFF + ' (by ' + orDash(f.signoff.by) + '): it stays open until you accept it.') : null, h('p', { class: 'data-reason', style: 'margin:0;color:inherit' }, blank(f.dataReason) ? 'No reason given: the agent did not say which data differs.' : String(f.dataReason)))) : null;
     return [
       status,
       h('div', { class: 'row' },
@@ -2807,14 +3131,14 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     if (mrows.unlinked.length) append(dsMotionNote, [plural(mrows.unlinked.length, 'failing motion check') + ' without a finding (not counted): ',
       mrows.unlinked.map(function (c, i) { return [i ? '; ' : null, [stateLabel(c.state), c.trigger, c.property].filter(function (x) { return !blank(x); }).join(' \u00b7 ') + ': ' + c.expected + ' \u2192 ' + (c.observed === null ? 'missing' : c.observed)]; })]);
     [['tokens', g.tokens.length, 'No token mismatches.', 7], ['components', g.components.length, 'No component mismatches.', 6], ['motion', mrows.rows.length, 'No missing or different motion.', 5]].forEach(function (x) {
-      if (!x[1]) dsBodies[x[0]].appendChild(h('tr', null, h('td', { colspan: x[3], class: 'muted', style: 'height:4rem;text-align:center' }, x[2])));
+      if (!x[1]) dsBodies[x[0]].appendChild(h('tr', null, h('td', { colspan: x[3], class: 'muted', style: 'height:4rem;text-align:center' }, ds[x[0]] === null ? 'Not checked: ' + NOT_CHECKED[x[0]] + '.' : x[2])));
     });
-    dsTitles.tokens.textContent = 'Token mismatches (' + g.tokens.length + ')';
-    dsTitles.components.textContent = 'Component mismatches (' + g.components.length + ')';
+    dsTitles.tokens.textContent = 'Token mismatches (' + (ds.tokens === null ? 'not checked' : g.tokens.length) + ')';
+    dsTitles.components.textContent = 'Component mismatches (' + (ds.components === null ? 'not checked' : g.components.length) + ')';
     dsTitles.motion.textContent = 'Motion (' + mrows.rows.length + ')';
     clear(dsStats);
     [['tokens', 'token'], ['components', 'component'], ['motion', 'motion']].forEach(function (x) {
-      dsStats.appendChild(h('span', { class: 'badge badge-outline', 'data-ds': x[0] }, h('b', { class: 'tabular' }, String(ds[x[0]] || 0)), ' ' + x[1] + ((ds[x[0]] || 0) === 1 || x[1] === 'motion' ? '' : 's')));
+      dsStats.appendChild(h('span', { class: 'badge badge-outline', 'data-ds': x[0] }, ds[x[0]] === null ? x[1] + 's not checked' : [h('b', { class: 'tabular' }, String(ds[x[0]] || 0)), ' ' + x[1] + ((ds[x[0]] || 0) === 1 || x[1] === 'motion' ? '' : 's')]));
     });
     if (tabCount.design) tabCount.design.textContent = String((ds.tokens || 0) + (ds.components || 0) + (ds.motion || 0));
   }
@@ -2824,9 +3148,20 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       return h('section', { class: 'card', 'aria-labelledby': id }, cardHead(dsTitles[key], desc, null, id),
         h('div', { class: 'card-content flush' }, dataTable(cols.concat([{ label: h('span', { class: 'sr-only' }, 'Actions') }]), dsBodies[key], 'ds-' + key), foot || null));
     }
+    // No audit and nothing found is not "clean": say the mismatches were not looked for (validate.mjs warns too).
+    var g0 = dsGroups(), au = meta.dsAudit && typeof meta.dsAudit === 'object' ? meta.dsAudit : {};
+    var auditNote = DS_AUDITED
+      ? h('p', { class: 'muted', id: 'ds-audit', style: 'font-size:0.875rem;margin:0' }, 'Design-system audit: ' + meta.tools.dsAudit +
+          [['elementsChecked', 'elements checked'], ['offTokenValues', 'off-token values'], ['nonSystemComponents', 'non-system components']]
+            .filter(function (x) { return typeof au[x[0]] === 'number'; }).map(function (x) { return ' · ' + au[x[0]] + ' ' + x[1]; }).join(''))
+      : !g0.tokens.length && !g0.components.length
+        ? h('div', { class: 'alert alert-partial', role: 'note', id: 'ds-not-audited' }, icon('triangle-alert'), h('div', { class: 'alert-title' }, NOT_CHECKED.tokens === 'no design-system audit was run' ? 'No design-system audit was run' : 'No design-system audit was run: ' + NOT_CHECKED.tokens),
+            h('div', { class: 'alert-description' }, h('p', { style: 'margin:0' }, 'Token and component mismatches were not looked for, so the empty tables below do not mean the build uses the design system correctly.')))
+        : null;
     return [
       h('div', { class: 'section-head', style: 'margin:0' }, h('p', { class: 'muted', style: 'font-size:0.875rem;max-width:48rem' },
         'Where the build drifts from the design system the design uses: tokens, components and motion. Open findings only; dismissed and accepted ones are left out.'), dsStats),
+      auditNote,
       card('tokens', 'h-ds-tokens', 'The design binds a token; the build uses another token or a hardcoded value.', ['Finding', 'Element', 'Property', 'Expected (design)', 'Actual (build)', 'State']),
       card('components', 'h-ds-components', 'The design uses a library component or variant; the build renders something else.', ['Finding', 'Element', 'Expected component', 'Actual', 'State']),
       card('motion', 'h-ds-motion', 'One row per open motion finding, with each transition or animation it covers: expected (design) \u2192 observed (build). Missing means nothing animates.', ['Finding', 'Element', 'State', 'Expected \u2192 observed'], dsMotionNote)
@@ -2918,7 +3253,6 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function bfLabel(it) { return blank(it.label) ? orDash(it.state) : String(it.label); }
   function bfScreen(it) { return blank(it.screen) ? null : screenName(it.screen); }
   function bfComps(it) { return arr(it.components).filter(function (c) { return c && typeof c === 'object' && !blank(c.name); }); }
-  function bfCompLabel(c) { return String(c.name) + (blank(c.variant) ? '' : ' (' + c.variant + ')'); }
   function bfTokens(it) { return arr(it.tokens).filter(function (t) { return !blank(t); }).map(String); }
   function bfStateLabel(state) { // stateLabel() of lib/state-discovery.mjs, for an unlabelled item
     var s0 = String(state || ''), s = s0.indexOf('/') !== -1 ? s0.slice(s0.indexOf('/') + 1) : s0;
@@ -3144,7 +3478,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   // Every name, title and path is folded with oneLine (decisions.mjs folds the same values): nothing quoted from the
   // report or the reviewer can start a line of its own, so the message holds exactly one decisions block.
   var CONTROL_RE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
-  function shellArg(value) { // shellArg() of scripts/lib/review-context.mjs: one printed line, always
+  function shellArg(value) { // a copy of shellArg() in scripts/lib/args.mjs: one printed line, always
     var s = String(value);
     if (/^[A-Za-z0-9_./:@=-]+$/.test(s)) return s;
     if (s.search(CONTROL_RE) !== -1) {
@@ -3474,7 +3808,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     tablist.appendChild(tabBtns[t[0]]);
     panels[t[0]] = h('div', { class: 'stack', role: 'tabpanel', id: 'panel-' + t[0], 'aria-labelledby': 'tab-' + t[0], hidden: true });
   });
-  append(panels.overview, [heroSection, sectionTriage(), h('div', null, sectionDismissed(), sectionRun())]);
+  append(panels.overview, [heroSection, sectionTriage(), h('div', null, sectionRejected(), sectionAgentData(), sectionDismissed(), sectionRun())]);
   panels.findings.appendChild(sectionFindings());
   append(panels['design-system'], sectionDesignSystem());
   panels.states.appendChild(sectionStates());

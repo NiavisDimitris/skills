@@ -359,3 +359,42 @@ test('figma-fetch: a downloaded image is never written through a symlink; Figma 
     await server.close();
   }
 });
+
+test('figma-fetch: a section link implies --screens auto; the census flags judgement calls', async () => {
+  const section = {
+    id: '5:0',
+    name: 'Cart',
+    type: 'SECTION',
+    absoluteBoundingBox: { x: 0, y: 0, width: 2000, height: 1000 },
+    children: [CART, CART_EMPTY, { ...PROFILE, name: 'Promo' }, { id: '5:9', name: 'Tooltip', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 900, width: 200, height: 80 }, children: [] }],
+  };
+  const png = encodePng(createPng(390, 844, [255, 255, 255, 255]));
+  const small = encodePng(createPng(200, 80, [255, 255, 255, 255]));
+  const docs = { '5:0': section, '1:1': CART, '1:2': CART_EMPTY, '3:1': section.children[2], '5:9': section.children[3] };
+  const server = await startServer((req, res) => {
+    const url = new URL(req.url, 'http://x');
+    if (url.pathname.startsWith('/cdn/')) return res.writeHead(200, { 'content-type': 'image/png' }).end(url.pathname.includes('5_9') ? small : png);
+    if (url.pathname === `/v1/files/${PAGE_KEY}/nodes`) {
+      const ids = url.searchParams.get('ids').split(',');
+      return sendJson(res, 200, { name: 'Shop', nodes: Object.fromEntries(ids.map((id) => [id, docs[id] ? { document: docs[id], components: {}, componentSets: {}, styles: {} } : null])) });
+    }
+    if (url.pathname === `/v1/files/${PAGE_KEY}`) return sendJson(res, 200, { name: 'Shop', document: { id: '0:0', type: 'DOCUMENT', children: [{ ...PAGE, children: [section] }] } });
+    if (url.pathname === `/v1/images/${PAGE_KEY}`) {
+      const ids = url.searchParams.get('ids').split(',');
+      return sendJson(res, 200, { err: null, images: Object.fromEntries(ids.map((id) => [id, `${server.url}/cdn/${id.replace(/\W/g, '_')}.png`])) });
+    }
+    return sendJson(res, 403, { status: 403 });
+  });
+  try {
+    const out = tmpDir();
+    const res = await run(FETCH, ['--url', `https://www.figma.com/design/${PAGE_KEY}/Shop?node-id=5-0`, '--out', out], { env: { FIGMA_TOKEN: TOKEN, FIGMA_API_BASE: server.url } });
+    assert.equal(res.code, 0, res.stderr);
+    assert.match(res.stdout, /Cart \(5:0\) is a section: fetching every frame in it as screens \(--screens auto\)/);
+    const index = JSON.parse(readFileSync(path.join(out, 'screens.json'), 'utf8'));
+    assert.deepEqual(index.screens.map((s) => [s.id, s.states]), [['cart', ['with-data', 'empty', 'promo', 'tooltip', 'hover']]]);
+    assert.match(res.stderr, /frame 3:1 "Promo" \(390×844\) is unmapped: .*Provisionally cart\/promo/);
+    assert.equal(readPng(path.join(out, 'screens', 'cart', 'figma', 'tooltip.png')).width, 200, 'the overlay is exported at its own size');
+  } finally {
+    await server.close();
+  }
+});

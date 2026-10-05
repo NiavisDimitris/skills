@@ -257,6 +257,8 @@ function embedWorkspace(t) {
   writeFileSync(path.join(root, 'outside', 'credentials'), 'AWS_SECRET_ACCESS_KEY=example\n');
   return { root, dir };
 }
+// A pin for the evidence these tests rewrite: an open FIX_CODE finding needs one (validate.mjs).
+const PIN = { x: 0, y: 120, w: 1440, h: 400 };
 const withImages = (paths) => ({ findings: [{ evidence: paths.map((p) => ({ type: 'screenshot', path: p })) }] });
 
 test('buildAssets: only regular files inside the report folder whose bytes match the extension', (t) => {
@@ -310,7 +312,7 @@ test('buildAssets: a FIFO named like an image is never opened (no hang)', { skip
     return;
   }
   const report = loadFixture('report-valid.json');
-  report.findings[0].evidence = [{ type: 'screenshot', path: 'app/fifo.png' }, { type: 'screenshot', path: 'app/ok.png' }];
+  report.findings[0].evidence = [{ type: 'screenshot', path: 'app/fifo.png' }, { type: 'screenshot', path: 'app/ok.png', state: 'empty', crop: PIN }];
   report.findings[0].rank = null;
   writeFileSync(path.join(dir, 'report.json'), JSON.stringify(report));
   const res = await run(RENDER, ['--in', path.join(dir, 'report.json'), '--out', path.join(dir, 'r.html'), '--template', fixture('template.html'), '--embed-images'], { timeout: 15000 });
@@ -334,7 +336,7 @@ test('buildAssets: the total embedded size stays within the budget; the rest kee
   assert.equal(embedBudget({ DESIGN_QA_EMBED_BUDGET_BYTES: 'lots' }), 100 * 1024 * 1024, 'an invalid value keeps the default');
 
   const report = loadFixture('report-valid.json');
-  report.findings[0].evidence = refs.map((p) => ({ type: 'screenshot', path: p }));
+  report.findings[0].evidence = refs.map((p) => ({ type: 'screenshot', path: p, state: 'empty', crop: PIN }));
   report.findings[0].rank = null;
   writeFileSync(path.join(dir, 'report.json'), JSON.stringify(report));
   const out = path.join(dir, 'r.html');
@@ -355,7 +357,7 @@ test('imageRefProblem: URLs and absolute paths are refused; the renderer warns e
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const report = loadFixture('report-valid.json');
   report.stateMatrix.find((r) => r.captured && r.captured.app).captured.app = 'https://beacon.example/open.png?who=viewer';
-  report.findings[0].evidence = [{ type: 'screenshot', path: '//beacon2.example/x.png' }];
+  report.findings[0].evidence = [{ type: 'screenshot', path: '//beacon2.example/x.png', state: 'empty', crop: PIN }];
   report.findings[0].rank = null;
   writeFileSync(path.join(dir, 'report.json'), JSON.stringify(report));
   const res = await run(RENDER, ['--in', path.join(dir, 'report.json'), '--out', path.join(dir, 'r.html'), '--template', fixture('template.html')]);

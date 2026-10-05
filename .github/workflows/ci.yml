@@ -64,8 +64,8 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Validate the sample report against the schema
-        run: node skills/design-qa/scripts/validate.mjs examples/sample/sample-report.json
+      - name: Validate the sample report (schema, evidence gates, and its build verified against findings.json and the evidence)
+        run: node skills/design-qa/scripts/validate.mjs examples/sample/sample-report.json --config examples/sample/design-qa.config.json
 
       - name: Render the sample report and fix plan
         run: |
