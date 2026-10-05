@@ -18,11 +18,15 @@ test('review covers both widths/heights at 1x, even identical states; no tile ca
   mkdirSync(path.join(dir,'evidence'),{recursive:true});
   writePng(path.join(dir,'evidence/app.png'),createPng(650,850));
   writePng(path.join(dir,'evidence/design.png'),createPng(620,810));
+  write(path.join(dir,'evidence/compare.json'), {states:{same:{style:[{selector:'node \\| <script>',property:'color',design:'red',app:'blue',result:'FAIL'}]}}});
   const ev = new Evidence(dir);
   const states = writeComparisonReview(ev,[{id:'same',local:'same',prefix:'evidence'}],()=>({app:'evidence/app.png',design:'evidence/design.png'}),[]);
   assert.equal(states.same.images.length,4);
   assert.deepEqual(states.same.images.at(-1).rect,{x:600,y:800,w:50,h:50});
   assert.equal(ev.png(states.same.images[0].path).width,1204);
+  const ledger=readFileSync(path.join(dir,states.same.valuesLedger),'utf8');
+  assert.ok(ledger.includes('node ' + '\\'.repeat(3) + '| &lt;script&gt;'), ledger);
+  assert.ok(!ledger.includes('<script>'));
 });
 
 test('report blocks unreviewed/omitted tiles and stale values, allows current complete review', t => {

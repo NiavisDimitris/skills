@@ -52,7 +52,7 @@ export function writeComparisonReview(ev, units, resolveUnit, items) {
     record.valuesFile = comparePath;
     record.valuesAvailable = Boolean(values);
     if (values) {
-      const cell = v => String(v ?? 'unknown').replace(/\|/g, '\\|').replace(/[\r\n]+/g, ' ');
+      const cell = v => String(v ?? 'unknown').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\r\n]+/g, ' ');
       const ledger = ['| Node / selector | Property | Figma | Code | Delta | Figma token / code token | Result |', '|---|---|---|---|---|---|---|',
         ...(values.style ?? []).map(r => `| ${cell(r.figmaNodeId)} / ${cell(r.selector)} | ${cell(r.property)} | ${cell(r.design)} | ${cell(r.app)} | ${cell(r.deltaE ?? r.delta)} | ${cell(r.expectedToken)} / ${cell(r.actualToken)} | ${cell(r.result)} |`),
         ...(values.structure ?? []).map(r => `| ${cell(r.figmaNodeId)} / ${cell(r.selector)} | structure | ${cell(r.design)} | ${cell(r.app)} | — | — | ${cell(r.result)}: ${cell(r.note)} |`)];
