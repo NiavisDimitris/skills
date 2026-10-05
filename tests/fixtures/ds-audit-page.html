@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DS audit fixture</title>
+<style>
+  :root {
+    --ds-color-text: #1a1d23;
+    --ds-color-surface: #ffffff;
+    --ds-color-brand: #2563eb;
+    --ds-space-2: 8px;
+    --ds-space-3: 12px;
+    --ds-space-4: 16px;
+    --ds-radius-control: 6px;
+  }
+  html, body { margin: 0; }
+  body { font: 16px/24px Arial, Helvetica, sans-serif; color: var(--ds-color-text); background: var(--ds-color-surface); }
+  header { padding: var(--ds-space-4); }
+  h1 { font-size: 24px; line-height: 32px; font-weight: 700; margin: 0; }
+  .hero { height: 1400px; padding: 16px; }
+  /* Off-token: 13px padding and a hand-typed colour, used three times. */
+  .card { padding: 13px; color: #3a3f47; border: 1px solid #d0d4da; border-radius: 6px; margin-bottom: 8px; }
+  /* Near miss: within ΔE 1.5 of the brand colour, hardcoded. */
+  .near { color: #2664eb; padding: 12px; }
+  .ds-button { background: var(--ds-color-brand); color: #ffffff; padding: 8px 16px; border: 0; border-radius: var(--ds-radius-control); font: 600 14px/20px Arial, sans-serif; }
+  .MuiButton-root { background: #1976d2; color: #ffffff; padding: 6px 16px; border: 0; border-radius: 4px; font: 500 14px/24px Arial, sans-serif; }
+  .legacy-tag { background: #eeeeee; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+  .scroller { height: 120px; overflow: auto; border: 1px solid #d0d4da; }
+  .scroller .row { height: 60px; padding: 12px; }
+  .scroller .deep { color: #b42318; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .gone { display: none; }
+  .ghost { opacity: 0; }
+</style>
+</head>
+<body>
+<header><h1>Orders</h1></header>
+<main aria-label="Content">
+  <section class="hero" aria-label="Hero"><p>Above the fold</p>
+    <button class="ds-button" data-ds-component="Button" data-secret-token="abc">Save</button>
+    <button class="MuiButtonBase-root MuiButton-root MuiButton-contained">Export</button>
+    <button class="plain">Raw</button>
+    <input type="text" value="never-recorded" placeholder="Search">
+  </section>
+  <section aria-label="Below the fold">
+    <div class="card">Card one</div>
+    <div class="card">Card two</div>
+    <div class="card">Card three</div>
+    <p class="near">Near miss text</p>
+    <span class="legacy-tag">Legacy</span>
+    <div class="scroller">
+      <div class="row">Row 1</div>
+      <div class="row">Row 2</div>
+      <div class="row">Row 3</div>
+      <div class="row deep">Row 4 deep</div>
+    </div>
+    <span class="sr-only">Screen reader only</span>
+    <div class="gone">Not rendered</div>
+    <div class="ghost">Invisible</div>
+  </section>
+</main>
+</body>
+</html>

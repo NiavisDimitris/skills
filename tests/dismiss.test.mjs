@@ -362,7 +362,7 @@ test('CLI --id: dismisses, writes the report and qa-reports/dismissed.{json,md},
   assert.equal(res.code, 0, res.stderr);
   assert.match(res.stdout, /Dismissed DQ-002 not-an-issue — "1px anti-aliasing"/);
   assert.match(res.stdout, /Dismissed log: 1 added, 0 updated, 0 undone/);
-  assert.match(res.stdout, /Next: node scripts\/render-report\.mjs --in .*report\.json --recompute --write-back/);
+  assert.match(res.stdout, /Next: node \S*scripts\/render-report\.mjs --in .*report\.json --recompute --write-back/);
   const r = read(file);
   const f = byId(r, 'DQ-002');
   assert.equal(f.resolution, 'DISMISSED');
@@ -566,6 +566,6 @@ test('CLI: a dismissed log whose JSON and Markdown paths collide is refused; Nex
   assert.equal(ok.code, 0, ok.stderr);
   const next = ok.stdout.split('\n').filter((l) => l.startsWith('Next:'));
   assert.equal(next.length, 1, ok.stdout);
-  assert.match(next[0], /^Next: node scripts\/render-report\.mjs --in '[^']*\/ABC 12\/report\.json' --recompute --write-back/);
+  assert.match(next[0], /^Next: node \S*scripts\/render-report\.mjs --in '[^']*\/ABC 12\/report\.json' --recompute --write-back/);
   assert.ok(!existsSync(path.join(root, 'qa-reports', 'dismissed.json.lock')) && !existsSync(`${file}.lock`), 'locks released');
 });

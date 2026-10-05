@@ -1,0 +1,17 @@
+{
+  "app": {
+    "baseUrl": "https://acme-console-git-feat-orders-acme.vercel.app"
+  },
+  "surfaces": {
+    "orders": {
+      "route": "/orders"
+    }
+  },
+  "report": {
+    "topN": 5
+  },
+  "designSystem": {
+    "name": "Acme DS",
+    "knownDrifts": "design-qa/known-drifts.md"
+  }
+}

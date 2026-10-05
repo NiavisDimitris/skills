@@ -101,7 +101,13 @@ export async function browserCheck(playwright, { skillDir, env = process.env, ti
   }
 }
 
-async function check() {
+/**
+ * Run every check: { skillDir, ready, checks: [{ name, ok, detail, fix }] }. Also used by
+ * setup.mjs check (imported, so the old-Node guard below runs there too). With
+ * { launchBrowser: false } the browser is not launched: its row has ok null ("not
+ * checked") and does not count against ready.
+ */
+export async function check({ launchBrowser = true } = {}) {
   const { DEPENDENCIES, SKILL_DIR, isMissingModule } = await import('./lib/deps.mjs');
   const checks = [nodeCheck()];
   let playwright = null;
@@ -116,12 +122,14 @@ async function check() {
     }
   }
 
-  if (playwright) {
+  if (!playwright) {
+    checks.push({ name: 'chromium', ok: false, detail: 'needs playwright first', fix: `cd "${SKILL_DIR}" && npm install && npx playwright install chromium` });
+  } else if (launchBrowser) {
     checks.push(await browserCheck(playwright, { skillDir: SKILL_DIR }));
   } else {
-    checks.push({ name: 'chromium', ok: false, detail: 'needs playwright first', fix: `cd "${SKILL_DIR}" && npm install && npx playwright install chromium` });
+    checks.push({ name: 'chromium', ok: null, detail: 'not checked (the browser was not launched)', fix: null });
   }
-  return { skillDir: SKILL_DIR, ready: checks.every((c) => c.ok), checks };
+  return { skillDir: SKILL_DIR, ready: checks.every((c) => c.ok !== false), checks };
 }
 
 async function main(argv) {

@@ -1,19 +1,26 @@
 #!/usr/bin/env node
 // examples/sample/make-fixtures.mjs
 //
-// Regenerates the synthetic evidence behind the design-qa sample report and
-// patches every image-derived value back into sample-report.json:
+// Regenerates the synthetic evidence behind the design-qa sample report, then builds
+// sample-report.json the way a pass does: worklist.mjs walks the pages region by region
+// and build-report.mjs assembles the report from that evidence and findings.json (the
+// judgment, committed next to this file), so the report carries a real meta.build and
+// validate.mjs verifies it. The evidence:
 //   evidence/figma/<state>.png   "design" mock-ups (flat wireframes, 1440×900; the report's `design` key)
 //   evidence/app/<state>.png     "implementation" mock-ups with deliberate deltas
 //   evidence/diff/<state>.png    pixelmatch output for states that have both
 //   evidence/{computed,dom,motion}/<state>.json, figma-spec.json, ticket.json, capture.json
 //   evidence/backfill/…          app-only capture of the undesigned "bulk-selected" state (step 2; the report's `backfill` block)
-// Then it fills scorecard.pixelDiff, stateMatrix[].captured, evidence.states,
-// fixLoop pixelDiffAfter and findings[].rank, recomputes the derived scorecard
-// (schemaVersion 2.0: parity without dismissed findings, dismissed, designSystem)
-// and throws if the hand-written counts, parity or verdict disagree.
+//   evidence/diff.json           what diff.mjs --json prints for those pairs
+//   evidence/worklist.json, worklist.md, evidence/worklist/…   written by worklist.mjs
+// Build inputs committed here: findings.json, state-matrix.json, design-qa.config.json,
+// design-qa/known-drifts.md and the run lock .design-qa-run.json. The existing
+// sample-report.json belongs to the same run, so the build keeps its triage, fix loop,
+// design backfill and the recorded dismissal (DQ-022).
 //
-// Deterministic: no randomness, no clock. Run: node examples/sample/make-fixtures.mjs
+// Deterministic evidence (no randomness); worklist.json and meta.generatedAt carry the
+// time of the run. Run: node examples/sample/make-fixtures.mjs
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +34,7 @@ const REPORT_FILE = path.join(HERE, 'sample-report.json');
 const W = 1440;
 const H = 900;
 const DIFF_OPTS = { threshold: 0.1, includeAA: false }; // same defaults as scripts/diff.mjs
+const round2 = (n) => Math.round(n * 100) / 100;
 const APP_URL = 'https://acme-console-git-feat-orders-acme.vercel.app/orders';
 
 // ---------------------------------------------------------------------------
@@ -491,12 +499,14 @@ function capture(apps) {
       driver: d.driver, url: d.driver.fixture ? `${APP_URL}?fixture=${d.driver.fixture}` : APP_URL,
       screenshot: apps.includes(state) ? `app/${state}.png` : null, computed: `computed/${state}.json`, dom: `dom/${state}.json`, motion: `motion/${state}.json`,
       settleMs: d.settleMs, durationMs: d.durationMs, scroll: { x: 0, y: 0 }, warnings: [],
+      // The orders page is exactly one 1440×900 screen: the full-page capture is the whole page, no panel hides content.
+      ...(apps.includes(state) ? { fullPage: true, page: { width: W, height: H }, size: { width: W, height: H }, unrolled: [], clipped: [] } : {}),
     };
   }
   const reason = 'no runtime driver (needs a fixture, query, mock, storage, action or viewport)';
   states.selected = { driver: {}, url: null, screenshot: null, computed: null, dom: null, motion: null, settleMs: null, durationMs: 0, warnings: [`not captured: ${reason}`], skipped: true };
   return {
-    url: APP_URL, kind: 'preview', viewport: { width: W, height: H }, dpr: 1, fullPage: false, commit: COMMIT, branch: 'feat/orders-list',
+    url: APP_URL, kind: 'preview', viewport: { width: W, height: H }, dpr: 1, fullPage: true, commit: COMMIT, branch: 'feat/orders-list',
     timestamp: '2026-09-22T14:29:41Z', states,
     degradations: [{ step: 'capture:selected', reason, impact: 'State "selected" cannot be verified (CANNOT_VERIFY).' }],
   };
@@ -558,27 +568,6 @@ const BACKFILL_COMPUTED = {
   },
 };
 // Evidence crops come from these boxes (app side) and from the Figma layer bounds (design side).
-const CROP_FROM = {
-  'DQ-002': ['with-data', 'Table header'], 'DQ-003': ['hover', 'Table row (hover)'], 'DQ-004': ['with-data', 'Card'], 'DQ-005': ['with-data', 'Status badge'],
-  'DQ-006': ['with-data', 'Page title'], 'DQ-007': ['loading', 'Skeleton bar'], 'DQ-008': ['hover', 'Table row'],
-  'DQ-010': ['with-data', 'Updated header cell'], 'DQ-011': ['with-data', 'Pagination'], 'DQ-013': ['with-data', 'Total cell'], 'DQ-015': ['error', 'Retry button'],
-  'DQ-016': ['loading', 'Skeleton'], 'DQ-017': ['focus', 'Row focus ring'], 'DQ-018': ['with-data', 'Search input'], 'DQ-019': ['error', 'Alert'], 'DQ-020': ['with-data', 'Page header'], 'DQ-021': ['loading', 'Skeleton'], 'DQ-022': ['with-data', 'Status badge'],
-};
-const FIGMA_CROP = {
-  'DQ-001': [264, 204, 1144, 400], 'DQ-002': [288, 228, 1096, 40], 'DQ-003': [288, 316, 1096, 48], 'DQ-004': [264, 204, 1144, 520], 'DQ-006': [264, 78, 82, 32],
-  'DQ-007': [304, 286, 84, 12], 'DQ-010': [1248, 228, 136, 40], 'DQ-011': [288, 668, 1096, 32], 'DQ-013': [908, 268, 150, 48], 'DQ-014': [288, 364, 1096, 48],
-  'DQ-017': [288, 268, 1096, 48], 'DQ-018': [264, 152, 320, 36], 'DQ-019': [288, 228, 1096, 72], 'DQ-020': [264, 78, 236, 58],
-};
-function applyCrops(r) {
-  for (const f of r.findings) {
-    const src = CROP_FROM[f.id], fig = FIGMA_CROP[f.id];
-    for (const e of f.evidence) {
-      if (src && (e.type === 'screenshot' || e.type === 'diff')) e.crop = { ...COMPUTED[src[0]][src[1]].samples[0].__rect };
-      if (fig && e.type === 'figma') e.crop = { x: fig[0], y: fig[1], w: fig[2], h: fig[3] };
-    }
-  }
-}
-
 const REGIONS = [
   { region: 'Page header', selector: 'header.page-header', text: 'Orders · Track and manage customer orders' },
   { region: 'Toolbar', selector: '[data-testid=orders-toolbar]', text: 'Search by order ID or customer · All statuses · 1–12 of 124 · New order' },
@@ -594,6 +583,14 @@ const DOM = {
   error: { regions: REGIONS.slice(0, 2).concat({ region: 'Error banner', selector: '[data-testid=orders-error]', role: 'alert', text: "Couldn't load orders · Retry" }), retry: { clicked: true, requestsAfterClick: ['GET /api/orders'] } },
   hover: { regions: REGIONS, target: '.orders-row:nth-child(2)', matches: [':hover'] },
   focus: { regions: REGIONS, activeElement: '.orders-row:nth-child(1) a.order-link', focusVisible: true },
+};
+// The empty state was driven on the deployed preview (orders mock []) but is not implemented, so there is no
+// app/empty.png to compare: the DOM outline is the app-side evidence for DQ-001 (header over an empty body).
+const EMPTY_DOM = {
+  state: 'empty', root: '[data-testid=orders-page]',
+  regions: REGIONS.slice(0, 2).concat({ region: 'Table', selector: '[data-testid=orders-table]', text: 'ORDER · CUSTOMER · STATUS · TOTAL · CREATED · UPDATED' }),
+  table: { columns: ['Order', 'Customer', 'Status', 'Total', 'Created', 'Updated'], rows: 0 },
+  emptyState: null,
 };
 
 // What capture.mjs records per state in motion/<state>.json: the computed transition / animation
@@ -622,149 +619,6 @@ const BACKFILL_MOTION = {
 function writeJson(file, obj) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(obj, null, 2)}\n`);
-}
-
-// ---------------------------------------------------------------------------
-// 5. Derived rules (mirrors the validator) — rank, bands, scorecard checks
-// ---------------------------------------------------------------------------
-const OPEN = ['FIX_CODE', 'UNCLASSIFIED'];
-const SEV_W = { BLOCKER: 3, WARNING: 2, DS_CANDIDATE: 1 };
-const LEDGER_W = { structure: 3, component: 3, state: 3, style: 2, behavior: 2, motion: 2 };
-const TOP_N = 5;
-const band = (pct) => (pct < 1 ? 'pass' : pct <= 5 ? 'review' : 'fail');
-const round2 = (n) => Math.round(n * 100) / 100;
-
-// Buckets: FIX_CODE → first TOP_N by score "fix-now", the rest "debt"; everything else
-// (dismissed, intentional, data, pass, cannot-verify) { score: 0, bucket: "none" }.
-// Ties: id ascending, numeric part first.
-const idNum = (id) => { const m = /(\d+)$/.exec(String(id)); return m ? Number(m[1]) : Infinity; };
-const byId = (a, b) => (idNum(a.id) - idNum(b.id)) || String(a.id).localeCompare(String(b.id));
-function rankAll(findings) {
-  const scored = findings
-    .filter((f) => f.resolution === 'FIX_CODE' && SEV_W[f.severity])
-    .map((f) => ({ f, score: SEV_W[f.severity] * 100 + LEDGER_W[f.ledger] * 10 + (6 - (f.fix?.effort ?? 3)) }))
-    .sort((a, b) => b.score - a.score || byId(a.f, b.f));
-  for (const f of findings) f.rank = { score: 0, bucket: 'none' };
-  scored.forEach((s, i) => { s.f.rank = { score: s.score, bucket: i < TOP_N ? 'fix-now' : 'debt' }; });
-  const ids = (list) => list.map((s) => s.f.id);
-  return { fixNow: ids(scored.slice(0, TOP_N)), debt: ids(scored.slice(TOP_N)) };
-}
-
-// Triage: what Maya chose to fix now; everything else became ticketed debt.
-const TRIAGE = {
-  decidedBy: 'Maya Chen', decidedAt: '2026-09-22T15:05:00Z', source: 'report-ui',
-  fixNow: ['DQ-001', 'DQ-002', 'DQ-003', 'DQ-010'],
-  debt: {
-    'DQ-004': ['ACME-511', 'Spacing polish; batch it with the spacing-token sweep.'],
-    'DQ-006': ['ACME-512', 'Shared PageHeader change, already tracked as KD-2 across Console.'],
-    'DQ-007': ['ACME-513', 'Only visible while loading; low impact.'],
-    'DQ-008': ['ACME-514', 'Motion-token clean-up is planned for the next sprint.'],
-    'DQ-016': ['ACME-515', 'Needs the shared delayed-flag hook; scheduled with it.'],
-    'DQ-021': ['ACME-516', 'Motion polish; ships with the shared fade utility.'],
-  },
-};
-const triageable = (x) => x.resolution === 'FIX_CODE' && ['BLOCKER', 'WARNING', 'DS_CANDIDATE'].includes(x.severity);
-function buildTriage(r) {
-  const items = r.findings.filter(triageable)
-    .sort((a, b) => b.rank.score - a.rank.score || byId(a, b))
-    .map((x) => {
-      if (TRIAGE.fixNow.includes(x.id)) return { findingId: x.id, decision: 'fix-now', reason: null, ticket: null };
-      const d = TRIAGE.debt[x.id];
-      if (!d) throw new Error(`${x.id} is triageable but has no triage decision in TRIAGE`);
-      if (x.severity === 'BLOCKER') throw new Error(`${x.id} is a BLOCKER and cannot be debt`);
-      return { findingId: x.id, decision: 'debt', reason: d[1],
-        ticket: { provider: 'jira', key: d[0], url: `https://acme.atlassian.net/browse/${d[0]}`, createdAt: r.meta.generatedAt } };
-    });
-  return { decidedBy: TRIAGE.decidedBy, decidedAt: TRIAGE.decidedAt, source: TRIAGE.source, items };
-}
-// Scorecard extras: unexplained = open findings that are not ticketed debt; debt counts; loop closed when none is unexplained.
-function triageScore(r) {
-  const items = r.triage ? r.triage.items : [];
-  const ticketed = new Set(items.filter((i) => i.decision === 'debt' && i.ticket).map((i) => i.findingId));
-  const unexplained = r.findings.filter((x) => OPEN.includes(x.resolution) && !ticketed.has(x.id));
-  const debt = items.filter((i) => i.decision === 'debt');
-  return { unexplained, debt: { count: debt.length, ticketed: debt.filter((i) => i.ticket).length }, loopClosed: unexplained.length === 0 && r.openDecisions.length === 0 };
-}
-
-function derivedScorecard(r) {
-  const f = r.findings;
-  const count = (key, values) => Object.fromEntries(values.map((v) => [v, f.filter((x) => x[key] === v).length]));
-  const open = f.filter((x) => OPEN.includes(x.resolution));
-  const rows = r.stateMatrix;
-  const bands = Object.values(r.scorecard.pixelDiff).map((p) => p.band);
-  const dismissed = f.filter((x) => x.resolution === 'DISMISSED').length;
-  const denom = Math.max(1, f.length - dismissed);
-  const dsMismatch = f.filter((x) => OPEN.includes(x.resolution));
-  const ts = triageScore(r), unexplainedIds = new Set(ts.unexplained.map((x) => x.id));
-  const failStates = Object.entries(r.scorecard.pixelDiff).filter(([, p]) => p.band === 'fail').map(([s]) => s);
-  const failBand = failStates.some((s) => f.some((x) => x.state === s && unexplainedIds.has(x.id)) || !f.some((x) => x.state === s));
-  const explainedFail = failStates.length > 0 && !failBand;
-  let verdict = 'PASS';
-  if (open.some((x) => x.severity === 'BLOCKER') || rows.some((x) => x.result === 'MISSING_IN_CODE') || failBand) verdict = 'FAIL';
-  else if (ts.unexplained.length || explainedFail || f.some((x) => x.severity === 'CANNOT_VERIFY') || r.openDecisions.length || bands.includes('review')
-    || rows.some((x) => x.result === 'CANNOT_VERIFY')) verdict = 'REVIEW';
-  return {
-    parity: open.length ? Math.min(99, Math.round(100 * (1 - open.length / denom))) : Math.round(100 * (1 - open.length / denom)),
-    verdict,
-    bySeverity: count('severity', ['BLOCKER', 'WARNING', 'PASS', 'CANNOT_VERIFY', 'DS_CANDIDATE']),
-    byResolution: count('resolution', ['FIX_CODE', 'INTENTIONAL', 'DATA', 'DISMISSED', 'NONE', 'UNCLASSIFIED']),
-    stateCoverage: {
-      total: rows.length,
-      designed: rows.filter((x) => x.designed).length,
-      specified: rows.filter((x) => x.specified).length,
-      implemented: rows.filter((x) => x.implemented).length,
-      verified: rows.filter((x) => ['PASS', 'FAIL'].includes(x.result)).length,
-    },
-    unexplained: ts.unexplained.length,
-    debt: ts.debt,
-    loopClosed: ts.loopClosed,
-    dismissed,
-    designSystem: {
-      tokens: dsMismatch.filter((x) => x.ledger === 'style' && x.expected.token && x.actual.token !== x.expected.token).length,
-      components: dsMismatch.filter((x) => x.ledger === 'component').length,
-      motion: dsMismatch.filter((x) => x.ledger === 'motion').length,
-    },
-  };
-}
-
-function check(r) {
-  const errors = [];
-  const d = derivedScorecard(r);
-  for (const key of ['parity', 'verdict', 'bySeverity', 'byResolution', 'stateCoverage', 'unexplained', 'debt', 'loopClosed', 'dismissed', 'designSystem']) {
-    if (JSON.stringify(d[key]) !== JSON.stringify(r.scorecard[key])) {
-      errors.push(`scorecard.${key}: written ${JSON.stringify(r.scorecard[key])}, derived ${JSON.stringify(d[key])}`);
-    }
-  }
-  const ids = new Set(r.findings.map((f) => f.id));
-  if (ids.size !== r.findings.length) errors.push('duplicate finding ids');
-  for (const f of r.findings) {
-    const passLike = ['PASS', 'CANNOT_VERIFY'].includes(f.severity);
-    if (passLike !== (f.resolution === 'NONE')) errors.push(`${f.id}: severity ${f.severity} with resolution ${f.resolution}`);
-    if ((f.resolution === 'DISMISSED') !== Boolean(f.dismissal)) errors.push(`${f.id}: DISMISSED and dismissal must go together`);
-    for (const e of f.evidence) {
-      if (!fs.existsSync(path.join(HERE, e.path))) errors.push(`${f.id}: missing evidence ${e.path}`);
-      if (e.crop && (e.crop.x + e.crop.w > W || e.crop.y + e.crop.h > H)) errors.push(`${f.id}: crop outside frame ${e.path}`);
-    }
-  }
-  const refs = [
-    ...r.stateMatrix.flatMap((x) => x.findings),
-    ...Object.values(r.ledgers).flatMap((rows) => rows.flatMap((x) => x.findingIds)),
-    ...r.openDecisions.flatMap((x) => x.relatedFindings),
-    ...r.fixLoop.flatMap((x) => x.findingIds),
-  ];
-  for (const id of refs) if (!ids.has(id)) errors.push(`unknown finding reference ${id}`);
-  const paths = [r.evidence.figmaSpec, r.evidence.ticket, r.evidence.capture,
-    ...Object.values(r.evidence.states).flatMap((s) => Object.values(s)),
-    ...Object.values(r.scorecard.pixelDiff).map((p) => p.image)];
-  for (const p of paths) if (p && !fs.existsSync(path.join(HERE, p))) errors.push(`missing evidence file ${p}`);
-  for (const [id, [st, cls]] of Object.entries(CROP_FROM)) {
-    const rect = JSON.stringify(COMPUTED[st][cls].samples[0].__rect);
-    for (const e of r.findings.find((x) => x.id === id).evidence) if ((e.type === 'screenshot' || e.type === 'diff') && JSON.stringify(e.crop) !== rect) errors.push(`${id}: ${e.type} crop differs from computed __rect ${rect}`);
-  }
-  const fixNow = r.findings.filter((f) => f.rank?.bucket === 'fix-now').length;
-  if (fixNow !== TOP_N) errors.push(`expected ${TOP_N} fix-now findings, got ${fixNow}`);
-  if (errors.length) throw new Error(`sample-report.json is inconsistent:\n  - ${errors.join('\n  - ')}`);
-  return d;
 }
 
 // ---------------------------------------------------------------------------
@@ -804,35 +658,29 @@ for (const s of APP_STATES) {
   writeJson(path.join(EV, 'dom', `${s}.json`), { state: s, root: '[data-testid=orders-page]', ...DOM[s] });
   writeJson(path.join(EV, 'motion', `${s}.json`), { state: s, ...MOTION[s] });
 }
+writeJson(path.join(EV, 'dom', 'empty.json'), EMPTY_DOM);
 
-const report = JSON.parse(fs.readFileSync(REPORT_FILE, 'utf8'));
-const rel = (...p) => ['evidence', ...p].join('/');
-const has = (p) => fs.existsSync(path.join(HERE, p));
-const orNull = (p) => (has(p) ? p : null);
+// What diff.mjs --json prints for the pairs (both sides 1440×900: nothing padded).
+const band = (pct) => (pct < 1 ? 'pass' : pct <= 5 ? 'review' : 'fail');
+writeJson(path.join(EV, 'diff.json'), {
+  results: Object.fromEntries(Object.entries(diffs).map(([s, percent]) => [s, {
+    state: s, a: `figma/${s}.png`, b: `app/${s}.png`, out: `evidence/diff/${s}.png`, width: W, height: H,
+    designWidth: W, designHeight: H, appWidth: W, appHeight: H, padded: null, paddedRight: null,
+    diffPixels: Math.round((percent / 100) * W * H), totalPixels: W * H, percent, band: band(percent),
+  }])),
+});
 
-report.scorecard.pixelDiff = {};
-for (const row of report.stateMatrix) {
-  const s = row.state;
-  if (s in diffs) report.scorecard.pixelDiff[s] = { percent: diffs[s], band: band(diffs[s]), image: rel('diff', `${s}.png`) };
-  const cap = { design: orNull(rel('figma', `${s}.png`)), app: orNull(rel('app', `${s}.png`)), diff: orNull(rel('diff', `${s}.png`)) };
-  row.captured = cap.design || cap.app ? cap : null;
+// The pass: walk every compared page region by region, then build the report from findings.json.
+const SCRIPTS = path.resolve(HERE, '../../skills/design-qa/scripts');
+const RUN_ID = JSON.parse(fs.readFileSync(path.join(HERE, '.design-qa-run.json'), 'utf8')).runId;
+for (const [name, args] of [
+  ['worklist.mjs', ['--dir', HERE, '--quiet']],
+  ['build-report.mjs', ['--dir', HERE, '--out', REPORT_FILE, '--config', path.join(HERE, 'design-qa.config.json'), '--run', RUN_ID]],
+]) {
+  const res = spawnSync(process.execPath, [path.join(SCRIPTS, name), ...args], { encoding: 'utf8' });
+  process.stdout.write(res.stdout);
+  if (res.status !== 0) {
+    process.stderr.write(res.stderr);
+    throw new Error(`${name} exited ${res.status}`);
+  }
 }
-report.evidence.states = Object.fromEntries(report.stateMatrix.map(({ state: s }) => [s, {
-  design: orNull(rel('figma', `${s}.png`)), app: orNull(rel('app', `${s}.png`)), diff: orNull(rel('diff', `${s}.png`)),
-  computed: orNull(rel('computed', `${s}.json`)), dom: orNull(rel('dom', `${s}.json`)), motion: orNull(rel('motion', `${s}.json`)),
-}]));
-for (const it of report.fixLoop) {
-  if (it.pixelDiffAfter) for (const s of Object.keys(it.pixelDiffAfter)) it.pixelDiffAfter[s] = diffs[s];
-}
-applyCrops(report);
-report.schemaVersion = '2.0';
-const order = rankAll(report.findings);
-report.triage = buildTriage(report);
-const ts = triageScore(report);
-Object.assign(report.scorecard, { unexplained: ts.unexplained.length, debt: ts.debt, loopClosed: ts.loopClosed, dismissed: derivedScorecard(report).dismissed, designSystem: derivedScorecard(report).designSystem });
-const derived = check(report);
-fs.writeFileSync(REPORT_FILE, `${JSON.stringify(report, null, 2)}\n`);
-
-console.log('pixel diff:', Object.entries(report.scorecard.pixelDiff).map(([s, p]) => `${s} ${p.percent}% (${p.band})`).join(' · '));
-console.log(`ranked: fix-now ${order.fixNow.join(', ')} · debt ${order.debt.join(', ')}`);
-console.log(`parity ${derived.parity}% · verdict ${derived.verdict} · states verified ${derived.stateCoverage.verified}/${derived.stateCoverage.total} · unexplained ${derived.unexplained} · dismissed ${derived.dismissed} · design system ${JSON.stringify(derived.designSystem)} · debt ${derived.debt.ticketed}/${derived.debt.count} ticketed`);

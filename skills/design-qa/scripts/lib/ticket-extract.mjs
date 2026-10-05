@@ -120,6 +120,80 @@ export function extractBranches(text) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Saved MCP results (Atlassian MCP getJiraIssue, getJiraIssueRemoteIssueLinks)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a saved tool result: plain JSON, a JSON string, or a tool-result envelope
+ * ({ content: [{ type: "text", text: "<json>" }] }). Returns every JSON value found.
+ */
+function savedJsonValues(text) {
+  const out = [];
+  const visit = (value, depth) => {
+    if (depth > 6 || value === null || value === undefined) return;
+    if (typeof value === 'string') {
+      const t = value.trim();
+      if (!/^[[{"]/.test(t)) return;
+      try {
+        visit(JSON.parse(t), depth + 1);
+      } catch {
+        // not JSON: skip
+      }
+      return;
+    }
+    if (typeof value !== 'object') return;
+    if (!Array.isArray(value) && Array.isArray(value.content) && value.content.some((c) => typeof c?.text === 'string')) {
+      for (const c of value.content) if (typeof c?.text === 'string') visit(c.text, depth + 1);
+      return;
+    }
+    out.push(value);
+  };
+  visit(String(text ?? '').replace(/^﻿/, ''), 0);
+  return out;
+}
+
+/**
+ * The Jira issue in a saved getJiraIssue result: the REST v3 issue object ({ key, fields }),
+ * also when wrapped ({ issue }, { issues: [one] }, a tool-result envelope). Throws Error
+ * when there is no issue in it.
+ */
+export function issueFromSaved(text) {
+  const find = (v, depth) => {
+    if (!v || typeof v !== 'object' || depth > 4) return null;
+    if (!Array.isArray(v) && v.fields && typeof v.fields === 'object' && typeof v.key === 'string') return v;
+    if (Array.isArray(v)) return v.length === 1 ? find(v[0], depth + 1) : null;
+    for (const k of ['issue', 'data', 'result']) if (v[k]) return find(v[k], depth + 1);
+    if (Array.isArray(v.issues) && v.issues.length === 1) return find(v.issues[0], depth + 1);
+    return null;
+  };
+  for (const value of savedJsonValues(text)) {
+    const issue = find(value, 0);
+    if (issue) return issue;
+  }
+  throw new Error('the file holds no Jira issue (expected the getJiraIssue result: JSON with "key" and "fields")');
+}
+
+/** Remote links in a saved getJiraIssueRemoteIssueLinks result: [{ object: { url, title } }]. */
+export function remoteLinksFromSaved(text) {
+  for (const value of savedJsonValues(text)) {
+    const list = Array.isArray(value) ? value : Array.isArray(value?.remoteLinks) ? value.remoteLinks : Array.isArray(value?.values) ? value.values : null;
+    if (list) return list.filter((l) => l && typeof l === 'object' && typeof l.object?.url === 'string');
+  }
+  throw new Error('the remote-links file holds no list of remote links (expected the getJiraIssueRemoteIssueLinks result)');
+}
+
+/** The Jira site of a saved issue, from its "self" API link (https only), else null. */
+export function issueBaseUrl(issue) {
+  try {
+    const u = new URL(String(issue?.self ?? ''));
+    if (u.protocol !== 'https:' || u.username || u.password) return null;
+    return u.origin;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Normalised ticket.json from a Jira REST v3 issue.
  * opts: { baseUrl, remoteLinks: [{ object: { url, title } }], now: Date }

@@ -49,10 +49,15 @@
       "ticket": "rest",
       "prototypeCapture": null
     },
+    "build": {
+      "tool": "build-report",
+      "version": "fixture",
+      "findings": null,
+      "evidence": []
+    },
     "degradations": []
   },
   "scorecard": {
-    "parity": 38,
     "verdict": "FAIL",
     "bySeverity": {
       "BLOCKER": 1,
@@ -91,7 +96,19 @@
       "designed": 5,
       "specified": 3,
       "implemented": 4,
-      "verified": 3
+      "verified": 3,
+      "partial": 0
+    },
+    "match": 73,
+    "matchByState": {
+      "with-data": 99,
+      "empty": 93,
+      "loading": 0,
+      "hover": 99
+    },
+    "settled": {
+      "count": 1,
+      "total": 6
     },
     "unexplained": 5,
     "debt": {
@@ -105,6 +122,7 @@
       "components": 1,
       "motion": 1
     },
+    "unpinned": 0,
     "backfill": {
       "candidates": 3,
       "toBuild": 1,
@@ -133,7 +151,18 @@
       "captured": {
         "design": "figma/with-data.png",
         "app": "app/with-data.png",
-        "diff": "diff/with-data.png"
+        "diff": "diff/with-data.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -163,7 +192,18 @@
       "captured": {
         "design": "figma/empty.png",
         "app": "app/empty.png",
-        "diff": "diff/empty.png"
+        "diff": "diff/empty.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -222,7 +262,18 @@
       "captured": {
         "design": "figma/hover.png",
         "app": "app/hover.png",
-        "diff": null
+        "diff": null,
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": true,
+          "clipped": 0
+        },
+        "comparison": {
+          "pixelDiff": true,
+          "worklist": true,
+          "compareRows": 0
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -338,6 +389,17 @@
           "type": "computed",
           "path": "computed/with-data.json",
           "crop": null,
+          "state": "with-data"
+        },
+        {
+          "type": "screenshot",
+          "path": "app/with-data.png",
+          "crop": {
+            "x": 24,
+            "y": 200,
+            "w": 1392,
+            "h": 48
+          },
           "state": "with-data"
         }
       ],
@@ -616,6 +678,17 @@
           "type": "motion",
           "path": "motion/hover.json",
           "crop": null,
+          "state": "hover"
+        },
+        {
+          "type": "screenshot",
+          "path": "app/hover.png",
+          "crop": {
+            "x": 24,
+            "y": 240,
+            "w": 1392,
+            "h": 56
+          },
           "state": "hover"
         }
       ],

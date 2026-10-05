@@ -28,10 +28,10 @@
     },
     "fixture": null,
     "tools": { "figmaAccess": "none", "capture": "script", "ticket": "none", "prototypeCapture": "script" },
+    "build": { "tool": "build-report", "version": "fixture", "findings": null, "evidence": [] },
     "degradations": []
   },
   "scorecard": {
-    "parity": 33,
     "verdict": "REVIEW",
     "bySeverity": { "BLOCKER": 0, "WARNING": 2, "PASS": 1, "CANNOT_VERIFY": 0, "DS_CANDIDATE": 0 },
     "byResolution": { "FIX_CODE": 2, "INTENTIONAL": 0, "DATA": 0, "DISMISSED": 0, "NONE": 1, "UNCLASSIFIED": 0 },
@@ -39,12 +39,16 @@
       "cart/with-data": { "percent": 0.6, "band": "pass", "image": "screens/cart/diff/with-data.png" },
       "checkout/with-data": { "percent": 2.4, "band": "review", "image": "screens/checkout/diff/with-data.png" }
     },
-    "stateCoverage": { "total": 3, "designed": 3, "specified": 0, "implemented": 3, "verified": 3 },
+    "stateCoverage": { "total": 3, "designed": 3, "specified": 0, "implemented": 3, "verified": 3, "partial": 0 },
+    "match": 99,
+    "matchByState": { "cart/with-data": 99, "checkout/with-data": 98 },
+    "settled": { "count": 0, "total": 2 },
     "unexplained": 2,
     "debt": { "count": 0, "ticketed": 0 },
     "loopClosed": false,
     "dismissed": 0,
-    "designSystem": { "tokens": 1, "components": 0, "motion": 1 }
+    "designSystem": { "tokens": 1, "components": null, "motion": 1 },
+    "unpinned": 0
   },
   "stateMatrix": [
     {
@@ -54,7 +58,7 @@
       "designed": { "nodeId": "/cart", "name": "Cart" },
       "specified": null,
       "implemented": { "driver": "fixture", "detail": "default render of /cart" },
-      "captured": { "design": "screens/cart/design/with-data.png", "app": "screens/cart/app/with-data.png", "diff": "screens/cart/diff/with-data.png" },
+      "captured": { "design": "screens/cart/design/with-data.png", "app": "screens/cart/app/with-data.png", "diff": "screens/cart/diff/with-data.png", "page": { "width": 1280, "height": 800, "fullPage": true, "clipped": 0 }, "comparison": { "pixelDiff": true, "worklist": false, "compareRows": 0 } },
       "result": "FAIL",
       "note": null,
       "findings": ["DQ-001", "DQ-003"]
@@ -66,7 +70,7 @@
       "designed": { "nodeId": "/cart?empty=1", "name": "Cart / Empty" },
       "specified": null,
       "implemented": { "driver": "query", "detail": "query ?empty=1" },
-      "captured": { "design": "screens/cart/design/empty.png", "app": "screens/cart/app/empty.png", "diff": null },
+      "captured": { "design": "screens/cart/design/empty.png", "app": "screens/cart/app/empty.png", "diff": null, "page": { "width": 1280, "height": 800, "fullPage": true, "clipped": 0 }, "comparison": { "pixelDiff": true, "worklist": true, "compareRows": 6 } },
       "result": "PASS",
       "note": null,
       "findings": []
@@ -78,7 +82,7 @@
       "designed": { "nodeId": "/checkout", "name": "Checkout" },
       "specified": null,
       "implemented": { "driver": "fixture", "detail": "default render of /checkout" },
-      "captured": { "design": "screens/checkout/design/with-data.png", "app": "screens/checkout/app/with-data.png", "diff": "screens/checkout/diff/with-data.png" },
+      "captured": { "design": "screens/checkout/design/with-data.png", "app": "screens/checkout/app/with-data.png", "diff": "screens/checkout/diff/with-data.png", "page": { "width": 1280, "height": 800, "fullPage": true, "clipped": 0 }, "comparison": { "pixelDiff": true, "worklist": false, "compareRows": 0 } },
       "result": "FAIL",
       "note": null,
       "findings": ["DQ-002"]
@@ -126,7 +130,7 @@
       "delta": "missing motion",
       "tolerance": "±20ms",
       "fix": { "summary": "Add the press scale transition to the pay button", "patchHint": "transition: transform 120ms ease-out;", "files": ["src/checkout/PayButton.tsx"], "effort": 2 },
-      "evidence": [{ "type": "motion", "path": "screens/checkout/motion/with-data.json", "crop": null, "state": "checkout/with-data" }],
+      "evidence": [{ "type": "motion", "path": "screens/checkout/motion/with-data.json", "crop": null, "state": "checkout/with-data" }, { "type": "screenshot", "path": "screens/checkout/app/with-data.png", "crop": { "x": 24, "y": 96, "w": 1232, "h": 48 }, "state": "checkout/with-data" }],
       "rank": null,
       "signoff": null,
       "knownDrift": null,

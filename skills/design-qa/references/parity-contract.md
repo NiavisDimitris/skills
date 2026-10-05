@@ -1,137 +1,56 @@
+Read when: you cannot tell whether a difference is a finding, data or out of scope, or the person asks what the contract is (worked examples).
+
 # The parity contract
 
-The design must be exact; only the data may differ.
+The design must be exact; only the data may differ. The design (Figma, a Figma prototype link or a coded prototype) is the source of truth, and the code is what changes. Nothing in step 1 asks the design to change.
 
-The design is the source of truth: a Figma file, frame, page or section (one or many screens), a Figma prototype link, or a coded prototype. One direction only, design → code. The build is compared with the design, and the code is what changes. Nothing in step 1 asks the design to change. Step 2, design backfill, comes after production matches the design and only adds frames for states the design never had (design-backfill.md).
+## Must match
 
-A pass is done when every discrepancy is fixed in code, signed off, dismissed with a written reason, or ticketed as debt, and every designed state has a result. A report exists long before that. Nothing stays unexplained.
+Any difference is a finding, within the config's `tolerances.px` and `tolerances.colorDeltaE` (references/ledgers.md, "Style"):
 
-## Must match exactly
+- **Component and variant** the design instance points at. A recreation that looks right is still a finding.
+- **Tokens**: every colour, space, radius, type, shadow and motion value traces to the token the design binds. A colour within tolerance that no token produces is still a token finding.
+- **Typography, colours, spacing** (and which element owns it), **sizing** (fixed sizes, min and max, hug versus fill), **radii, borders, shadows, stacking order, icons** (which, size, colour, stroke).
+- **Structure**: regions present, in the design's order.
+- **Copy**: wording, plural, casing, punctuation, per the project's design rules.
+- **States**: every designed interactive and data state.
+- **Motion**: which transitions run, on which property and trigger, with which type, duration, easing, delay and distance, and what reduced motion does. Missing motion is like a missing element.
 
-Any delta in these is a finding.
+## May differ: DATA
 
-| Area | What is compared | Ledger |
-|---|---|---|
-| Component choice | The design-system component the design instance points at, its variant and its props. A recreation that looks right is still a finding. | component |
-| Design tokens | Every color, space, radius, type, shadow and motion value traces to the token the design binds. | style (plus source trace) |
-| Typography | Font family, size, weight, line height, letter spacing, casing, alignment. | style |
-| Colors | Fills, text color, border color, icon color, opacity. | style |
-| Spacing | Padding, gap and margin, including which element owns the space. | style |
-| Sizing | Fixed widths and heights, min and max constraints, hug versus fill behaviour. | style |
-| Radii | Border radius per corner. | style |
-| Borders | Width, style, color and which sides. | style |
-| Elevation | Shadows and visible stacking order. | style |
-| Iconography | Which icon, its size, color and stroke. | component, style |
-| Layer structure | Regions present and in the design's order. | structure |
-| Labels and microcopy | Wording, singular or plural, casing, punctuation, per the project's design rules. | structure |
-| Interactive states | Hover, focus, active, selected, disabled, expanded. | state |
-| Data states | With-data, empty, loading, error, partial, success. | state |
-| Motion | Which transitions and animations run, on which property and trigger, their type, duration, easing, delay and distance, and what happens under reduced motion. Missing motion is a finding like a missing element. | motion |
+- Data values: numbers, names, dates, counts, currencies, avatars, images.
+- Which rows a list shows, and their order.
+- Which data-driven sections or columns appear for this fixture.
+- Line breaks and truncation points that follow from text length. The truncation behaviour itself (ellipsis, line clamp, wrapping) must match.
 
-Exact means within the measurement tolerances of the config: `tolerances.px` for lengths and `tolerances.colorDeltaE` (CIEDE2000 ΔE, alpha within 0.01) for colors, in any CSS color syntax (ledgers.md, "Comparing values"). A color within ΔE that no token produces is still a token finding.
-
-## May differ
-
-Classify these as `DATA`. Never change code or design to make data match.
-
-- Data values: numbers, names, dates, counts, currencies, avatars and images.
-- Row and item contents: which rows a list shows and in what data order.
-- Which data-driven sections or columns appear for a given fixture.
-- Line breaks and truncation points that follow from different text lengths. The truncation behaviour itself (ellipsis, clamp line count, wrapping) must still match.
-
-A `DATA` row states which data differs (in `title` or `delta`) so a reviewer can confirm the layout, type and color around it did match.
+A `DATA` finding says which data differs, so a reviewer can confirm the layout, type and colour around it matched. Never change code or design to make data match.
 
 ## Visibility must be data-driven
 
-A section or column may be absent because the fixture has no data for it. It may not be absent because code switched it off. Before classifying an absence as `DATA`, read the source that decides visibility.
+A section may be absent because the fixture has no data for it, never because code switched it off. Read the source that decides visibility before calling an absence `DATA`.
 
-```tsx
-// Finding: FIX_CODE. The design shows the "Owner" column; code hides it unconditionally.
-const columns = [
-  { key: 'name', visible: true },
-  { key: 'owner', visible: false },
-];
+| Code | Resolution |
+|---|---|
+| `{ key: 'owner', visible: false }`, a flag that is off with no plan, commented out | `FIX_CODE`: visibility must follow the data |
+| `visible: rows.some((r) => r.owner != null)` and the fixture has no owners | `DATA`; better, use a richer fixture so the column is compared |
+| A section the design never drew, inside a designed state | `FIX_CODE`, from the code side ("App renders an Activity section not in the design"). Keeping it is a person's sign-off or dismissal. |
 
-// Fix: visibility follows the data.
-const columns = [
-  { key: 'name', visible: true },
-  { key: 'owner', visible: rows.some((row) => row.owner != null) },
-];
-```
+## States
 
-- Hardcoded hidden, feature-flagged off with no plan, or commented out: `FIX_CODE`.
-- Data-driven, and the fixture has no owners: `DATA`. Better still, switch to a richer fixture so the column is actually compared.
-- Code shows a section the design never drew, inside a designed state: a structure finding, `FIX_CODE`, phrased from the code side ("App renders an Activity section not in the design"). The fix is to remove it or match the design. If the team wants it kept, a person signs it off (`INTENTIONAL`) or dismisses it with a reason.
+- Only states the design defines are rows. Designed but not built: `BLOCKER`, `MISSING_IN_CODE`.
+- A state only the code or the ticket has is neither a row nor a finding: it is a design backfill candidate for step 2 (references/design-backfill.md). It never changes the match, the verdict or the counts.
+- A designed state that cannot be reached is `CANNOT_VERIFY`, naming the missing hook. It is never dropped.
 
-## States are part of the contract
+## Resolutions, worked examples
 
-A screen is the set of its states, not its happy path.
+| Case | Resolution |
+|---|---|
+| The card title renders 16px/600; Figma binds `heading/sm` (18px/600); the stylesheet has `font-size: 16px`. | `FIX_CODE`, `WARNING`, `expected.token: "heading/sm"`, `actual.source` at the file and line. Fix: use the token. |
+| The error state renders a "Try again" button the design's error frame does not have. | `FIX_CODE`, `structure`, "App renders an extra Try again button not in the design", `WARNING` (`BLOCKER` when it changes what the user can do). Keeping it is a sign-off, never a design change. |
+| The design's row hover is a 200ms ease-out smart animate; the app changes instantly. | `FIX_CODE`, `motion`, `actual.value: "none"`, `WARNING`. Fix with the motion tokens. |
+| Header labels are 12px against 11px, and the design lead signed that off. | `INTENTIONAL`, with `signoff { by, date, reason }` or a cited known drift. Recurring: add it to the known drifts. |
+| Figma shows "12 open items"; the app "3 open items"; font, colour, spacing match. | `DATA` with `dataReason`. Not open, never ranked, does not lower the match. |
+| Anti-aliasing flagged around an icon; computed styles match. | Reject it `same` (the hint prints it). A person can also dismiss a finding; you never do. |
+| A divergence you cannot place without a person (the ticket and the design disagree). | `UNCLASSIFIED` with an open decision listing both options, recommending the design. It counts as open. |
 
-- The state matrix holds the states the design (or the prototype) defines, and only those.
-- Every designed state must exist in code and match. Designed but not implemented: 🔴 BLOCKER, `FIX_CODE`, state result `MISSING_IN_CODE`.
-- A state that exists only in code, or only in the ticket, is not a row and not a finding. Ticket criteria still feed the behaviour and motion checks of the designed states they touch.
-- Those undesigned states are not dropped: they are step 2, design backfill. Discovered read-only during this pass (`backfill-candidates.json`, app-only captures in `evidence/backfill/`), recorded in `report.json` `backfill`, and built as Figma frames from the design-system library once production matches the design (`loopClosed`). They never change parity, the verdict or the open count. design-backfill.md.
-- A designed state that cannot be reached in the app is `CANNOT_VERIFY`, naming the missing hook (`surfaces.<name>.states.<state>` in config). It is never dropped.
-
-The full gap table is in state-matrix.md.
-
-## Resolution classes, worked examples
-
-Every finding gets exactly one resolution.
-
-### FIX_CODE: code diverges from the design
-
-The card title renders at 16px/600. Figma binds the text style `heading/sm` (18px/600, line height 24px). The styles file has `font-size: 16px`.
-
-- Severity 🟡 WARNING (same role, wrong value) with `expected.token: "heading/sm"` and `actual.source` pointing at the file and line.
-- Fix: use the `heading/sm` token, and add a style value pin so it cannot come back.
-
-### FIX_CODE: extra element in a designed state
-
-The error state in code renders a "Try again" button. The design's error frame has none.
-
-- Title from the code side: "App renders an extra Try again button not in the design". Severity 🟡 WARNING (🔴 when it changes what the user can do), ledger `structure`, `expected.value: "no button"`.
-- Fix: remove the button, or match whatever the design shows in its place. If the team decides the button stays, that is a sign-off (`INTENTIONAL`) or a dismissal with a reason, never a request to change the design.
-
-### FIX_CODE: missing or different motion
-
-The design's hover reaction is a smart-animate of 200ms ease-out on the row background. The app changes the background instantly.
-
-- Ledger `motion`, `property: "transition"`, `expected.value: "200ms ease-out on background-color"`, `actual.value: "none"`. Severity 🟡 WARNING.
-- Fix: add the transition with the motion tokens (`duration.fast`, `easing.out`), not raw values.
-
-### INTENTIONAL: accepted divergence
-
-Table header labels render at 12px while Figma has 11px. The team raised the minimum text size for legibility, and the design lead signed that off.
-
-- Resolution `INTENTIONAL` with `signoff: { "by": "<name>", "date": "2026-05-04", "reason": "Minimum text size is 12px" }`. The report's Dismiss panel ("Accept as intentional") and `dismiss.mjs --kind intentional` both record it.
-- If the divergence recurs across surfaces, add it to the project's known drifts so later passes cite it instead of rediscovering it (classification.md).
-
-### DATA: legitimate content difference
-
-Figma shows "12 open items"; the app shows "3 open items" with the rich fixture. Font, color, spacing and position match.
-
-- Severity 🟡 WARNING (a visible difference), resolution `DATA`, `delta: "count differs (fixture data)"`.
-- It is not open, does not lower parity and is never ranked.
-
-### DISMISSED: not an issue, or not this QA
-
-The pixel diff flags anti-aliasing around an icon; the computed styles match. Or a finding duplicates another one, or covers a shared header another team owns.
-
-- Resolution `DISMISSED` with `dismissal: { kind, reason, by, date, source }`. `not-an-issue`: the flagged difference is not real or does not matter (false positive, rendering noise, matches intent). `remove`: take it out of this QA (duplicate, out of scope, not this team's surface).
-- The reason is mandatory. The severity stays as it was.
-- It is not open and leaves the parity denominator. The cumulative log (`qa-reports/dismissed.json`) carries it into later passes, where it is re-applied while the values are unchanged (report.md, "Dismissals").
-
-### NONE and UNCLASSIFIED
-
-- `NONE` belongs to 🟢 PASS rows (a verified match, recorded so the claim stays auditable) and ℹ️ CANNOT_VERIFY rows (an evidence gap, not a divergence).
-- `UNCLASSIFIED` is for a divergence you cannot place without a human decision. It always comes with an open decision listing both options and their consequences, and it counts as open.
-
-## Nothing stays unexplained
-
-- Every delta becomes a finding with one severity and one resolution.
-- Verified matches are findings too (🟢 PASS, `NONE`), so every PASS claim can be audited later against its evidence.
-- An undecidable divergence is `UNCLASSIFIED` with an open decision, never quietly skipped.
-- A tool failure is a `meta.degradations` entry and a documented rung down the ladder, never a silent scope cut.
-- A dismissed finding keeps its reason, its author and its date, in the report and in the cumulative log.
-- A fixed finding keeps its id, is re-verified, and becomes 🟢 PASS / `NONE`; the `fixLoop` entry records what changed.
+Nothing stays unexplained: every difference is fixed, signed off, dismissed by a person, ticketed as debt, or `DATA`; a check that did not run is said, not implied.

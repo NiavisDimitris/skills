@@ -15,6 +15,7 @@ import { fillTemplate } from '../skills/design-qa/scripts/render-report.mjs';
 import { agentPrompt } from '../skills/design-qa/scripts/lib/fixplan.mjs';
 import { designAgentBlock as designAgentBlockOf } from '../skills/design-qa/scripts/lib/backfill-plan.mjs';
 import { ROOT, SKILL, loadFixture, run, script, tmpDir } from './_helpers.mjs';
+import { createPng, encodePng, fillRect } from '../skills/design-qa/scripts/lib/png.mjs';
 
 const TEMPLATE = path.join(SKILL, 'templates', 'report.html');
 const SAMPLE_EVIDENCE = path.join(ROOT, 'examples', 'sample', 'evidence');
@@ -151,7 +152,7 @@ test('report 2.0 renders: source label, no sync UI, pre-dismissed findings, no p
 
   // Summary: dismissed findings leave the denominator; design-system counts from the scorecard
   const summary = await page.textContent('#summary');
-  assert.match(summary, /9 of 13 findings open/);
+  assert.match(summary, /^Match 76% · 2 of 11 findings settled · 4 of 6 states verified/);
   assert.match(summary, /2 dismissed/);
   assert.match(summary, /Design system: 3 token · 1 component · 2 motion/);
 
@@ -193,7 +194,8 @@ test('Dismiss: panel, required reason, save, review bar, sent with the decisions
   assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 4 · Later 3 · Dismissed 1');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'review-bar-msg', 'focus lands on the review bar when the card leaves');
   assert.equal(await page.textContent('#count-dismissed'), '4');
-  assert.match(await page.textContent('#summary'), /8 of 12 findings open.*3 dismissed.*2 token/s);
+  // Dismissing in the browser recomputes the match (the region only it names is settled) and the settled count.
+  assert.match(await page.textContent('#summary'), /^Match 78% · 2 of 10 findings settled.*3 dismissed.*2 token/s);
   assert.match(await page.textContent('#dismissed-list li[data-fid="DQ-004"]'), /Not an issue.*by Dana.*Not recorded yet.*Matches the design within tolerance/s);
 
   // 2. Findings table row → Remove from QA (multi-line reason is folded into one line in the message)
@@ -1300,4 +1302,367 @@ test('CSP: the rendered sample runs under its policy with no console error, embe
     await page.waitForFunction(() => window.__violations.length > 0);
     assert.deepEqual(await page.evaluate(() => window.__violations), ['img-src https://beacon.example/x.png'], 'a remote image is blocked');
   }
+});
+
+// ---------------------------------------------------------------------------
+// Full-length comparison: tall captures, padded states, pins along the full height,
+// and the incomplete / partial / deployed-target / design-system notices
+// ---------------------------------------------------------------------------
+
+const pngUri = (png) => `data:image/png;base64,${encodePng(png).toString('base64')}`;
+// A tall state "detail": design 1440×designH, app 1440×appH, diff as tall as the taller one (diff.mjs pads the shorter).
+// One finding pinned near the bottom of each image, so a pin placed against the wrong height lands far off.
+function tallReport(designH, appH, { designW = 1440, appW = 1440 } = {}) {
+  const report = loadFixture('ui-report.json');
+  // The app crop sits at the right edge of the app page: in a right-padded area when the app is wider.
+  const crop = { app: { x: appW === designW ? 100 : appW - 160, y: appH - 100, w: 120, h: 40 }, design: { x: 100, y: designH - 100, w: 200, h: 40 } };
+  report.stateMatrix.push({
+    state: 'detail', label: 'Detail', designed: { nodeId: '9:1', name: 'Detail', frame: { width: designW, height: designH } }, specified: null,
+    implemented: { driver: 'fixture', detail: 'one order' },
+    captured: { design: 'evidence/tall/design.png', app: 'evidence/tall/app.png', diff: 'evidence/tall/diff.png', page: { width: appW, height: appH, fullPage: true, clipped: 1 } },
+    result: 'FAIL', note: null, findings: ['DQ-099'],
+  });
+  report.findings.push({
+    id: 'DQ-099', title: 'Reviews section is missing below the fold', ledger: 'structure', state: 'detail', severity: 'WARNING', resolution: 'FIX_CODE', region: 'Reviews',
+    element: { selector: '[data-testid=reviews]', figmaLayerPath: 'Detail / Reviews', figmaNodeId: '9:7' }, property: null,
+    expected: { value: 'Reviews section', token: null, source: 'figma' }, actual: { value: 'none', token: null, source: { file: null, line: null, snippet: null } },
+    delta: null, tolerance: null, fix: { summary: 'Render the Reviews section', patchHint: null, files: [], effort: 3 },
+    evidence: [{ type: 'screenshot', path: 'evidence/tall/app.png', crop: crop.app, state: 'detail' }, { type: 'design', path: 'evidence/tall/design.png', crop: crop.design, state: 'detail' }],
+    rank: null, signoff: null, knownDrift: null, acRef: null,
+  });
+  const padded = designH === appH ? null : { side: designH < appH ? 'design' : 'app', rows: Math.abs(designH - appH) };
+  const paddedRight = designW === appW ? null : { side: designW < appW ? 'design' : 'app', cols: Math.abs(designW - appW) };
+  report.scorecard.pixelDiff.detail = { percent: 31.5, band: 'fail', image: 'evidence/tall/diff.png', designHeight: designH, appHeight: appH, padded, designWidth: designW, appWidth: appW, paddedRight };
+  const design = createPng(designW, designH, [240, 244, 250, 255]);
+  fillRect(design, { x: crop.design.x, y: crop.design.y, w: crop.design.w, h: crop.design.h }, [20, 90, 200, 255]);
+  const app = createPng(appW, appH, [255, 255, 255, 255]);
+  fillRect(app, { x: crop.app.x, y: crop.app.y, w: crop.app.w, h: crop.app.h }, [200, 40, 40, 255]);
+  const assets = {
+    'evidence/tall/design.png': pngUri(design),
+    'evidence/tall/app.png': pngUri(app),
+    'evidence/tall/diff.png': pngUri(createPng(Math.max(designW, appW), Math.max(designH, appH), [255, 0, 0, 255])),
+  };
+  return { report, crop, assets };
+}
+async function openTall(t, designH, appH, { width = 1440, height = 1000, designW, appW, mutate = null } = {}) {
+  const dir = tmpDir('design-qa-ui-');
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const { report, crop, assets } = tallReport(designH, appH, { designW, appW });
+  if (mutate) mutate(report);
+  const file = path.join(dir, 'tall.html');
+  writeFileSync(file, fill(readFileSync(TEMPLATE, 'utf8'), report, { ...assetsFor(report), ...assets }));
+  const opened = await openUrl(t, `${pathToFileURL(file).href}#state=detail`, { width, height });
+  await opened.page.waitForFunction(() => Array.from(document.querySelectorAll('#hero-stage img')).every((i) => i.complete && i.naturalWidth));
+  return { ...opened, crop };
+}
+// Every capture image loaded and its load handlers (pin placement, box sizing) run: two frames later.
+async function settled(page) {
+  await page.waitForFunction(() => Array.from(document.querySelectorAll('#hero-stage img')).every((i) => i.complete && i.naturalWidth));
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+}
+// Where the pin sits relative to the top-left of a given image, in that image's own pixels.
+const pinInImage = (page, imgSel) => settled(page).then(() => page.evaluate((sel) => {
+  const img = document.querySelector(sel);
+  const pin = img.closest('.imgbox').querySelector('.pin[data-fid="DQ-099"]');
+  const a = img.getBoundingClientRect();
+  const b = pin.getBoundingClientRect();
+  const k = img.naturalWidth / a.width;
+  return { x: (b.left + b.width / 2 - a.left) * k, y: (b.top + b.height / 2 - a.top) * k, renderedHeight: a.height, naturalHeight: img.naturalHeight, scale: a.width / img.naturalWidth };
+}, imgSel));
+const near = (actual, expected, tol, what) => assert.ok(Math.abs(actual - expected) <= tol, `${what}: ${actual} is not within ${tol} of ${expected}`);
+
+test('tall padded state: full images, a plain-words padding note, pins along the full height in every view mode', { timeout: 90000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const { page, errors, crop } = await openTall(t, 4292, 3092);
+  const center = (c) => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 });
+  assert.equal(await page.textContent('.stage-padded'), 'The app page is 1,200 px shorter than the design; the missing part is not compared.');
+
+  // App (Fit): the whole 3092 px page is drawn, not cut at the viewport, and the pin sits on its element near the bottom.
+  const app = await pinInImage(page, '.stage img');
+  near(app.renderedHeight, app.naturalHeight * app.scale, 1, 'rendered height');
+  assert.ok(app.renderedHeight > 1000, 'taller than the viewport: shown in full, the page scrolls');
+  const stageClip = await page.evaluate(() => { const s = document.querySelector('.stage'); return s.scrollHeight - s.clientHeight; });
+  assert.ok(stageClip <= 1, 'the Fit stage never crops the image');
+  near(app.x, center(crop.app).x, 3, 'app pin x'); near(app.y, center(crop.app).y, 3, 'app pin y');
+
+  // Design: the design crop on the 4292 px frame.
+  await page.click('[aria-label="View"] [data-v="design"]');
+  await page.waitForFunction(() => document.querySelector('.stage img')?.naturalHeight === 4292);
+  const des = await pinInImage(page, '.stage img');
+  near(des.y, center(crop.design).y, 3, 'design pin y');
+
+  // Overlay and Wipe: the app crop measured on the app image, laid over the taller design.
+  for (const mode of ['overlay', 'wipe']) {
+    await page.click(`[aria-label="View"] [data-v="${mode}"]`);
+    await page.waitForFunction(() => document.querySelector('.stage img.over')?.complete);
+    const ov = await pinInImage(page, '.stage img.over');
+    near(ov.y, center(crop.app).y, 3, `${mode} pin y`);
+  }
+
+  // Diff: the padded diff image is as tall as the design; app crops keep their place on it.
+  await page.click('[aria-label="View"] [data-v="diff"]');
+  await page.waitForFunction(() => document.querySelector('.stage img')?.naturalHeight === 4292);
+  near((await pinInImage(page, '.stage img')).y, center(crop.app).y, 3, 'diff pin y');
+
+  // Side by side: each pane shows its full image with its own pin.
+  await page.click('[aria-label="View"] [data-v="side"]');
+  const panes = await page.$$eval('.side .imgbox img', (imgs) => imgs.map((i) => i.naturalHeight));
+  assert.deepEqual(panes, [4292, 3092]);
+  near((await pinInImage(page, '.side > div:nth-child(1) img')).y, center(crop.design).y, 3, 'side design pin y');
+  near((await pinInImage(page, '.side > div:nth-child(2) img')).y, center(crop.app).y, 3, 'side app pin y');
+
+  // 100%: the stage scrolls through the full height (no crop to the viewport) and the pin still sits on its element.
+  await page.click('[aria-label="View"] [data-v="app"]');
+  await page.click('[aria-label="Zoom"] [data-v="100"]');
+  const scroll = await page.evaluate(() => { const s = document.querySelector('.stage'); s.scrollTop = s.scrollHeight; return { sh: s.scrollHeight, ch: s.clientHeight, top: s.scrollTop }; });
+  assert.ok(scroll.sh >= 3092 && scroll.ch < scroll.sh && scroll.top > 0, JSON.stringify(scroll));
+  const z = await pinInImage(page, '.stage img');
+  near(z.scale, 1, 0.01, '100% scale'); near(z.y, center(crop.app).y, 2, '100% pin y');
+  assert.deepEqual(errors, []);
+});
+
+test('tall state, app taller than the design: the overlay box holds the whole app page and the note says the design is shorter', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const { page, errors, crop } = await openTall(t, 2000, 2600);
+  assert.equal(await page.textContent('.stage-padded'), 'The design is 600 px shorter than the app page; the extra part is not compared.');
+  await page.click('[aria-label="View"] [data-v="overlay"]');
+  await settled(page);
+  const box = await page.evaluate(() => {
+    const ib = document.querySelector('.stage .imgbox'), over = ib.querySelector('img.over');
+    return { box: ib.getBoundingClientRect().height, over: over.getBoundingClientRect().height };
+  });
+  near(box.box, box.over, 1, 'the box is as tall as the taller app page');
+  near((await pinInImage(page, '.stage img.over')).y, crop.app.y + crop.app.h / 2, 3, 'overlay pin y');
+  assert.deepEqual(errors, []);
+});
+
+test('notices: incomplete pass, partial coverage, deployed target, unpinned count and a design system that was not audited', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const incomplete = await open(t, 'ui-report.json', {
+    mutate: (r) => {
+      r.stateMatrix = r.stateMatrix.map((row) => ({ ...row, result: 'CANNOT_VERIFY' }));
+      Object.assign(r.scorecard, { verdict: 'INCOMPLETE', parity: null, match: null, matchByState: {}, loopClosed: false, stateCoverage: { ...r.scorecard.stateCoverage, verified: 0 } });
+    },
+  });
+  const p1 = incomplete.page;
+  assert.equal(await p1.textContent('#verdict'), 'Verdict: INCOMPLETE');
+  assert.equal(await p1.getAttribute('#alert-incomplete', 'role'), 'alert');
+  assert.match(await p1.textContent('#alert-incomplete'), /Incomplete: this is not a result.*Nothing was captured and compared: 0 of 6 states verified \(6 CANNOT_VERIFY\)\. Match is not measured\. Fix the capture/s);
+  assert.equal(await p1.textContent('#summary-match'), 'not measured');
+  assert.equal(await p1.textContent('#summary-coverage'), '0 of 6 states verified');
+  const bg = await p1.$eval('#verdict', (el) => getComputedStyle(el).backgroundColor);
+  assert.notEqual(bg, await p1.$eval('#verdict', (el) => getComputedStyle(document.body).backgroundColor), 'the INCOMPLETE badge has its own colour');
+  assert.deepEqual(incomplete.errors, []);
+
+  const partial = await open(t, 'ui-report.json', {
+    mutate: (r) => {
+      r.meta.app.url = 'https://staging.acme.dev/orders';
+      r.meta.app.commit = '9f3c2a1e7b4d8c06';
+      r.meta.target = { kind: 'remote', localCommit: '1a2b3c4d5e6f7a8b', deployedCommit: null };
+      for (const f of r.findings) if (['style', 'component'].includes(f.ledger) && f.resolution === 'FIX_CODE') f.ledger = 'structure';
+      r.scorecard.designSystem = { tokens: 0, components: 0, motion: r.scorecard.designSystem.motion };
+      const f = r.findings.find((x) => x.resolution === 'FIX_CODE');
+      f.evidence = f.evidence.map((e) => ({ ...e, crop: null }));
+      f.unpinnedReason = 'Absent from every capture: nothing to point at.';
+    },
+  });
+  const p2 = partial.page;
+  assert.equal(await p2.textContent('#summary-coverage'), '4 of 6 states verified');
+  assert.equal(await p2.textContent('#summary-partial'), 'partial');
+  assert.match(await p2.textContent('#alert-partial'), /Partial coverage: 4 of 6 states verified.*The match covers 4 of 6 designed states; 2 states were not compared/s);
+  assert.match(await p2.textContent('#alert-target'), /Deployed build: findings come from the captured page.*Source file references are hints from a local checkout \(commit 1a2b3c4d5e6f\) that may differ from the deployed build \(commit 9f3c2a1e7b4d\)\./s);
+  assert.equal(await p2.textContent('#summary-unpinned'), '1');
+  assert.match(await p2.textContent('#summary'), /Design system: .*motion|not audited/);
+  await p2.click('#tab-design-system');
+  assert.match(await p2.textContent('#ds-not-audited'), /No design-system audit was run.*Token and component mismatches were not looked for/s);
+  assert.deepEqual(partial.errors, []);
+
+  const audited = await open(t, 'ui-report.json', { mutate: (r) => { r.meta.tools.dsAudit = 'script'; r.meta.dsAudit = { elementsChecked: 1480, offTokenValues: 3, nonSystemComponents: 1 }; } });
+  await audited.page.click('#tab-design-system');
+  assert.equal(await audited.page.textContent('#ds-audit'), 'Design-system audit: script · 1480 elements checked · 3 off-token values · 1 non-system components');
+  assert.equal(await audited.page.locator('#ds-not-audited, #alert-target, #alert-incomplete').count(), 0);
+});
+
+// A pin is in view: inside the window and inside the scrolled stage (zoomed) it sits in.
+const pinVisible = (page) => page.evaluate(() => {
+  const pin = document.querySelector('#hero-stage .pin[data-fid="DQ-099"]');
+  const r = pin.getBoundingClientRect();
+  const stage = pin.closest('.stage.zoomed, .pane.zoomed');
+  const s = stage ? stage.getBoundingClientRect() : { top: -1e9, bottom: 1e9, left: -1e9, right: 1e9 };
+  return r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth && r.top >= s.top && r.bottom <= s.bottom && r.left >= s.left && r.right <= s.right;
+});
+
+test('tall and wide padded state: whole images in both axes, both paddings named, pins far below the fold and in the right-padded area, scrolled into view', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const { page, errors, crop } = await openTall(t, 4292, 3092, { designW: 1440, appW: 1780 });
+  const center = (c) => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 });
+  assert.equal(await page.textContent('.stage-padded'),
+    'The app page is 1,200 px shorter than the design; the missing part is not compared. The app page is 340 px wider than the design; the extra part is not compared.');
+  // What was covered, next to the state: the whole page, a panel that still hides content, annotations below the fold.
+  assert.equal(await page.textContent('.stage-coverage'), 'Whole page, 1780×3092 · 1 panel still hides content · 1 annotation below the first screen ↓');
+  // What capture hid and the diff masked is named on the state (review E4).
+  const hid = await openTall(t, 4292, 3092, { designW: 1440, appW: 1780, mutate: (r) => {
+    r.evidence.states.detail = { ...(r.evidence.states.detail ?? {}), hidden: [{ selector: '.chat-widget', kind: 'hide', count: 1, areaPx: 14400 }] };
+    r.scorecard.pixelDiff.detail.masks = [{ label: 'clock', x: 1300, y: 20, w: 100, h: 24, pixels: 2400 }];
+  } });
+  assert.match(await hid.page.textContent('.stage-coverage'), / · Not compared: hidden \.chat-widget \(1, 14,400 px²\), masked clock \(100×24\)$/);
+
+  // App (Fit): the whole 1780 px wide page fits the width, nothing scrolls sideways, the full height is drawn.
+  const app = await pinInImage(page, '.stage img');
+  near(app.renderedHeight, 3092 * app.scale, 1, 'rendered height');
+  assert.ok(await page.evaluate(() => { const s = document.querySelector('.stage'); return s.scrollWidth <= s.clientWidth + 1 && s.scrollHeight <= s.clientHeight + 1; }), 'Fit crops nothing');
+  near(app.x, center(crop.app).x, 3, 'app pin x (right edge)'); near(app.y, center(crop.app).y, 3, 'app pin y');
+
+  // Overlay / Wipe: the box spans the wider app and the taller design; each image keeps its own size; the pin sits on the app element.
+  for (const mode of ['overlay', 'wipe']) {
+    await page.click(`[aria-label="View"] [data-v="${mode}"]`);
+    const ov = await pinInImage(page, '.stage img.over');
+    near(ov.x, center(crop.app).x, 3, `${mode} pin x`); near(ov.y, center(crop.app).y, 3, `${mode} pin y`);
+    const sizes = await page.evaluate(() => {
+      const ib = document.querySelector('.stage .imgbox'), base = ib.querySelector('img:not(.over)'), over = ib.querySelector('img.over');
+      const b = ib.getBoundingClientRect();
+      return { box: b.width / b.height, base: base.getBoundingClientRect().width / b.width, over: over.getBoundingClientRect().width / b.width };
+    });
+    near(sizes.box, 1780 / 4292, 0.002, `${mode} box ratio`);
+    near(sizes.base, 1440 / 1780, 0.002, `${mode} design keeps its width`);
+    near(sizes.over, 1, 0.002, `${mode} app spans the box`);
+  }
+  // Design and Diff (padded on both axes).
+  await page.click('[aria-label="View"] [data-v="design"]');
+  near((await pinInImage(page, '.stage img')).y, center(crop.design).y, 3, 'design pin y');
+  await page.click('[aria-label="View"] [data-v="diff"]');
+  const diff = await pinInImage(page, '.stage img');
+  near(diff.x, center(crop.app).x, 3, 'diff pin x'); near(diff.y, center(crop.app).y, 3, 'diff pin y');
+  // Side by side: both whole images, each with its pin.
+  await page.click('[aria-label="View"] [data-v="side"]');
+  assert.deepEqual(await page.$$eval('.side .imgbox img', (imgs) => imgs.map((i) => [i.naturalWidth, i.naturalHeight])), [[1440, 4292], [1780, 3092]]);
+  const sideApp = await pinInImage(page, '.side > div:nth-child(2) img');
+  near(sideApp.x, center(crop.app).x, 3, 'side app pin x'); near(sideApp.y, center(crop.app).y, 3, 'side app pin y');
+
+  // Show on capture from the board brings the pin (y ≈ 3,000 px) into view, at Fit and at 100% (the stage scrolls both ways).
+  for (const zoom of ['fit', '100']) {
+    await page.click('[aria-label="View"] [data-v="app"]');
+    await page.click(`[aria-label="Zoom"] [data-v="${zoom}"]`);
+    await settled(page);
+    if (zoom === '100') {
+      const sc = await page.evaluate(() => { const s = document.querySelector('.stage'); return { w: s.scrollWidth > s.clientWidth, h: s.scrollHeight > s.clientHeight }; });
+      assert.deepEqual(sc, { w: true, h: true }, '100%: the stage scrolls in both directions');
+    }
+    await page.evaluate(() => { window.scrollTo(0, 0); const s = document.querySelector('.stage'); s.scrollTop = 0; s.scrollLeft = 0; });
+    assert.equal(await pinVisible(page), false, `${zoom}: starts out of view`);
+    await page.click('[data-show-fid="DQ-099"]');
+    await settled(page);
+    assert.equal(await pinVisible(page), true, `${zoom}: Show on capture scrolls the pin into view`);
+    // The Annotations rail row does the same.
+    await page.evaluate(() => { window.scrollTo(0, 0); const s = document.querySelector('.stage'); s.scrollTop = 0; s.scrollLeft = 0; });
+    await page.click('.pin-row[data-fid="DQ-099"]');
+    assert.equal(await pinVisible(page), true, `${zoom}: the rail row scrolls the pin into view`);
+    await page.keyboard.press('Escape');
+  }
+  near((await pinInImage(page, '.stage img')).y, center(crop.app).y, 2, '100% pin y after scrolling');
+  assert.deepEqual(errors, []);
+});
+
+// ---------------------------------------------------------------------------
+// Report integrity in the viewer: uncompared and partial states, DATA reasons, rejections,
+// hollow pins with no counterpart on the design, CSV cells that would run as formulas
+// ---------------------------------------------------------------------------
+
+test('integrity: uncompared and partial states are flagged on the state, DATA shows its reason, rejections are listed and outlined', { timeout: 90000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const { page, errors } = await open(t, 'ui-report.json', {
+    hash: '#state=with-data',
+    mutate: (r) => {
+      r.stateMatrix.find((x) => x.state === 'loading').captured.comparison = { pixelDiff: false, worklist: true, compareRows: 0 };
+      delete r.scorecard.pixelDiff.loading;
+      r.stateMatrix.find((x) => x.state === 'with-data').captured.page.partial = true;
+      r.rejections = [
+        { kind: 'worklist', key: 'wl-7', state: 'with-data', reason: 'same', detail: 'rendering noise only', percentOfPage: 12, crop: { x: 24, y: 400, w: 1392, h: 300 } },
+        { kind: 'audit', key: 'a-3', state: 'with-data', reason: 'known-drift', detail: 'KD-2', knownDrift: 'KD-2' },
+      ];
+    },
+  });
+  // Uncompared: a page alert and a flag on the state tab.
+  assert.match(await page.textContent('#alert-uncompared'), /1 state was captured but not compared.*Loading \(marked FAIL\): no pixel diff against a design image/s);
+  assert.equal(await page.textContent('.tabs-trigger[data-state="loading"] .tab-flag'), 'not compared');
+  // Partial: prominent on the state itself, not a grey line.
+  assert.match(await page.textContent('.state-flag[data-flag="partial"]'), /Captured only in part/);
+  assert.equal(await page.textContent('.tabs-trigger[data-state="with-data"] .tab-flag'), 'part');
+  // Rejections: summary link, a loud alert above the band, the grouped list, an outline on the capture.
+  assert.match(await page.textContent('#summary-rejected'), /^2 rejected by the agent$/);
+  assert.match(await page.textContent('#alert-rejected'), /12% of With data was rejected as same: check the rejected regions/);
+  await page.click('#summary-rejected');
+  assert.match(await page.textContent('#rejected-list'), /same \(1\).*wl-7.*region.*With data.*12% of the page.*rendering noise only.*known-drift \(1\).*a-3.*audit candidate.*known drift KD-2/s);
+  assert.equal(await page.locator('.reject-outline:not([hidden])').count(), 0, 'outlines are off until asked for');
+  await page.click('[data-show-rej="wl-7"]');
+  const outline = page.locator('.reject-outline.focus[data-rej="wl-7"]');
+  assert.equal(await outline.count(), 1);
+  assert.equal(await outline.isVisible(), true);
+  assert.equal(await page.locator('.pin[data-rej]').count(), 0, 'an outline, not a finding pin');
+  // DATA: the reason next to the finding (sheet and panel).
+  const data = (await page.evaluate(() => JSON.parse(document.getElementById('design-qa-data').textContent).findings.find((f) => f.resolution === 'DATA')));
+  await page.evaluate((id) => { location.hash = `#finding=${id}`; }, data.id);
+  await page.waitForSelector('#sheet-data');
+  assert.match(await page.textContent('#sheet-data'), new RegExp(`Data difference: not fixed in code.*${data.dataReason.slice(0, 30).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 's'));
+  // DATA the agent decided (no person's signoff): listed next to the rejections for a person to check.
+  assert.equal(await page.textContent('#count-agent-data'), '1');
+  assert.match(await page.textContent('#h-agent-data'), /Resolved as data by the agent/);
+  assert.match(await page.textContent('#agent-data-list'), new RegExp(`${data.id}.*warning.*${data.dataReason.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 's'));
+  assert.deepEqual(errors, []);
+});
+
+test('integrity: "Show on design" skips app pins with no counterpart on a shorter design and says so', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  // Design 900 px tall, app 2000 px, the finding pinned on the app (y 1,900) only.
+  const dir = tmpDir('design-qa-ui-');
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const { report, assets } = tallReport(900, 2000);
+  const f = report.findings.find((x) => x.id === 'DQ-099');
+  f.evidence = f.evidence.filter((e) => e.type === 'screenshot');
+  const file = path.join(dir, 'hollow.html');
+  writeFileSync(file, fill(readFileSync(TEMPLATE, 'utf8'), report, { ...assetsFor(report), ...assets }));
+  const { page, errors } = await openUrl(t, `${pathToFileURL(file).href}#state=detail`);
+  await page.click('[aria-label="View"] [data-v="design"]');
+  await page.click('#design-pins-switch');
+  await settled(page);
+  assert.equal(await page.locator('.stage .pin.hollow').count(), 0, 'no pin floats below the design image');
+  assert.equal(await page.textContent('.hollow-note'), '1 app pin has no counterpart on the design (below or right of its edge): see them in App or Overlay.');
+  assert.deepEqual(errors, []);
+});
+
+test('integrity: Export tickets CSV neutralises cells a spreadsheet would run as formulas', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const { page } = await open(t, 'ui-report.json', {
+    // The Parent column is the ticket key, text from the ticket tracker: a cell that starts with it.
+    mutate: (r) => { r.meta.ticket.key = '=HYPERLINK("http://evil.example","x")'; },
+  });
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#export-tickets')]);
+  const csv = readFileSync(await download.path(), 'utf8');
+  assert.ok(csv.includes(`,"'=HYPERLINK(""http://evil.example"",""x"")"\r\n`), csv);
+  assert.ok(!/(^|,)"?[=@+]/m.test(csv), 'no cell starts with =, + or @');
+});
+
+test('integrity: a report without meta.build says it was not built by build-report.mjs; a built one does not', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const unbuilt = await open(t, 'ui-report.json', { mutate: (r) => { delete r.meta.build; } });
+  assert.match(await unbuilt.page.textContent('#alert-unbuilt'), /Not built by build-report\.mjs.*validate\.mjs refuses it/s);
+  const built = await open(t, 'ui-report.json');
+  assert.equal(await built.page.locator('#alert-unbuilt').count(), 0);
+});
+
+test('match: the summary shows match and findings settled, each state its match, and a FAIL with a high match says why', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const { page, errors, report } = await open(t, 'ui-report.json', { hash: '#state=hover' });
+  assert.equal(await page.textContent('#summary-match'), '76%');
+  assert.equal(await page.textContent('#summary-settled'), '2 of 11');
+  assert.match(await page.textContent('#summary'), /^Match 76% · 2 of 11 findings settled · 4 of 6 states verified/);
+  for (const [state, m] of Object.entries(report.scorecard.matchByState)) {
+    if (await page.locator(`.tabs-trigger[data-state="${state}"]`).count()) assert.equal(await page.textContent(`.tabs-trigger[data-state="${state}"] .tab-match`), `${m}%`, state);
+  }
+  assert.equal(await page.textContent('#stage-match'), 'Hover · match 99% · pixel diff 1.20%');
+  assert.equal(await page.isVisible('#match-note'), false, 'no note at 76%');
+  // A page that matches 97% but still FAILs on a blocker: the note says the verdict follows the severity.
+  const high = await open(t, 'ui-report.json', { mutate: (r) => { r.scorecard.match = 97; } });
+  assert.equal(await high.page.textContent('#match-note'), 'The page matches 97%, but the verdict is FAIL: it follows the severity of what is still open (2 open blockers, 1 missing state), not the share of the page.');
+  assert.deepEqual(errors, []);
 });

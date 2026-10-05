@@ -12,12 +12,21 @@ import {
   validateConfig,
   validateReport,
   validateStateMatrix,
+  isGateIssue,
 } from '../skills/design-qa/scripts/lib/schema-check.mjs';
 import { computeScorecard, isLoopClosed, rankFindings } from '../skills/design-qa/scripts/lib/ranking.mjs';
 import { applyTriage, buildTriage } from '../skills/design-qa/scripts/lib/triage.mjs';
 import { ROOT, fixture, loadFixture, run, script, tmpDir } from './_helpers.mjs';
 
 const VALIDATE = script('validate.mjs');
+/**
+ * The fixtures are hand-assembled test reports: scripts run by the tests skip build
+ * verification (tests/_helpers.mjs), and say so on stderr. Every other rule passes.
+ */
+function onlyBuildErrors(res) {
+  assert.equal(res.code, 0, res.stderr);
+  assert.match(res.stderr, /design-qa: TEST MODE: build verification skipped \(DESIGN_QA_TEST_SKIP_BUILD_VERIFY=1\)/);
+}
 
 function errorsOf(report, opts) {
   return validateReport(report, opts).errors.map((e) => `${e.path}: ${e.message}`);
@@ -69,13 +78,13 @@ test('enum violations list the allowed values', () => {
 test('types, patterns, ranges and formats', () => {
   const r = loadFixture('report-valid.json');
   r.findings[0].id = 'DQ-1';
-  r.scorecard.parity = 120;
+  r.scorecard.match = 120;
   r.findings[1].fix.effort = 9;
   r.meta.generatedAt = 'yesterday';
   r.meta.app.viewport.width = '1440';
   r.meta.app.url = 'localhost:3000';
   expectError(r, /^findings\[0\]\.id: must match \^DQ-\\d\{3,\}\$ \(got "DQ-1"\)$/);
-  expectError(r, /^scorecard\.parity: must be <= 100 \(got 120\)$/);
+  expectError(r, /^scorecard\.match: must be <= 100 \(got 120\)$/);
   expectError(r, /^findings\[1\]\.fix\.effort: must be <= 5/);
   expectError(r, /^meta\.generatedAt: expected an ISO-8601 date-time/);
   expectError(r, /^meta\.app\.viewport\.width: expected integer, got "1440"$/);
@@ -119,12 +128,14 @@ test('severity BLOCKER / WARNING / DS_CANDIDATE forbid resolution NONE', () => {
 test('scorecard values must equal the derived ones', () => {
   const r = loadFixture('report-valid.json');
   r.scorecard.parity = 80;
+  r.scorecard.match = 80;
   r.scorecard.verdict = 'REVIEW';
   r.scorecard.bySeverity.WARNING = 2;
   r.scorecard.byResolution.NONE = 1;
   r.scorecard.stateCoverage.verified = 5;
   r.scorecard.pixelDiff.empty.band = 'review';
-  expectError(r, /^scorecard\.parity: expected 38 \(5 open of 8 findings; 1 dismissed not counted\), got 80$/);
+  expectError(r, /^scorecard\.parity: scorecard\.parity was removed: match and settled replace it/);
+  expectError(r, /^scorecard\.match: expected 73 \(the mean of matchByState/);
   expectError(r, /^scorecard\.verdict: expected FAIL \(DQ-001 is an open BLOCKER/);
   expectError(r, /^scorecard\.bySeverity\.WARNING: expected 5 \(counted from findings\[\]\.severity\), got 2$/);
   expectError(r, /^scorecard\.byResolution\.NONE: expected 2/);
@@ -224,6 +235,17 @@ test('config: the fixture and the shipped example validate', () => {
   }
 });
 
+test('config: a preCapture selector is a string or { selector, states } scoped to some states', () => {
+  const c = loadFixture('config.json');
+  c.app.preCapture = { hide: ['.chat-widget', { selector: '.promo-banner', states: ['with-data', 'empty'] }], remove: [{ selector: '#cookie', states: ['error'] }], click: ['button.dismiss'] };
+  assert.deepEqual(validateConfig(c).errors, []);
+  c.app.preCapture.hide[1] = { selector: '.promo-banner', states: [] };
+  c.app.preCapture.remove[0] = { selector: '#cookie' };
+  c.app.preCapture.click[0] = 'a { color: red }';
+  const errors = validateConfig(c).errors.map((e) => e.path);
+  for (const p of ['app.preCapture.hide[1]', 'app.preCapture.remove[0]', 'app.preCapture.click[0]']) assert.ok(errors.some((e) => e.startsWith(p)), `${p}: ${errors.join(', ')}`);
+});
+
 test('config: semantic errors and unknown-key warnings', () => {
   const c = loadFixture('config.json');
   c.app.baseUrl = 'localhost:3000';
@@ -288,9 +310,7 @@ test('schema interpreter: $ref, if/then, anyOf, not', () => {
 });
 
 test('CLI: exit 0 for a valid report, 1 with readable errors, 2 for usage problems', async () => {
-  const ok = await run(VALIDATE, [fixture('report-valid.json')]);
-  assert.equal(ok.code, 0, ok.stderr);
-  assert.match(ok.stdout, /OK\s+.*report-valid\.json is a valid report \(0 warnings\)/);
+  onlyBuildErrors(await run(VALIDATE, [fixture('report-valid.json')]));
 
   const dir = tmpDir();
   const bad = loadFixture('report-valid.json');
@@ -307,7 +327,7 @@ test('CLI: exit 0 for a valid report, 1 with readable errors, 2 for usage proble
   assert.equal(parsed.valid, false);
   assert.equal(parsed.type, 'report');
 
-  const quiet = await run(VALIDATE, [fixture('report-valid.json'), '--quiet']);
+  const quiet = await run(VALIDATE, [fixture('config.json'), '--quiet']);
   assert.equal(quiet.code, 0);
   assert.equal(quiet.stdout, '');
 
@@ -705,7 +725,7 @@ test('INTENTIONAL needs a signoff with a non-blank by and reason, or a cited kno
   expectError(blank, /^findings\[6\]\.signoff\.date: must be a date/);
 });
 
-test('INTENTIONAL without a signoff cannot fake parity 100 and a closed loop (which also opens the backfill gate)', () => {
+test('INTENTIONAL without a signoff cannot fake every finding settled and a closed loop (which also opens the backfill gate)', () => {
   const r = loadFixture('report-backfill.json');
   for (const f of r.findings) {
     if (['FIX_CODE', 'UNCLASSIFIED'].includes(f.resolution)) Object.assign(f, { resolution: 'INTENTIONAL', signoff: null, knownDrift: null, fix: null });
@@ -717,8 +737,9 @@ test('INTENTIONAL without a signoff cannot fake parity 100 and a closed loop (wh
   r.stateMatrix.forEach((row) => {
     if (row.result === 'MISSING_IN_CODE') row.result = 'FAIL';
   });
+  r.scorecard.pixelDiff.empty.percent = 4; // a fail band is explained only by what names its area
   r.scorecard = computeScorecard(r);
-  assert.equal(r.scorecard.parity, 100);
+  assert.equal(r.scorecard.settled.count, r.scorecard.settled.total);
   assert.equal(isLoopClosed(r), true);
   const result = validateReport(r);
   assert.equal(result.valid, false);
@@ -875,4 +896,289 @@ test('docs: a backfill frame recorded while step 1 is open is a warning (schema 
   const help = (await run(VALIDATE, ['--help'])).stdout.replace(/\s+/g, ' ');
   assert.match(help, /is a warning: backfill\.mjs --record refuses it/);
   assert.match(help, /INTENTIONAL ⇒ a signoff/);
+});
+
+// ---------------------------------------------------------------------------
+// Evidence gates: an incomplete pass, pins, crops, remote targets, full-length
+// comparisons and the design-system audit
+// ---------------------------------------------------------------------------
+
+// The evidence gates are errors in validate.mjs (and at review start), warnings elsewhere.
+const GATES = { evidenceGates: 'error' };
+const warningsOf = (report, opts) => validateReport(report, opts).warnings.map((w) => `${w.path}: ${w.message}`);
+function expectWarning(report, pattern, opts) {
+  const warnings = warningsOf(report, opts);
+  assert.ok(warnings.some((w) => pattern.test(w)), `expected a warning matching ${pattern}, got:\n${warnings.join('\n')}`);
+}
+const recomputed = (r) => ({ ...r, scorecard: computeScorecard(r) });
+
+test('INCOMPLETE: a pass that compared nothing never reads REVIEW at match 100%', () => {
+  // The capture landed on a sign-in page: both designed states CANNOT_VERIFY, the only findings are auth notes.
+  const r = loadFixture('report-valid.json');
+  r.stateMatrix = r.stateMatrix.filter((row) => ['with-data', 'error'].includes(row.state)).map((row) => ({ ...row, result: 'CANNOT_VERIFY', findings: [] }));
+  r.findings = r.findings.filter((f) => f.id === 'DQ-006');
+  r.ledgers = { structure: [], component: [], style: [], state: [], behavior: [], motion: [] };
+  r.openDecisions = [];
+  r.fixLoop = [];
+  r.scorecard = { ...computeScorecard(r), verdict: 'REVIEW', match: 100, loopClosed: true };
+  expectError(r, /^scorecard\.verdict: expected INCOMPLETE \(no state was verified \(0 of 2 captured and compared: 2 CANNOT_VERIFY\); nothing was captured and compared: fix the capture/, GATES);
+  expectError(r, /^scorecard\.match: expected null \(no state was verified, so match is not measured\), got 100$/, GATES);
+  expectError(r, /^scorecard\.loopClosed: expected false \(unexplained 0, open decisions 0, verdict INCOMPLETE\), got true$/, GATES);
+  const fixed = recomputed(r);
+  assert.deepEqual([fixed.scorecard.verdict, fixed.scorecard.match, fixed.scorecard.loopClosed], ['INCOMPLETE', null, false]);
+  assert.deepEqual(errorsOf(fixed, GATES), [], 'the schema takes verdict INCOMPLETE and match null');
+  const schema = loadSchema('report').definitions.scorecard.properties;
+  assert.ok(schema.verdict.enum.includes('INCOMPLETE'));
+  assert.deepEqual(schema.match.type, ['integer', 'null']);
+});
+
+test('pins: an open FIX_CODE finding needs an evidence entry with state and crop, or a real unpinnedReason', () => {
+  const r = loadFixture('report-valid.json');
+  r.findings[2].evidence[0].crop = null; // DQ-003, hover
+  r.scorecard = computeScorecard(r);
+  expectError(r, /^findings\[2\]\.evidence: an open FIX_CODE finding needs a pin: an evidence entry with both "state" and "crop" \{ x, y, w, h \} in that image's pixels \(no entry has a crop\)\. Only a finding with no place on any capture goes without, with findings\[2\]\.unpinnedReason saying why$/, GATES);
+  assert.equal(r.scorecard.unpinned, 1);
+
+  const cropNoState = loadFixture('report-valid.json');
+  cropNoState.findings[2].evidence[0].state = null;
+  cropNoState.scorecard = computeScorecard(cropNoState);
+  expectError(cropNoState, /^findings\[2\]\.evidence: .*\(a crop but no state\)/, GATES);
+
+  const short = structuredClone(r);
+  short.findings[2].unpinnedReason = 'no pin';
+  expectError(short, /^findings\[2\]\.unpinnedReason: must say why the finding has no place on any capture: what is absent, where \(at least 20 characters, got 6\)$/, GATES);
+  const reasoned = structuredClone(r);
+  reasoned.findings[2].unpinnedReason = 'The hover tooltip never renders in the app, so nothing on the capture marks it.';
+  assert.deepEqual(errorsOf(reasoned, GATES), []);
+
+  // Exempt without a reason: the state is MISSING_IN_CODE and nothing of it was captured.
+  const missing = loadFixture('report-valid.json');
+  missing.findings[0].state = 'loading';
+  missing.findings[0].evidence = [{ type: 'design', path: 'figma/loading.png', crop: null, state: 'loading' }];
+  missing.scorecard = computeScorecard(missing);
+  assert.ok(!errorsOf(missing, GATES).some((e) => e.startsWith('findings[0]')), errorsOf(missing, GATES).join('\n'));
+  assert.equal(missing.scorecard.unpinned, 1, 'still counted: the report shows how many findings have no pin');
+
+  const both = loadFixture('report-valid.json');
+  both.findings[2].unpinnedReason = 'This one has a pin anyway, so the reason is ignored.';
+  expectWarning(both, /^findings\[2\]\.unpinnedReason: is ignored: the finding has a pin$/);
+
+  const drift = loadFixture('report-valid.json');
+  drift.scorecard.unpinned = 3;
+  expectError(drift, /^scorecard\.unpinned: expected 0 \(open FIX_CODE findings without an evidence entry carrying both state and crop\), got 3$/, GATES);
+
+  const many = loadFixture('report-valid.json');
+  for (const f of many.findings.filter((x) => x.resolution === 'FIX_CODE')) {
+    f.evidence = f.evidence.map((e) => ({ ...e, crop: null }));
+    f.unpinnedReason = 'Absent from the capture: nothing on the page to point at.';
+  }
+  many.scorecard = computeScorecard(many);
+  assert.deepEqual(errorsOf(many, GATES), []);
+  expectWarning(many, /^findings: 5 of 5 open FIX_CODE findings have no pin: unpinnedReason is for findings with no place on any capture/);
+});
+
+test('crops: one that starts outside its image is an error, one that runs past an edge a warning', () => {
+  const r = loadFixture('report-valid.json');
+  r.findings[2].evidence[0].crop = { x: 1500, y: 240, w: 40, h: 40 }; // hover screenshot, 1440 wide
+  expectError(r, /^findings\[2\]\.evidence\[0\]\.crop: lies outside the app image of state "hover": x 1500 is past its width 1440 \(meta\.app\.viewport × meta\.app\.dpr\); measure the crop in that image's pixels$/, GATES);
+
+  const edge = loadFixture('report-valid.json');
+  edge.findings[2].evidence[0].crop = { x: 1400, y: 240, w: 100, h: 40 };
+  assert.deepEqual(errorsOf(edge, GATES), []);
+  expectWarning(edge, /^findings\[2\]\.evidence\[0\]\.crop: runs past the edge of the app image of state "hover" \(1440×\?; x \+ w = 1500, y \+ h = 280\): clip it to the image$/);
+
+  // Heights are checked only when diff.mjs recorded them (a full-page capture is taller than the viewport).
+  const tall = loadFixture('report-valid.json');
+  tall.findings[2].evidence[0].crop = { x: 24, y: 2400, w: 1392, h: 56 };
+  assert.deepEqual(errorsOf(tall, GATES), [], 'no height known: a full-page capture may be this tall');
+  Object.assign(tall.scorecard.pixelDiff.hover, { designHeight: 900, appHeight: 900, padded: null });
+  expectError(tall, /^findings\[2\]\.evidence\[0\]\.crop: lies outside the app image of state "hover": y 2400 is past its height 900 \(scorecard\.pixelDiff\.hover\.appHeight\)/, GATES);
+
+  const design = loadFixture('report-valid.json');
+  design.findings[0].evidence[1].crop = { x: 1440, y: 0, w: 10, h: 10 };
+  expectError(design, /^findings\[0\]\.evidence\[1\]\.crop: lies outside the design image of state "empty": x 1440 is past its width 1440 \(meta\.source\.frame\)/, GATES);
+});
+
+test('remote target: findings are grounded in the capture; meta.target matches the URL; a source-checkout note is expected', () => {
+  const r = loadFixture('report-valid.json');
+  r.meta.app.url = 'https://staging.acme.dev/items';
+  r.meta.app.commit = '9f3c2a1e7b4d8c06a5f2e19d3b7c4a8e0f6d2b51';
+  // Filed from a local checkout: only a design-side image and a source file.
+  r.findings[3].evidence = [{ type: 'design', path: 'figma/with-data.png', crop: { x: 24, y: 200, w: 300, h: 40 }, state: 'with-data' }];
+  expectError(r, /^findings\[3\]\.evidence: the target is a deployed build \("https:\/\/staging\.acme\.dev\/items"\): ground the finding in the capture with evidence of type screenshot, computed, dom, motion, diff; a source file is only a hint from a local checkout that may differ from what is deployed$/, GATES);
+  assert.equal(errorsOf(r, GATES).filter((e) => /deployed build/.test(e)).length, 1, 'findings with app-side evidence pass');
+  expectWarning(r, /^meta\.target: the target is a deployed build and the local checkout's commit is unknown \(meta\.target\.localCommit\): add a meta\.degradations entry/);
+
+  r.meta.target = { kind: 'local', localCommit: '1a2b3c4d5e6f', deployedCommit: null };
+  expectError(r, /^meta\.target\.kind: must be "remote": meta\.app\.url "https:\/\/staging\.acme\.dev\/items" is not a local host \(a deployed build\)$/, GATES);
+  r.meta.target.kind = 'remote';
+  expectWarning(r, /^meta\.target: the target is a deployed build and the local checkout \(1a2b3c4d5e6f\) differs from the deployed build \(9f3c2a1e7b4d\)/);
+  r.meta.degradations.push({ step: 'source trace', reason: 'Local checkout 1a2b3c4 is behind the deployed build 9f3c2a1.', impact: 'File references are hints; findings come from the captured DOM.' });
+  assert.ok(!warningsOf(r).some((w) => w.startsWith('meta.target')), 'the degradation note answers the warning');
+  r.meta.degradations.pop();
+  r.meta.target.localCommit = '9f3c2a1';
+  assert.ok(!warningsOf(r).some((w) => w.startsWith('meta.target')), 'same commit (prefix): no note needed');
+
+  const local = loadFixture('report-valid.json');
+  local.findings[3].evidence = [{ type: 'design', path: 'figma/with-data.png', crop: { x: 24, y: 200, w: 300, h: 40 }, state: 'with-data' }];
+  assert.deepEqual(errorsOf(local, GATES), [], 'a local target may cite source files');
+  local.meta.target = { kind: 'remote' };
+  expectError(local, /^meta\.target\.kind: must be "local": meta\.app\.url "http:\/\/localhost:3000\/items" is a local host$/, GATES);
+});
+
+test('full-length comparison: a design image shorter than the known frame is a truncated comparison', () => {
+  const r = loadFixture('report-valid.json');
+  r.meta.source.frame = { width: 1440, height: 4292 };
+  r.meta.figma.frame = { width: 1440, height: 4292 };
+  Object.assign(r.scorecard.pixelDiff['with-data'], { designHeight: 1080, appHeight: 1080, padded: null });
+  expectError(r, /^scorecard\.pixelDiff\["with-data"\]\.designHeight: the design image is 1080 px tall but the design frame is 4292 px \(meta\.source\.frame\): only the top 1080 px were compared\. Export the full frame, capture the app full-page and re-run diff\.mjs \(it pads the smaller image\), or record a meta\.degradations entry \{ "step": "capture-coverage:with-data", "reason": "<why only part was compared>", "impact": "…" \} \(when this state's frame differs from that, set stateMatrix\[\]\.designed\.frame\)$/, GATES);
+  expectWarning(r, /^scorecard\.pixelDiff\.empty: does not record designHeight and appHeight: cannot check that the full 4292 px frame \(meta\.source\.frame\) was compared; copy them from diff\.mjs$/);
+
+  const explained = structuredClone(r);
+  explained.meta.degradations.push({ step: 'capture-coverage:with-data', reason: 'with-data compared on the top 1080 px only', impact: 'below the fold not compared' });
+  assert.ok(!errorsOf(explained, GATES).some((e) => e.includes('designHeight')));
+  // Only a degradation about this state's coverage explains it: not a routine one naming the
+  // state, not a truncation note about another state.
+  const routine = structuredClone(r);
+  routine.meta.degradations.push(
+    { step: 'motion:with-data', reason: 'reading the transitions of with-data failed', impact: 'motion not compared' },
+    { step: 'capture:empty', reason: 'empty compared on the top 900 px only', impact: 'below not compared' },
+  );
+  assert.ok(errorsOf(routine, GATES).some((e) => e.includes('designHeight')), 'a routine degradation does not excuse a truncated comparison');
+  const stepped = structuredClone(r);
+  stepped.meta.degradations.push({ step: 'capture-coverage:with-data', reason: 'The frame is a 4292 px canvas export.', impact: 'Below 1080 px nothing is compared.' });
+  assert.ok(!errorsOf(stepped, GATES).some((e) => e.includes('designHeight')), 'the capture-coverage step');
+
+  const ownFrame = structuredClone(r);
+  ownFrame.stateMatrix[0].designed.frame = { width: 1440, height: 1080 };
+  assert.ok(!errorsOf(ownFrame, GATES).some((e) => e.includes('designHeight')), 'stateMatrix[].designed.frame wins over meta.source.frame');
+
+  // Full design, viewport-only app: diff.mjs pads the app, the missing part counts as different. Not truncated.
+  const padded = loadFixture('report-valid.json');
+  padded.meta.source.frame = { width: 1440, height: 4292 };
+  padded.meta.figma.frame = { width: 1440, height: 4292 };
+  Object.assign(padded.scorecard.pixelDiff['with-data'], { designHeight: 4292, appHeight: 3092, padded: { side: 'app', rows: 1200 } });
+  assert.ok(!errorsOf(padded, GATES).some((e) => e.includes('pixelDiff')), errorsOf(padded, GATES).join('\n'));
+  assert.ok(!warningsOf(padded).some((w) => w.includes('with-data"].padded')));
+  padded.scorecard.pixelDiff['with-data'].padded = null;
+  expectWarning(padded, /^scorecard\.pixelDiff\["with-data"\]\.padded: expected \{ "side": "app", "rows": 1200 \} \(designHeight 4292, appHeight 3092\): copy it from diff\.mjs$/);
+});
+
+test('pixelDiff heights and padding survive render-report.mjs --recompute --write-back', async () => {
+  const dir = tmpDir();
+  const r = loadFixture('report-valid.json');
+  Object.assign(r.scorecard.pixelDiff['with-data'], { designHeight: 900, appHeight: 900, padded: null });
+  Object.assign(r.scorecard.pixelDiff.empty, { designHeight: 900, appHeight: 700, padded: { side: 'app', rows: 200 } });
+  r.stateMatrix[1].captured.page.height = 700; // the app page itself is 700 px tall (captured whole)
+  delete r.scorecard.unpinned;
+  const file = path.join(dir, 'report.json');
+  writeFileSync(file, JSON.stringify(r));
+  const res = await run(script('render-report.mjs'), ['--in', file, '--out', path.join(dir, 'r.html'), '--template', fixture('template.html'), '--recompute', '--write-back']);
+  assert.equal(res.code, 0, res.stderr);
+  const saved = JSON.parse(readFileSync(file, 'utf8'));
+  assert.deepEqual(saved.scorecard.pixelDiff.empty, { percent: 7.2, band: 'fail', image: 'diff/empty.png', designHeight: 900, appHeight: 700, padded: { side: 'app', rows: 200 } });
+  assert.deepEqual(saved.scorecard.pixelDiff['with-data'].padded, null);
+  assert.equal(saved.scorecard.unpinned, 0, '--recompute writes unpinned');
+  onlyBuildErrors(await run(VALIDATE, [file]));
+});
+
+test('design-system audit: open findings with no token or component finding and no audit is a warning', () => {
+  const r = loadFixture('report-valid.json');
+  for (const f of r.findings) if (['style', 'component'].includes(f.ledger) && f.resolution === 'FIX_CODE') f.ledger = 'structure';
+  r.scorecard = computeScorecard(r);
+  assert.deepEqual([r.scorecard.designSystem.tokens, r.scorecard.designSystem.components], [null, null], 'not checked, never 0');
+  const message = /^meta\.tools\.dsAudit: no design-system audit was run: token and component mismatches were not looked for\. Run the design-system audit/;
+  expectWarning(r, message);
+  r.meta.tools.dsAudit = 'none';
+  expectWarning(r, message);
+  r.meta.tools.dsAudit = 'script';
+  r.meta.dsAudit = { elementsChecked: 1480, offTokenValues: 0, nonSystemComponents: 0, output: 'evidence/ds-audit.json' };
+  r.scorecard = computeScorecard(r);
+  assert.deepEqual([r.scorecard.designSystem.tokens, r.scorecard.designSystem.components], [0, 0]);
+  assert.ok(!warningsOf(r).some((w) => w.startsWith('meta.tools.dsAudit')));
+  assert.deepEqual(errorsOf(r, GATES), []);
+  // The audit ran and its candidates were rejected: the empty section is the rejections' doing.
+  r.rejections = [{ kind: 'audit', key: 'style:radius:999px', state: 'with-data', screen: null, reason: 'out-of-scope', detail: 'Audit noise from the theme, not ours.', percentOfPage: null, crop: null, knownDrift: null, duplicateOf: null, coveredBy: null }];
+  expectWarning(r, /^rejections: 0 token and 0 component findings beside open findings, and 1 design-system audit candidate\(s\) rejected: check each rejection/);
+  // A check that did not run says why, never 0 (meta.notChecked, written by build-report.mjs).
+  r.meta.notChecked = { components: 'no component library is configured: set designSystem.libraries in design-qa.config.json' };
+  r.scorecard = computeScorecard(r);
+  assert.deepEqual([r.scorecard.designSystem.tokens, r.scorecard.designSystem.components], [0, null]);
+  r.scorecard.designSystem.components = 0;
+  expectError(r, /^scorecard\.designSystem\.components: expected null \(not checked: no component library is configured/);
+  r.meta.tools.dsAudit = 'maybe';
+  expectError(r, /^meta\.tools\.dsAudit: expected one of script, manual, none \(got "maybe"\)$/, GATES);
+  assert.ok(!warningsOf(loadFixture('report-valid.json')).some((w) => w.startsWith('meta.tools.dsAudit')), 'token or component findings exist: no warning');
+});
+
+test('docs: --help describes the evidence gates and INCOMPLETE', async () => {
+  const help = (await run(VALIDATE, ['--help'])).stdout.replace(/\s+/g, ' ');
+  for (const s of ['INCOMPLETE when nothing was captured and compared', 'Evidence gates', 'unpinnedReason (at least 20 characters', 'on a remote target', 'truncated comparison', 'no design-system audit was run']) {
+    assert.ok(help.includes(s), s);
+  }
+});
+
+test('evidence gates are warnings by default (old reports still go through) and errors with evidenceGates "error"', () => {
+  const r = loadFixture('report-valid.json');
+  delete r.scorecard.unpinned; // a 0.2.1 report has no unpinned count
+  r.findings[2].evidence[0].crop = null; // unpinned
+  r.meta.app.url = 'https://staging.acme.dev/items';
+  r.findings[3].evidence = [{ type: 'design', path: 'figma/with-data.png', crop: { x: 24, y: 200, w: 300, h: 40 }, state: 'with-data' }];
+  const lenient = validateReport(r);
+  assert.deepEqual(lenient.errors, [], 'structural and derived rules still pass');
+  const gateWarnings = lenient.warnings.filter(isGateIssue).map((w) => w.path);
+  assert.deepEqual(gateWarnings, ['findings[2].evidence', 'findings[3].evidence']);
+  const strict = validateReport(r, GATES);
+  assert.deepEqual(strict.errors.map((e) => e.path), ['findings[2].evidence', 'findings[3].evidence']);
+  assert.ok(strict.errors.every(isGateIssue));
+  assert.deepEqual(Object.keys(strict.errors[0]), ['path', 'message'], 'the gate flag stays out of JSON output');
+});
+
+test('whole page: width truncation, right padding, app captures smaller than the page, missing page records, clipped panels', () => {
+  const r = loadFixture('report-valid.json');
+  // Design: a 1920-wide frame compared on its left 1440 px.
+  r.meta.source.frame = { width: 1920, height: 900 };
+  r.meta.figma.frame = { width: 1920, height: 900 };
+  Object.assign(r.scorecard.pixelDiff['with-data'], { designHeight: 900, appHeight: 900, padded: null, designWidth: 1440, appWidth: 1780, paddedRight: null });
+  expectError(r, /^scorecard\.pixelDiff\["with-data"\]\.designWidth: the design image is 1440 px wide but the design frame is 1920 px \(meta\.source\.frame\): only the left 1440 px were compared\./, GATES);
+  expectWarning(r, /^scorecard\.pixelDiff\["with-data"\]\.paddedRight: expected \{ "side": "design", "cols": 340 \} \(designWidth 1440, appWidth 1780\): copy it from diff\.mjs$/);
+  r.scorecard.pixelDiff['with-data'].paddedRight = { side: 'design', cols: 340 };
+  assert.ok(!warningsOf(r).some((w) => w.includes('paddedRight')));
+
+  // App: the page scrolls to 4292 px but only the first screen was captured.
+  const app = loadFixture('report-valid.json');
+  app.stateMatrix[0].captured.page = { width: 1440, height: 4292, fullPage: false, clipped: 0 };
+  expectError(app, /^stateMatrix\[0\]\.captured\.page: the app capture of state "with-data" is 1440×900 but the page is 1440×4292: only the top 900 px were captured; capture the whole page \(capture\.mjs captures the full scroll size by default\) and re-run diff\.mjs, or record a meta\.degradations entry \{ "step": "capture-coverage:with-data", "reason": "<why only part was captured>", "impact": "…" \}$/, GATES);
+  assert.ok(validateReport(app).warnings.some((w) => isGateIssue(w) && w.path === 'stateMatrix[0].captured.page'), 'a warning outside validate.mjs');
+  app.stateMatrix[0].captured.page = { width: 1920, height: 4292, fullPage: true, clipped: 0, image: { width: 1440, height: 4292 } };
+  expectError(app, /the app capture of state "with-data" is 1440×4292 but the page is 1920×4292: only the left 1440 px were captured/, GATES);
+  app.stateMatrix[0].captured.page = { width: 1440, height: 4292, fullPage: true, clipped: 0 };
+  Object.assign(app.scorecard.pixelDiff['with-data'], { appWidth: 1440, appHeight: 4292 });
+  assert.ok(!errorsOf(app, GATES).some((e) => e.includes('captured.page')), 'the whole page (size from pixelDiff appWidth/appHeight)');
+  app.stateMatrix[0].captured.page.image = { width: 1440, height: 1080 };
+  app.meta.degradations.push({ step: 'capture', reason: 'with-data: the page streams rows forever, captured the top 1080 px; full-page capture impossible', impact: 'below not compared' });
+  assert.ok(errorsOf(app, GATES).some((e) => e.includes('captured.page')), 'free text never excuses a partial capture, whatever it says');
+  app.meta.degradations.push({ step: 'capture-coverage:with-data', reason: 'the page streams rows forever', impact: 'below the first 1080 px not compared' });
+  assert.ok(!errorsOf(app, GATES).some((e) => e.includes('captured.page')), 'the exact capture-coverage:<state> step explains it');
+
+  const missing = loadFixture('report-valid.json');
+  delete missing.stateMatrix[4].captured.page; // hover
+  expectWarning(missing, /^stateMatrix\[4\]\.captured\.page: is missing: cannot check that the whole page was captured for state "hover"/);
+  const clipped = loadFixture('report-valid.json');
+  clipped.stateMatrix[0].captured.page.clipped = 1;
+  expectWarning(clipped, /^stateMatrix\[0\]\.captured\.page\.clipped: 1 scroll container of state "with-data" still hides content: what is inside was not compared/);
+  const routineClip = structuredClone(clipped);
+  routineClip.meta.degradations.push({ step: 'mock:with-data', reason: 'a mock of with-data matched no request', impact: 'the state may show loaded data' });
+  assert.ok(warningsOf(routineClip).some((w) => w.includes('clipped')), 'a routine degradation naming the state does not explain hidden content');
+  clipped.meta.degradations.push({ step: 'capture', reason: 'with-data: the side panel scrolls independently', impact: 'its lower half not compared' });
+  assert.ok(!warningsOf(clipped).some((w) => w.includes('clipped')));
+});
+
+test('meta.screens[].variantOf: optional; an unknown screen id is a warning', () => {
+  const r = loadFixture('report-multiscreen.json');
+  r.meta.screens.push({ id: 'cart-600', name: 'Cart 600', designRef: null, appRoute: '/cart', frame: { width: 600, height: 1400 }, variantOf: 'cart' });
+  assert.deepEqual(errorsOf(r), []);
+  assert.ok(!warningsOf(r).some((w) => w.includes('variantOf')));
+  r.meta.screens[2].variantOf = 'basket';
+  expectWarning(r, /^meta\.screens\[2\]\.variantOf: references unknown screen "basket" \(meta\.screens: cart, checkout, cart-600\)$/);
 });

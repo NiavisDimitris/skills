@@ -4,6 +4,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { scorecardHeadline } from '../../../skills/design-qa/scripts/lib/ranking.mjs';
 
 const GENERATED_AT = '2026-10-03T09:40:00Z';
 const FIGMA_FILE = 'Ck3fQ9xYzA1';
@@ -134,6 +135,7 @@ export async function buildReport({ HERE, ROOT, SCRIPTS, EVIDENCE, SCREENS, BASE
       ...(f.dismissal ? { dismissal: f.dismissal } : {}),
       knownDrift: null,
       acRef: f.acRef ?? null,
+      ...(f.dataReason ? { dataReason: f.dataReason } : {}),
     });
     return id;
   };
@@ -424,6 +426,7 @@ export async function buildReport({ HERE, ROOT, SCRIPTS, EVIDENCE, SCREENS, BASE
     expected: { value: '#AC-10482', token: null, source: 'figma' },
     actual: { value: '#AC-10517', token: null, source: src(SOURCE.confirm, 31, '<span className="order-number">#{order.number}</span>') },
     delta: 'Data value (order id from the API); masked in the pixel diff', tolerance: 'Data may differ',
+    dataReason: 'The order number comes from the API for each order; its type, colour and position match the frame.',
     evidence: [...pair('confirmation', 'with-data', 'orderNumber'), E.dom('confirmation', 'with-data')],
   });
   F({
@@ -454,6 +457,16 @@ export async function buildReport({ HERE, ROOT, SCRIPTS, EVIDENCE, SCREENS, BASE
   const fid = (title) => findings.find((f) => f.title.startsWith(title)).id;
 
   // ---- State matrix -------------------------------------------------------------------
+  // What the app capture covered (stateMatrix[].captured.page), from capture.json: page, size, fullPage,
+  // clipped. Captures written before capture.mjs recorded the page size fall back to the PNG's own size.
+  const pageCovered = (screen, state) => {
+    const capture = JSON.parse(readFileSync(path.join(EVIDENCE, 'screens', screen, 'capture.json'), 'utf8'));
+    const c = capture.states?.[state] || {};
+    const png = readFileSync(path.join(EVIDENCE, 'screens', screen, 'app', `${state}.png`));
+    const size = c.size ?? { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+    const page = c.page ?? size;
+    return { width: page.width, height: page.height, fullPage: c.fullPage ?? capture.fullPage ?? false, clipped: Array.isArray(c.clipped) ? c.clipped.length : 0, image: { width: size.width, height: size.height } };
+  };
   const stateMatrix = STATES.map((st) => {
     const sid = `${st.screen}/${st.state}`;
     const screen = SCREENS.find((s) => s.id === st.screen);
@@ -467,7 +480,10 @@ export async function buildReport({ HERE, ROOT, SCRIPTS, EVIDENCE, SCREENS, BASE
       designed: { nodeId: st.node, name: st.name },
       specified: st.ac ? { acRef: st.ac, text: AC[st.ac] } : null,
       implemented: st.driver,
-      captured: { design: P(st.screen, 'figma', st.state), app: hasApp ? P(st.screen, 'app', st.state) : null, diff: hasApp ? P(st.screen, 'diff', st.state) : null },
+      captured: {
+        design: P(st.screen, 'figma', st.state), app: hasApp ? P(st.screen, 'app', st.state) : null, diff: hasApp ? P(st.screen, 'diff', st.state) : null,
+        ...(hasApp ? { page: pageCovered(st.screen, st.state) } : {}),
+      },
       result: !hasApp ? 'MISSING_IN_CODE' : open ? 'FAIL' : 'PASS',
       note: !hasApp
         ? 'Designed (Review / Promo applied) and specified (AC-7), not implemented: Apply has no handler, so no app capture or pixel diff.'
@@ -595,6 +611,8 @@ export async function buildReport({ HERE, ROOT, SCRIPTS, EVIDENCE, SCREENS, BASE
   for (const s of SCREENS) {
     for (const [state, d] of Object.entries(ev[s.id].diff)) {
       pixelDiff[`${s.id}/${state}`] = { percent: d.percent, band: d.band, structuralPercent: d.structuralPercent, structuralBand: d.structuralBand, image: P(s.id, 'diff', state) };
+      // The compared heights and any padding, when diff.mjs recorded them (validate.mjs checks a long frame was compared in full).
+      for (const k of ['designHeight', 'appHeight', 'padded', 'designWidth', 'appWidth', 'paddedRight']) if (d[k] !== undefined) pixelDiff[`${s.id}/${state}`][k] = d[k];
     }
   }
   const evidenceStates = {};
@@ -714,10 +732,15 @@ export async function buildReport({ HERE, ROOT, SCRIPTS, EVIDENCE, SCREENS, BASE
   // ---- Render and validate -----------------------------------------------------------
   const out = (f) => path.join(HERE, f);
   await node('render-report.mjs', ['--in', REPORT, '--out', out('report.html'), '--fixplan', out('report-fixplan.md'), '--backfill-plan', out('report-backfill.md'), '--embed-images', '--recompute', '--write-back']);
-  const v = await node('validate.mjs', [REPORT], { allow: [0, 1] });
-  process.stdout.write(v.stdout + v.stderr);
-  if (v.status !== 0 || /WARN/.test(v.stderr)) throw new Error('validate.mjs reported errors or warnings');
+  // This mock assembles report.json here instead of through build-report.mjs (see the README), so it has no
+  // meta.build and validate.mjs refuses it for that alone. Every other rule, evidence gates included, must hold.
+  const v = await node('validate.mjs', [REPORT, '--json'], { allow: [0, 1] });
+  const res = JSON.parse(v.stdout);
+  const other = res.errors.filter((e) => e.path !== 'meta.build');
+  for (const e of [...res.errors, ...res.warnings]) log(`${res.errors.includes(e) ? 'ERROR' : 'WARN '} ${e.path}: ${e.message}`);
+  if (other.length || res.warnings.length || res.errors.length !== 1) throw new Error('validate.mjs reported errors or warnings beyond the missing build record');
+  log('not built by build-report.mjs: validate.mjs refuses this mock for its missing meta.build only (every other rule holds)');
   const final = load(REPORT);
   const sc = final.scorecard;
-  log(`verdict ${sc.verdict} · parity ${sc.parity}% · ${JSON.stringify(sc.bySeverity)} · ${JSON.stringify(sc.byResolution)} · designSystem ${JSON.stringify(sc.designSystem)} · backfill ${JSON.stringify(sc.backfill)}`);
+  log(`${scorecardHeadline(sc)} · ${JSON.stringify(sc.bySeverity)} · ${JSON.stringify(sc.byResolution)} · designSystem ${JSON.stringify(sc.designSystem)} · backfill ${JSON.stringify(sc.backfill)}`);
 }

@@ -6,6 +6,8 @@
 - `npm test` — runs `node --test tests/*.test.mjs`. Keep it green.
 - `npm run validate:sample` and `npm run sample:render` should still pass against `examples/sample/`.
 - If you touch `skills/design-qa/schemas/report.schema.json`, update `examples/sample/sample-report.json` and the fixplan/HTML renderers to match.
+- Test fixtures that are hand-assembled reports (not built by `build-report.mjs`) carry no `meta.build` fingerprint. `tests/_helpers.mjs` sets `DESIGN_QA_TEST_SKIP_BUILD_VERIFY=1` for them, so `validate.mjs` and the review skip the rebuild check; it is loud on stderr and on the review page. Never set it for a real report, and never document it in `SKILL.md` or the references: agents must not learn it.
+- If you change a script's flags or messages, or a doc, keep the docs tests green: `tests/docs-budget.test.mjs` (word budgets for `SKILL.md` and the core references `onboarding.md`, `worklist.md` and `filing.md`, a "Read when:" first line on every reference, every reference linked from `SKILL.md`) and `tests/docs-commands.test.mjs` (every `node scripts/<name>.mjs --flag` in `SKILL.md` and the references must exist in that script's `--help`).
 
 ## Ground rules
 
@@ -32,11 +34,13 @@ Designed states are reached in the running app via a driver named in `design-qa.
 
 1. Add the new kind's key and its execution logic where states are driven in `skills/design-qa/scripts/capture.mjs` (Playwright page/context APIs are already in scope there), and to `DRIVING_KEYS` in `skills/design-qa/scripts/lib/capture-helpers.mjs`.
 2. Add its shape to the `driver` definition in `skills/design-qa/schemas/config.schema.json`, and the kind to the `driver` enums in `skills/design-qa/schemas/state-matrix.schema.json` and `skills/design-qa/schemas/report.schema.json`.
-3. Add it to `DRIVER_ORDER` (and `describeDriver`) in `skills/design-qa/scripts/lib/state-discovery.mjs`.
+3. Add it to `DRIVER_ORDER` (and `describeDriver`) in `skills/design-qa/scripts/lib/state-discovery.mjs`, and to the precedence sentence in `skills/design-qa/references/state-matrix.md` (`tests/state-discovery.test.mjs` checks that the two agree).
 4. Keep the driver declarative and serializable — it's config, not code, so adopters can define new states without touching scripts.
 5. Document the new kind's shape next to the others in the README's states section and in `skills/design-qa/references/`.
 6. Add a fixture or test under `tests/` exercising the new driver against the sample surface.
 
 ## Style
 
-Plain, direct language in docs — no marketing copy. Keep scripts readable over clever; this is a tool other agents read and run unattended.
+Plain, direct language in docs: no marketing copy. Keep scripts readable over clever; this is a tool other agents read and run unattended.
+
+`SKILL.md` is loaded on every run and small models follow it: keep it a short procedure (one command per step, at most 1,800 words) and let scripts print the next step (`Next:`) instead of describing it. Detail goes in a reference with a "Read when:" line saying when an agent needs it.

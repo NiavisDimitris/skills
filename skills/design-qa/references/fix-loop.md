@@ -1,59 +1,31 @@
+Read when: fixing the fix-now set (fix mode, or after the reviewer sent decisions).
+
 # Fix loop
 
-Fix mode runs the audit, lets the person choose what to fix now (the review in `report.html`, or triage in chat), then drives that fix-now set to zero. The rest becomes debt. The report is the starting point, not the deliverable. A Send from the review starts this loop in audit mode too.
+Drive the fix-now set to zero, test first, then re-check against the design. The rest is debt.
 
 ## Scope
 
-- **The fix-now set only**: `FIX_CODE` findings triaged fix now (`triage.items[].decision == "fix-now"`). The triage comes from the reviewer's Send, recorded by `apply-decisions.mjs` (SKILL.md "Apply review decisions"), which also prints the set in order; or from `/design-qa triage` typed by hand. Without a recorded triage, open the review or offer the split in chat first (SKILL.md Phase 9); if the person does not choose, use the default split (the fix-now bucket plus every blocker).
-- Send approves starting this loop on that set. It does not approve wider changes: the rules below still apply.
-- Debt is not touched. It is ticketed and logged instead (report.md, "Triage and debt"). The debt log follows each finding by its fingerprint, not its id (ids are renumbered every pass; ledgers.md, "Cumulative logs"), so a debt item fixed here resolves on the next `debt-log.mjs` run and its ticket never moves to another finding.
-- Never touch data (`DATA`), accepted drift (`INTENTIONAL`) or dismissed findings (`DISMISSED`). Undoing a dismissal (`dismiss.mjs --undo`) restores the resolution the finding had (`UNCLASSIFIED` or `DATA` when recorded, else `FIX_CODE`); only a finding back at `FIX_CODE` re-enters the fix-now set.
-- The design is the target. When a fix feels wrong because the code seems better than the design, stop and ask: the person can sign the finding off or dismiss it with a reason. Never change the design.
-- Work in rank order within the fix-now set. If an item turns out much bigger than expected, ask whether to move it to debt (re-run triage; blockers cannot move) instead of widening the change.
-- A fix that would change a shared design-system component (and so every screen that uses it) is a design-system change. Ask first, or reclassify the finding as 🔵 DS_CANDIDATE.
-- Note uncommitted changes before you start, so this pass's diff stays reviewable on its own.
+- **Only the fix-now set**: `FIX_CODE` findings triaged fix now. The triage comes from the reviewer's Send (`apply-decisions.mjs` prints the set in order) or from `triage.mjs --fix` (references/review.md). No triage yet: open the review or offer the split in chat; if the person does not choose, use the default (the fix-now bucket plus every blocker).
+- Send approves this loop on that set, nothing wider.
+- Never touch debt, `DATA`, `INTENTIONAL` or `DISMISSED` findings. An undone dismissal re-enters the set only when it is back at `FIX_CODE`.
+- The design is the target. When the code seems better than the design, stop and ask: the person can sign it off or dismiss it.
+- Work in rank order. An item much bigger than expected: ask whether to move it to debt (blockers cannot move) rather than widen the change.
+- A change to a shared design-system component changes every screen that uses it: ask first, or reclassify the finding `DS_CANDIDATE`.
+- Note uncommitted changes before you start, so this pass's diff stays reviewable.
 
 ## 1. Tests first
 
-Extend the project's invariant tests before changing the code, so the regression cannot come back. Watch the new test fail, then make it pass. The examples are pseudo-code; adapt them to the project's test runner.
+Extend the project's tests before changing code; watch the new test fail, then pass. Pin tokens, not pixel values, so a theme change still passes. One test per kind of finding:
 
-**Static token audit.** Source files of the surface must not contain raw values that have tokens.
-
-```ts
-const files = glob('src/features/orders/**/*.{ts,tsx,css,scss}');
-const allowed = loadKnownDriftAllowList();   // cited drifts only
-
-for (const file of files) {
-  test(`${file} uses tokens, not raw values`, () => {
-    const src = stripAllowed(read(file), allowed);
-    expect(src).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);      // raw hex colors
-    expect(src).not.toMatch(/z-index:\s*\d+/);           // raw z-index
-    expect(src).not.toMatch(/transition:[^;]*\d+m?s/);   // raw durations (use motion tokens)
-  });
-}
-```
-
-**Style value pin.** Pins the token, not the pixel value, so a theme change still passes.
-
-```ts
-test('order row uses the table row tokens', () => {
-  const styles = orderRowStyles(theme);
-  expect(styles.paddingBlock).toBe(theme.space[3]);
-  expect(styles.font).toBe(theme.typography.bodySm);
-});
-```
-
-**Layout invariant.** Needs a real browser (component or end-to-end tests); a DOM emulator does not compute layout.
-
-```ts
-test('filter bar owns the spacing between filters', async () => {
-  const bar = await mount(<FilterBar filters={manyFilters} />);
-  expect(await computed(bar, 'column-gap')).toBe('12px');
-  expect(await computed(bar.firstChild, 'margin-left')).toBe('0px');
-});
-```
-
-**State branch.** Every designed state renders what the design shows.
+| Finding | Test |
+|---|---|
+| Raw value where a token exists | A static scan of the surface's source for raw hex, z-index and durations (cited known drifts allowed). |
+| Wrong token or value | A style pin: the element's styles use the token. |
+| Spacing owned by the wrong element | A layout check in a real browser (a DOM emulator computes no layout). |
+| Missing state or copy | Render the state and assert its designed copy and actions. |
+| Data-driven visibility | Render with data and assert the section shows. |
+| Motion | The transition uses the motion tokens on the designed property. |
 
 ```ts
 test('empty state shows the designed copy and action', () => {
@@ -61,73 +33,41 @@ test('empty state shows the designed copy and action', () => {
   expect(getByRole('heading', { name: 'No orders found' })).toBeVisible();
   expect(getByRole('button', { name: 'Clear filters' })).toBeVisible();
 });
-
-test('owner column visibility follows the data', () => {
-  render(<OrdersTable rows={[{ id: 1, owner: 'A. Lee' }]} />);
-  expect(getByRole('columnheader', { name: 'Owner' })).toBeVisible();
-});
 ```
 
-**Motion.** Pins the transition to the motion tokens, so a missing or changed transition fails.
+## 2. Fix
 
-```ts
-test('order row animates its hover background with the motion tokens', () => {
-  const styles = orderRowStyles(theme);
-  expect(styles.transitionProperty).toContain('background-color');
-  expect(styles.transitionDuration).toBe(theme.motion.duration.fast);
-  expect(styles.transitionTimingFunction).toBe(theme.motion.easing.out);
-});
-```
-
-## 2. Apply the fix
-
-- **Tokens over raw values.** Replace the hardcoded value with the token the design binds (`expected.token`).
-- **Design-system components over recreations.** Replace native elements, raw third-party primitives and hand-built lookalikes with the catalog component, in the designed variant.
-- **The right spacing axis.** Gap on the parent instead of margins on children; padding on the element that owns it.
-- **The right scale.** Use the token for the element's role (a control radius for controls, a container radius for cards), not the nearest number.
-- **Data-driven visibility.** Derive conditional sections from the data.
-- **Missing states.** Build them with the library's empty-state, skeleton and error components, matching the state's frame.
-- **Extra elements.** Remove what the app renders that the design does not have, or replace it with what the design shows there.
-- **Motion.** Add or correct the transition or animation with the motion tokens (duration, easing), on the property and trigger the design animates. Respect `prefers-reduced-motion`.
-- Change nothing beyond what the finding says. Copy changes only where the finding is about copy.
-- **Never hand-edit generated files** (compiled token outputs, generated styles, generated clients). Fix the source or the generator's input and regenerate. When the generated tokens come from Figma and disagree with the design you compare against, record an open decision; do not hand-patch the output.
+- Tokens over raw values: the token the design binds (`expected.token`), for the element's role (a control radius on controls), not the nearest number.
+- Design-system components over recreations, in the designed variant.
+- Gap on the parent, not margins on children; padding on the element that owns it.
+- Visibility derived from the data.
+- Missing states built from the library's empty, skeleton and error components.
+- Extra elements removed, or replaced with what the design shows.
+- Motion with the motion tokens, on the designed property and trigger, respecting `prefers-reduced-motion`.
+- Nothing beyond what the finding says.
+- Never hand-edit generated files (compiled tokens, generated styles): fix the source and regenerate. When generated tokens disagree with the design, record an open decision.
 
 ## 3. Run the tests
 
-Run `commands.test` from `commands.cwd`, and each command in `commands.lint`. A red suite is investigated and fixed. Never weaken or delete a test to get green.
+Run `commands.test` from `commands.cwd`, then each `commands.lint`. Investigate and fix a red suite; never weaken or delete a test.
 
-## 4. Re-verify in the browser
+## 4. Re-verify
 
-1. Re-capture the touched states, for example `node scripts/capture.mjs … --state hover --driver '<json>' --grab <grab.json> --out <dir>/evidence`.
-2. Re-run the structure, component, style and motion ledgers for the touched elements from the new `computed/`, `dom/` and `motion/` files. With a coded prototype, re-run `scripts/compare.mjs --app <dir>/evidence --states <touched states>`; for Figma reactions, add `--figma-spec <dir>/evidence/figma-spec.json`.
-3. A verified fix keeps its finding id and becomes 🟢 PASS / `NONE`; update its evidence to the new capture. A fix that did not hold stays `FIX_CODE`.
-4. Run the `Next:` commands the scripts print as printed: every path in them is shell-quoted. The scripts lock `report.json` and the logs while they rewrite them and refuse to write through a symbolic link; a "being updated by another design-qa run" error means another run holds the lock: wait and run the command again.
-
-## 5. Pixel diff
-
-In fix mode the diff is policy: run it for every re-captured state that has a design PNG.
-
-```bash
-node scripts/diff.mjs --pairs <dir>/evidence/pairs.json --out-dir <dir>/evidence/diff --pass 1 --review 5
-```
-
-Bands: below 1% pass; up to 5% review (explain the remaining difference or mask it as data); above 5% fail (the script exits 1). Use `tolerances.pixelDiff` when config sets other limits. In audit mode the diff is optional. Without a persisted design PNG, skip it and say so; the computed-style ledger stays the source of truth.
-
-## 6. Log and repeat
-
-Add one `fixLoop` entry per iteration:
+1. Run the `Next:` command: `pass.mjs evidence … --recapture` captures the app again and rewrites the worklist; a fixed difference disappears. A local target recaptures on its own after a code change; a remote target, hot reload, or a checkout the summary says it cannot read needs `--recapture`. Gitignored build output is never seen: rebuild it first.
+2. Update `findings.json`. A verified fix keeps its `ledger`, `state`, element and `property` (so it keeps its id), gets `"severity": "PASS"`, and loses `fix` and any worklist or audit key that no longer exists. A fix that did not hold stays as it was. New items are filed or rejected as usual.
+3. Add the iteration to `fixLoop`, then run `pass.mjs report`:
 
 ```json
-{
-  "iteration": 2,
-  "action": "Replaced the hand-built status pill with <DS>Tag (variant success); row padding to space.3",
-  "findingIds": ["DQ-004", "DQ-009"],
-  "testsRun": "npm test -- orders (token-audit, orders-row.styles, orders-states)",
-  "result": "green",
-  "pixelDiffAfter": { "with-data": 0.62, "hover": 0.71 }
-}
+"fixLoop": [
+  { "iteration": 1, "action": "Replaced the hand-built status pill with the DS Tag", "findings": ["badge-component", "DQ-004"],
+    "testsRun": "npm test", "result": "green", "pixelDiffAfter": { "cart/with-data": 0.42 } }
+]
 ```
 
-`result` is `green`, `red` or `skipped` (no tests could run; say why in `action`).
+`iteration`, `action` and `result` (`green`, `red`, or `skipped` with the reason in `action`) are required. Listing an iteration again replaces it.
 
-Repeat until no fix-now `FIX_CODE` rows remain. Stop early only when a fix needs a decision (reclassify as `UNCLASSIFIED` with an open decision) or the scope needs the user's approval. Then continue with Phase 8. The loop is closed when `scorecard.loopClosed` is true: everything left is ticketed debt, signed off, dismissed or data.
+"Being updated by another design-qa run": wait and run the command again.
+
+## 5. Repeat
+
+While fix-now items stay open, the `Do:` line offers another round and `Next:` is finish: ask the person. Stop early only when a fix needs a decision (make it `UNCLASSIFIED` with an open decision) or the person's approval. The loop is closed when `scorecard.loopClosed` is true; then `pass.mjs finish`.

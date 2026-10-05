@@ -4,19 +4,7 @@
 // dismissed log so later passes know about them.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import {
-  CliError,
-  checkLedgerPaths,
-  displayPath,
-  oneLine,
-  parseCli,
-  readJsonFile,
-  runMain,
-  usageError,
-  withFileLocks,
-  writeJson,
-  writeText,
-} from './lib/args.mjs';
+import { CliError, checkLedgerPaths, displayPath, oneLine, parseCli, readJsonFile, runMain, scriptCommand, shellArg, usageError, withFileLocks, writeJson, writeText } from './lib/args.mjs';
 import {
   DISMISS_KINDS,
   applyDismissal,
@@ -27,7 +15,7 @@ import {
   undoDismissal,
   upsertLogEntries,
 } from './lib/dismissals.mjs';
-import { shellArg } from './lib/review-context.mjs';
+import { assertRunOwnsDir, callerRunId } from './lib/run-lock.mjs';
 import { reportSlug } from './lib/triage.mjs';
 
 const HELP = `Dismiss findings with a written reason, undo a dismissal, or re-apply earlier passes' dismissals.
@@ -72,6 +60,9 @@ Options:
                          qa-reports/dismissed.json for qa-reports/<slug>/report.json)
   --md <file>            Markdown log (default: the --log path with .md)
   --dry-run              print the result without writing anything
+  --run <id>             this pass's run id (default: DESIGN_QA_RUN_ID); refused (exit 5)
+                         when the report folder's run lock names another run, or is not
+                         finished and no id is given (--dry-run needs none)
   --quiet                only print warnings and errors
   -h, --help             show this help
 
@@ -86,7 +77,8 @@ through a symlink. The scorecard is not recomputed here: re-render with
   node scripts/render-report.mjs --in <report.json> --recompute --write-back
 which also validates the report.
 
-Exit codes: 0 ok · 1 unreadable report or log · 2 bad arguments (missing reason, unknown id…)`;
+Exit codes: 0 ok · 1 unreadable report or log · 2 bad arguments (missing reason, unknown id…) ·
+5 another run owns the report folder`;
 
 const ID_RE = /^DQ-\d{3,}$/;
 const CLI_SOURCES = ['report-ui', 'chat', 'cli'];
@@ -125,6 +117,7 @@ async function main(argv) {
     log: { type: 'string' },
     md: { type: 'string' },
     'dry-run': { type: 'boolean' },
+    run: { type: 'string' },
     quiet: { type: 'boolean' },
   });
   if (values.help) {
@@ -142,15 +135,17 @@ async function main(argv) {
   }
 
   const reportFile = path.resolve(values.report);
+  const runId = callerRunId(values.run);
+  if (!values['dry-run'] || runId) assertRunOwnsDir(path.dirname(reportFile), { runId });
   const mdFlag = values.md ? path.resolve(values.md) : null;
   const logFile = path.resolve(values.log ?? (mdFlag ? withExtension(mdFlag, '.json') : path.join(path.dirname(path.dirname(reportFile)), 'dismissed.json')));
   const mdFile = mdFlag ?? withExtension(logFile, '.md');
   checkLedgerPaths(logFile, mdFile, 'dismissed log');
   // report.json and the log stay locked from the read to the last write (parallel runs keep every entry).
-  return values['dry-run'] ? dismiss(values, { reportFile, logFile, mdFile }) : withFileLocks([reportFile, logFile], () => dismiss(values, { reportFile, logFile, mdFile }));
+  return values['dry-run'] ? dismiss(values, { reportFile, logFile, mdFile, runId }) : withFileLocks([reportFile, logFile], () => dismiss(values, { reportFile, logFile, mdFile, runId }));
 }
 
-function dismiss(values, { reportFile, logFile, mdFile }) {
+function dismiss(values, { reportFile, logFile, mdFile, runId }) {
   const log = values.quiet ? () => {} : (msg) => console.log(msg);
   const warn = (msg) => console.error(`warning: ${msg}`);
   const show = (file) => oneLine(displayPath(file));
@@ -277,7 +272,8 @@ function dismiss(values, { reportFile, logFile, mdFile }) {
   } else {
     log(`Wrote ${show(reportFile)}`);
   }
-  log(`Next: node scripts/render-report.mjs --in ${shellArg(displayPath(reportFile))} --recompute --write-back (recomputes the scorecard and validates)`);
+  log('The next command recomputes the scorecard and validates the report.');
+  log(`Next: ${scriptCommand('render-report.mjs')} --in ${shellArg(displayPath(reportFile))} --recompute --write-back${runId ? ` --run ${runId}` : ''}`);
   return 0;
 }
 

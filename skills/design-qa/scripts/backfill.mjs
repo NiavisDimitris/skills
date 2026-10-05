@@ -6,7 +6,7 @@
 // after an explicit override.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { CliError, displayPath, formatIssues, oneLine, parseCli, parseJsonArg, readJsonFile, runMain, toNumber, usageError, writeJson } from './lib/args.mjs';
+import { CliError, displayPath, formatIssues, oneLine, parseCli, parseJsonArg, readJsonFile, runMain, scriptCommand, toNumber, usageError, writeJson } from './lib/args.mjs';
 import {
   BACKFILL_DISCOVERED_BY,
   BackfillGateError,
@@ -19,9 +19,12 @@ import {
   parseBackfillFile,
   parseCandidatesFile,
   recordBuilt,
+  setDetails,
   setOverride,
+  parseDetailsFile,
 } from './lib/backfill.mjs';
 import { resolveOptions } from './lib/ranking.mjs';
+import { assertRunOwnsDir, callerRunId } from './lib/run-lock.mjs';
 import { shellArg } from './lib/review-context.mjs';
 import { validateConfig } from './lib/schema-check.mjs';
 import { sameInstant } from './lib/triage.mjs';
@@ -39,6 +42,7 @@ Usage:
   node scripts/backfill.mjs --report <report.json> --record <id> --figma-url <url> [--node-id 1:23]
                             [--name "<frame name>"] [--round-trip <percent>] [options]
   node scripts/backfill.mjs --report <report.json> --override --reason "<why>" [options]
+  node scripts/backfill.mjs --report <report.json> --details <details.json> [options]
   node scripts/backfill.mjs --report <report.json> --from <backfill.json | message.txt> [options]
 
 Choose exactly one of:
@@ -57,6 +61,17 @@ Choose exactly one of:
                          Refused (exit 1) until production matches the design
                          (scorecard.loopClosed) unless an override is recorded
   --override             allow building before step 1 is closed; needs --reason
+  --details <file>       record an item's anchor frame, the library components and variables
+                         it uses (or that the built frame uses) and the design-system gaps:
+                         { "items": [ { "id": "BF-001",
+                             "anchor": { "nodeId": "12:345", "name": "Orders – With data" },
+                             "components": [ { "name": "Button", "variant": "Secondary",
+                               "selector": "[data-testid=bulk-delete]", "inLibrary": true } ],
+                             "tokens": [ "color/surface/raised", "space/4" ],
+                             "dsGaps": [ "Bulk bar: no library component" ] } ] }
+                         A field given replaces the item's value (null clears the anchor);
+                         fields left out are kept. Unknown keys and wrong types are errors.
+                         Works for any decision (plan before building, describe after)
   --from <file>          backfill.json exported by report.html
                          { feature, slug, reportGeneratedAt, decidedBy,
                            items: [ { id, decision: "build"|"not-needed", reason, by, date } ] }
@@ -91,6 +106,8 @@ Options:
   --by <name>            who decided (a --from item's own "by" wins; then --by, then the
                          file's decidedBy / "by:" line)
   --dry-run              print the result without writing report.json
+  --run <id>             this pass's run id (default: DESIGN_QA_RUN_ID); refused (exit 5)
+                         when the report folder's run lock names another run
   --quiet                only print warnings and errors
   -h, --help             show this help
 
@@ -105,7 +122,8 @@ verdict or triage. The scorecard is not recomputed here: re-render with
 which also validates the report.
 
 Exit codes: 0 ok · 1 unreadable report, or --record before step 1 is closed without an
-override · 2 bad arguments (missing reason, unknown id, stale --from decisions…)`;
+override · 2 bad arguments (missing reason, unknown id, stale --from decisions, an invalid
+--details file…) · 5 another run owns the report folder`;
 
 const ID_RE = /^BF-\d{3,}$/;
 const STATE_RE = /^[a-z0-9][a-z0-9-]*(\/[a-z0-9][a-z0-9-]*)?$/;
@@ -139,6 +157,7 @@ async function main(argv) {
     record: { type: 'string' },
     override: { type: 'boolean' },
     from: { type: 'string' },
+    details: { type: 'string' },
     label: { type: 'string' },
     detail: { type: 'string' },
     screen: { type: 'string' },
@@ -153,6 +172,7 @@ async function main(argv) {
     by: { type: 'string' },
     'allow-stale': { type: 'boolean' },
     'dry-run': { type: 'boolean' },
+    run: { type: 'string' },
     quiet: { type: 'boolean' },
   });
   if (values.help) {
@@ -165,10 +185,10 @@ async function main(argv) {
   const show = (file) => oneLine(displayPath(file));
 
   if (!values.report) throw usageError('--report <report.json> is required (see --help)');
-  const modeFlags = ['candidates', 'add', 'captured', 'build', 'not-needed', 'record', 'override', 'from'];
+  const modeFlags = ['candidates', 'add', 'captured', 'build', 'not-needed', 'record', 'override', 'from', 'details'];
   const chosen = modeFlags.filter((m) => (m === 'override' ? Boolean(values.override) : values[m] !== undefined));
   if (chosen.length !== 1) {
-    throw usageError('choose exactly one of --candidates, --add, --captured, --build, --not-needed, --record, --override or --from');
+    throw usageError('choose exactly one of --candidates, --add, --captured, --build, --not-needed, --record, --override, --from or --details');
   }
   const mode = chosen[0];
   const onlyWith = (flags, modes) => {
@@ -183,6 +203,8 @@ async function main(argv) {
   onlyWith(['allow-stale'], ['from']);
 
   const reportFile = path.resolve(values.report);
+  const runId = callerRunId(values.run);
+  assertRunOwnsDir(path.dirname(reportFile), { runId });
   const report = readJsonFile(reportFile, 'report', 1);
   if (!report || typeof report !== 'object' || !Array.isArray(report.findings)) {
     throw new CliError(`${show(reportFile)} is not a design-qa report (no "findings" array)`, 1);
@@ -240,7 +262,7 @@ async function main(argv) {
     const drivable = [...result.added, ...result.updated].map((id) => byId.get(id)).filter((i) => i.driver && !i.captured);
     if (drivable.length) {
       log(
-        `Capture them app-only: node scripts/capture.mjs --config <config> --states <states.json with ${drivable.map((i) => oneLine(i.state)).join(', ')}> ` +
+        `Capture them app-only: ${scriptCommand('capture.mjs')} --config <config> --states <states.json with ${drivable.map((i) => oneLine(i.state)).join(', ')}> ` +
           `--out ${shellArg(displayPath(path.join(path.dirname(reportFile), 'evidence', 'backfill')))}, then --captured <that capture.json>`,
       );
     }
@@ -299,6 +321,18 @@ async function main(argv) {
       const item = next.backfill.items.find((i) => i.id === c.id);
       log(`${oneLine(c.id)} ${oneLine(c.decision)}${item.reason ? ` — ${quote(item.reason)}` : ''}`);
     }
+  } else if (mode === 'details') {
+    const data = readJsonFile(path.resolve(values.details), 'details file', 2);
+    const items = wrap(() => parseDetailsFile(data));
+    const result = wrap(() => setDetails(report, items));
+    next = result.report;
+    for (const c of result.changes) {
+      const item = next.backfill.items.find((i) => i.id === c.id);
+      const parts = c.fields.map((k) =>
+        k === 'anchor' ? `anchor ${item.anchor ? `${oneLine(item.anchor.name ?? '')} (${oneLine(item.anchor.nodeId)})` : 'cleared'}` : `${k} ${item[k].length}`,
+      );
+      log(`${oneLine(c.id)} ${oneLine(item.state)}: ${parts.join(' · ')}`);
+    }
   } else if (mode === 'override') {
     const reason = (values.reason ?? '').trim();
     if (!reason) throw usageError('--reason is required with --override: say why frames are built before production matches the design');
@@ -351,7 +385,8 @@ async function main(argv) {
   writeJson(reportFile, next);
   log(`Wrote ${show(reportFile)}`);
   const planFile = shellArg(displayPath(path.join(path.dirname(reportFile), 'report-backfill.md')));
-  log(`Next: node scripts/render-report.mjs --in ${shellArg(displayPath(reportFile))} --recompute --write-back --backfill-plan ${planFile} (recomputes the scorecard and validates)`);
+  log('Do: Run the next command: it recomputes the scorecard and validates the report.');
+  log(`Next: ${scriptCommand('render-report.mjs')} --in ${shellArg(displayPath(reportFile))} --recompute --write-back --backfill-plan ${planFile}${runId ? ` --run ${runId}` : ''}`);
   return 0;
 }
 

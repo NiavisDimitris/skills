@@ -392,8 +392,8 @@ test('apply-decisions.mjs: applies decisions.json, writes both logs, marks it ap
   assert.match(out, /Tickets: authorised by the reviewer/);
   assert.match(out, /Marked as applied: qa-reports\/ACME-482\/decisions\.applied\.json/);
   assert.match(out, /Next: node \S+render-report\.mjs --in qa-reports\/ACME-482\/report\.json --out qa-reports\/ACME-482\/report\.html --fixplan qa-reports\/ACME-482\/report-fixplan\.md --backfill-plan qa-reports\/ACME-482\/report-backfill\.md --embed-images --recompute --write-back/);
-  assert.match(out, /Next: create one ticket per debt item \(3\): node \S+jira-fetch\.mjs --tickets-from qa-reports\/ACME-482\/report\.json/);
-  assert.match(out, /Next: fix the fix-now set \(DQ-001, DQ-002, DQ-003, DQ-004\) in that order, per references\/fix-loop\.md/);
+  assert.match(out, /Do: After the next command, create one ticket per debt item \(3\): node \S+jira-fetch\.mjs --tickets-from qa-reports\/ACME-482\/report\.json/);
+  assert.match(out, /Do: After the next command, fix the fix-now set \(DQ-001, DQ-002, DQ-003, DQ-004\) in that order, per references\/fix-loop\.md/);
 
   assert.ok(!existsSync(ws.decisionsFile));
   assert.deepEqual(read(ws.appliedFile), backfillDoc());
@@ -449,7 +449,7 @@ test('apply-decisions.mjs: the pasted message from a file and from stdin; ticket
   assert.equal(res.code, 0, res.stderr);
   assert.match(res.stdout, /\(from stdin\)/);
   assert.match(res.stdout, /Tickets: not authorised \(create none; list the debt in your reply\)/);
-  assert.match(res.stdout, /Next: 3 debt item\(s\) have no ticket; the reviewer did not authorise tickets, so create none and list them in your reply/);
+  assert.match(res.stdout, /Do: 3 debt item\(s\) have no ticket; the reviewer did not authorise tickets, so create none and list them in your reply/);
   assert.ok(!/jira-fetch/.test(res.stdout));
   assert.equal(read(ws.reportFile).triage.ticketsAuthorized, false);
   const again = await runWithStdin(APPLY, ['--report', ws.reportFile, '--from', '-'], message);

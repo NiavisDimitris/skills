@@ -18,11 +18,20 @@ import {
   compareIds,
   compareRanked,
   designSystemGroups,
+  designSystemNotChecked,
+  dsAuditRan,
+  explainVerdict,
   isDismissed,
+  isRemoteTarget,
   isTriageable,
+  isVerifiedRow,
   rankFindings,
+  rejectedShares,
   resolveOptions,
+  scorecardHeadline,
   triageIndex,
+  unlistedReasons,
+  unpinnedFindings,
 } from './ranking.mjs';
 import { DEBT_OWNER, recommendedFixIds, triageCommand, triageLists } from './triage.mjs';
 import { backfillPointer } from './backfill-plan.mjs';
@@ -193,12 +202,142 @@ export function triageLine(report, opts = {}) {
 }
 
 /**
- * Render report-fixplan.md: header (Source, Triage and Dismissed lines) · Fix now
+ * The line under the verdict when coverage is not full: "**Incomplete: this is not a
+ * result.** <reasons>" for an INCOMPLETE pass, "**Partial coverage:** …" when fewer
+ * states were verified than designed; null when every state was verified.
+ */
+export function coverageLine(report, opts = {}) {
+  const sc = report?.scorecard || {};
+  const cov = sc.stateCoverage || {};
+  if (sc.verdict === 'INCOMPLETE') {
+    return `**Incomplete: this is not a result.** ${md(explainVerdict(report, opts).reasons.join('; '))}`;
+  }
+  if (Number.isInteger(cov.verified) && Number.isInteger(cov.total) && cov.verified < cov.total) {
+    const rest = cov.total - cov.verified;
+    return `**Partial coverage:** the match covers ${cov.verified} of ${cov.total} designed states; the other ${rest} ${rest === 1 ? 'was' : 'were'} not compared (see Missing states and Cannot verify).`;
+  }
+  return null;
+}
+
+/**
+ * The "Target: deployed build …" line for a remote target (meta.app.url not a local host),
+ * else null: findings come from the captured DOM; file references are hints from a local
+ * checkout that may differ from what is deployed.
+ */
+export function targetLine(report) {
+  if (!isRemoteTarget(report)) return null;
+  const t = report.meta?.target || {};
+  const full = (c) => oneLine(c).toLowerCase();
+  const local = full(t.localCommit);
+  const deployed = full(t.deployedCommit ?? report.meta?.app?.commit);
+  const short = (c) => (c ? c.slice(0, 12) : 'unknown');
+  const lead = 'Target: deployed build. Findings are grounded in the captured DOM; ';
+  if (local && deployed && (local.startsWith(deployed) || deployed.startsWith(local))) {
+    return `${lead}file references come from a local checkout at the deployed commit (${md(short(local))}).`;
+  }
+  return `${lead}file references are hints from a local checkout (local ${md(short(local))}, deployed ${md(short(deployed))}) that may differ from the deployed build.`;
+}
+
+/**
+ * The "Capture: …" line: how many verified states were captured as the whole page
+ * (stateMatrix[].captured.page), which were not (image smaller than the page), which
+ * still hide content in scroll panels, and how many have no record. null when no verified
+ * state has a captured.page record.
+ */
+export function captureLine(report) {
+  const matrix = Array.isArray(report?.stateMatrix) ? report.stateMatrix : [];
+  const verified = matrix.filter((r) => r && (r.result === 'PASS' || r.result === 'FAIL'));
+  const rows = verified.filter((r) => r.captured && typeof r.captured.page === 'object' && r.captured.page);
+  if (!rows.length) return null;
+  const dpr = typeof report.meta?.app?.dpr === 'number' && report.meta.app.dpr > 0 ? report.meta.app.dpr : 1;
+  const pd = report.scorecard?.pixelDiff || {};
+  const label = (r) => md(stateLabel(report, r));
+  const partial = [];
+  const clipped = [];
+  for (const r of rows) {
+    const p = r.captured.page;
+    const e = pd[r.state] || {};
+    const vp = report.meta?.app?.viewport;
+    const im = p.image && Number.isInteger(p.image.width) ? p.image
+      : Number.isInteger(e.appWidth) && Number.isInteger(e.appHeight) ? { width: e.appWidth, height: e.appHeight }
+        : p.fullPage === false && vp && Number.isInteger(vp.width) ? { width: Math.round(vp.width * dpr), height: Math.round(vp.height * dpr) } : null;
+    const whole = im ? im.width >= p.width * dpr - 1 && im.height >= p.height * dpr - 1 : p.fullPage !== false;
+    if (!whole || p.partial === true) partial.push(`${label(r)} (${im ? `${im.width}×${im.height} of ` : ''}${md(p.width)}×${md(p.height)})`);
+    if (Number.isInteger(p.clipped) && p.clipped > 0) clipped.push(`${label(r)} (${p.clipped})`);
+  }
+  const parts = [`whole page in ${rows.length - partial.length} of ${verified.length} verified states`];
+  if (partial.length) parts.push(`only part of the page: ${partial.join(', ')}`);
+  if (clipped.length) parts.push(`scroll panels still hiding content: ${clipped.join(', ')}`);
+  if (rows.length < verified.length) parts.push(`not recorded: ${verified.length - rows.length}`);
+  return `Capture: ${parts.join(' · ')}`;
+}
+
+/**
+ * "Rejected by the agent: 3 worklist regions (largest share 52% of With data), 2 audit
+ * candidates, 0 compare rows" when the report has a rejections array, else null.
+ */
+export function rejectedLine(report) {
+  if (!Array.isArray(report?.rejections)) return null;
+  const list = report.rejections.filter((r) => r && typeof r === 'object');
+  const n = (k) => list.filter((r) => r.kind === k).length;
+  const shares = [...rejectedShares(report)].sort((a, b) => b[1].share - a[1].share);
+  const top = shares.length ? ` (largest share ${shares[0][1].share}% of ${md(stateLabel(report, (report.stateMatrix || []).find((r) => r && r.state === shares[0][0]) || { state: shares[0][0] }))})` : '';
+  return `Rejected by the agent: ${n('worklist')} worklist region${n('worklist') === 1 ? '' : 's'}${top}, ${n('audit')} audit candidate${n('audit') === 1 ? '' : 's'}, ${n('compare')} compare row${n('compare') === 1 ? '' : 's'}`;
+}
+
+/** The "## Rejected by the agent (n)" section grouped by reason, or null without a rejections array. */
+export function rejectionLines(report) {
+  if (!Array.isArray(report?.rejections)) return null;
+  const list = report.rejections.filter((r) => r && typeof r === 'object');
+  const out = [`## Rejected by the agent (${list.length})`];
+  if (!list.length) return [...out, '- None'];
+  const matrix = Array.isArray(report.stateMatrix) ? report.stateMatrix : [];
+  const groups = new Map();
+  for (const r of list) {
+    const reason = oneLine(r.reason) || DASH;
+    if (!groups.has(reason)) groups.set(reason, []);
+    groups.get(reason).push(r);
+  }
+  for (const [reason, rows] of groups) {
+    out.push(`### ${mdText(reason, { lead: true })} (${rows.length})`);
+    for (const r of rows) {
+      const row = matrix.find((x) => x && x.state === r.state);
+      const parts = [
+        `${mdLead(r.key || DASH)} (${md(r.kind)})`,
+        blank(r.state) ? null : md(stateLabel(report, row || { state: r.state })),
+        typeof r.percentOfPage === 'number' ? `${r.percentOfPage}% of the page` : null,
+        blank(r.knownDrift) ? null : `known drift ${md(r.knownDrift)}`,
+        blank(r.duplicateOf) ? null : `duplicate of ${md(r.duplicateOf)}`,
+        blank(r.coveredBy) ? null : `covered by ${md(r.coveredBy)}`,
+        blank(r.detail) ? null : `"${md(r.detail)}"`,
+      ].filter(Boolean);
+      out.push(`- ${parts.join(' — ')}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Render report-fixplan.md: header (verdict with coverage, Incomplete or Partial
+ * coverage, Source, Target, Triage, Dismissed and Without a pin lines) · Fix now
  * (+ coding-agent paste block) · Design-system mismatches (Tokens, Components,
  * Motion) · Debt — tickets · Missing states / needs decision · Dismissed · Cannot
  * verify. With a triage block the person's decisions fill Fix now / Debt; without
  * one the recommendation does (fix-now bucket plus every blocker).
  */
+/**
+ * "9 designed, 3 specified, 9 implemented": specified (states the ticket's criteria name) only
+ * when there is a ticket or a state is specified, since without one it is always 0 and says
+ * nothing; implemented counts the states with a driver or a code reference (captured through
+ * a driver counts).
+ */
+export function statesCountLine(cov, meta) {
+  const parts = [`${mdDash(cov.designed)} designed`];
+  if (meta?.ticket?.key || (Number.isInteger(cov.specified) && cov.specified > 0)) parts.push(`${mdDash(cov.specified)} specified`);
+  parts.push(`${mdDash(cov.implemented)} implemented`);
+  return parts.join(', ');
+}
+
 export function renderFixplan(report, opts = {}) {
   const o = resolveOptions(opts);
   const meta = report.meta || {};
@@ -215,16 +354,29 @@ export function renderFixplan(report, opts = {}) {
   const out = [];
   out.push(`# Design QA fix plan — ${mdDash(meta.feature)}`);
   out.push(
-    `Verdict: ${mdDash(sc.verdict)} · Parity ${mdDash(sc.parity)}% · States: ${mdDash(cov.verified)}/${mdDash(cov.total)} verified (${mdDash(cov.designed)} designed, ${mdDash(cov.specified)} specified, ${mdDash(cov.implemented)} implemented)`,
+    `Verdict: ${md(scorecardHeadline(sc))} · ${statesCountLine(cov, meta)}`,
   );
+  const coverage = coverageLine(report, o);
+  if (coverage) out.push(coverage);
+  for (const why of unlistedReasons(report)) out.push(`**Not on the worklist:** ${md(why)}`);
   out.push(
     `Source: ${mdDash(meta.source?.kind)} ${mdDash(meta.source?.url ?? meta.figma?.url)} · App: ${mdDash(meta.app?.url)} (${mdDash(meta.app?.kind)}) · Ticket: ${mdDash(meta.ticket?.key)} · Generated: ${mdDash(meta.generatedAt)}`,
   );
+  const target = targetLine(report);
+  if (target) out.push(target);
+  const capture = captureLine(report);
+  if (capture) out.push(capture);
+  const rejectedHead = rejectedLine(report);
+  if (rejectedHead) out.push(rejectedHead);
   out.push(triageLine(ranked, o));
   const dismissedCount = findings.filter((f) => f && isDismissed(f)).length;
   const acceptedCount = findings.filter((f) => f && f.resolution === 'INTENTIONAL').length;
   if (dismissedCount > 0 || acceptedCount > 0) {
     out.push([`Dismissed: ${dismissedCount}`, acceptedCount ? `accepted as intentional: ${acceptedCount}` : null].filter(Boolean).join(' · '));
+  }
+  const unpinned = unpinnedFindings(report).sort((a, b) => compareIds(a.id, b.id));
+  if (unpinned.length) {
+    out.push(`Without a pin: ${unpinned.length} finding${unpinned.length === 1 ? '' : 's'} (no place on any capture): ${unpinned.map((f) => md(f.id)).join(', ')}`);
   }
   out.push('');
 
@@ -251,9 +403,21 @@ export function renderFixplan(report, opts = {}) {
 
   out.push('## Design-system mismatches');
   const groups = designSystemGroups(findings);
-  for (const [heading, list] of [['Tokens', groups.tokens], ['Components', groups.components], ['Motion', groups.motion]]) {
-    out.push(`### ${heading} (${list.length})`);
-    if (!list.length) out.push('- None');
+  const audit = meta.dsAudit && typeof meta.dsAudit === 'object' ? meta.dsAudit : {};
+  const off = designSystemNotChecked(report);
+  const banner = !dsAuditRan(report) && !groups.tokens.length && !groups.components.length;
+  if (dsAuditRan(report)) {
+    const n = (k, what) => (Number.isInteger(audit[k]) ? `${audit[k]} ${what}` : null);
+    const parts = [n('elementsChecked', 'elements checked'), n('offTokenValues', 'off-token values'), n('nonSystemComponents', 'non-system components')].filter(Boolean);
+    out.push(`Audit: ${md(meta.tools.dsAudit)}${parts.length ? ` · ${parts.join(' · ')}` : ''}`);
+  } else if (banner) {
+    out.push(`**No design-system audit was run${off.tokens === 'no design-system audit was run' ? '' : ` (${md(off.tokens)})`}:** token and component mismatches were not looked for, so empty lists below do not mean the screen uses the design system correctly.`);
+  }
+  for (const [heading, list, k] of [['Tokens', groups.tokens, 'tokens'], ['Components', groups.components, 'components'], ['Motion', groups.motion]]) {
+    const unchecked = k && off[k] && !list.length;
+    out.push(`### ${heading} (${unchecked ? 'not checked' : list.length})`);
+    if (unchecked) out.push(banner ? '- Not checked' : `- Not checked: ${md(off[k])}`);
+    else if (!list.length) out.push('- None');
     for (const f of list) out.push(designSystemLine(f));
   }
   out.push('');
@@ -290,15 +454,29 @@ export function renderFixplan(report, opts = {}) {
   }
   out.push('');
 
+  // DATA findings are not fixed: the plan says which data differs, so a reviewer can check the claim.
+  const data = findings.filter((f) => f && f.resolution === 'DATA').sort((a, b) => compareIds(a.id, b.id));
+  if (data.length) {
+    out.push(`## Data differences (${data.length})`);
+    for (const f of data) out.push(`- ${mdLead(f.id)} — ${md(f.title)} (${md(f.severity)}, state ${stateOf(f)}) — ${blank(f.dataReason) ? 'no reason given' : `"${md(f.dataReason)}"`}`);
+    out.push('');
+  }
+
+  // What the agent looked at and decided not to report.
+  const rejections = rejectionLines(report);
+  if (rejections) out.push(...rejections, '');
+
   out.push('## Cannot verify');
   const cannotFindings = findings.filter((f) => f && f.severity === 'CANNOT_VERIFY').sort((a, b) => compareRanked(a, b));
   const cannotRows = matrix.filter((r) => r && r.result === 'CANNOT_VERIFY');
+  const uncompared = matrix.filter((r) => r && (r.result === 'PASS' || r.result === 'FAIL') && !isVerifiedRow(r, report));
   for (const f of cannotFindings) {
     const where = blank(f.screen) ? '' : `${md(findingStateLabel(report, f, matrix))}: `;
     out.push(`- ${mdLead(f.id)} — ${where}${md(f.title)} — ${mdDash(f.delta)}`);
   }
   for (const r of cannotRows) out.push(`- ${mdLead(stateLabel(report, r))}: ${mdDash(r.note)}`);
-  if (!cannotFindings.length && !cannotRows.length) out.push('- None');
+  for (const r of uncompared) out.push(`- ${mdLead(stateLabel(report, r))}: marked ${md(r.result)} but captured, not compared (no pixel diff, no compare rows)`);
+  if (!cannotFindings.length && !cannotRows.length && !uncompared.length) out.push('- None');
 
   const pointer = backfillPointer(report);
   if (pointer) out.push('', pointer);

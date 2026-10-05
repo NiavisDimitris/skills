@@ -1,14 +1,9 @@
 # Token map — `<your design system>`
 
-How a Figma value becomes the value the code must produce. The design-qa style ledger reads this file: Figma value → code token → expected CSS output, compared with the computed style within the tolerance.
+How a Figma value becomes the value the code must produce. Copy this file to `design-qa/token-map.md` and set `designSystem.tokenMap`. Add a row for every Figma variable or style used on the audited surfaces.
 
-Copy this file to `design-qa/token-map.md` in your repository and point `designSystem.tokenMap` at it. Add a row for every Figma variable or style used on the surfaces you audit.
-
-- **Figma variable / style**: the name exactly as Figma shows it, including its collection path.
-- **Code token**: what the code must reference: a CSS custom property, a theme path or a utility class.
-- **CSS output**: what `getComputedStyle` returns when the token is applied, in the default mode.
-- **Tolerance**: `exact`, or an allowed difference. Blank means the config tolerances.
-- **Notes**: modes and themes, aliases, deprecated names, where the token is meant to be used.
+- **Code token**: a CSS custom property, a theme path or a utility class. **CSS output**: what `getComputedStyle` returns in the default mode. **Tolerance**: `exact`, an allowed difference, or blank for the config's.
+- The design-system audit reads every row with a `--token` and a backticked CSS output as a token of its section's category, and every Typography row written `<size>px / <line-height>px, weight <n>[, uppercase][, letter-spacing <n>px]` as a text style. Keep that wording; a free-form output is skipped.
 
 ## Color
 

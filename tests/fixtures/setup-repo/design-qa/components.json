@@ -1,0 +1,3 @@
+{
+  "Button": { "code": "Button", "import": "@acme/ui", "selector": "[data-component=Button]" }
+}

@@ -1,337 +1,99 @@
+Read when: capture stops on a sign-in page, a banner or notice needs hiding, the target needs auth or a bypass header, or `capture.mjs` cannot run here.
+
 # Browser capture
 
-Phase 4 renders the app in every state of the matrix and records four kinds of evidence per state: a screenshot, computed styles, a DOM outline and motion. The capture must be comparable with the design pixel for pixel. When the design is a coded prototype, the same script captures the prototype too (`--side design`), with the same viewport and the same kind of drivers, and `scripts/compare.mjs` pairs the two.
+`pass.mjs evidence` captures every designed state with `capture.mjs`: at the design frame's width, at device scale 1, over the whole page. You do not run it yourself. This page covers what can stop it, and what to do when the script cannot run. Flags, files and exit codes: `capture.mjs --help`.
 
-## Two non-negotiables
+## Sign-in pages
 
-**Viewport = design frame W×H, exactly** (`meta.source.frame`: the Figma frame, or the viewport chosen for a coded prototype). Layout depends on the viewport: widths, wrapping, truncation and breakpoints all move when it changes. Measured at a different width, every spacing and sizing comparison is meaningless and the pixel diff compares two different layouts.
+When `start` or `evidence` says the app needs a signed-in session, run `Next:` exactly as printed, as a long-running command: it chains `setup.mjs save-session` and the stage again. A browser window opens and the person signs in; you type nothing. The session is saved outside the repository and only its path is recorded (`app.auth.storageState`). Never capture without a session, never rate parity on a sign-in page, and never call the environment unreachable because of one: `capture.mjs --probe` tells the two apart (exit 0 reachable and signed in · 6 needs a session · 5 unreachable).
 
-**Device pixel ratio = 1.** A 2x capture of a 1440×1024 frame is 2880×2048. `scripts/diff.mjs` never resizes and exits 2 on a dimension mismatch, because resampling would invent differences. Figma exports at scale 1 and prototype captures run at DPR 1; the app capture must match.
+**Set `app.auth.signedInSelector`** for every app behind a sign-in (an element only the signed-in app shows, in every state: the navigation, the user menu). Without it the checks below are guesses.
 
-Tall frames: a long-page mock (say 1440×3200) becomes a 3200px-tall viewport. Elements sized with `100vh` stretch to it, so expect and explain differences there rather than masking them away.
+A sign-in page is never saved as a state. Each state is checked after it renders and after its driver; first match wins:
 
-## scripts/capture.mjs
+1. The driver sets `"allowSignIn": true` (a sign-out flow, QA of the sign-in screen): never a sign-in page.
+2. The final URL matches `app.auth.signInUrlPattern` and the planned URL does not: a sign-in page.
+3. A frame covering the page shows a sign-in URL, dialog or form: a sign-in page.
+4. `signedInSelector` is set: visible means never a sign-in page, whatever fields show (a change-password dialog); not visible means it is one.
+5. Otherwise, the heuristics: a "session expired" dialog; a move to a sign-in URL (a `login`, `sso`, `oauth`, `saml` path or fragment, or another host named like an identity provider); a move to a page with a password field or sign-in wording; a small page saying the session ended; a small sign-in form, including an e-mail-only form with sign-in or "Continue" wording (a magic link). HTTP 401 or 403 always counts. A page that stays on a planned sign-in URL does not.
 
-Two forms: everything on the command line, or the short form that reads a surface from config.
+With-data (else the first state) is captured first. After it passed signed in, a later state on the same host reached without a redirect is trusted: a password field there (re-authentication, change password) is not a sign-in wall.
 
-```text
-node scripts/capture.mjs --url <u> --width <w> --height <h> --out <dir> [options]
-node scripts/capture.mjs --config design-qa.config.json [--surface <name>] --width <w> --height <h> --out <dir> [options]
-
-options: [--full-page] [--wait <selector>] [--auth none|basic|cookie|storage-state|login]
-  [--env-prefix DESIGN_QA_APP] [--login-config '<json>'] [--header name=value]...
-  [--states <states.json>] [--state <name> [--driver '<json>']] [--grab <grab.json>]
-  [--surface <name>] [--screen <id>] [--side app|design] [--reduced-motion] [--allow-navigation]
-  [--timeout ms] [--quiet]
-```
-
-| Flag | Meaning |
-|---|---|
-| `--config <file>` | Take defaults from `design-qa.config.json`: the URL (`app.baseUrl` + the surface route), the surface's states, the auth type, env prefix and login, headers, `fullPage`, `reducedMotion` and `allowNavigation`. Explicit flags win. |
-| `--surface <name>` | Which config surface. Optional when the config has only one. |
-| `--screen <id>` | Multi-screen config (needs `--config`): take the URL from `surfaces.<name>.screens.<id>` (its `route` for the app side, its `prototype` for the design side). An unknown id exits 2 and lists the screens the surface has. |
-| `--url` | The page: the resolved app target plus the surface route. `{fixture}` or `{id}` in it is replaced by a state's `fixture` value; without a placeholder, `?fixture=<value>` is appended. Not needed with `--config` unless you override the target (a preview URL). |
-| `--width`, `--height` | The design frame size. Always required. Captures run at DPR 1 and the PNG size is asserted. |
-| `--full-page` | Capture the full scroll height instead of the viewport. The width still matches the frame, the height only if the page is as tall as the design (see "Long pages"). |
-| `--wait <selector>` | Wait until this element is visible. It must prove the data rendered (the first table row, a populated card), not just the page frame: a heading shows before the data arrives. After it appears, capture still waits up to 5 s for the network to go idle (best effort), so a slow API is not captured mid-request. A global `--wait` must be present in every state; otherwise give each state its own `wait` driver key (the row for `with-data`, the empty-state illustration for `empty`), which overrides it. Default: network idle. |
-| `--auth`, `--env-prefix` | How to sign in, and the prefix of the credential environment variables (see "Auth"). |
-| `--login-config '<json>'` | For `--auth login`: `app.auth.login` as JSON. Read from config with `--config`. |
-| `--header name=value` | Extra request header, repeatable, sent only with requests to the app's own origin (scheme, host and port of the URL), never to analytics, CDN or other third-party hosts, redirect hops included (see "Headers and redirects"). Values may contain `${VAR}`. |
-| `--states <states.json>` | Capture every state in the file: `{ "<state>": <driver> }`, drivers as in config `surfaces.<name>.states`. |
-| `--state <name>` | Capture only this state. Its driver is `--driver` if given, else the one for that state in `--states` or `--config`, else none. When `--out` already holds a manifest of the same side, URL, viewport and `fullPage`, the state is merged into it: the other states are kept, this one is replaced (a different capture gets a fresh manifest and a warning). |
-| `--driver '<json>'` | Inline driver for `--state`. |
-| `--grab <grab.json>` | Computed styles to read in every state. Default element classes: `body`, `heading`, `text`, `button`, `link`, `input` and `feedback` (`[role=status]`, `[role=alert]`, `[role=progressbar]`, `[aria-busy=true]`: spinners, toasts and banners, where load and state-change animations live). The class names `rootTokens` and any starting with `__` are reserved; a grab file using one exits 2. |
-| `--side app\|design` | Which side this run captures (default `app`). `design` captures a coded prototype into the design-side folders (below). Only `--side design` accepts a `file:` URL (a local HTML prototype); the app is always `http(s)`. |
-| `--reduced-motion` | Emulate `prefers-reduced-motion: reduce`. |
-| `--allow-navigation` | Do not fail states that end on another URL, for an app that always redirects (a locale prefix such as `/` → `/en/`, `www` ↔ apex). Config: `capture.allowNavigation`. A state's own `"allowNavigation": false` still checks that state. Better still, capture the final URL. |
-| `--timeout` | Navigation, wait and action timeout in ms (default 30000). |
-| `--out <dir>` | Usually `<dir>/evidence`. |
-
-Without `--states`, `--state` or a config surface with states, one `with-data` state is captured.
-
-Multi-screen passes run the capture once per screen, with that screen's route (`--url`, or `surfaces.<name>.screens.<id>.route`), its frame size and `--out <dir>/evidence/screens/<id>`. Inside a screen's folder the files use the plain state id (`app/empty.png`); in `report.json` the state id is `<screen>/<state>` and the paths point into `evidence/screens/<id>/`.
-
-Each state runs in a fresh page and browser context seeded with the same signed-in storage, so mocks and storage never leak between states. The `wait` driver key names the element that proves this state rendered (the empty-state illustration, the skeleton). Loading states (named `loading` or a loading synonym such as `Skeleton`, as the whole name or a segment of it, or with a mock delay of a second or more) do not wait for network idle: they wait for their `wait` selector, else settle for 1.5 s. In a loading state a delayed mock is held: the request stays unanswered until the screenshot and the page reads are done, so the loading UI cannot finish first. A loading state whose mock answers anyway (no `delayMs`) gets a warning and a degradation. Elsewhere a mock with only `delayMs` lets the request through after the delay (held, too, when the delay is a second or more), and one with a status or body answers after it.
-
-Mocks: `urlPattern` is a Playwright glob matched against the whole request URL, query string included. `*` matches anything but `/`, `**` anything, `{a,b}` either. So `**/api/items` does not match `/api/items?page=1`; use `**/api/items*` (any query without a `/`) or `**/api/items{,?**}` (with or without any query). A mock that matched no request by the time of the screenshot is a warning on the state and a `mock:<state>` degradation: that state may show the real response, not the mocked one.
-
-Navigation: a state must end on the URL it was planned for (scheme, host and path; the query, the fragment, a trailing slash and an `http` → `https` upgrade of the same host may change). A redirect (`302` to `/login`) or a script navigating away fails the state with the final URL, so a sign-in page is never saved as `with-data.png`. When every state ends on another page, the run exits 5: an authentication or routing problem. A driver whose action is meant to navigate (a click that opens another route) sets `"allowNavigation": true`; `--allow-navigation` (config `capture.allowNavigation`) turns the check off for every state whose driver does not set it. Hash routes are not checked: a redirect to `#/login` keeps the path and passes, so give such a state a `wait` selector that only the real state renders.
-
-Headers and redirects: Playwright would copy request headers onto every redirect hop, so when `--header` or `app.headers` is set, capture makes the app's own requests itself and never follows a redirect with them. A redirect that leaves the origin (a CDN, a sign-in host) is handed to the browser, which follows it without the headers. A `GET` redirect that stays on the origin (`/` → `/en/`) is walked first, then re-sent with the headers on every hop, so that chain is requested twice. Limits: a redirect answering a `POST` (a sign-in form) is followed without the headers; `EventSource` streams and WebSockets get no extra headers (cookies still apply); app responses reach the page whole, not streamed; and the app's TLS certificate is checked by Node, not the browser, so a private CA needs `NODE_EXTRA_CA_CERTS` (local URLs skip the check). Where a header guards the whole site, prefer one that also sets a cookie (Vercel: `x-vercel-set-bypass-cookie: true`), which covers those cases.
-
-Secrets: `${VAR}` values are expanded in memory only. `capture.json` records each driver as written (with its placeholders), and every URL, warning, error and printed line shows `${VAR}` in place of the value, URL-encoded forms included; credentials and long header values show as `***`. A variable that holds a bare base URL (no credentials, query or fragment, such as `${APP_URL}`) stays readable. `dom/<state>.json` gets the same treatment for its `url`, `title` and `ariaSnapshot`; text the page itself renders is evidence and is kept.
-
-Files: each state writes `<dir>/<state>.png|json` with the name made file-safe, so state names that would write the same file (`with data` and `with-data`, or `Empty` and `empty` on a case-insensitive disk) exit 2. A state's files are written only after every page read succeeded; a failed or skipped state's files from an earlier run are deleted, so no stale evidence is left for `compare.mjs`. A symlink at an evidence path (a PR checkout may commit one) is replaced, never written through. Page reads time out with `--timeout`, so a page that blocks its main thread fails its state instead of hanging the run.
-
-Empty drivers are never captured under another state's name. A state other than `with-data` whose driver changes nothing (no `fixture`, `query`, `mock`, `storage`, `action` or `viewport`) is skipped and listed under `degradations` in `capture.json`; otherwise the default page would be saved as, say, `empty.png`. `wait`, `settleMs` and `reducedMotion` alone do not change the page. Record a skipped state as ℹ️ CANNOT_VERIFY naming its hook (`surfaces.<name>.states.<state>`).
-
-Written per state:
-
-- `<out>/app/<state>.png`: exact viewport, DPR 1.
-- `<out>/computed/<state>.json`: `{ "<elementClass>": { selector, count, samples, inlineStyleOutliers }, …, "rootTokens": { "--token": "<value>" } }`. `count` is how many elements matched and `inlineStyleOutliers` how many carry an inline style: check both against the sampling rules in ledgers.md. A class whose selector is invalid has `count: 0`, no samples and an `error` string. Each sample is a flat map of the computed properties plus four reserved keys. Skip keys starting with `__` when looping over a sample's properties, and skip the top-level `rootTokens` key when looping over element classes (it is not one).
-
-  | Key | Meaning |
-  |---|---|
-  | `__rect` | `{ x, y, w, h }`, the whole-pixel box covering the element in screenshot pixels (viewport coordinates, or document coordinates with `--full-page`). It becomes the `crop` of findings on that element. It may lie outside the image for an element outside the captured area. |
-  | `__visible` | `false` for zero-size, `display: none` or `visibility: hidden` elements. |
-  | `__el` | `{ tag, id, classes, component, variant, testid, role, text, selector }`: `component` is `data-component` (else `data-ds-component`), `variant` is `data-variant`. This is the component identity `compare.mjs` reads. |
-  | `__vars` | `{ "<prop>": ["--token", …] }`: the `:root` custom properties whose resolved value equals that computed value. Properties whose value matches no root token are omitted (`{}` when none does). |
-
-  `rootTokens` is once per page: every `:root` custom property (`--*`), name → resolved value (colours as `rgb()`, lengths as px), so a value can be traced back to the token that produces it. Each state in `capture.json` also records `scroll: { x, y }` (ledgers.md).
-- `<out>/dom/<state>.json`: `{ url, title, ariaSnapshot, elements, texts, truncated }`, the accessibility snapshot, labelled elements with their roles, and visible text. The structure ledger reads it.
-- `<out>/motion/<state>.json`, read by the motion ledger and by `compare.mjs`:
-
-  ```text
-  { "state", "side": "app|design", "trigger": "<driver action>|null", "reducedMotion": true|false,
-    "elements": { "<elementClass>": { "selector", "count", "samples": [ { "transition-property", "transition-duration",
-        "transition-timing-function", "transition-delay", "animation-name", "animation-duration",
-        "animation-timing-function", "animation-delay", "animation-iteration-count", "__selector" } ] } },
-    "actionTarget": null | { "selector", …the same longhands… },
-    "animations": [ { "type": "CSSTransition|CSSAnimation|Animation", "target", "pseudoElement",
-        "element": null | { "elementClass", "index" }, "transitionProperty", "animationName", "properties": [],
-        "durationMs", "delayMs", "easing", "iterations", "playState" } ],
-    "keyframes": { "<name>": "@keyframes … { … }" } }
-  ```
-
-  `elements` are matched like `computed/` (element class, index; `__selector` is a short tag#id.class outline). `actionTarget` carries the same longhands for the driver's `selector` when the state has an `action` (else null). `animations` is `document.getAnimations()` read right after the state's action and before the `settleMs` wait; `element` maps a target back to a grabbed element class and index (null when it is not one), `properties` lists the animated CSS properties, `iterations` is a number or `"infinite"`. `keyframes` holds `@keyframes` text from same-origin stylesheets (best effort). Screenshots are still taken with animations disabled, so they stay stable. A motion problem never fails a state: it is listed under that state's `degradations`.
-
-And once, `<out>/capture.json`: `{ side, url, kind, viewport, dpr, fullPage, commit, branch, timestamp, states: { <state>: { driver, url, screenshot, computed, dom, motion, settleMs, durationMs, scroll, warnings, degradations } }, degradations }`. `driver` is the driver as written (with `${VAR}` placeholders) and `url` the state's URL with secrets redacted. A skipped state has `skipped: true`, a failed one `error`, and null paths. Each state's `degradations` (`motion:<state>` problems, `mock:<state>` mocks that matched nothing or a loading request answered too early) are also copied into the top-level `degradations`, which also holds `capture:<state>` failures, `capture:navigation` (every state redirected) and `capture:merge` (a `--state` re-capture kept states captured at another commit). Copy that list into `meta.degradations`, and the commit and branch into `meta.app`.
-
-Exit codes: 0 ok · 1 some states failed (details in `capture.json`) · 2 bad arguments · 3 screenshot size differs from the viewport (device scale) · 4 browser launch failure (run `npx playwright install chromium`) · 5 navigation or authentication failure (including every state ending on another page).
-
-Environment: `DESIGN_QA_BROWSER_CHANNEL=chrome` uses an installed Chrome instead of Playwright's Chromium; `DESIGN_QA_COMMIT` and `DESIGN_QA_BRANCH` override git detection (useful when capturing a preview built from another checkout). The scripts need Node 20 or later.
-
-Examples:
-
-```bash
-# Every configured state of a surface (URL, states, auth and headers from config)
-node scripts/capture.mjs --config design-qa.config.json --surface orders --width 1440 --height 1024 \
-  --grab qa-reports/orders/evidence/grab.json --wait "main h1" --out qa-reports/orders/evidence
-
-# Same surface on a preview deployment, with states worked out in Phase 3
-node scripts/capture.mjs --config design-qa.config.json --surface orders --url https://orders-empty-state-your-app.vercel.app/orders \
-  --width 1440 --height 1024 --states qa-reports/orders/evidence/states.json \
-  --grab qa-reports/orders/evidence/grab.json --out qa-reports/orders/evidence
-
-# Re-capture one state with its configured driver (merged into the existing capture.json)
-node scripts/capture.mjs --config design-qa.config.json --surface orders --width 1440 --height 1024 \
-  --state hover --grab qa-reports/orders/evidence/grab.json --out qa-reports/orders/evidence
-
-# One state, inline driver, no config
-node scripts/capture.mjs --url http://localhost:3000/orders --width 1440 --height 1024 \
-  --state empty --driver '{"mock":{"urlPattern":"**/api/orders*","status":200,"body":{"items":[]}}}' \
-  --grab qa-reports/orders/evidence/grab.json --out qa-reports/orders/evidence
-```
-
-## Capturing a coded prototype: --side design
-
-When the source is a coded prototype (Figma Make, Framer, v0, Lovable, a static HTML page, a local prototype), the design side is captured with the same script, viewport and DPR as the app:
-
-```bash
-node scripts/capture.mjs --side design --url <prototype-url> --width 1440 --height 1024 \
-  --states qa-reports/orders/evidence/design-states.json --grab qa-reports/orders/evidence/grab.json \
-  --out qa-reports/orders/evidence
-```
-
-`--side design` writes to the design-side names in the same evidence folder, so both sides sit next to each other:
-
-| App side (`--side app`) | Design side (`--side design`) |
-|---|---|
-| `app/<state>.png` | `design/<state>.png` |
-| `computed/<state>.json` | `design-computed/<state>.json` |
-| `dom/<state>.json` | `design-dom/<state>.json` |
-| `motion/<state>.json` | `design-motion/<state>.json` |
-| `capture.json` | `design-capture.json` |
-
-- Use the same `grab.json` for both sides, so element classes pair up.
-- Use the same drivers when the prototype reacts to them (hover, focus and click usually do). When the prototype reaches its states another way (a route per state, a query, its own state toggle), write those drivers into a separate `design-states.json` and pass it with `--states`. Network mocks rarely apply: prototypes tend to hold their data inline.
-- With `--config`, the design side's URL defaults to `surfaces.<name>.prototype` (or `surfaces.<name>.screens.<id>.prototype` with `--screen`); an explicit `--url` wins. The app's auth and headers from config are never sent to the prototype: a prototype that needs them takes its own `--auth` or `--header` (headers go to the prototype's origin only).
-- `design-capture.json` has the same shape as `capture.json` with `side: "design"` and `source: { kind: "prototype", url, label, tool, frame }` (`designSource()` in target-url.mjs: `tool` from the host, `frame` the viewport). Each state records its `motion` file and `degradations`, as on the app side.
-- A local HTML prototype can be given as a `file:` URL (only `--side design` accepts one); a page loaded from `file:` cannot read some stylesheets, so serve it over http when the design uses stylesheet-based keyframes.
-- Multi-screen: `--screen <id> --out <dir>/evidence/screens/<id>` writes the same names inside that screen's folder.
-- Record `meta.tools.prototypeCapture` (`script`, or the fallback rung used) and copy `design-capture.json`'s degradations into `meta.degradations`.
-
-Details on prototype tools, auth and limits: prototype-source.md.
-
-## Comparing both sides: scripts/compare.mjs
-
-```text
-node scripts/compare.mjs --app <dir>/evidence [--design <dir>/evidence] [--figma-spec <dir>/evidence/figma-spec.json]
-  [--states with-data,hover] [--token-map <file>] [--catalog <component-catalog.json>] [--config design-qa.config.json]
-  [--tolerance-px 1] [--color-delta-e 1.5] [--duration-tolerance-ms 20] [--out <file>] [--quiet]
-```
-
-| Flag | Meaning |
-|---|---|
-| `--app <dir>` | Required. The folder with `capture.json`, `computed/`, `motion/` and `dom/`. Without `capture.json` the script reads whichever `computed/<state>.json` files exist (MCP or built-in browser captures). |
-| `--design <dir>` | The folder with `design-capture.json`, `design-computed/`, `design-motion/` and `design-dom/`. Default: the `--app` folder, where `--side design` puts them. |
-| `--figma-spec <file>` | Also check the Figma prototype's transitions (`figma-spec.json` `motion`, else computed from its `reactions`) against the app state whose driver performs the trigger: hover → action `hover`, press → `active`, click → `click`, focus → `focus` or `keyboard`. Usable with or without a coded prototype; see figma-extraction.md, "Motion". |
-| `--states <a,b>` | Only these states. Default: every state captured on the design side. With `--figma-spec` alone, a state not captured on the design side is allowed. |
-| `--token-map <file>` | Extra token values on top of each side's `rootTokens`: JSON `{ "--token": "value" }` (or `{ "--token": { "value", "category" } }`, or `{ "tokens": {…}, "categories": { "--token": "radius" } }`), or the project's markdown token map (any file not ending in `.json`), whose section headings (`## Color`, `## Spacing`, `## Radius`, `## Elevation`, `## Motion`, `## Typography`) give the tokens below them their category. |
-| `--catalog <file>` | The component catalog (`components.<name>.selector` / `className` / `testid` / `testidPrefix`, ledgers.md): names components that carry no `data-component` or `data-ds-component` attribute. A `data-testid` names a component only when a catalog entry's `testid` equals it or its `testidPrefix` starts it; on its own it is a test hook, not a component. |
-| `--config <file>` | `design-qa.config.json`: `tolerances.px` and `tolerances.colorDeltaE` become the defaults of the two flags below. |
-| `--tolerance-px <n>` | Px tolerance for style values. Default: config `tolerances.px`, else 1. |
-| `--color-delta-e <n>` | Colour tolerance as a CIEDE2000 ΔE. Default: config `tolerances.colorDeltaE`, else 1.5. |
-| `--duration-tolerance-ms <n>` | Tolerance for motion duration and delay. Default 20. |
-| `--out <file>` | Output file. Default `<app>/compare.json`. |
-
-Elements are paired within an element class (same `--grab` on both sides): by equal text first, then the remaining samples in order. When a side's selector matched more elements than the grab `limit` sampled, a leftover on the other side may be one of the unsampled elements: it becomes a `CANNOT_VERIFY` structure row ("not sampled …"), not a missing or extra element. Colours are read in any CSS form (hex, rgb(a), hsl(a), hwb, lab, lch, oklab, oklch, `color()` spaces and named colours), converted to CIELAB and match when their CIEDE2000 ΔE is at most the colour tolerance and alpha differs by at most 0.01; two fully transparent colours always match. Colours inside other values (shadows, borders, gradients) follow the same rule, lengths inside them the px tolerance. Durations compare across `s` and `ms`, easings across keywords and `cubic-bezier` (`ease-out` is `cubic-bezier(0,0,0.58,1)`). Elements invisible on either side (`__visible: false`) are not style-compared. The flags win over `--config`, which wins over the defaults (px 1, ΔE 1.5).
-
-Exit codes: 0 ok (differences are data, not errors) · 2 bad arguments or unreadable captures (no app capture, or no design capture and no `--figma-spec`).
-
-`compare.json`:
-
-```text
-{ "generatedAt", "design": null | { "dir", "url", "source" }, "app": { "dir", "url" }, "figmaSpec": null | "<path>",
-  "options": { "tolerancePx", "colorDeltaE", "alphaTolerance", "durationToleranceMs",
-               "tolerancesFrom": { "px", "colorDeltaE": "flag" | "config" | "default" }, "config", "tokenMap", "catalog" },
-  "states": { "<state>": { "style": [rows], "tokens": [rows], "components": [rows], "motion": [rows], "structure": [rows] } },
-  "figmaMotion": [motion rows from --figma-spec],
-  "missingInApp": [states the design captured but the app capture lacks],
-  "summary": { "states", "style": { "pass", "fail" }, "tokens": { "fail", "hardcoded" }, "components": { "pass", "fail" },
-               "motion": { "pass", "fail", "missing", "extra", "cannotVerify", "unique" },
-               "structure": { "fail", "missingInApp", "extraInApp", "cannotVerify" }, "repeatsDropped" } }
-```
-
-| Rows | Content |
-|---|---|
-| `style` | `{ state, elementClass, index, selector, text, property, design, app, delta, deltaE, result }` for every compared property, `PASS` or `FAIL`: px within the px tolerance, colours within the ΔE and alpha tolerance (`deltaE` on colour values only). `text` is the design element's text, here and in `tokens`, `components` and `structure` rows. A colour within tolerance but not identical still gets a `tokens` row when the design value traces to a token and no token produces the app's value (a hand-typed near miss). |
-| `tokens` | One row per `FAIL` style value whose design value a token produces: `{ …, property, expectedToken, expectedValue, actualToken, actualValue, result: "FAIL", note }`. `expectedToken` comes from the design sample's `__vars`, else `rootTokens` or the token map; `actualToken` is the token the app value resolves to, `null` when hardcoded. Matching is property-aware on both sides: a token is a candidate only when its category fits the property (radius properties ↔ radius tokens; padding, margin, gap, inset ↔ space; width and height ↔ size or space; colour properties ↔ colour; font-size, line-height, font-weight, letter-spacing, font-family ↔ that type token or a generic typography token; shadows ↔ shadow / elevation; durations, delays and easings ↔ motion). The category is the token map's (section heading or JSON `categories`), else the first name hint that fits the token's value (`--ads-radius-md` → radius, `--color-label` holding `rgb()` → colour), else the value's kind (colour, time, easing, shadow). When no fitting token has the value, the side is `null` (hardcoded), never a token of another kind: an 8px radius is not `--space-2`. Tokens with no known category are a last resort. |
-| `components` | `{ …, design: { component, variant, source }, app: { … } \| null, result }`: identity from `__el.component` and `__el.variant` (`source: "data-component"`), else a catalog entry's selector, className, `testid` or `testidPrefix` (`source: "catalog"`); a bare `data-testid` gives no identity. `FAIL` when the app renders another component or variant, or one with no identity. An element missing or hidden on one side is a `structure` row only, never a component row. |
-| `motion` | Motion-ledger rows (ledgers.md): `{ state, selector, figmaNodeId, trigger, property, expected, observed, result, findingIds: [], _compare }`. Expected is the design's, observed the app's; `observed: null` and `FAIL` is missing motion, `expected.type: "none"` and `FAIL` is extra motion. `_compare: { elementClass, index, key, reasons, expectedText, observedText }` is a helper: keys starting with `_` are ignored by the report validator, so a row can be pasted into `ledgers.motion` as is. Elements that were not grabbed show as `elementClass` `(action target)` or `(running)`; Figma rows as `(figma)`. A motion checked under an interaction (hover, focus, press, click) is listed in that state only; repeats of the same element and property in other states keep the first state's row. |
-| `structure` | `{ state, source: "computed" \| "dom", elementClass, index, selector, text \| role + name, design, app, result: "FAIL" \| "CANNOT_VERIFY", note }`. `design` and `app` are `present`, `missing`, `hidden` or `not sampled`: missing or hidden in the app (`note` "missing in app" or "hidden in app") is a missing element; only in the app (`note` "extra in app …") is extra: remove it or match the design. `CANNOT_VERIFY` ("not sampled in the app: …") means the other side's selector matched more elements than its grab limit sampled: raise `limit` in `grab.json` rather than reporting it. Role and name rows (`source: "dom"`) cover headings, buttons, links, inputs and similar from `dom/`. |
-| `figmaMotion` | Motion rows for the Figma reactions. An instant reaction (no transition) is skipped. A trigger no captured app state performs (no state with that driver action) is `CANNOT_VERIFY`: add a state with that action. A spring easing adds the reason "compared as an approximate cubic-bezier". |
-
-A `FAIL` in `style`, `tokens`, `components` or `structure` that repeats an earlier state's row (same element, property and values: a padding drift seen in `with-data` shows again in `hover`) is dropped, so one difference is one row; `summary.repeatsDropped` counts them. State-specific differences keep their rows.
-
-`compare.mjs` never writes `report.json`. The agent turns every `FAIL` row into a finding (ledgers.md) with `expected.source: "prototype"` (`"figma"` for `figmaMotion` rows). Re-run it after every fix iteration.
-
-## Checking the run
-
-After every run, read `capture.json`: `dpr` is 1, every requested state is there with its driver, nothing was skipped or failed without a reason you have recorded. A failed or skipped state is re-run or recorded as ℹ️ CANNOT_VERIFY with the reason. It never disappears.
-
-### states.json
-
-With `--config`, the surface's configured states are captured and no file is needed. Write a `states.json` when Phase 3 worked out drivers that config does not have yet: one entry per state with a runtime driver. `--states` replaces the configured states for that run, so include every state you want captured, and offer to add the new drivers to config. Template: templates/states.template.json. Driver keys are documented in state-matrix.md.
-
-### grab.json
-
-```json
-{ "<elementClass>": { "selector": "<css selector>", "props": ["font-size", "color"], "limit": 3 } }
-```
-
-One entry per distinct element class in the design (page title, section title, row, cell text, primary button, badge, card). `limit` is how many matching elements to sample. Template: templates/grab.template.json. Sampling rules and the property lists are in ledgers.md.
-
-## Target URL kinds
-
-Set `meta.app.kind` from the resolved URL.
-
-| Kind | Example | Notes |
+| What happened | Result | Do |
 |---|---|---|
-| `local` | `http://localhost:3000` | Start with `app.start` when down; poll `readyUrl`. |
-| `preview` | a per-branch deployment such as `https://<branch>-<project>.vercel.app` or `https://deploy-preview-42--<site>.netlify.app` | Usually behind deployment protection. Confirm before use when it came from a ticket. |
-| `staging` | `https://staging.example.com` | Shared data. Read-only drivers only. |
-| `prod` | `https://app.example.com` | Read-only. Never drive clicks that create, change or delete data; states that need them are ℹ️ CANNOT_VERIFY. |
+| With-data, or every state, is a sign-in page | Exit 6; nothing saved under that name | Get a session (`Next:`), capture again. A session already in use has expired: save a fresh one. |
+| A later state is a sign-in page | That state fails (`failure.kind: "sign-in"`), the run goes on, exit 1 | Fix its driver, or set `allowSignIn` when the design shows a sign-in page. |
+| A state ends on another host | Fails, even under run-wide `--allow-navigation` (same host only) | Set the state's own `"allowNavigation": true` when it is meant to leave the app: it is kept, with a warning. |
 
-`scripts/lib/target-url.mjs` classifies a URL: `localhost`, `127.x`, `0.0.0.0`, `::1` and `*.localhost` are local; `*.vercel.app`, `*.netlify.app`, `*.pages.dev` and hosts containing `preview` are preview; hosts containing `staging` or `stg` are staging; anything else is prod. Correct it when you know better, and say so.
+## Hiding what the design leaves out
 
-Confirmation rule: a URL the user did not give you (found in a ticket or a PR) is confirmed with the user before capture. In ci mode it is used only when `ticket.trustPreviewUrl` is true, or when the CI workflow passes it in explicitly.
+A promo banner, chat launcher or cookie notice the design does not show makes every capture differ. Hide it through setup: `node scripts/setup.mjs check --json --ask hide`, ask the person, then `setup.mjs apply --answers <file>` (references/onboarding.md). It is saved as `app.preCapture`; re-run `pass.mjs evidence --force`. Hide only chrome the design leaves out, never a real difference: a hidden element is not compared.
 
-Record which commit the target runs. For previews, compare it with the PR head. A stale preview produces findings that are already fixed; note the mismatch in `meta.degradations`.
+| Key | Effect |
+|---|---|
+| `localStorage`, `sessionStorage` | Set before the app's scripts run (a dismissed-banner flag). A state's own `storage` driver wins. |
+| `hide` | Invisible, its space kept. |
+| `remove` | Out of the layout and the DOM: neither the screenshot nor the page reads carry it. |
+| `click` | Clicked once, when visible, before the state's action (a close button). |
+
+A `hide`, `remove` or `click` entry is a selector, or `{ "selector": "#promo", "states": ["empty"] }` for some states only. `surfaces.<name>.preCapture` is merged over `app.preCapture`. What matched is recorded per state in `capture.json` (`preCapture.matched`, with count and area): check it hid what you meant. It never applies to the prototype side; there pass `--pre-capture '<json>'`.
 
 ## Auth
 
-Never type credentials into a page yourself, never put them in config or reports, and never echo them into logs. Credentials come from environment variables named with the prefix from `app.auth.envPrefix` (default `DESIGN_QA_APP`).
+Never type credentials into a page, put them in the config or reports, or echo them. They come from environment variables with the `app.auth.envPrefix` prefix (`<P>`, default `DESIGN_QA_APP`).
 
-| Config `app.auth.type` | CLI `--auth` | Environment | Behaviour |
-|---|---|---|---|
-| `none` | `none` | — | No sign-in. |
-| `basic` | `basic` | `<P>_USER`, `<P>_PASS` | HTTP basic credentials, answered only to a 401 challenge from the captured URL's origin (the app, or the prototype with `--side design`); a third-party frame or image asking for them gets nothing. Also covers password-protected previews that use basic auth. |
-| `cookie` | `cookie` | `<P>_COOKIE` = `name=value; name2=value2` | Cookies set on the target's domain before navigation. |
-| `storageState` | `storage-state` | `<P>_STORAGE_STATE` = path to a Playwright storage-state JSON | Loads a signed-in browser state. |
-| `login` | `login` | `<P>_USER`, `<P>_PASS` | The script fills the form described by `app.auth.login` (`url`, `userSelector`, `passSelector`, `submitSelector`, optional `successSelector`), passed as `--login-config '<json>'` or read from config with `--config`. |
+| `app.auth.type` | Environment | Behaviour |
+|---|---|---|
+| `storageState` (CLI `--auth storage-state`) | `<P>_STORAGE_STATE`, else `app.auth.storageState` | A saved signed-in session. Create it with `setup.mjs save-session`. A missing file: exit 2, "sign in again". |
+| `basic` | `<P>_USER`, `<P>_PASS` | HTTP basic auth, answered only to the app's origin. Covers basic-auth previews (Netlify password protection). |
+| `cookie` | `<P>_COOKIE` (`name=value; name2=value2`) | Cookies set on the target's domain. |
+| `login` | `<P>_USER`, `<P>_PASS` | Fills the form in `app.auth.login` (`url`, `userSelector`, `passSelector`, `submitSelector`, `successSelector`). |
 
-Creating a storage-state file: a person signs in once with `npx playwright codegen --save-storage=auth.json <url>` and keeps the file out of version control. Apps with a passwordless dev sign-in route work the same way: visit the route once, save the state, use `storageState`.
+An app with a passwordless dev sign-in route: visit it once in `save-session` and use `storageState`.
 
-Deployment protection:
+**Bypass headers and redirects.** Deployment protection takes a header from an environment variable: in config `"headers": { "x-vercel-protection-bypass": "${VERCEL_BYPASS}" }`, or `--header 'x-vercel-protection-bypass=${VERCEL_BYPASS}'`, single-quoted so the secret never appears in the command. Headers go only to the app's origin, redirect hops included. They do not reach a redirect answering a `POST`, `EventSource` or WebSockets: where a header guards the whole site, also send one that sets a cookie (Vercel: `"x-vercel-set-bypass-cookie": "true"`). The app's TLS certificate is then checked by Node: a private CA needs `NODE_EXTRA_CA_CERTS`.
 
-- Vercel: send `x-vercel-protection-bypass` with the project's automation bypass secret (Vercel exposes it as `VERCEL_AUTOMATION_BYPASS_SECRET`). In config: `"headers": { "x-vercel-protection-bypass": "${VERCEL_BYPASS}" }`. With `--config`, capture reads `app.headers` and expands the placeholder itself. Without it, pass `--header 'x-vercel-protection-bypass=${VERCEL_BYPASS}'`, single-quoted, so the secret never appears in the command line. Headers are sent only to the app's origin, redirect hops included, so the secret never reaches third-party hosts the page loads from or redirects to. Add `"x-vercel-set-bypass-cookie": "true"` so the bypass is also kept as a cookie: it then covers what the header cannot reach (a redirect after a form `POST`, `EventSource`, WebSockets; see "Headers and redirects").
-- Netlify password protection is basic auth: use `basic`.
-- Other hosts: pass their bypass header or cookie the same way, always through an environment variable.
+**Secrets.** `${VAR}` in the URL, headers, login config and drivers is expanded in memory; a missing variable is an error. Evidence keeps the placeholders, and output shows `${VAR}` or `***` instead of values: put tokens in variables, never in drivers. A secret-looking query value in the app address is redacted everywhere; the full address is kept only in `<dir>/.design-qa-pass-private.json`. Prefer a header or cookie.
 
-`${VAR}` placeholders in the URL, header values, login config and state drivers are expanded from the environment by `capture.mjs`; a missing variable is an error, not an empty string. The values never reach the evidence (see "Secrets" above): put tokens in variables, never in the drivers themselves.
+## Targets
 
-## Stable captures
+- `staging` (shared data) and `prod`: read-only drivers only. Never drive clicks that create, change or delete data; those states are `CANNOT_VERIFY`.
+- A URL the person did not give you (from a ticket or a pull request) is confirmed with them first (references/ticket-ingest.md).
+- Record the deployed commit (`pass.target.deployedCommit`). A stale preview gives findings already fixed: add a degradation.
 
-- Wait for a real element (`--wait` or the state's `wait`), not for time.
-- Web fonts must be loaded before capture. A fallback font changes every text metric; if the computed `font-family` is right but the glyphs are not, check `document.fonts.check('600 16px <family>')`.
-- Animations: screenshots are taken after they settle (`settleMs` on action drivers) and with animations disabled. Motion is read separately, right after the action, into `motion/<state>.json`. Loading states are held open by a mock with a `delayMs` (capture holds the request until the state is captured), not caught mid-flight.
-- Carets, blinking cursors, live clocks, relative dates ("3 minutes ago") and random avatars are data. Mask them for the diff.
+## Stable captures and fixtures
 
-## Fixture richness
+- Wait for an element that proves the data rendered (a state's `wait`), not for time. Hold loading states with a mock `delayMs`.
+- Web fonts must load first: a fallback font changes every text metric. Check with `document.fonts.check('600 16px <family>')`.
+- Carets, clocks, relative dates and random avatars are data: mask them for the diff.
+- Thin fixtures turn real findings into false `DATA`. Use one that fills every optional field, has long and short strings, enough rows to show the list pattern, and numbers of the design's magnitude. None exists: ask to create one, or mark the regions `CANNOT_VERIFY`. Never call a region `DATA` because the fixture could not show it.
 
-Thin fixtures turn real findings into false `DATA`. Pick the fixture that exercises every designed region:
+## When capture.mjs cannot run
 
-- every optional field filled, so every conditional section renders,
-- long and short strings, to see truncation and wrapping,
-- enough rows to show the list pattern (pagination, dividers, zebra striping),
-- numbers of the same magnitude as the design.
+Step down one rung at a time: `capture.mjs` → Playwright MCP → the built-in browser. Each step down is a `pass.degradations` entry and sets `pass.tools.capture` (`playwright-mcp`, `builtin`) in `findings.json`; the rest of the pass is then run by hand (references/manual-pass.md). For a coded prototype write to the design-side names (`design/`, `design-computed/`, `design-dom/`, `design-motion/`) and set `pass.tools.prototypeCapture`.
 
-If no such fixture exists, ask to create one (interactive modes) or mark the affected regions ℹ️ CANNOT_VERIFY with the reason. Never classify a region as `DATA` because the fixture could not show it.
+### Playwright MCP
 
-## Long pages
+1. `browser_resize` to the frame width and the layout height: the frame height, or 1440 (1000 below 768 px wide) when the frame is taller.
+2. `browser_navigate` to the URL. Sign in only through a storage state or cookie the server was started with.
+3. `browser_wait_for` text that appears only when the page is ready.
+4. `browser_evaluate` `() => window.devicePixelRatio`. Not 1 and not configurable: skip the pixel diff and record the degradation.
+5. The whole page: (a) scroll through it: `async () => { const r = document.scrollingElement; for (let y = 0, i = 0; y < r.scrollHeight - innerHeight && i < 60; i++) { y += innerHeight; scrollTo(0, y); await new Promise((f) => setTimeout(f, 100)); } scrollTo(0, 0); }`. (b) Measure the scroll panels with the snippet below. (c) For each `main` panel with `hiddenY` over 8: scroll it through (`el.scrollTop`), `browser_resize` to the current height plus its `hiddenY`, and measure again; stop when none hides content, after 6 rounds, or at 16,000 px. (d) `browser_take_screenshot` with `fullPage: true`, copy it to `<dir>/evidence/app/<state>.png` and check its size with `file`.
 
-When the app page is longer than the design frame, keep the diffed capture at the frame size and add a second run with `--full-page` into its own folder (for example `--out <dir>/evidence/full`), or set `surfaces.<name>.fullPage: true`. Compare the sections below the fold through the ledgers. A full-page PNG only takes part in the pixel diff when its height equals the frame's; otherwise `diff.mjs` exits 2, by design.
+   ```js
+   () => { const out = []; const L = { w: innerWidth, h: innerHeight }; for (const el of document.querySelectorAll('body, body *')) { if (el === document.scrollingElement || /^(TEXTAREA|SELECT|INPUT|IFRAME)$/.test(el.tagName)) continue; const cs = getComputedStyle(el); const s = (v) => /^(auto|scroll|overlay)$/.test(v); const r = el.getBoundingClientRect(); if (r.width < 32 || r.height < 32) continue; const large = r.width >= 0.4 * L.w && r.height >= 0.4 * L.h; const hy = s(cs.overflowY) || (large && /^(hidden|clip)$/.test(cs.overflowY)) ? el.scrollHeight - el.clientHeight : 0; const hx = s(cs.overflowX) ? el.scrollWidth - el.clientWidth : 0; if (hy <= 8 && hx <= 8) continue; out.push({ selector: el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + [...el.classList].slice(0, 3).map((c) => '.' + c).join(''), hiddenY: Math.max(0, hy), hiddenX: Math.max(0, hx), rect: { x: Math.floor(r.left + scrollX), y: Math.floor(r.top + scrollY), w: Math.round(r.width), h: Math.round(r.height) }, main: hy > 8 && large }); } const d = document.scrollingElement; return { page: { width: d.scrollWidth, height: d.scrollHeight }, containers: out }; }
+   ```
 
-## Pixel diff: scripts/diff.mjs
+   Every container still hiding over 8 px is clipped: record a `capture-coverage:<state>` degradation naming it.
+6. `browser_snapshot`, saved to `<dir>/evidence/dom/<state>.json` (as `{ "snapshot": "<text>" }` if it is not JSON).
+7. The grab snippet (references/ledgers.md, "Grab snippet"), saved to `<dir>/evidence/computed/<state>.json`. For motion, right after the interaction: `document.getAnimations().map((a) => { const t = a.effect.getTiming(); return { type: a.constructor.name, transitionProperty: a.transitionProperty ?? null, animationName: a.animationName ?? null, durationMs: t.duration, delayMs: t.delay, easing: t.easing, iterations: t.iterations === Infinity ? 'infinite' : t.iterations }; })`, saved as `{ "state", "animations": [...] }` to `<dir>/evidence/motion/<state>.json`.
+8. Interaction states: `browser_hover`, `browser_press_key` `Tab`, `browser_click`. Unroll (step 5 a–c) before the interaction, then repeat 5d–7.
 
-```text
-node scripts/diff.mjs <figma.png> <app.png> [--out diff.png] [--state <name>] [--threshold 0.1] [--mask regions.json] [--pass 1] [--review 5]
-  [--structural-threshold 0.015] [--structural-min-area 0.5] [--json]
-node scripts/diff.mjs --pairs pairs.json [--out-dir <dir>/evidence/diff] [same options]
-```
+Network-mock states (empty, loading, error) usually cannot be driven here: use `capture.mjs` for them, reach them another way (references/state-matrix.md), or record them `CANNOT_VERIFY` naming the hook.
 
-- The first image is the design (the Figma export `figma/<state>.png`, or the prototype capture `design/<state>.png`), the second the app capture. Both must have identical pixel dimensions.
-- `--threshold` is pixelmatch's per-pixel color sensitivity (0–1, default 0.1). It is not the band. Lowering it is not the way to catch faint differences: at 0.05 sub-pixel text rendering alone moves the mock's cart from 0.39% to 1.2% (review) and the sample's with-data and focus states past 5% (fail). The structural check below covers them instead.
-- Structural check: pixelmatch at 0.1 treats near-white greys as equal, so a whole light panel missing on a white page (a `#f6f7f9` page showing where a white card with a `#f9fafb` panel should be) scores well under 1%. `diff.mjs` therefore compares a second time at `--structural-threshold` (default 0.015: a grey shift of 4 levels or more; ±3 levels of export rounding stay equal), tiles the image into 8×8 cells, keeps the cells where at least 75% of the pixels differ, joins neighbouring cells and keeps the regions whose faint pixels (different at the structural threshold, equal at `--threshold`) cover at least `--structural-min-area` percent of the image (default 0.5; 100 turns the check off). Anti-aliasing is ignored as in the main pass, and text, icons and scattered noise never fill a cell. A region raises a `pass` band to `review`, never to `fail`: it means "a large area changed faintly, look at it" (a missing or resized panel, a background tint). Its pixels are painted magenta in the diff image, and `structuralRegions` gives each region's box for the finding's `crop`.
-- `--pass` and `--review` are the band limits in percent; take them from `tolerances.pixelDiff`.
-- `pairs.json`: `{ "<state>": { "a": "figma/<state>.png", "b": "app/<state>.png", "mask": "masks/<state>.json" } }` (`"a": "design/<state>.png"` for a coded prototype) or an array of `{ "state", "a", "b", "mask" }`. Relative paths resolve against the pairs file's folder.
-- `regions.json` (a mask): `[ { "x": 40, "y": 180, "w": 1360, "h": 640, "label": "table rows (fixture data)" } ]`. The rectangles are painted the same neutral grey on both images before comparing.
-- Output is JSON on stdout: `{ width, height, diffPixels, totalPixels, percent, band, pixelBand, structuralPercent, structuralBand, structuralRegions, maskedPercent, out }`. `pixelBand` is the band of `percent` alone, `structuralBand` is `review` when a structural region was found, and `band` is the worse of the two. `structuralRegions`: `[ { x, y, w, h, pixels, percent } ]`, largest first, at most 10. Batch mode returns `{ results: { "<state>": … }, worst: { state, percent, band, structuralPercent } }`, the worst being the most serious band, then the highest percent.
-- Exit codes: 0 pass (review also exits 0, with a warning), 1 fail, 2 dimension mismatch or bad arguments, 3 unreadable PNG. In batch mode the most serious outcome wins.
+### Built-in browser
 
-Put each state's `percent`, `band` and diff image path into `scorecard.pixelDiff.<state>` and `stateMatrix[].captured.diff`. A `review` band that comes from the structural check (`pixelBand` `pass`) needs an explanation like any other: find the region (`structuralRegions[0]`) in the `structure` rows of `compare.json` or the ledgers, and give the finding that region as its `crop`.
-
-Mask only data: rows, values, avatars, timestamps. Every rectangle's `label` names the data it hides, and the masks live in the evidence folder next to the diff. Masking a region to hide a real difference is falsifying evidence.
-
-Policy: in fix and ci modes the diff runs for every state that has both PNGs. In audit mode it is recommended but optional. A diff that cannot run (no design PNG, DPR not 1, component-level state) is recorded in `meta.degradations`; the style ledger remains the source of truth.
-
-## Fallback: Playwright MCP
-
-Use when `capture.mjs` cannot run (no Node 20 or later, no browser binary) but the Playwright MCP server is connected. Set `meta.tools.capture: "playwright-mcp"`.
-
-1. `browser_resize` with `width` = frame W and `height` = frame H.
-2. `browser_navigate` to the URL. Sign in only through a storage state or cookie the server was started with; never type credentials.
-3. `browser_wait_for` on text that only appears when the page is ready. No fixed sleeps.
-4. `browser_evaluate` with `() => ({ dpr: window.devicePixelRatio, w: innerWidth, h: innerHeight })`. The tool has no scale option: if `dpr` is not 1, configure the server's browser context with a device scale factor of 1 where your version supports it; otherwise skip the pixel diff and record the degradation.
-5. `browser_take_screenshot`, then copy the file to `<dir>/evidence/app/<state>.png` and check its size with `file`.
-6. `browser_snapshot` for the structure ledger. Save it to `<dir>/evidence/dom/<state>.json` (as `{ "snapshot": "<text>" }` if it is not JSON).
-7. `browser_evaluate` with the grab snippet from ledgers.md. Save the result to `<dir>/evidence/computed/<state>.json`. For motion, evaluate `document.getAnimations().map((a) => { const t = a.effect.getTiming(); return { type: a.constructor.name, transitionProperty: a.transitionProperty ?? null, animationName: a.animationName ?? null, durationMs: t.duration, delayMs: t.delay, easing: t.easing, iterations: t.iterations === Infinity ? 'infinite' : t.iterations }; })` right after the interaction and save it as `{ "state", "animations": [...] }` to `<dir>/evidence/motion/<state>.json` (the `animations` shape of the real file, so `compare.mjs` can read it; `elements`, `actionTarget` and `keyframes` stay empty).
-8. Interaction states: `browser_hover` for hover, `browser_press_key` with `Tab` for focus, `browser_click` for selected or expanded. Re-run steps 5–7 in each.
-
-Network-mock states (empty, loading, error) usually cannot be driven through the MCP tools. Use `capture.mjs` for those, reach them another way (state-matrix.md), or record ℹ️ CANNOT_VERIFY naming the hook.
-
-## Fallback: built-in browser
-
-Use when neither of the above is available, for example in a desktop session with only the built-in browser pane. Set `meta.tools.capture: "builtin"`.
-
-1. `resize_window` with the frame's width and height.
-2. `navigate` to the URL.
-3. `javascript_tool` to confirm `innerWidth` and `innerHeight` equal the frame. The pane may scale the page down for display; the layout viewport is what matters.
-4. `read_page` for the structure ledger; save it as the DOM evidence.
-5. `javascript_tool` with the grab snippet from ledgers.md; save the result as computed evidence.
-6. `computer` with `screenshot` for the visual record.
-
-The same fallbacks capture a coded prototype: write to the design-side names (`design/`, `design-computed/`, `design-dom/`, `design-motion/`) and set `meta.tools.prototypeCapture`.
-
-Screenshots from a browser pane are generally not at DPR 1 and may be scaled to fit the pane. Skip the pixel diff for every state, record the degradation, and rely on the computed-style ledger as the source of truth.
+1. `resize_window` to the frame size; `navigate`; confirm `innerWidth` and `innerHeight` with `javascript_tool` (the pane may scale the display, not the layout).
+2. `read_page` for the DOM evidence; the grab snippet through `javascript_tool` for the computed evidence.
+3. `computer` `screenshot` shows one screen only, usually not at device scale 1: skip the pixel diff for every state, run the measuring snippet, and record a degradation that everything below the first screen is checked through the computed and DOM evidence only.

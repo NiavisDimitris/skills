@@ -5,28 +5,42 @@
 // debt item of a triaged report (--tickets-from) and record it in report.json.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { CliError, displayPath, formatIssues, oneLine, parseCli, readJsonFile, runMain, usageError, writeJson } from './lib/args.mjs';
+import { CliError, displayPath, formatIssues, oneLine, parseCli, readJsonFile, runMain, scriptCommand, usageError, writeJson } from './lib/args.mjs';
 import { textToAdf } from './lib/adf.mjs';
 import { DASH, parseDebtItems, sourceLocation } from './lib/fixplan.mjs';
 import { apiBaseUrl, describeUrl, fetchWithRetry, readJsonResponse, retryMessage } from './lib/http.mjs';
 import { computeScorecard, resolveOptions, triageIndex } from './lib/ranking.mjs';
 import { shellArg } from './lib/review-context.mjs';
 import { validateConfig, validateReport } from './lib/schema-check.mjs';
+import { assertRunOwnsDir, callerRunId } from './lib/run-lock.mjs';
 import { normalizeTicketKey } from './lib/target-url.mjs';
-import { buildJiraTicket } from './lib/ticket-extract.mjs';
+import { buildJiraTicket, issueBaseUrl, issueFromSaved, remoteLinksFromSaved } from './lib/ticket-extract.mjs';
 import { DEBT_OWNER, triageLists } from './lib/triage.mjs';
 
 const HELP = `Fetch a Jira issue for design QA, or write results back to it.
 
 Usage:
+  node scripts/jira-fetch.mjs --from-issue <saved-issue.json> [--remote-links <file>] [--site <url>]
+      [--issue <KEY>] --out <dir>
   node scripts/jira-fetch.mjs --issue <KEY> --out <dir>
   node scripts/jira-fetch.mjs --issue <KEY> --comment <file> [--write]
   node scripts/jira-fetch.mjs --issue <KEY> --subtasks <report-fixplan.md> [--write] [--issuetype Sub-task]
   node scripts/jira-fetch.mjs --tickets-from <report.json> [--parent KEY] [--project KEY]
-      [--issuetype Sub-task|Task] [--labels design-qa,design-debt] [--config <file>] [--write]
+      [--issuetype Sub-task|Task] [--labels design-qa,design-debt] [--config <file>] [--write] [--run <id>]
+
+In an interactive session read the issue with the Atlassian MCP (getJiraIssue, or your
+host's equivalent), save the result as returned and convert it with --from-issue: no
+credentials, the same ticket.json as the REST path. --issue <KEY> --out is for CI and
+hosts without that MCP (it needs JIRA_* credentials).
 
 Options:
-  --issue <KEY>        issue key, e.g. ABC-123 (required)
+  --from-issue <file>  a saved getJiraIssue result (the issue JSON, the tool-result
+                       envelope or a JSON string); writes <out>/ticket.json, no network
+  --remote-links <f>   a saved getJiraIssueRemoteIssueLinks result (Figma links often live
+                       there); with --from-issue
+  --site <url>         the Jira site (https://your-site.atlassian.net) for ticket.url when
+                       the saved issue has no "self" link; with --from-issue
+  --issue <KEY>        issue key, e.g. ABC-123 (with --from-issue: checked against the file)
   --out <dir>          write <dir>/ticket.json (required unless --comment/--subtasks)
   --comment <file>     post the file's text as a comment (one paragraph per line)
   --subtasks <file>    create one sub-task per "## Debt" bullet of a fix plan
@@ -46,6 +60,8 @@ Options:
                        labels } defaults and pixel-diff tolerances for the scorecard
   --write              actually post / create. Without it, --comment, --subtasks and
                        --tickets-from only print what would be sent (dry run)
+  --run <id>           your run id (or DESIGN_QA_RUN_ID): --tickets-from --write into a
+                       report folder whose run is not finished needs it
   --quiet              only print errors
   -h, --help           show this help
 
@@ -90,7 +106,13 @@ function credentials() {
   const email = process.env.JIRA_EMAIL;
   const token = process.env.JIRA_API_TOKEN;
   const missing = [['JIRA_BASE_URL', base], ['JIRA_EMAIL', email], ['JIRA_API_TOKEN', token]].filter(([, v]) => !v).map(([k]) => k);
-  if (missing.length) throw new CliError(`missing environment variable(s): ${missing.join(', ')} (see --help)`, 6);
+  if (missing.length) {
+    // One line, so an agent does not burn calls: the MCP path needs no credentials.
+    throw new CliError(
+      `no Jira credentials (${missing.join(', ')} not set): read the issue with the Atlassian MCP (getJiraIssue) and run --from-issue <saved.json> --out <dir>, or ask the user to paste the ticket; --issue is for CI`,
+      6,
+    );
+  }
   return { base: apiBaseUrl(base, 'JIRA_BASE_URL'), auth: `Basic ${Buffer.from(`${email}:${token}`).toString('base64')}` };
 }
 
@@ -114,6 +136,51 @@ function makeApi({ base, auth }) {
     }
     return res;
   };
+}
+
+/** Write <out>/ticket.json and print its summary. */
+function writeTicket(ticket, out, log) {
+  const file = path.join(path.resolve(out), 'ticket.json');
+  writeJson(file, ticket);
+  // Ticket text is written by anyone who can edit the issue: every value folded to one line.
+  log(`${oneLine(ticket.key)}: ${oneLine(ticket.title ?? '(no title)')} [${oneLine(ticket.status ?? 'no status')}]`);
+  log(`  ${ticket.acceptanceCriteria.length} acceptance criteria · states: ${[...new Set(ticket.expectedBehaviors.map((b) => oneLine(b.state)).filter(Boolean))].join(', ') || 'none'}`);
+  log(`  Figma: ${ticket.figmaUrls.length} · prototype: ${ticket.prototypeUrls.length} · preview: ${ticket.previewUrls.length} · PRs: ${ticket.prUrls.length} · branches: ${ticket.branches.map(oneLine).join(', ') || 'none'}`);
+  log(`Wrote ${oneLine(displayPath(file))}`);
+}
+
+/** --from-issue: ticket.json from a saved Atlassian MCP getJiraIssue result (no network, no credentials). */
+function fromSavedIssue(values, log) {
+  for (const flag of ['comment', 'subtasks', 'tickets-from', 'write', 'parent', 'project', 'labels', 'config', 'issuetype', 'run']) {
+    if (values[flag]) throw usageError(`--from-issue only writes ticket.json (no --${flag})`);
+  }
+  if (!values.out) throw usageError('--from-issue needs --out <dir>');
+  const readText = (file, label) => {
+    try {
+      return readFileSync(file, 'utf8');
+    } catch (err) {
+      throw usageError(`cannot read ${label} ${oneLine(file)}: ${err.code === 'ENOENT' ? 'file not found' : oneLine(err.message)}`);
+    }
+  };
+  let issue;
+  let remoteLinks = [];
+  try {
+    issue = issueFromSaved(readText(values['from-issue'], '--from-issue'));
+    if (values['remote-links']) remoteLinks = remoteLinksFromSaved(readText(values['remote-links'], '--remote-links'));
+  } catch (err) {
+    if (err instanceof CliError) throw err;
+    throw usageError(`${oneLine(err.message)}`);
+  }
+  const key = normalizeTicketKey(issue.key);
+  if (!key) throw usageError(`--from-issue ${oneLine(values['from-issue'])}: the issue has no key like ABC-123`);
+  if (values.issue && normalizeTicketKey(values.issue) !== key) {
+    throw usageError(`--issue ${oneLine(values.issue)} does not match the saved issue ${key}`);
+  }
+  const site = values.site ? apiBaseUrl(values.site, '--site') : issueBaseUrl(issue);
+  const ticket = buildJiraTicket(issue, { baseUrl: site ?? '', remoteLinks });
+  writeTicket(ticket, values.out, log);
+  if (!ticket.url) log('  no Jira site in the saved issue: pass --site https://<your-site>.atlassian.net for ticket.url');
+  return 0;
 }
 
 async function errorText(res) {
@@ -146,11 +213,15 @@ async function main(argv) {
     subtasks: { type: 'string' },
     issuetype: { type: 'string' },
     'tickets-from': { type: 'string' },
+    'from-issue': { type: 'string' },
+    'remote-links': { type: 'string' },
+    site: { type: 'string' },
     parent: { type: 'string' },
     project: { type: 'string' },
     labels: { type: 'string' },
     config: { type: 'string' },
     write: { type: 'boolean' },
+    run: { type: 'string' },
     quiet: { type: 'boolean' },
   });
   if (values.help) {
@@ -158,13 +229,15 @@ async function main(argv) {
     return 0;
   }
   const log = values.quiet ? () => {} : (msg) => console.log(msg);
+  if (values['from-issue']) return fromSavedIssue(values, log);
+  if (values['remote-links'] || values.site) throw usageError('--remote-links and --site are only used with --from-issue');
   if (values['tickets-from']) {
     if (values.issue || values.out || values.comment || values.subtasks) {
       throw usageError('--tickets-from runs on its own (no --issue, --out, --comment or --subtasks)');
     }
     return ticketsFromReport(values, log);
   }
-  for (const flag of ['parent', 'project', 'labels', 'config']) {
+  for (const flag of ['parent', 'project', 'labels', 'config', 'run']) {
     if (values[flag]) throw usageError(`--${flag} is only used with --tickets-from`);
   }
   if (!values.issue) throw usageError('--issue <KEY> is required (see --help)');
@@ -198,13 +271,7 @@ async function main(argv) {
     const rl = await api('GET', `/rest/api/3/issue/${encodeURIComponent(key)}/remotelink`, null, `remote links of ${key}`);
     if (rl.ok) remoteLinks = await readJsonResponse(rl, 'remote links').catch(() => []);
     const ticket = buildJiraTicket(issue, { baseUrl: creds.base, remoteLinks: Array.isArray(remoteLinks) ? remoteLinks : [] });
-    const file = path.join(path.resolve(values.out), 'ticket.json');
-    writeJson(file, ticket);
-    // Ticket text is written by anyone who can edit the issue: every value folded to one line.
-    log(`${oneLine(ticket.key)}: ${oneLine(ticket.title ?? '(no title)')} [${oneLine(ticket.status ?? 'no status')}]`);
-    log(`  ${ticket.acceptanceCriteria.length} acceptance criteria · states: ${[...new Set(ticket.expectedBehaviors.map((b) => oneLine(b.state)).filter(Boolean))].join(', ') || 'none'}`);
-    log(`  Figma: ${ticket.figmaUrls.length} · prototype: ${ticket.prototypeUrls.length} · preview: ${ticket.previewUrls.length} · PRs: ${ticket.prUrls.length} · branches: ${ticket.branches.map(oneLine).join(', ') || 'none'}`);
-    log(`Wrote ${oneLine(displayPath(file))}`);
+    writeTicket(ticket, values.out, log);
   }
 
   if (commentText !== null) {
@@ -297,6 +364,9 @@ export function debtIssueFields(finding, item, report, { project, parent = null,
 
 async function ticketsFromReport(values, log) {
   const reportFile = path.resolve(values['tickets-from']);
+  // Before any ticket is created: --write records them in report.json, so the folder must be this run's.
+  const runId = callerRunId(values.run);
+  if (values.write || runId) assertRunOwnsDir(path.dirname(reportFile), { runId });
   const report = readJsonFile(reportFile, 'report', 2);
   let config = {};
   if (values.config) {
@@ -378,7 +448,8 @@ async function ticketsFromReport(values, log) {
     );
     const after = validateReport(next, { options });
     for (const e of after.errors) warn(`${e.path}: ${e.message}`);
-    log(`Next: debt-log.mjs --report ${shellArg(reportPath)}, then re-render the report.`);
+    log(`Do: After the next command, re-render the report: ${scriptCommand('render-report.mjs')} --in ${shellArg(reportPath)} --recompute --write-back${runId ? ` --run ${runId}` : ''}`);
+    log(`Next: ${scriptCommand('debt-log.mjs')} --report ${shellArg(reportPath)}${runId ? ` --run ${runId}` : ''}`);
   }
   if (failure) throw failure;
   return 0;

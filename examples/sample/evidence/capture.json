@@ -6,7 +6,7 @@
     "height": 900
   },
   "dpr": 1,
-  "fullPage": false,
+  "fullPage": true,
   "commit": "9f3c2a1e7b4d8c06a5f2e19d3b7c4a8e0f6d2b51",
   "branch": "feat/orders-list",
   "timestamp": "2026-09-22T14:29:41Z",
@@ -26,7 +26,18 @@
         "x": 0,
         "y": 0
       },
-      "warnings": []
+      "warnings": [],
+      "fullPage": true,
+      "page": {
+        "width": 1440,
+        "height": 900
+      },
+      "size": {
+        "width": 1440,
+        "height": 900
+      },
+      "unrolled": [],
+      "clipped": []
     },
     "loading": {
       "driver": {
@@ -47,7 +58,18 @@
         "x": 0,
         "y": 0
       },
-      "warnings": []
+      "warnings": [],
+      "fullPage": true,
+      "page": {
+        "width": 1440,
+        "height": 900
+      },
+      "size": {
+        "width": 1440,
+        "height": 900
+      },
+      "unrolled": [],
+      "clipped": []
     },
     "error": {
       "driver": {
@@ -69,7 +91,18 @@
         "x": 0,
         "y": 0
       },
-      "warnings": []
+      "warnings": [],
+      "fullPage": true,
+      "page": {
+        "width": 1440,
+        "height": 900
+      },
+      "size": {
+        "width": 1440,
+        "height": 900
+      },
+      "unrolled": [],
+      "clipped": []
     },
     "hover": {
       "driver": {
@@ -87,7 +120,18 @@
         "x": 0,
         "y": 0
       },
-      "warnings": []
+      "warnings": [],
+      "fullPage": true,
+      "page": {
+        "width": 1440,
+        "height": 900
+      },
+      "size": {
+        "width": 1440,
+        "height": 900
+      },
+      "unrolled": [],
+      "clipped": []
     },
     "focus": {
       "driver": {
@@ -105,7 +149,18 @@
         "x": 0,
         "y": 0
       },
-      "warnings": []
+      "warnings": [],
+      "fullPage": true,
+      "page": {
+        "width": 1440,
+        "height": 900
+      },
+      "size": {
+        "width": 1440,
+        "height": 900
+      },
+      "unrolled": [],
+      "clipped": []
     },
     "selected": {
       "driver": {},

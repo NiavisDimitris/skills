@@ -274,7 +274,7 @@ test('buildStateMatrix: states only in the ticket or only in code are not rows',
   assert.deepEqual(buildStateMatrix({ ticket, config, surface: 'items' }), []);
   const rows = buildStateMatrix({ figmaSpec: { nodeId: '1:2', name: 'Items', states: [] }, ticket, config, surface: 'items' });
   assert.deepEqual(rows.map((r) => [r.state, r.result]), [['with-data', 'CANNOT_VERIFY']]);
-  assert.equal(deriveVerdict({ findings: [], stateMatrix: rows, openDecisions: [], scorecard: { pixelDiff: {} } }), 'REVIEW', 'pending capture only');
+  assert.equal(deriveVerdict({ findings: [], stateMatrix: rows, openDecisions: [], scorecard: { pixelDiff: {} } }), 'INCOMPLETE', 'pending capture only: nothing compared yet');
   assert.ok(!JSON.stringify(rows).includes('MISSING_IN_DESIGN'));
 });
 
@@ -305,13 +305,13 @@ test('buildStateMatrix: the main frame is the with-data design when figmaSpec.st
   };
   const rows = buildStateMatrix({ figmaSpec, ticket: { expectedBehaviors: [] }, config: null, surface: null });
   const withData = rows.find((r) => r.state === 'with-data');
-  assert.deepEqual(withData.designed, { nodeId: '1:2', name: 'Orders / With data' });
+  assert.deepEqual(withData.designed, { nodeId: '1:2', name: 'Orders / With data', frame: { width: 1440, height: 900 } });
   assert.equal(withData.result, 'CANNOT_VERIFY');
   assert.match(withData.note, /^Pending capture/);
 
   // Same without layers: nodeId/name alone identify the main frame.
   const bare = buildStateMatrix({ figmaSpec: { nodeId: '7:1', name: 'Orders', frame: { width: 1440, height: 900 }, states: [] } });
-  assert.deepEqual(bare.find((r) => r.state === 'with-data').designed, { nodeId: '7:1', name: 'Orders' });
+  assert.deepEqual(bare.find((r) => r.state === 'with-data').designed, { nodeId: '7:1', name: 'Orders', frame: { width: 1440, height: 900 } });
 
   // Listed states without with-data: the main frame still designs with-data.
   const partial = buildStateMatrix({
@@ -356,6 +356,7 @@ test('CLI: builds and writes a valid state matrix', async () => {
   assert.equal(rows[0].state, 'with-data');
   assert.equal(rows.find((r) => r.state === 'loading').result, 'CANNOT_VERIFY');
   assert.equal(rows.find((r) => r.state === 'loading').note, 'Pending capture; compare replaces this with PASS/FAIL. Not in the ticket.');
+  assert.ok(rows.every((r) => r.designed.frame.width === 800 && r.designed.frame.height === 600), 'REST path: designed.frame on every row');
   const v = await run(script('validate.mjs'), [out]);
   assert.equal(v.code, 0, v.stderr);
   assert.equal((await run(script('lib/state-discovery.mjs'), ['--out', out])).code, 2);
@@ -442,4 +443,29 @@ test('CLI --backfill-out writes backfill-candidates.json beside (or instead of) 
   const none = await run(script('lib/state-discovery.mjs'), ['--figma-spec', specFile]);
   assert.equal(none.code, 2);
   assert.match(none.stderr, /--out <state-matrix\.json> is required \(and\/or --backfill-out/);
+});
+
+test('buildStateMatrix: designed.frame is the state frame, else the screen frame, else the main frame box', () => {
+  const rows = buildStateMatrix({
+    figmaSpec: {
+      nodeId: '1:2',
+      name: 'Orders',
+      frame: { width: 1440, height: 2400 },
+      layers: [{ id: '1:2', name: 'Orders', type: 'FRAME', depth: 0, absoluteBoundingBox: { x: 0, y: 0, width: 1440, height: 2400 } }],
+      states: [
+        { state: 'with-data', nodeId: '1:2', name: 'Orders' },
+        { state: 'row-menu', nodeId: '1:9', name: 'Row menu', frame: { width: 240, height: 180.4 }, kind: 'overlay', trigger: 'click' },
+        { state: 'hover', nodeId: '1:10', name: 'Row', source: 'reaction' },
+      ],
+    },
+  });
+  const frames = Object.fromEntries(rows.map((r) => [r.state, r.designed.frame]));
+  assert.deepEqual(frames, { 'with-data': { width: 1440, height: 2400 }, hover: { width: 1440, height: 2400 }, 'row-menu': { width: 240, height: 180 } });
+  assert.deepEqual(validateStateMatrix(rows).errors, []);
+  // No frame anywhere: no frame key (the validator falls back to meta).
+  const bare = buildStateMatrix({ figmaSpec: { nodeId: '7:1', name: 'Orders', states: [] } });
+  assert.equal('frame' in bare[0].designed, false);
+  // From the layer box when the spec has no frame.
+  const boxed = buildStateMatrix({ figmaSpec: { nodeId: '7:1', name: 'Orders', layers: [{ id: '7:1', name: 'Orders', depth: 0, absoluteBoundingBox: { x: 5, y: 5, width: 390, height: 844 } }], states: [] } });
+  assert.deepEqual(boxed[0].designed.frame, { width: 390, height: 844 });
 });

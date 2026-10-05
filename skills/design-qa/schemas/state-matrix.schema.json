@@ -5,6 +5,14 @@
   "type": "array",
   "items": { "$ref": "#/definitions/stateMatrixRow" },
   "definitions": {
+    "size": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
     "stateMatrixRow": {
       "type": "object",
       "required": ["state", "label", "result", "findings"],
@@ -19,7 +27,11 @@
         "designed": {
           "type": ["object", "null"],
           "required": ["nodeId", "name"],
-          "properties": { "nodeId": { "type": "string" }, "name": { "type": "string" } }
+          "properties": {
+            "nodeId": { "type": "string" },
+            "name": { "type": "string" },
+            "frame": { "$ref": "#/definitions/size", "description": "Optional: the designed frame's full size. validate.mjs checks the compared design image is not shorter (a truncated comparison)." }
+          }
         },
         "specified": {
           "type": ["object", "null"],
@@ -41,6 +53,34 @@
             "design": { "type": ["string", "null"] },
             "app": { "type": ["string", "null"] },
             "diff": { "type": ["string", "null"] },
+            "page": {
+              "type": ["object", "null"],
+              "description": "What the app capture of this state covered, from capture.json: width and height = the page's full scroll size in CSS px (capture.json page), image = the PNG size (capture.json size), fullPage = the whole scroll size was captured, clipped = how many scroll containers still hide content in the screenshot (capture.json clipped.length). validate.mjs checks the app image is not smaller than the page.",
+              "required": ["width", "height", "fullPage", "clipped"],
+              "properties": {
+                "width": { "type": "integer", "minimum": 1 },
+                "height": { "type": "integer", "minimum": 1 },
+                "fullPage": { "type": "boolean" },
+                "clipped": { "type": "integer", "minimum": 0 },
+                "image": { "$ref": "#/definitions/size" },
+                "partial": { "type": "boolean", "description": "true: the state was captured only in part on purpose (meta.degradations has step \"capture-coverage:<state>\"). It counts as verified only in part and holds the verdict at REVIEW." },
+                "viewportOnly": { "type": "boolean", "description": "true: a deliberate first-screen capture (fullPage false: an overlay, a modal) whose image covers the state's design frame; the whole-page check accepts it." }
+              }
+            },
+            "sameAs": {
+              "type": ["string", "null"],
+              "description": "The state this one was captured identical to (capture.json sameAs: its driver changed nothing on the page). build-report.mjs requires an open state finding or a MISSING_IN_CODE override for it."
+            },
+            "comparison": {
+              "type": ["object", "null"],
+              "description": "How the state was compared with the design (build-report.mjs writes it): pixelDiff = a pixel diff ran; worklist = the page was walked region by region; compareRows = compare.json rows of the state. A PASS or FAIL row needs pixelDiff true or compareRows above 0: a worklist alone is not a comparison.",
+              "required": ["pixelDiff", "worklist", "compareRows"],
+              "properties": {
+                "pixelDiff": { "type": "boolean" },
+                "worklist": { "type": "boolean" },
+                "compareRows": { "type": "integer", "minimum": 0 }
+              }
+            },
             "figma": { "not": {}, "errorMessage": "captured.figma was renamed to captured.design in 2.0" }
           }
         },

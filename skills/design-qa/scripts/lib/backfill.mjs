@@ -19,7 +19,7 @@ import {
   isLoopClosed,
   unexplainedFindings,
 } from './ranking.mjs';
-import { isRfc3339DateTime } from './schema-check.mjs';
+import { formatPath, isRfc3339DateTime, loadSchema, validateAgainstSchema } from './schema-check.mjs';
 import { stateLabel } from './state-discovery.mjs';
 import { reportSlug } from './triage.mjs';
 
@@ -477,3 +477,95 @@ export function gateStatus(report) {
 export function backfillSlug(report) {
   return reportSlug(report);
 }
+
+// ---------------------------------------------------------------------------
+// Details: the anchor frame, the library components and variables used, the DS gaps
+
+/** The fields --details records on an item (the report schema's own definitions, keys closed). */
+export const DETAIL_FIELDS = Object.freeze(['anchor', 'components', 'tokens', 'dsGaps']);
+
+function closed(schema) {
+  const s = structuredClone(schema);
+  const close = (node) => {
+    if (!isObj(node)) return;
+    if (isObj(node.properties)) {
+      node.additionalProperties = false;
+      Object.values(node.properties).forEach(close);
+    }
+    if (isObj(node.items)) close(node.items);
+  };
+  close(s);
+  return s;
+}
+
+function detailsSchema() {
+  const report = loadSchema('report');
+  const item = report.definitions.backfillItem.properties;
+  return {
+    type: 'object',
+    required: ['items'],
+    additionalProperties: false,
+    properties: {
+      $comment: { type: 'string' },
+      items: {
+        type: 'array',
+        minItems: 1,
+        items: closed({
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', pattern: '^BF-\\d{3,}$' },
+            anchor: item.anchor,
+            components: item.components,
+            tokens: item.tokens,
+            dsGaps: item.dsGaps,
+          },
+        }),
+      },
+    },
+    definitions: report.definitions,
+  };
+}
+
+/**
+ * A --details file: { "items": [ { "id": "BF-001", "anchor": { nodeId, name },
+ * "components": [ { name, variant, selector, inLibrary } ], "tokens": [ … ], "dsGaps": [ … ] } ] }.
+ * Every item names at least one field; unknown keys and wrong types are errors (never
+ * coerced). Returns the items; throws Error listing every problem with its path.
+ */
+export function parseDetailsFile(data) {
+  const { errors } = validateAgainstSchema(data, detailsSchema());
+  const problems = errors.map((e) => `${e.path}: ${e.message}`);
+  const items = isObj(data) && Array.isArray(data.items) ? data.items : [];
+  const seen = new Map();
+  items.forEach((item, i) => {
+    if (!isObj(item)) return;
+    if (!DETAIL_FIELDS.some((k) => item[k] !== undefined)) problems.push(`${formatPath(['items', i])}: names no detail (${DETAIL_FIELDS.join(', ')})`);
+    if (typeof item.id === 'string') {
+      if (seen.has(item.id)) problems.push(`${formatPath(['items', i, 'id'])}: "${item.id}" is also items[${seen.get(item.id)}]`);
+      else seen.set(item.id, i);
+    }
+  });
+  if (problems.length) throw new Error(`the details file is not valid:\n${problems.map((p) => `  ${p}`).join('\n')}`);
+  return items;
+}
+
+/**
+ * Record details on items (any decision: they plan the frame and describe the one built).
+ * A field given replaces the item's value (null clears the anchor); fields left out are
+ * kept. Returns { report, changes: [{ id, fields }] }; throws on an unknown id.
+ */
+export function setDetails(report, items = []) {
+  if (!hasBackfill(report)) throw new Error('the report has no backfill block yet: merge candidates first (--candidates or --add)');
+  const next = cloneWithBackfill(report);
+  const changes = [];
+  for (const d of items) {
+    const item = next.backfill.items.find((i) => i.id === d.id);
+    if (!item) throw new Error(`unknown backfill id: ${d.id} (have: ${next.backfill.items.map((i) => i.id).join(', ') || 'none'})`);
+    const fields = DETAIL_FIELDS.filter((k) => d[k] !== undefined);
+    for (const k of fields) item[k] = structuredClone(d[k]);
+    changes.push({ id: d.id, fields });
+  }
+  return { report: next, changes };
+}
+

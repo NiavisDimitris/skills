@@ -1,0 +1,32 @@
+{
+  "designSystem": "Acme DS",
+  "components": {
+    "Button": {
+      "component": "AcmeButton",
+      "importPath": "@acme/ds",
+      "selector": "[data-ds-component='Button']"
+    },
+    "Text field": {
+      "component": "AcmeTextField",
+      "importPath": "@acme/ds",
+      "selector": "[data-ds-component='TextField']"
+    },
+    "Tag": {
+      "component": "AcmeTag",
+      "importPath": "@acme/ds",
+      "selector": "[data-ds-component='Tag']"
+    }
+  },
+  "rawPrimitives": [
+    {
+      "selector": "button:not([data-ds-component])",
+      "use": "Button",
+      "note": "Native button outside the design system."
+    },
+    {
+      "selector": "span[class*='legacy-tag']",
+      "use": "Tag",
+      "note": "Hand-styled status pills."
+    }
+  ]
+}

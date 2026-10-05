@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Acme</title>
+<style>
+  body { margin: 0; font: 16px/1.5 Arial, Helvetica, sans-serif; }
+  nav { display: flex; gap: 12px; padding: 12px 24px; background: #1a1a2e; }
+  nav a { color: #ffffff; }
+  main { padding: 24px; }
+  input, button { display: block; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  // A single-page app: the same URL renders a sign-in form until the API accepts the
+  // session cookie, then the signed-in app shell. No redirect happens either way.
+  const root = document.getElementById('root');
+  const page = new URLSearchParams(location.search).get('page') || 'orders';
+  fetch('/api/me')
+    .then((res) => (res.ok ? res.json() : null))
+    .then((me) => {
+      if (!me) {
+        root.innerHTML =
+          '<main><h2>Welcome back</h2><form><input name="username" placeholder="Username">' +
+          '<input name="password" type="password"><button type="button">Continue</button></form></main>';
+        return;
+      }
+      const nav = '<nav data-testid="app-nav"><a href="?page=orders">Orders</a><a href="?page=account">Account</a></nav>';
+      if (page === 'account') {
+        // A settings screen: one current-password field next to an e-mail field.
+        root.innerHTML = nav +
+          '<main><h1>Account</h1><form><label>Email <input type="email" name="email" value="qa@example.com"></label>' +
+          '<label>Current password <input type="password" name="current" autocomplete="current-password"></label>' +
+          '<button type="button">Save</button></form></main>';
+      } else if (page === 'security') {
+        // Changing the password: current + new + confirm; not a sign-in form.
+        root.innerHTML = nav +
+          '<main><h1>Security</h1><form><input type="password" autocomplete="current-password">' +
+          '<input type="password" autocomplete="new-password"><input type="password" autocomplete="new-password">' +
+          '<button type="button">Change password</button></form></main>';
+      } else {
+        root.innerHTML = nav + '<main><h1>Orders</h1><p class="row">Order 1</p><p class="row">Order 2</p></main>';
+      }
+    });
+</script>
+</body>
+</html>

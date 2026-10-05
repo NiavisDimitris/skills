@@ -1,0 +1,133 @@
+[
+  {
+    "state": "with-data",
+    "label": "With data",
+    "designed": {
+      "nodeId": "1204:3310",
+      "name": "Orders / With data"
+    },
+    "specified": {
+      "acRef": "AC-1",
+      "text": "The Orders page lists orders in a table with order ID, customer, status, total and created date, newest first."
+    },
+    "implemented": {
+      "driver": "fixture",
+      "detail": "fixtures/orders/with-data.json (12 orders)"
+    },
+    "result": "CANNOT_VERIFY",
+    "note": "pending capture",
+    "findings": []
+  },
+  {
+    "state": "empty",
+    "label": "Empty",
+    "designed": {
+      "nodeId": "1204:3388",
+      "name": "Orders / Empty"
+    },
+    "specified": {
+      "acRef": "AC-2",
+      "text": "When there are no orders, show the empty state with a 'Create order' action."
+    },
+    "implemented": null,
+    "result": "MISSING_IN_CODE",
+    "note": "Designed and specified (AC-2) but not implemented: with no orders the page renders the table header over an empty body.",
+    "findings": []
+  },
+  {
+    "state": "loading",
+    "label": "Loading",
+    "designed": {
+      "nodeId": "1204:3402",
+      "name": "Orders / Loading"
+    },
+    "specified": {
+      "acRef": "AC-4",
+      "text": "While orders load, show skeleton rows; the skeleton must appear only after 300 ms."
+    },
+    "implemented": {
+      "driver": "mock",
+      "detail": "Mock handler delays GET /api/orders by 2 s"
+    },
+    "result": "CANNOT_VERIFY",
+    "note": "pending capture",
+    "findings": []
+  },
+  {
+    "state": "error",
+    "label": "Error",
+    "designed": {
+      "nodeId": "1204:3417",
+      "name": "Orders / Error"
+    },
+    "specified": {
+      "acRef": "AC-3",
+      "text": "When the request fails, show a retry button."
+    },
+    "implemented": {
+      "driver": "mock",
+      "detail": "Mock handler returns 500 for GET /api/orders"
+    },
+    "result": "CANNOT_VERIFY",
+    "note": "pending capture",
+    "findings": []
+  },
+  {
+    "state": "hover",
+    "label": "Row hover",
+    "designed": {
+      "nodeId": "1204:3431",
+      "name": "Orders / Row / State=Hover"
+    },
+    "specified": null,
+    "implemented": {
+      "driver": "action",
+      "detail": "hover '[data-testid=orders-table] tbody tr:nth-child(2)'"
+    },
+    "result": "CANNOT_VERIFY",
+    "note": "pending capture",
+    "findings": []
+  },
+  {
+    "state": "focus",
+    "label": "Row focus",
+    "designed": {
+      "nodeId": "1204:3440",
+      "name": "Orders / Row / State=Focus"
+    },
+    "specified": null,
+    "implemented": {
+      "driver": "action",
+      "detail": "press Tab ×6 to focus the first row"
+    },
+    "result": "CANNOT_VERIFY",
+    "note": "pending capture",
+    "findings": []
+  },
+  {
+    "state": "selected",
+    "label": "Row selected",
+    "designed": {
+      "nodeId": "1204:3452",
+      "name": "Orders / Row / State=Selected"
+    },
+    "specified": null,
+    "implemented": {
+      "driver": "source",
+      "detail": "OrdersTable.tsx:88 sets aria-selected and .is-selected on the open row"
+    },
+    "result": "CANNOT_VERIFY",
+    "note": "Designed and implemented, but no driver hook: add surfaces.orders.states.selected to design-qa.config.json so capture can open a row.",
+    "findings": []
+  },
+  {
+    "state": "overflow",
+    "label": "Long content",
+    "designed": null,
+    "specified": null,
+    "implemented": null,
+    "result": "NOT_SPECIFIED",
+    "note": "Not designed, specified or driven. Suggest a long-names fixture and a truncation rule in the ticket.",
+    "findings": []
+  }
+]

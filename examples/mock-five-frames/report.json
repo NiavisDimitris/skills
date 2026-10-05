@@ -115,7 +115,6 @@
     ]
   },
   "scorecard": {
-    "parity": 41,
     "verdict": "FAIL",
     "bySeverity": {
       "BLOCKER": 4,
@@ -195,7 +194,24 @@
       "designed": 9,
       "specified": 8,
       "implemented": 8,
-      "verified": 8
+      "verified": 8,
+      "partial": 0
+    },
+    "match": 88,
+    "matchByState": {
+      "cart/with-data": 99,
+      "cart/empty": 100,
+      "shipping/with-data": 99,
+      "shipping/hover": 99,
+      "payment/with-data": 99,
+      "payment/error": 98,
+      "review/with-data": 99,
+      "review/promo-applied": 0,
+      "confirmation/with-data": 99
+    },
+    "settled": {
+      "count": 2,
+      "total": 15
     },
     "unexplained": 13,
     "debt": {
@@ -209,6 +225,7 @@
       "components": 2,
       "motion": 2
     },
+    "unpinned": 0,
     "backfill": {
       "candidates": 3,
       "toBuild": 1,
@@ -238,7 +255,17 @@
       "captured": {
         "design": "evidence/screens/cart/figma/with-data.png",
         "app": "evidence/screens/cart/app/with-data.png",
-        "diff": "evidence/screens/cart/diff/with-data.png"
+        "diff": "evidence/screens/cart/diff/with-data.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": false,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -269,7 +296,17 @@
       "captured": {
         "design": "evidence/screens/cart/figma/empty.png",
         "app": "evidence/screens/cart/app/empty.png",
-        "diff": "evidence/screens/cart/diff/empty.png"
+        "diff": "evidence/screens/cart/diff/empty.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": false,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        }
       },
       "result": "PASS",
       "note": null,
@@ -296,7 +333,17 @@
       "captured": {
         "design": "evidence/screens/shipping/figma/with-data.png",
         "app": "evidence/screens/shipping/app/with-data.png",
-        "diff": "evidence/screens/shipping/diff/with-data.png"
+        "diff": "evidence/screens/shipping/diff/with-data.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": false,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -322,7 +369,17 @@
       "captured": {
         "design": "evidence/screens/shipping/figma/hover.png",
         "app": "evidence/screens/shipping/app/hover.png",
-        "diff": "evidence/screens/shipping/diff/hover.png"
+        "diff": "evidence/screens/shipping/diff/hover.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": false,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        }
       },
       "result": "FAIL",
       "note": "Driven by hovering Continue to payment; the hover colour matches, the transition is missing (DQ-008).",
@@ -349,7 +406,17 @@
       "captured": {
         "design": "evidence/screens/payment/figma/with-data.png",
         "app": "evidence/screens/payment/app/with-data.png",
-        "diff": "evidence/screens/payment/diff/with-data.png"
+        "diff": "evidence/screens/payment/diff/with-data.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": false,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -378,7 +445,17 @@
       "captured": {
         "design": "evidence/screens/payment/figma/error.png",
         "app": "evidence/screens/payment/app/error.png",
-        "diff": "evidence/screens/payment/diff/error.png"
+        "diff": "evidence/screens/payment/diff/error.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": false,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -406,7 +483,17 @@
       "captured": {
         "design": "evidence/screens/review/figma/with-data.png",
         "app": "evidence/screens/review/app/with-data.png",
-        "diff": "evidence/screens/review/diff/with-data.png"
+        "diff": "evidence/screens/review/diff/with-data.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": false,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -459,7 +546,17 @@
       "captured": {
         "design": "evidence/screens/confirmation/figma/with-data.png",
         "app": "evidence/screens/confirmation/app/with-data.png",
-        "diff": "evidence/screens/confirmation/diff/with-data.png"
+        "diff": "evidence/screens/confirmation/diff/with-data.png",
+        "page": {
+          "width": 1440,
+          "height": 900,
+          "fullPage": false,
+          "clipped": 0,
+          "image": {
+            "width": 1440,
+            "height": 900
+          }
+        }
       },
       "result": "FAIL",
       "note": null,
@@ -2117,7 +2214,8 @@
       },
       "signoff": null,
       "knownDrift": null,
-      "acRef": null
+      "acRef": null,
+      "dataReason": "The order number comes from the API for each order; its type, colour and position match the frame."
     },
     {
       "id": "DQ-023",

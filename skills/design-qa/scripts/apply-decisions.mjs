@@ -6,22 +6,9 @@
 import { existsSync, linkSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import {
-  CliError,
-  assertInsideDir,
-  checkLedgerPaths,
-  displayPath,
-  formatIssues,
-  oneLine,
-  parseCli,
-  readJsonFile,
-  runMain,
-  usageError,
-  withFileLocks,
-  writeText,
-} from './lib/args.mjs';
-import { resolveReviewConfig, shellArg } from './lib/review-context.mjs';
+import { CliError, assertInsideDir, checkLedgerPaths, displayPath, formatIssues, oneLine, parseCli, readJsonFile, runMain, scriptCommand, shellArg, usageError, withFileLocks, writeText } from './lib/args.mjs';
+import { resolveReviewConfig } from './lib/review-context.mjs';
+import { assertRunOwnsDir, callerRunId } from './lib/run-lock.mjs';
 import { DecisionsError, applyDecisions, parseDecisions, summaryLine } from './lib/decisions.mjs';
 import { renderDismissedMarkdown, upsertLogEntries } from './lib/dismissals.mjs';
 import { DASH, sourceLocation } from './lib/fixplan.mjs';
@@ -30,7 +17,6 @@ import { validateConfig, validateReport } from './lib/schema-check.mjs';
 import { reportSlug, triageLists } from './lib/triage.mjs';
 import { renderDebtLog, updateDebtLog } from './debt-log.mjs';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PENDING = 'decisions.json';
 const APPLIED = 'decisions.applied.json';
 
@@ -61,6 +47,8 @@ Options:
                          its folder, symlinks followed). Default: the rendered report's
                          config, else the nearest ancestor design-qa.config.json
   --dry-run              print the result without writing anything
+  --run <id>             this pass's run id (default: DESIGN_QA_RUN_ID); refused (exit 5)
+                         when the report folder's run lock names another run
   --quiet                only print warnings and errors
   -h, --help             show this help
 
@@ -87,7 +75,7 @@ A log's JSON and Markdown paths must differ (the Markdown one ends in .md).
 
 Exit codes: 0 applied, nothing new, or nothing pending · 1 invalid report, write
 failure, or the result does not validate · 2 bad arguments, unreadable or stale
-decisions, slug mismatch, unknown ids`;
+decisions, slug mismatch, unknown ids · 5 another run owns the report folder`;
 
 function withExtension(file, ext) {
   return file.replace(/\.(json|md)$/i, '') + ext;
@@ -99,7 +87,7 @@ async function readStdin() {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-const scriptPath = (name) => shellArg(displayPath(path.join(HERE, name)));
+const scriptPath = (name) => scriptCommand(name).slice('node '.length);
 const PROCESSING_RE = /^decisions\.[0-9a-f-]+\.processing\.json$/;
 
 async function main(argv) {
@@ -112,6 +100,7 @@ async function main(argv) {
     md: { type: 'string' },
     config: { type: 'string' },
     'dry-run': { type: 'boolean' },
+    run: { type: 'string' },
     quiet: { type: 'boolean' },
   });
   if (values.help) {
@@ -125,6 +114,9 @@ async function main(argv) {
 
   const reportFile = path.resolve(values.report);
   const reportDir = path.dirname(reportFile);
+  // Before the pending decisions are claimed (renamed): another run's folder is left as it is (a dry run writes nothing).
+  const runId = callerRunId(values.run);
+  if (!dryRun || runId) assertRunOwnsDir(reportDir, { runId });
   const pendingFile = path.join(reportDir, PENDING);
   const appliedFile = path.join(reportDir, APPLIED);
   const show = (file) => oneLine(displayPath(file));
@@ -146,9 +138,8 @@ async function main(argv) {
         for (const name of readdirSafe(reportDir).filter((n) => PROCESSING_RE.test(n))) {
           log(`An interrupted run left ${show(path.join(reportDir, name))}: rename it to ${PENDING} to apply it again.`);
         }
-        log(
-          `Next: ask the reviewer to open report.html (node ${scriptPath('review.mjs')} --report ${shellArg(displayPath(reportFile))}) and click Send, or paste the "Copy for your agent" message and run this with --from <that file>`,
-        );
+        log('Do: Ask the reviewer to click Send in the review (the next command opens it), or to paste the "Copy for your agent" message: save it and run this with --from <that file>.');
+        log(`Next: node ${scriptPath('review.mjs')} --report ${shellArg(displayPath(reportFile))}${runId ? ` --run ${runId}` : ''}`);
         return 0;
       }
       fromFile = pendingFile;
@@ -183,7 +174,7 @@ async function main(argv) {
       claimed = null;
       log(`Marked as applied: ${show(appliedFile)}`);
     }
-    if (done.next) printNext(done, { log, show, reportFile, reportDir });
+    if (done.next) printNext(done, { log, show, reportFile, reportDir, runId });
     return 0;
   } catch (err) {
     restoreClaim(claimed, pendingFile);
@@ -349,30 +340,33 @@ function applyAll({ values, quiet, dryRun, log, show, reportFile, reportDir, con
 }
 
 /** The printed next steps: every path shell-quoted, so each command stays one line. */
-function printNext({ next, lists, doc, configFile }, { log, reportFile, reportDir }) {
+function printNext({ next, lists, doc, configFile }, { log, reportFile, reportDir, runId }) {
   const rel = shellArg(displayPath(reportFile));
   const inDir = (name) => shellArg(displayPath(path.join(reportDir, name)));
   const config = configFile ? ` --config ${shellArg(displayPath(configFile))}` : '';
+  const runArg = runId ? ` --run ${runId}` : '';
   const render = [
     `node ${scriptPath('render-report.mjs')} --in ${rel} --out ${inDir('report.html')} --fixplan ${inDir('report-fixplan.md')}`,
     backfillItems(next).length ? `--backfill-plan ${inDir('report-backfill.md')}` : null,
     configFile ? config.trim() : null,
     '--embed-images --recompute --write-back',
+    runId ? `--run ${runId}` : null,
   ]
     .filter(Boolean)
     .join(' ');
-  log(`Next: ${render}`);
+  // What comes after the render: Do: lines; the one Next: is the render itself.
   const untracked = (next.triage?.items ?? []).filter((i) => i.decision === 'debt' && !i.ticket).length;
   if (doc.tickets && untracked) {
     log(
-      `Next: create one ticket per debt item (${untracked}): node ${scriptPath('jira-fetch.mjs')} --tickets-from ${rel} (preview), then the same with --write ` +
-        `(or the tracker's MCP); then node ${scriptPath('debt-log.mjs')} --report ${rel}${config} records the ticket keys`,
+      `Do: After the next command, create one ticket per debt item (${untracked}): node ${scriptPath('jira-fetch.mjs')} --tickets-from ${rel}${runArg} (preview), then the same with --write ` +
+        `(or the tracker's MCP); then node ${scriptPath('debt-log.mjs')} --report ${rel}${config}${runArg} records the ticket keys.`,
     );
   } else if (!doc.tickets && untracked) {
-    log(`Next: ${untracked} debt item(s) have no ticket; the reviewer did not authorise tickets, so create none and list them in your reply`);
+    log(`Do: ${untracked} debt item(s) have no ticket; the reviewer did not authorise tickets, so create none and list them in your reply.`);
   }
-  if (lists.fixNow.length) log(`Next: fix the fix-now set (${lists.fixNow.map((f) => oneLine(f.id)).join(', ')}) in that order, per references/fix-loop.md`);
-  else log('Next: nothing to fix now');
+  if (lists.fixNow.length) log(`Do: After the next command, fix the fix-now set (${lists.fixNow.map((f) => oneLine(f.id)).join(', ')}) in that order, per references/fix-loop.md.`);
+  else log('Do: Nothing to fix now.');
+  log(`Next: ${render}`);
 }
 
 runMain(import.meta.url, main);

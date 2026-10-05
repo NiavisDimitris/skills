@@ -22,6 +22,7 @@ import {
   fillTemplate,
   imageRefProblem,
   inlineScriptSources,
+  looksLikeSvg,
   serializeForScript,
 } from '../skills/design-qa/scripts/render-report.mjs';
 import { fixture, loadFixture, run, script, tmpDir } from './_helpers.mjs';
@@ -256,6 +257,8 @@ function embedWorkspace(t) {
   writeFileSync(path.join(root, 'outside', 'credentials'), 'AWS_SECRET_ACCESS_KEY=example\n');
   return { root, dir };
 }
+// A pin for the evidence these tests rewrite: an open FIX_CODE finding needs one (validate.mjs).
+const PIN = { x: 0, y: 120, w: 1440, h: 400 };
 const withImages = (paths) => ({ findings: [{ evidence: paths.map((p) => ({ type: 'screenshot', path: p })) }] });
 
 test('buildAssets: only regular files inside the report folder whose bytes match the extension', (t) => {
@@ -309,7 +312,7 @@ test('buildAssets: a FIFO named like an image is never opened (no hang)', { skip
     return;
   }
   const report = loadFixture('report-valid.json');
-  report.findings[0].evidence = [{ type: 'screenshot', path: 'app/fifo.png' }, { type: 'screenshot', path: 'app/ok.png' }];
+  report.findings[0].evidence = [{ type: 'screenshot', path: 'app/fifo.png' }, { type: 'screenshot', path: 'app/ok.png', state: 'empty', crop: PIN }];
   report.findings[0].rank = null;
   writeFileSync(path.join(dir, 'report.json'), JSON.stringify(report));
   const res = await run(RENDER, ['--in', path.join(dir, 'report.json'), '--out', path.join(dir, 'r.html'), '--template', fixture('template.html'), '--embed-images'], { timeout: 15000 });
@@ -333,7 +336,7 @@ test('buildAssets: the total embedded size stays within the budget; the rest kee
   assert.equal(embedBudget({ DESIGN_QA_EMBED_BUDGET_BYTES: 'lots' }), 100 * 1024 * 1024, 'an invalid value keeps the default');
 
   const report = loadFixture('report-valid.json');
-  report.findings[0].evidence = refs.map((p) => ({ type: 'screenshot', path: p }));
+  report.findings[0].evidence = refs.map((p) => ({ type: 'screenshot', path: p, state: 'empty', crop: PIN }));
   report.findings[0].rank = null;
   writeFileSync(path.join(dir, 'report.json'), JSON.stringify(report));
   const out = path.join(dir, 'r.html');
@@ -354,7 +357,7 @@ test('imageRefProblem: URLs and absolute paths are refused; the renderer warns e
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const report = loadFixture('report-valid.json');
   report.stateMatrix.find((r) => r.captured && r.captured.app).captured.app = 'https://beacon.example/open.png?who=viewer';
-  report.findings[0].evidence = [{ type: 'screenshot', path: '//beacon2.example/x.png' }];
+  report.findings[0].evidence = [{ type: 'screenshot', path: '//beacon2.example/x.png', state: 'empty', crop: PIN }];
   report.findings[0].rank = null;
   writeFileSync(path.join(dir, 'report.json'), JSON.stringify(report));
   const res = await run(RENDER, ['--in', path.join(dir, 'report.json'), '--out', path.join(dir, 'r.html'), '--template', fixture('template.html')]);
@@ -395,4 +398,18 @@ test('--config outside the working directory is not written into the page contex
   assert.deepEqual(reportOutside.ctx, { configPath: 'cfg.json' }, 'report outside cwd: no path from the report to the config');
   const elsewhere = await context(['--config', path.join(project, 'design-qa.config.json')], dir);
   assert.deepEqual(elsewhere.ctx, { reportPath: 'report.json' }, 'config above cwd: neither path is written');
+});
+
+test('looksLikeSvg: recognises SVG heads in linear time (no regex backtracking on "<!--" runs)', () => {
+  for (const ok of ['<svg xmlns="http://www.w3.org/2000/svg"/>', '\uFEFF  <?xml version="1.0"?>\n<!-- a --><!DOCTYPE svg>\n<svg>', '<!--x--> <!--y-->\n<SVG viewBox="0 0 1 1">']) {
+    assert.equal(looksLikeSvg(ok), true, ok);
+  }
+  for (const bad of ['', '<html><svg>', '<!-- unclosed <svg>', '<?xml version="1.0"', '<svgx>', 'GIF89a']) {
+    assert.equal(looksLikeSvg(bad), false, bad);
+  }
+  // These heads made the old regex run for minutes; capped at the 4096 bytes the check reads.
+  const heads = ['<!---->\n'.repeat(1000), '<!--'.repeat(1100), `<!--${'-'.repeat(5000)}`, '<!--a-->'.repeat(300) + '<!--' + '--> <!--'.repeat(400)];
+  const start = performance.now();
+  for (const h of heads) assert.equal(looksLikeSvg(h.slice(0, 4096)), false);
+  assert.ok(performance.now() - start < 200, `took ${Math.round(performance.now() - start)} ms`);
 });

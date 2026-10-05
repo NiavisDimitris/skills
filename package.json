@@ -11,8 +11,8 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "sample:fixtures": "node examples/sample/make-fixtures.mjs",
-    "sample:render": "node skills/design-qa/scripts/render-report.mjs --in examples/sample/sample-report.json --out examples/sample/report.html --embed-images --fixplan examples/sample/report-fixplan.md --backfill-plan examples/sample/report-backfill.md --recompute --write-back",
-    "validate:sample": "node skills/design-qa/scripts/validate.mjs examples/sample/sample-report.json",
+    "sample:render": "node skills/design-qa/scripts/render-report.mjs --in examples/sample/sample-report.json --out examples/sample/report.html --embed-images --fixplan examples/sample/report-fixplan.md --backfill-plan examples/sample/report-backfill.md --config examples/sample/design-qa.config.json --recompute --write-back && node skills/design-qa/scripts/validate.mjs examples/sample/sample-report.json --config examples/sample/design-qa.config.json",
+    "validate:sample": "node skills/design-qa/scripts/validate.mjs examples/sample/sample-report.json --config examples/sample/design-qa.config.json",
     "validate:config": "node skills/design-qa/scripts/validate.mjs examples/design-qa.config.example.json --type config"
   },
   "dependencies": {

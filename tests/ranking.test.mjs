@@ -16,8 +16,16 @@ import {
   isBackfillReady,
   isDismissed,
   isLoopClosed,
-  parity,
+  INCOMPLETE_NEXT,
+  coverageText,
+  formatParity,
+  hasPin,
+  isIncomplete,
+  isRemoteTarget,
   pixelDiffBand,
+  scorecardHeadline,
+  targetKind,
+  unpinnedFindings,
   rankFindings,
   resolveOptions,
   scoreFinding,
@@ -38,10 +46,13 @@ const dismissed = (id, severity = 'WARNING') => ({
   dismissal: { kind: 'not-an-issue', reason: 'noise', by: null, date: '2026-09-24T00:00:00Z', source: 'cli' },
 });
 
-// One verified state by default: a pass that verified nothing is REVIEW (tested below).
+// A row compared with the design (a pixel diff ran): only compared PASS / FAIL rows count as verified.
+const COMPARED = { comparison: { pixelDiff: true, worklist: false, compareRows: 0 } };
+const row = (state, result) => ({ state, result, captured: ['PASS', 'FAIL'].includes(result) ? COMPARED : null });
+// One verified state by default: a pass that verified nothing is INCOMPLETE (tested below).
 const baseReport = (over = {}) => ({
   findings: [],
-  stateMatrix: [{ state: 'with-data', result: 'PASS' }],
+  stateMatrix: [row('with-data', 'PASS')],
   openDecisions: [],
   scorecard: { pixelDiff: {} },
   ...over,
@@ -68,36 +79,9 @@ test('band: 0% always passes, also with a pass tolerance of 0 (identical images,
   assert.equal(deriveVerdict(r, { tolerances: { pass: 0, review: 5 } }), 'PASS');
 });
 
-test('parity counts FIX_CODE and UNCLASSIFIED as open', () => {
-  assert.equal(parity([]), 100);
-  const f = [
-    finding('DQ-001', 'WARNING', 'FIX_CODE'),
-    finding('DQ-002', 'WARNING', 'UNCLASSIFIED'),
-    finding('DQ-003', 'WARNING', 'INTENTIONAL'),
-    finding('DQ-004', 'PASS', 'NONE'),
-  ];
-  assert.equal(parity(f), 50);
-  assert.equal(parity(f.filter((x) => !['FIX_CODE', 'UNCLASSIFIED'].includes(x.resolution))), 100);
-});
-
-test('parity: dismissed findings leave the denominator (they are not diffs)', () => {
-  const f = [
-    finding('DQ-001', 'WARNING', 'FIX_CODE'),
-    finding('DQ-002', 'PASS', 'NONE'),
-    dismissed('DQ-003'),
-    dismissed('DQ-004', 'BLOCKER'),
-  ];
-  assert.equal(parity(f), 50, '1 open of 2 counted findings');
-  assert.equal(parity([dismissed('DQ-001')]), 100, 'only dismissed findings: nothing open');
-  assert.equal(parity([finding('DQ-001', 'WARNING', 'FIX_CODE'), dismissed('DQ-002')]), 0);
+test('isDismissed: only DISMISSED findings', () => {
   assert.equal(isDismissed(dismissed('DQ-001')), true);
   assert.equal(isDismissed(finding('DQ-001', 'WARNING', 'INTENTIONAL')), false);
-});
-
-test('parity is never 100 while something is open', () => {
-  const many = Array.from({ length: 300 }, (_, i) => finding(`DQ-${String(i + 1).padStart(3, '0')}`, 'PASS', 'NONE'));
-  many[0] = finding('DQ-001', 'WARNING', 'FIX_CODE');
-  assert.equal(parity(many), 99);
 });
 
 test('scoreFinding: severity×100 + ledger×10 + (6 − effort); null when not rankable', () => {
@@ -174,7 +158,7 @@ test('ranking weights and topN come from config report.ranking / report.topN', (
 test('verdict: PASS when nothing is open, pending or out of band', () => {
   const r = baseReport({
     findings: [finding('DQ-001', 'PASS', 'NONE'), finding('DQ-002', 'WARNING', 'INTENTIONAL')],
-    stateMatrix: [{ state: 'with-data', result: 'PASS' }, { state: 'hover', result: 'NOT_SPECIFIED' }],
+    stateMatrix: [row('with-data', 'PASS'), { state: 'hover', result: 'NOT_SPECIFIED' }],
     scorecard: { pixelDiff: { 'with-data': { percent: 0.5, band: 'pass' } } },
   });
   assert.equal(deriveVerdict(r), 'PASS');
@@ -187,23 +171,78 @@ test('verdict: REVIEW triggers', () => {
     'cannot verify finding': { findings: [finding('DQ-001', 'CANNOT_VERIFY', 'NONE')] },
     'open decision': { openDecisions: [{ id: 'OD-1' }] },
     'review band': { scorecard: { pixelDiff: { empty: { percent: 3, band: 'review' } } } },
-    'state cannot verify': { stateMatrix: [{ state: 'error', result: 'CANNOT_VERIFY' }] },
+    'state cannot verify': { stateMatrix: [row('with-data', 'PASS'), { state: 'error', result: 'CANNOT_VERIFY' }] },
   };
   for (const [name, over] of Object.entries(cases)) assert.equal(deriveVerdict(baseReport(over)), 'REVIEW', name);
 });
 
-test('verdict: REVIEW when no state was verified (an empty pass is not full parity)', () => {
+test('verdict: INCOMPLETE when nothing was captured and compared; match is not measured', () => {
   const empty = baseReport({ stateMatrix: [] });
-  assert.equal(parity(empty.findings), 100, 'parity alone would read 100');
-  assert.equal(deriveVerdict(empty), 'REVIEW');
-  assert.deepEqual(explainVerdict(empty).reasons, ['no state was verified: the state matrix is empty']);
-  const unverified = baseReport({ stateMatrix: [{ state: 'hover', result: 'NOT_SPECIFIED' }, { state: 'focus', result: 'NOT_SPECIFIED' }] });
-  assert.equal(deriveVerdict(unverified), 'REVIEW');
-  assert.deepEqual(explainVerdict(unverified).reasons, ['no state was verified (0 of 2 captured and compared)']);
-  assert.equal(deriveVerdict(baseReport({ stateMatrix: [{ state: 'hover', result: 'FAIL' }] })), 'PASS', 'a compared state counts, whatever its result');
-  assert.equal(deriveVerdict(baseReport({ stateMatrix: [], findings: [finding('DQ-001', 'BLOCKER', 'FIX_CODE')] })), 'FAIL', 'FAIL still wins');
-  const sc = computeScorecard(empty);
-  assert.deepEqual([sc.verdict, sc.parity, sc.stateCoverage.total], ['REVIEW', 100, 0]);
+  assert.equal(deriveVerdict(empty), 'INCOMPLETE');
+  assert.deepEqual(explainVerdict(empty).reasons, ['no state was verified: the state matrix is empty', INCOMPLETE_NEXT]);
+  assert.match(INCOMPLETE_NEXT, /fix the capture/);
+  // The capture landed on a sign-in page: every designed state is CANNOT_VERIFY, the only findings are evidence gaps.
+  const signIn = baseReport({
+    stateMatrix: [{ state: 'with-data', result: 'CANNOT_VERIFY' }, { state: 'detail', result: 'CANNOT_VERIFY' }],
+    findings: [finding('DQ-001', 'CANNOT_VERIFY', 'NONE')],
+  });
+  assert.equal(isIncomplete(signIn), true);
+  assert.deepEqual(explainVerdict(signIn).reasons, ['no state was verified (0 of 2 captured and compared: 2 CANNOT_VERIFY)', INCOMPLETE_NEXT]);
+  const sc = computeScorecard(signIn);
+  assert.deepEqual([sc.verdict, sc.match, sc.loopClosed, sc.stateCoverage.verified], ['INCOMPLETE', null, false, 0], 'never REVIEW at 100%, never a closed loop');
+  const notSpecified = baseReport({ stateMatrix: [{ state: 'hover', result: 'NOT_SPECIFIED' }, { state: 'focus', result: 'NOT_SPECIFIED' }] });
+  assert.equal(deriveVerdict(notSpecified), 'INCOMPLETE');
+  assert.deepEqual(explainVerdict(notSpecified).reasons[0], 'no state was verified (0 of 2 captured and compared: 2 NOT_SPECIFIED)');
+  // Findings without a comparison are not grounded: INCOMPLETE wins over FAIL.
+  assert.equal(deriveVerdict(baseReport({ stateMatrix: [], findings: [finding('DQ-001', 'BLOCKER', 'FIX_CODE')] })), 'INCOMPLETE');
+  // A designed state known to be missing is a settled result: FAIL, with match still not measured.
+  const missing = baseReport({ stateMatrix: [{ state: 'empty', result: 'MISSING_IN_CODE' }, { state: 'error', result: 'CANNOT_VERIFY' }], findings: [finding('DQ-001', 'BLOCKER', 'FIX_CODE', 'state')] });
+  assert.deepEqual([deriveVerdict(missing), computeScorecard(missing).match], ['FAIL', null]);
+  assert.equal(deriveVerdict(baseReport({ stateMatrix: [row('hover', 'FAIL')] })), 'PASS', 'a compared state counts, whatever its result');
+  assert.equal(isLoopClosed(empty), false);
+});
+
+test('scorecardHeadline: match, findings settled and coverage side by side; unmeasured and unpinned passes say so', () => {
+  assert.equal(formatParity(100), '100%');
+  assert.equal(formatParity(null), 'not measured');
+  assert.equal(coverageText({ verified: 1, total: 1 }), '1 of 1 state verified');
+  assert.equal(
+    scorecardHeadline({ verdict: 'FAIL', match: 86, settled: { count: 0, total: 18 }, stateCoverage: { total: 9, verified: 8 } }),
+    'FAIL · match 86% · 0 of 18 findings settled · 8 of 9 states verified',
+  );
+  assert.equal(scorecardHeadline({ verdict: 'PASS', match: 100, settled: { count: 1, total: 1 }, stateCoverage: { total: 3, verified: 3 } }), 'PASS · match 100% · 1 of 1 finding settled · 3 of 3 states verified');
+  assert.equal(
+    scorecardHeadline({ verdict: 'REVIEW', match: 97, unpinned: 2, settled: { count: 0, total: 5 }, stateCoverage: { total: 3, verified: 3, partial: 1 } }),
+    'REVIEW · match 97% (2 without a pin) · 0 of 5 findings settled · 3 of 3 states verified, 1 only in part',
+  );
+  assert.equal(
+    scorecardHeadline(computeScorecard(baseReport({ stateMatrix: [{ state: 'a', result: 'CANNOT_VERIFY' }, { state: 'b', result: 'CANNOT_VERIFY' }] }))),
+    'INCOMPLETE · match not measured · 0 of 0 findings settled · 0 of 2 states verified',
+  );
+});
+
+test('pins: hasPin needs both state and crop; unpinned counts open FIX_CODE findings only', () => {
+  const crop = { x: 1, y: 2, w: 30, h: 40 };
+  const pinned = { ...finding('DQ-001', 'WARNING', 'FIX_CODE'), evidence: [{ type: 'screenshot', path: 'a.png', crop, state: 'with-data' }] };
+  const cropOnly = { ...finding('DQ-002', 'WARNING', 'FIX_CODE'), evidence: [{ type: 'screenshot', path: 'a.png', crop, state: null }] };
+  const stateOnly = { ...finding('DQ-003', 'WARNING', 'FIX_CODE'), evidence: [{ type: 'computed', path: 'c.json', crop: null, state: 'with-data' }] };
+  const accepted = { ...finding('DQ-004', 'WARNING', 'INTENTIONAL'), evidence: [] };
+  assert.deepEqual([pinned, cropOnly, stateOnly].map(hasPin), [true, false, false]);
+  const r = baseReport({ findings: [pinned, cropOnly, stateOnly, accepted] });
+  assert.deepEqual(unpinnedFindings(r).map((f) => f.id), ['DQ-002', 'DQ-003']);
+  assert.equal(computeScorecard(r).unpinned, 2);
+});
+
+test('targetKind: local hosts and file: URLs are local, everything else is a deployed (remote) build', () => {
+  for (const url of ['http://localhost:3000/a', 'http://127.0.0.1:5173', 'http://[::1]:8080/', 'http://app.localhost/x', 'file:///tmp/proto.html', 'http://LOCALHOST.:3000']) {
+    assert.equal(targetKind(url), 'local', url);
+  }
+  for (const url of ['https://staging.acme.dev/orders', 'https://acme-git-feat.vercel.app', 'http://192.168.1.4:3000', 'http://localhost.acme.dev']) {
+    assert.equal(targetKind(url), 'remote', url);
+  }
+  assert.equal(targetKind('not a url'), null);
+  assert.equal(isRemoteTarget({ meta: { app: { url: 'https://staging.acme.dev' } } }), true);
+  assert.equal(isRemoteTarget({ meta: { app: { url: 'http://localhost:3000' } } }), false);
 });
 
 test('verdict: FAIL triggers', () => {
@@ -310,7 +349,6 @@ test('unexplained = open findings that are not ticketed debt; without triage it 
   assert.deepEqual(unexplainedFindings(r).map((x) => x.id), ['DQ-002', 'DQ-003', 'DQ-004'], 'only ticketed debt is explained');
   assert.deepEqual(debtSummary(r), { count: 2, ticketed: 1 });
   assert.deepEqual(debtSummary(baseReport()), { count: 0, ticketed: 0 });
-  assert.equal(parity(r.findings), 20, 'parity is unchanged: debt is still a mismatch (the dismissed one is not counted)');
 });
 
 test('verdict: ticketed debt no longer causes REVIEW; unticketed debt does', () => {
@@ -321,22 +359,23 @@ test('verdict: ticketed debt no longer causes REVIEW; unticketed debt does', () 
   assert.match(explainVerdict(triaged(f, [{ findingId: 'DQ-001', decision: 'debt', ticket: null }])).reasons[0], /1 unexplained finding\(s\): DQ-001/);
 });
 
-test('verdict: a fail band only fails when its state has an unexplained finding or no findings', () => {
+test('verdict: a fail band fails unless what names its differing area explains it (review B5)', () => {
   const band = { pixelDiff: { empty: { percent: 12, band: 'fail' } } };
-  const debtOnly = triaged([withState(finding('DQ-001', 'WARNING', 'FIX_CODE'), 'empty')], [{ findingId: 'DQ-001', decision: 'debt', ticket: TICKET }], { scorecard: band });
-  assert.equal(deriveVerdict(debtOnly), 'REVIEW', 'ticketed debt explains the diff');
+  // The empty state's worklist regions: 11% named by DQ-001, 1% by nothing.
+  const rows = [row('with-data', 'PASS'), row('empty', 'FAIL')];
+  const differences = (ids) => ({ empty: { differing: 12, regions: [{ key: 'wl:a', percent: 11, findings: ids }], unlisted: { count: 0, percent: 0 } } });
+  const at = (findings, items = null) => (items ? triaged(findings, items, { scorecard: band, stateMatrix: rows, differences: differences(['DQ-001']) }) : baseReport({ findings, scorecard: band, stateMatrix: rows, differences: differences(['DQ-001']) }));
+  const debtOnly = at([withState(finding('DQ-001', 'WARNING', 'FIX_CODE'), 'empty')], [{ findingId: 'DQ-001', decision: 'debt', ticket: TICKET }]);
+  assert.equal(deriveVerdict(debtOnly), 'REVIEW', 'ticketed debt explains the area it names');
   assert.match(explainVerdict(debtOnly).reasons.join(' '), /fail band, but every finding there is explained/);
-  const intentional = baseReport({ findings: [withState(finding('DQ-001', 'WARNING', 'INTENTIONAL'), 'empty')], scorecard: band });
-  assert.equal(deriveVerdict(intentional), 'REVIEW');
-  const fixed = baseReport({ findings: [withState(finding('DQ-001', 'PASS', 'NONE'), 'empty'), withState(finding('DQ-002', 'WARNING', 'DATA'), 'empty')], scorecard: band });
-  assert.equal(deriveVerdict(fixed), 'REVIEW', 'fixed (PASS) and DATA findings explain it too');
-  const nothing = baseReport({ findings: [withState(finding('DQ-001', 'WARNING', 'INTENTIONAL'), 'hover')], scorecard: band });
-  assert.equal(deriveVerdict(nothing), 'FAIL', 'no finding in that state explains the diff');
-  const mixed = triaged(
-    [withState(finding('DQ-001', 'WARNING', 'FIX_CODE'), 'empty'), withState(finding('DQ-002', 'WARNING', 'INTENTIONAL'), 'empty')],
-    [{ findingId: 'DQ-001', decision: 'debt', ticket: null }],
-    { scorecard: band },
-  );
+  assert.equal(computeScorecard(debtOnly).matchByState.empty, 88, 'debt still differs: it counts against match');
+  assert.equal(deriveVerdict(at([withState(finding('DQ-001', 'WARNING', 'INTENTIONAL'), 'empty')])), 'REVIEW');
+  assert.equal(deriveVerdict(at([withState(finding('DQ-001', 'WARNING', 'DATA'), 'empty')])), 'REVIEW');
+  // A settled finding that names no region explains nothing: one DATA finding cannot explain 12%.
+  const unnamed = baseReport({ findings: [withState(finding('DQ-001', 'WARNING', 'DATA'), 'empty')], scorecard: band, stateMatrix: rows, differences: differences([]) });
+  assert.equal(deriveVerdict(unnamed), 'FAIL');
+  assert.match(explainVerdict(unnamed).reasons[0], /^pixel diff for "empty" is in the fail band: 12% of the page differs with no settled finding/);
+  const mixed = at([withState(finding('DQ-001', 'WARNING', 'FIX_CODE'), 'empty'), withState(finding('DQ-002', 'WARNING', 'INTENTIONAL'), 'empty')], [{ findingId: 'DQ-001', decision: 'debt', ticket: null }]);
   assert.equal(deriveVerdict(mixed), 'FAIL', 'unticketed debt leaves the diff unexplained');
 });
 
@@ -348,12 +387,13 @@ test('computeScorecard 2.0: unexplained, debt, loopClosed, dismissed and designS
   assert.equal(closed.loopClosed, true);
   assert.equal(closed.verdict, 'PASS');
   assert.equal(closed.dismissed, 1);
-  assert.deepEqual(closed.designSystem, { tokens: 0, components: 0, motion: 1 }, 'ticketed debt is still an open mismatch');
-  assert.equal(closed.parity, 50, '1 open of 2 counted');
+  assert.deepEqual(closed.designSystem, { tokens: null, components: null, motion: 1 }, 'ticketed debt is still an open mismatch; no audit: not checked');
+  assert.deepEqual(closed.settled, { count: 0, total: 1 }, 'the PASS row and the dismissed one do not count');
   assert.deepEqual(closed.byResolution, { FIX_CODE: 1, INTENTIONAL: 0, DATA: 0, DISMISSED: 1, NONE: 1, UNCLASSIFIED: 0 });
   assert.deepEqual(Object.keys(closed), [
-    'parity', 'verdict', 'bySeverity', 'byResolution', 'pixelDiff', 'stateCoverage', 'unexplained', 'debt', 'loopClosed', 'dismissed', 'designSystem',
+    'verdict', 'bySeverity', 'byResolution', 'pixelDiff', 'stateCoverage', 'match', 'matchByState', 'settled', 'unexplained', 'debt', 'loopClosed', 'dismissed', 'designSystem', 'unpinned',
   ]);
+  assert.equal('rejected' in closed, false, 'no rejections array, no scorecard.rejected');
   const decision = computeScorecard(triaged(f, [{ findingId: 'DQ-001', decision: 'debt', ticket: TICKET }], { openDecisions: [{ id: 'OD-1' }] }));
   assert.equal(decision.loopClosed, false, 'an open decision keeps the loop open');
   const untriaged = computeScorecard(baseReport({ findings: f }));
@@ -361,7 +401,7 @@ test('computeScorecard 2.0: unexplained, debt, loopClosed, dismissed and designS
   assert.deepEqual(untriaged.debt, { count: 0, ticketed: 0 });
 });
 
-test('design backfill never changes step 1: parity, verdict, unexplained, loopClosed, ranks and designSystem', () => {
+test('design backfill never changes step 1: match, verdict, unexplained, loopClosed, ranks and designSystem', () => {
   const plain = loadFixture('report-valid.json');
   const withBackfill = loadFixture('report-backfill.json');
   const a = computeScorecard(plain);
