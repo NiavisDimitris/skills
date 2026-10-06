@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-06
+
+### Added
+- **Your own annotations in the review.** The pass will sometimes miss things the reviewer knows about. In `report.html`, turn on **Annotate** (or press `A`) and click or drag on any capture, the app or the design, to add an annotation with a severity (Blocker, Warning or Design-system gap), a description of the issue, and Fix now or Later (a blocker is always fix now). Annotations are kept in the browser until they are sent, drawn as their own pins, and travel in the one decisions document (`annotations`, `schemas/decisions.schema.json`; documents without annotations are unchanged) through **Send to agent**, **Copy for your agent** or **Download decisions.json**.
+- `apply-decisions.mjs` checks each annotation against the report (a state it has, with an image on that side), records it in `<report dir>/annotations.json` with an id (`AN-001`, `AN-002` …; never twice) and prints it. Its `Do:` line asks the agent to investigate each one and file it in `findings.json` as `{ "annotation": "AN-001", … }`, and its `Next:` is the rebuild (`pass.mjs report`) instead of the render. Only that script writes `annotations.json` (`schemas/annotations.schema.json`; `validate.mjs --type annotations`); the agent never edits it and can never reject an annotation: only a person can dismiss it.
+- The rebuilt report makes each filed annotation a finding with the reviewer's severity, state and box as its first pin, marked "From the review" with the reviewer's note; the reviewer's Fix now or Later becomes its triage, and the fix loop treats it like any other finding. `references/review.md`, "Annotations from the review", says how to file them.
+
 ### Changed
 - Every new pass requires full-state side-by-side review at original scale, including identical states, with current evidence digests and all tiles accounted for.
 - Figma style and geometry values are compared directly with captured code values. Missing values/counterparts prevent PASS, including after verdict recomputation; exact MCP values can be imported from saved source responses.
@@ -233,7 +240,8 @@ Initial release.
 - Distributable as a Claude Code plugin (`.claude-plugin/plugin.json` + `marketplace.json`) or as a plain skill folder copy.
 - Example config (`examples/design-qa.config.example.json`) and a rendered sample report under `examples/sample/`.
 
-[Unreleased]: https://github.com/NiavisDimitris/skills/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/NiavisDimitris/skills/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/NiavisDimitris/skills/releases/tag/v0.2.3
 [0.2.2]: https://github.com/NiavisDimitris/skills/releases/tag/v0.2.2
 [0.2.1]: https://github.com/NiavisDimitris/skills/releases/tag/v0.2.1
 [0.2.0]: https://github.com/NiavisDimitris/skills/releases/tag/v0.2.0
