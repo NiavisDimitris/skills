@@ -19,6 +19,13 @@ export const FIXTURES = path.join(ROOT, 'tests', 'fixtures');
 export const script = (name) => path.join(SCRIPTS, name);
 export const fixture = (name) => path.join(FIXTURES, name);
 
+/** `text` as a RegExp source that matches it literally (every metacharacter escaped, the backslash included). */
+export const escapeRegExp = (text) => String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const SCRIPT_UNSAFE = { '<': '\\u003c', '>': '\\u003e', '/': '\\u002f', '\u2028': '\\u2028', '\u2029': '\\u2029' };
+/** `value` as a JavaScript literal to write inside an inline <script> of a test page: JSON, with nothing that can close the element. */
+export const scriptLiteral = (value) => JSON.stringify(value).replace(/[<>/\u2028\u2029]/g, (c) => SCRIPT_UNSAFE[c]);
+
 /** Fresh parsed copy of a JSON fixture. */
 export function loadFixture(name) {
   return JSON.parse(readFileSync(fixture(name), 'utf8'));
@@ -70,8 +77,9 @@ export function startServer(handler) {
       try {
         await handler(req, res, body);
       } catch (err) {
+        console.error(`test server: the handler for ${req.method} ${req.url} threw:`, err); // the stack goes to the test log, not the client
         res.writeHead(500, { 'content-type': 'text/plain' });
-        res.end(String(err));
+        res.end('test server: the handler threw');
       }
     });
   });

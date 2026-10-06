@@ -17,7 +17,7 @@ import {
   newRunId,
   siblingName,
 } from '../skills/design-qa/scripts/lib/run-lock.mjs';
-import { run, script, tmpDir } from './_helpers.mjs';
+import { escapeRegExp, run, script, tmpDir } from './_helpers.mjs';
 
 const RUN = script('run.mjs');
 const HOURS_AGO = (h) => new Date(Date.now() - h * 3_600_000);
@@ -691,7 +691,7 @@ test('run.mjs start: a report folder with an unknown sub-folder or a non-data fi
     const before = snapshot(ws.dir);
     const r = await start(ws);
     assert.equal(r.code, 2, `${entry}: ${r.stdout}${r.stderr}`);
-    assert.match(r.stderr, new RegExp(`it is not a report folder: it holds ${shown.replace(/[.]/g, '\\.')}, which a report folder never holds \\(only design-qa outputs and data files: \\.json \\.md`));
+    assert.match(r.stderr, new RegExp(`it is not a report folder: it holds ${escapeRegExp(shown)}, which a report folder never holds \\(only design-qa outputs and data files: \\.json \\.md`));
     assert.match(r.stderr, /Nothing was moved/);
     assert.deepEqual(snapshot(ws.dir), before, `${entry}: nothing moved`);
   }

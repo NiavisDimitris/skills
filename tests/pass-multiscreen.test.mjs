@@ -10,7 +10,7 @@ import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { ROOT, run, script, startServer, tmpDir } from './_helpers.mjs';
+import { ROOT, escapeRegExp, run, script, startServer, tmpDir } from './_helpers.mjs';
 
 const PASS = script('pass.mjs');
 const MOCK = path.join(ROOT, 'examples', 'mock-five-frames', 'src');
@@ -133,7 +133,7 @@ test('multi-screen coded prototype: start saves a config once the person agrees;
   const config = read(path.join(root, 'design-qa.config.json'));
   assert.equal(config.app.baseUrl, server.url, 'the printed apply left a valid config with the app address');
   assert.match(s.stdout, /^qa-reports\/abc-500\/states\.json skeleton \(one screen; add one entry per screen and one key per extra state\):$/m);
-  assert.match(s.stdout, new RegExp(`^  \\{ "screens": \\{ "cart": \\{ "prototype": "${server.url.replace(/[.]/g, '\\.')}/figma/cart", "route": "/checkout/cart" \\} \\},$`, 'm'));
+  assert.match(s.stdout, new RegExp(`^  \\{ "screens": \\{ "cart": \\{ "prototype": "${escapeRegExp(server.url)}/figma/cart", "route": "/checkout/cart" \\} \\},$`, 'm'));
   assert.match(s.stdout, /^Do: If the design has more screens or states than this one page, write them to qa-reports\/abc-500\/states\.json before the next command/m);
   assert.match(nextLine(s.stdout), /pass\.mjs evidence --dir qa-reports\/abc-500 --run \S+$/);
   const id = runIdOf(s.stdout);
@@ -195,10 +195,10 @@ test('an app that answers 404: the summary says so and names the URL; not "add d
   const id = runIdOf(s.stdout);
   const e = await pass(root, ['evidence', '--dir', 'qa-reports/abc-501', '--run', id]);
   assert.equal(e.code, 1, e.stdout + e.stderr);
-  assert.match(e.stdout, new RegExp(`^FAILED capture:main: capture \\(app\\) of the screen at ${server.url.replace(/[.]/g, '\\.')}/checkout/cart failed \\(exit 5\\)`, 'm'));
+  assert.match(e.stdout, new RegExp(`^FAILED capture:main: capture \\(app\\) of the screen at ${escapeRegExp(server.url)}/checkout/cart failed \\(exit 5\\)`, 'm'));
   assert.match(e.stdout, /^PARTIAL: 1 of 1 designed states not captured: 1 failed to capture \(see below\)/m);
   assert.doesNotMatch(e.stdout, /need a driver/);
-  assert.match(doLines(e.stdout), new RegExp(`The app at ${server.url.replace(/[.]/g, '\\.')}/checkout/cart did not answer as a page \\(.*404.*\\)\\. Start it`));
+  assert.match(doLines(e.stdout), new RegExp(`The app at ${escapeRegExp(server.url)}/checkout/cart did not answer as a page \\(.*404.*\\)\\. Start it`));
   assert.match(nextLine(e.stdout), /pass\.mjs evidence --dir qa-reports\/abc-501 --run \S+$/);
 });
 

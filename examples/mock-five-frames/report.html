@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-xAzz1FEjbNp15If9fikh3SrbQpchAzEzu7RCojBPCBQ=' 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob: 'self' file:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-UjujLGJRKdu7XpfWu4Tt/406PFJ1Ln9v+YoBW2Q/ne8=' 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob: 'self' file:; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Design QA — Checkout v3</title>
@@ -934,7 +934,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function append(el, kid) {
     if (kid === null || kid === undefined || kid === false) return;
     if (Array.isArray(kid)) { kid.forEach(function (k) { append(el, k); }); return; }
-    el.appendChild(kid.nodeType ? kid : document.createTextNode(String(kid)));
+    if (typeof kid === 'object' && kid.nodeType) el.appendChild(kid); // a node built here
+    else el.appendChild(document.createTextNode(String(kid))); // any value (report text, the URL hash) only ever as text
   }
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }
   function icon(name, cls) {

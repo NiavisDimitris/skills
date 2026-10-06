@@ -514,8 +514,12 @@ async function main(argv) {
       });
       res.end(body);
     };
+    // Errors quote request values and paths: < > & leave as \u escapes (the same JSON), so no response body carries markup.
     const sendJson = (res, status, data, headers = {}) =>
-      send(res, status, JSON.stringify(data), { 'Content-Type': 'application/json; charset=utf-8', ...headers });
+      send(res, status, JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026'), {
+        'Content-Type': 'application/json; charset=utf-8',
+        ...headers,
+      });
     const fail = (res, status, error, headers) => sendJson(res, status, { ok: false, error }, headers);
 
     /** Compare report.html with report.json; warn once each time that changes. */

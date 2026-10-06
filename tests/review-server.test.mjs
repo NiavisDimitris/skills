@@ -7,7 +7,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { findScriptElement, readReviewContext, reportFreshness } from '../skills/design-qa/scripts/lib/review-context.mjs';
 import { injectContext, serializeForScript } from '../skills/design-qa/scripts/review.mjs';
-import { ROOT, loadFixture, run, script, sendJson, startServer, tmpDir } from './_helpers.mjs';
+import { ROOT, escapeRegExp, loadFixture, run, script, sendJson, startServer, tmpDir } from './_helpers.mjs';
 
 const REVIEW = script('review.mjs');
 const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
@@ -211,7 +211,12 @@ test('review.mjs: token, Host and Origin guards, static files, rejected document
   assert.equal(invalid.status, 400);
   assert.deepEqual(invalid.json, { ok: false, error: 'triage lists DQ-001 as both fix now and debt' });
   assert.equal((await post(srv, 'not json')).status, 400);
-  const stale = await post(srv, { ...d, reportGeneratedAt: '2026-09-30T08:00:00Z' });
+  const markup = await post(srv, { kind: '<img src=x onerror=alert(1)> & more' });
+  assert.equal(markup.status, 400);
+  assert.equal(markup.headers['content-type'], 'application/json; charset=utf-8');
+  assert.doesNotMatch(markup.text, /[<>&]/, 'markup quoted from the request leaves as \\u escapes, never raw');
+  assert.equal(markup.json.error, '"kind" must be "design-qa-decisions" (got "<img src=x onerror=alert(1)> & more")');
+  const stale =await post(srv, { ...d, reportGeneratedAt: '2026-09-30T08:00:00Z' });
   assert.equal(stale.status, 409);
   assert.match(stale.json.error, /Reopen the current report\.html/);
   assert.equal((await post(srv, { ...d, slug: 'ACME-999' })).status, 409);
@@ -649,7 +654,7 @@ test('review.mjs: report.json re-generated after report.html: banner, warning, S
   assert.equal(page.status, 200);
   const banner = /<body[^>]*><div id="design-qa-stale" role="alert" style="[^"]*">([^<]*)<\/div>/.exec(page.text);
   assert.ok(banner, 'the banner is the first element of <body>');
-  assert.match(banner[1], new RegExp(`^This page is out of date: report\\.json was re-generated \\(generated 2026-10-04T12:00:00Z\\) after this page was rendered \\(from the report generated ${generatedAt.replace(/[.]/g, '\\.')}\\)\\. Ask your agent to re-render report\\.html, then reload this page\\. Sending is blocked until then`));
+  assert.match(banner[1], new RegExp(`^This page is out of date: report\\.json was re-generated \\(generated 2026-10-04T12:00:00Z\\) after this page was rendered \\(from the report generated ${escapeRegExp(generatedAt)}\\)\\. Ask your agent to re-render report\\.html, then reload this page\\. Sending is blocked until then`));
   assert.equal(page.text.match(/design-qa-stale/g).length, 1);
   assert.deepEqual(contextOf(page.text).reportStale, { reason: 'regenerated', reportGeneratedAt: '2026-10-04T12:00:00Z', htmlGeneratedAt: generatedAt });
   assert.equal(page.headers['content-security-policy'].includes("script-src 'unsafe-inline'"), true, 'same CSP; the banner needs no script');
@@ -726,7 +731,7 @@ test('review.mjs: the browser line says plainly when no browser was opened', asy
   });
   const m = /Review open: (http:\/\/127\.0\.0\.1:(\d+)\/\?t=([0-9a-f]+))/.exec(stdout);
   assert.ok(m);
-  assert.match(stdout, new RegExp(`Could not open a browser \\([^)]*\\)\\. Open this URL yourself: ${m[1].replace(/[.?]/g, '\\$&')}`));
+  assert.match(stdout, new RegExp(`Could not open a browser \\([^)]*\\)\\. Open this URL yourself: ${escapeRegExp(m[1])}`));
   assert.equal((await request(Number(m[2]), { path: `/health?t=${m[3]}` })).status, 200);
 });
 
