@@ -9,7 +9,7 @@
       "name": "design-qa",
       "source": "./skills/design-qa",
       "description": "Design → code parity QA against a Figma file, a Figma prototype or a coded prototype, across every designed screen and state: tokens, components, motion and copy, with dismiss-with-a-reason, an agent-readable report and fix plan, and an interactive HTML report for humans.",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "author": {
         "name": "Dimitris Niavis"
       },

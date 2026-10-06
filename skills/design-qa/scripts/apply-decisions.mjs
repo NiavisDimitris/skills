@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // Apply a reviewer's decisions from report.html (one decisions document: fix now /
 // debt, dismissals with a reason, design-backfill decisions, ticket authorisation) to
-// report.json in one go, keep the dismissed and debt logs, and print exactly what the
-// agent does next. Works with any coding agent: plain Node, exit codes and stdout.
+// report.json in one go, keep the dismissed and debt logs, record the reviewer's
+// annotations in annotations.json, and print exactly what the agent does next. Works
+// with any coding agent: plain Node, exit codes and stdout.
 import { existsSync, linkSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { CliError, assertInsideDir, checkLedgerPaths, displayPath, formatIssues, oneLine, parseCli, readJsonFile, runMain, scriptCommand, shellArg, usageError, withFileLocks, writeText } from './lib/args.mjs';
+import { ANNOTATIONS_FILE, ANNOTATIONS_KIND, ANNOTATIONS_VERSION, AnnotationError, annotationIdentity, annotationTitle, parseAnnotationsFile } from './lib/annotations.mjs';
 import { resolveReviewConfig } from './lib/review-context.mjs';
 import { assertRunOwnsDir, callerRunId } from './lib/run-lock.mjs';
 import { DecisionsError, applyDecisions, parseDecisions, summaryLine } from './lib/decisions.mjs';
@@ -57,7 +59,10 @@ The decisions document (schemas/decisions.schema.json):
     "decidedBy", "decidedAt", "tickets": true|false,
     "triage": { "fixNow": [ids], "debt": [ids] },
     "dismissals": [ { "findingId", "kind": "not-an-issue"|"remove"|"intentional", "reason", "by", "date" } ],
-    "backfill": [ { "id", "decision": "build"|"not-needed", "reason", "by", "date" } ] }
+    "backfill": [ { "id", "decision": "build"|"not-needed", "reason", "by", "date" } ],
+    "annotations": [ { "state", "side": "app"|"design", "box": { "x", "y", "w", "h" },
+      "severity": "BLOCKER"|"WARNING"|"DS_CANDIDATE", "note", "decision": "fix-now"|"debt",
+      "by", "date" } ] }
 
 Applied in this order: dismissals (as dismiss.mjs does), the triage (as triage.mjs
 --selection does, source report-ui; blockers listed as debt stay fix now, with a
@@ -66,16 +71,30 @@ backfill.mjs --from does). The scorecard is recomputed and the result validated 
 report.json is written. New dismissals are upserted into the dismissed log; the debt
 log (design-debt.json / .md next to the feature folder, as debt-log.mjs) follows the
 triage. Re-applying the same decisions reconciles missing outputs without duplicating entries.
-Existing output files are replaced atomically, never through a symlink; report.json
-and both logs are locked (<file>.lock) from the read to the last write, so parallel
-runs keep every entry. <dir>/decisions.json is claimed first (renamed to
+
+Annotations (issues the reviewer marked on a capture because the pass missed them) do
+not change report.json: each must name a state of the report with an image on its side,
+and is recorded in <dir>/annotations.json (schemas/annotations.schema.json) with the
+next id, AN-001, AN-002 …; the same state, side, box and note is never recorded twice.
+Only this script writes that file: never edit it. The agent investigates each one and
+files it in findings.json as { "annotation": "AN-001", "ledger", "region", "expected",
+"actual", "fix" } (references/review.md, "Annotations from the review"); it cannot
+reject one, only a person can dismiss it. While annotations.json differs from the one
+the report was built with (meta.build.annotations), the Next: command is the rebuild
+(pass.mjs report --dir <dir> --run <id>, or pass.mjs status --dir <dir> when no run id
+is known), which renders too, instead of the render.
+
+Existing output files are replaced atomically, never through a symlink; report.json,
+both logs and annotations.json are locked (<file>.lock) from the read to the last
+write, so parallel runs keep every entry. <dir>/decisions.json is claimed first (renamed to
 decisions.<id>.processing.json, put back when the run fails); after all outputs are
 saved it becomes decisions.applied.json, so a second run reports "No pending decisions".
 A log's JSON and Markdown paths must differ (the Markdown one ends in .md).
 
-Exit codes: 0 applied, nothing new, or nothing pending · 1 invalid report, write
-failure, or the result does not validate · 2 bad arguments, unreadable or stale
-decisions, slug mismatch, unknown ids · 5 another run owns the report folder`;
+Exit codes: 0 applied, nothing new, or nothing pending · 1 invalid report or
+annotations.json, write failure, or the result does not validate · 2 bad arguments,
+unreadable or stale decisions, slug mismatch, unknown ids or states, an annotation on a
+missing image · 5 another run owns the report folder`;
 
 function withExtension(file, ext) {
   return file.replace(/\.(json|md)$/i, '') + ext;
@@ -89,6 +108,39 @@ async function readStdin() {
 
 const scriptPath = (name) => scriptCommand(name).slice('node '.length);
 const PROCESSING_RE = /^decisions\.[0-9a-f-]+\.processing\.json$/;
+const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
+const fixWhen = (a) => (a.decision === 'fix-now' ? 'fix now' : 'fix later');
+
+/** The records of <dir>/annotations.json ([] when it does not exist); an invalid file stops the run (exit 1). */
+function readAnnotations(file, show) {
+  if (!existsSync(file)) return [];
+  const data = readJsonFile(file, 'annotations file', 1);
+  try {
+    return parseAnnotationsFile(data).annotations;
+  } catch (err) {
+    if (err instanceof AnnotationError) {
+      throw new CliError(`${show(file)} is not a valid annotations file (${err.message}). Only apply-decisions.mjs writes it: restore it from version control, or ask the reviewer to send the annotations again`, 1);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Does <dir>/annotations.json differ from the one the report was built with? build-report.mjs
+ * records it in meta.build.annotations as { path, sha256 } of the file's bytes, or null when
+ * there was none.
+ */
+function annotationsChangedSinceBuild(report, file) {
+  const rec = report?.meta?.build?.annotations;
+  const built = rec && typeof rec === 'object' && typeof rec.sha256 === 'string' ? rec.sha256 : null;
+  let now = null;
+  try {
+    now = sha256(readFileSync(file));
+  } catch {
+    now = null; // absent
+  }
+  return now !== built;
+}
 
 async function main(argv) {
   const { values } = parseCli(argv, {
@@ -245,7 +297,10 @@ function applyAll({ values, quiet, dryRun, log, show, reportFile, reportDir, con
     for (const file of [debtMd, debtJson]) assertInsideDir(path.dirname(configFile), file, 'config report.debtLog');
   }
 
+  const annotationsFile = path.join(reportDir, ANNOTATIONS_FILE);
   const work = () => {
+    // The reviewer's annotations recorded so far (only this script writes the file).
+    const recorded = readAnnotations(annotationsFile, show);
     const report = readJsonFile(reportFile, 'report', 1);
     if (!report || typeof report !== 'object' || !Array.isArray(report.findings)) {
       throw new CliError(`${show(reportFile)} is not a design-qa report (no "findings" array)`, 1);
@@ -256,7 +311,7 @@ function applyAll({ values, quiet, dryRun, log, show, reportFile, reportDir, con
     // Apply.
     let result;
     try {
-      result = applyDecisions(report, doc, { allowStale: Boolean(values['allow-stale']), options });
+      result = applyDecisions(report, doc, { allowStale: Boolean(values['allow-stale']), options, annotations: recorded });
     } catch (err) {
       if (err instanceof DecisionsError) {
         const hint = err.code === 'stale' ? ' (Or pass --allow-stale if you are sure the ids still point at the same findings.)' : '';
@@ -264,7 +319,11 @@ function applyAll({ values, quiet, dryRun, log, show, reportFile, reportDir, con
       }
       throw err;
     }
-    const { report: next, changes, warnings } = result;
+    const { report: next, changes, warnings, annotations } = result;
+    // Annotations never change report.json: they are recorded in annotations.json.
+    const reportChanges = changes.filter((c) => c.type !== 'annotation');
+    const addedIds = new Set(changes.filter((c) => c.type === 'annotation').map((c) => c.id));
+    const added = annotations.filter((a) => addedIds.has(a.id));
     const after = validateReport(next, { options });
     if (!after.valid) throw new CliError(`the report with these decisions applied does not validate:\n${formatIssues(after.errors)}`, 1);
 
@@ -282,6 +341,13 @@ function applyAll({ values, quiet, dryRun, log, show, reportFile, reportDir, con
     if (!lists.debt.length) log('  none');
     if (doc.dismissals.length) log(`Dismissed (${doc.dismissals.length}): ${doc.dismissals.map((x) => `${x.findingId} ${x.kind}`).join(', ')}`);
     if (doc.backfill.length) log(`Design backfill (${doc.backfill.length}): ${doc.backfill.map((b) => `${b.id} ${b.decision}`).join(', ')}`);
+    if (doc.annotations?.length) {
+      log(`Annotations added in the review (${doc.annotations.length}):`);
+      for (const a of added) log(`  ${a.id} [${a.severity}] ${oneLine(a.state)}, ${fixWhen(a)} — ${oneLine(annotationTitle(a.note))}`);
+      const idOf = new Map(annotations.map((a) => [annotationIdentity(a), a.id]));
+      const already = doc.annotations.map((a) => idOf.get(annotationIdentity(a))).filter((id) => id && !addedIds.has(id));
+      if (already.length) log(`  ${already.length} already recorded in ${ANNOTATIONS_FILE}: ${already.join(', ')}`);
+    }
     log(doc.tickets ? 'Tickets: authorised by the reviewer' : 'Tickets: not authorised (create none; list the debt in your reply)');
     for (const w of warnings) {
       if (quiet) console.error(`warning: ${oneLine(w)}`);
@@ -297,7 +363,8 @@ function applyAll({ values, quiet, dryRun, log, show, reportFile, reportDir, con
     // Build all outputs before writing so an unreadable log cannot partially apply a review.
     const outputs = [];
     const jsonText = (value) => `${JSON.stringify(value, null, 2)}\n`;
-    if (changes.length) outputs.push([reportFile, jsonText(next)]);
+    if (reportChanges.length) outputs.push([reportFile, jsonText(next)]);
+    if (added.length) outputs.push([annotationsFile, jsonText({ kind: ANNOTATIONS_KIND, version: ANNOTATIONS_VERSION, annotations })]);
 
     const dismissChanges = doc.dismissals.map((c) => ({ findingId: c.findingId, action: 'dismiss', source: 'report-ui' }));
     if (dismissChanges.length) {
@@ -332,15 +399,29 @@ function applyAll({ values, quiet, dryRun, log, show, reportFile, reportDir, con
       writeText(file, text); // atomic; refuses a symlink or a directory
       written.push(show(file));
     }
-    if (!changes.length) log('Nothing new: report.json already records these decisions (not rewritten).');
+    if (!changes.length) {
+      log(doc.annotations?.length ? 'Nothing new: report.json and annotations.json already record these decisions (not rewritten).' : 'Nothing new: report.json already records these decisions (not rewritten).');
+    }
     if (written.length) log(`Wrote ${written.join(', ')}`);
-    return { received, next, lists, doc, configFile };
+    // Annotations that are not findings of the report yet: the agent files them, then the report is rebuilt.
+    const built = new Set(next.findings.map((f) => f?.annotation?.id).filter(Boolean));
+    const unfiled = annotations.filter((a) => !built.has(a.id));
+    const rebuild = added.length > 0 || annotationsChangedSinceBuild(next, annotationsFile);
+    return { received, next, lists, doc, configFile, annotations: { added, unfiled, rebuild } };
   };
-  return dryRun ? work() : withFileLocks([reportFile, doc.dismissals.length ? logFile : null, debtJson], work);
+  return dryRun ? work() : withFileLocks([reportFile, doc.dismissals.length ? logFile : null, debtJson, doc.annotations?.length ? annotationsFile : null], work);
 }
 
-/** The printed next steps: every path shell-quoted, so each command stays one line. */
-function printNext({ next, lists, doc, configFile }, { log, reportFile, reportDir, runId }) {
+/**
+ * The printed next steps: every path shell-quoted, so each command stays one line. With
+ * annotations to investigate (or annotations.json changed since the build), the one
+ * Next: is the rebuild, which renders too; otherwise it is the render.
+ */
+function printNext({ next, lists, doc, configFile, annotations }, { log, reportFile, reportDir, runId }) {
+  if (annotations?.rebuild) {
+    printRebuildNext({ next, lists, doc, configFile, annotations }, { log, reportFile, reportDir, runId });
+    return;
+  }
   const rel = shellArg(displayPath(reportFile));
   const inDir = (name) => shellArg(displayPath(path.join(reportDir, name)));
   const config = configFile ? ` --config ${shellArg(displayPath(configFile))}` : '';
@@ -367,6 +448,47 @@ function printNext({ next, lists, doc, configFile }, { log, reportFile, reportDi
   if (lists.fixNow.length) log(`Do: After the next command, fix the fix-now set (${lists.fixNow.map((f) => oneLine(f.id)).join(', ')}) in that order, per references/fix-loop.md.`);
   else log('Do: Nothing to fix now.');
   log(`Next: ${render}`);
+}
+
+/** printNext when the report must be rebuilt: file the annotations, then pass.mjs report. */
+function printRebuildNext({ next, lists, doc, configFile, annotations }, { log, reportFile, reportDir, runId }) {
+  const rel = shellArg(displayPath(reportFile));
+  const config = configFile ? ` --config ${shellArg(displayPath(configFile))}` : '';
+  const runArg = runId ? ` --run ${runId}` : '';
+  const dir = shellArg(displayPath(reportDir));
+  const toFile = annotations.unfiled.length ? annotations.unfiled : annotations.added;
+  const ids = toFile.map((a) => a.id);
+  if (ids.length) {
+    log(
+      `Do: Investigate each annotation from the review (${ids.join(', ')}) on the page and in the design, and file it in findings.json as ` +
+        `{ "annotation": "${ids[0]}", "ledger", "region", "expected", "actual", "fix" } (references/review.md, "Annotations from the review"). ` +
+        'Never edit annotations.json, and never reject an annotation: only a person can dismiss it.',
+    );
+  } else {
+    log(`Do: ${ANNOTATIONS_FILE} differs from the one the report was built with; the next command rebuilds the report from it.`);
+  }
+  // A debt annotation is not a finding yet: its ticket comes after the rebuild.
+  const untracked = (next.triage?.items ?? []).filter((i) => i.decision === 'debt' && !i.ticket).length;
+  const debtIds = toFile.filter((a) => a.decision === 'debt').map((a) => a.id);
+  if (doc.tickets && (untracked || debtIds.length)) {
+    const later = debtIds.length ? `; the debt annotations ${debtIds.join(', ')} become debt items in the rebuild, so their tickets come after it too` : '';
+    log(
+      `Do: After the rebuild, create one ticket per debt item (${untracked} now${later}): node ${scriptPath('jira-fetch.mjs')} --tickets-from ${rel}${runArg} (preview), then the same with --write ` +
+        `(or the tracker's MCP); then node ${scriptPath('debt-log.mjs')} --report ${rel}${config}${runArg} records the ticket keys.`,
+    );
+  } else if (!doc.tickets && (untracked || debtIds.length)) {
+    const what = [untracked ? `${untracked} debt item(s) have no ticket` : null, debtIds.length ? `the debt annotations (${debtIds.join(', ')}) will have none after the rebuild` : null].filter(Boolean).join(', and ');
+    log(`Do: ${what.charAt(0).toUpperCase()}${what.slice(1)}; the reviewer did not authorise tickets, so create none and list them in your reply.`);
+  }
+  const fixIds = lists.fixNow.map((f) => oneLine(f.id));
+  const fixAnnotations = toFile.filter((a) => a.decision === 'fix-now').map((a) => a.id);
+  if (fixIds.length || fixAnnotations.length) {
+    const set = [fixIds.join(', '), fixAnnotations.length ? `the annotations marked fix now: ${fixAnnotations.join(', ')}` : ''].filter(Boolean).join(', and ');
+    log(`Do: After the rebuild, fix the fix-now set (${set}) in the order the rebuilt report gives, per references/fix-loop.md.`);
+  } else {
+    log('Do: Nothing to fix now.');
+  }
+  log(`Next: node ${scriptPath('pass.mjs')} ${runId ? `report --dir ${dir} --run ${runId}` : `status --dir ${dir}`}`);
 }
 
 runMain(import.meta.url, main);

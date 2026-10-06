@@ -6,13 +6,14 @@ Read when: step 4 of every pass, writing `<dir>/findings.json`.
 
 ## Account for everything
 
-`pass.mjs report … --check` (it works before `findings.json` exists) lists every audit candidate and compare FAIL row still to decide, one line each, with its key: never read `ds-audit.json` or `compare.json`. The build refuses to write a report until each input is filed or rejected:
+`pass.mjs report … --check` lists every audit candidate and compare FAIL row still to decide, one line each, with its key: never read `ds-audit.json` or `compare.json`. The build refuses to write a report until each input is filed or rejected:
 
 | Input | File it | Reject it |
 |---|---|---|
 | Worklist item (`worklist.md`) | `"worklist": "<key>"` (or a list). Without a `pin` it is pinned on the item's crops (up to 5 states, plus the design); `state` defaults to the first item's. | `{ "worklist": ["<key>", …], "reason", "detail" }`; `worklist.md` prints complete rejections to paste. |
 | Audit candidate | `{ "auditKey": "<key>" }`: complete and pinned; add only what you change. Token candidates require source verification (references/ds-audit.md), never `matches-design`. A finding may carry `auditKey` and `worklist` together. | `{ "auditKeys": ["<key>", …], "reason", "detail" }` |
 | Compare FAIL row (coded prototype, Figma motion) | Usually nothing: a pinned finding covers rows inside its pin (same kind and property); for a leftover row `--check` prints the `covers` entry. | `{ "compare": { "kind", "state", "elementClass", "property" }, "reason", "detail" }` |
+| Reviewer annotation (`annotations.json`) | `{ "annotation": "AN-001", "ledger", "region", "expected", "actual", "fix" }`; it sets severity, state and pin (references/review.md). | Only a person can. Disagree: `UNCLASSIFIED` with an open decision. |
 
 A `covers` entry or `compare` matcher is `{ "kind", "state", "elementClass" | "selector" | "role" + "name" | "figmaNodeId", "property" }`. `detail` is a sentence (20+ characters). Every rejection is shown to the reviewer ("Rejected by the agent"); a rejected share above 5% of a page makes the verdict at least REVIEW.
 
@@ -23,7 +24,7 @@ A `covers` entry or `compare` matcher is `{ "kind", "state", "elementClass" | "s
 Required: `ref`, `title`, `ledger`, `state`, `severity`, `region`, `expected`, `actual`, and `fix` (`summary` at least) for `FIX_CODE`. A worklist or audit key fills some of them.
 
 - `ref`: a short unique name (an `auditKey` finding may go without). Ids follow refs and keys, not list order; two findings with the same identity need distinct refs.
-- `title`: what is wrong in the code. "Page title is 28px instead of heading/lg", "App renders an extra Retry button". Never "the design lacks".
+- `title`: what is wrong in the code. "Page title is 28px instead of heading/lg". Never "the design lacks".
 - `ledger`: `structure` (regions, order, copy, extra or missing elements) · `component` · `style` (a value or token) · `state` (a designed state missing or wrong) · `behavior` · `motion`.
 - `state`: a row of the state matrix; in a multi-screen pass `<screen>/<state>`.
 - `expected`, `actual`: `{ "value", "token" }`. Fill both tokens on a token mismatch (`actual.token: null`: hardcoded). Add `actual.source { file, line, snippet }` when known.
@@ -46,7 +47,7 @@ Only `BLOCKER`, `WARNING` and `DS_CANDIDATE` count toward match and findings set
 
 - Leave it out for the default: `FIX_CODE` for an open severity, `NONE` for `CANNOT_VERIFY`.
 - `DATA`: content, not design (values, names, dates, counts, rows). Needs `dataReason` (20+ characters) and a likely-DATA hint on every worklist region it names. Never for a component, motion or state finding, a design token or an audit candidate.
-- `INTENTIONAL`: only with `knownDrift` (below) or a person's acceptance in the review. A `signoff` you write shows as the agent's and stays open until a person confirms it there.
+- `INTENTIONAL`: only with `knownDrift` or a person's acceptance in the review. A `signoff` you write shows as the agent's and stays open until a person confirms it there.
 - `UNCLASSIFIED`: only a person can place it. Add to `openDecisions`: `{ "question", "options": [{ "label", "consequence" }], "recommendation", "relatedFindings": ["<ref>"] }`, recommending the design.
 - Never `DISMISSED`: a person dismisses, through the review.
 
@@ -64,7 +65,5 @@ With `designSystem.knownDrifts` in the config, read that file once before filing
 
 ## Grounding and coverage
 
-- **Deployed target**: the capture is the evidence; local source is only a hint for the fix. Known deployed commit: `pass.target.deployedCommit`. `pass.app.url` cannot change the captured origin.
+- **Deployed target**: the capture is the evidence; local source only hints at the fix. Known deployed commit: `pass.target.deployedCommit`. `pass.app.url` cannot change the captured origin.
 - **Part of a page** that cannot be captured whole is excused only by `pass.degradations`: `{ "step": "capture-coverage:<state>", "reason", "impact" }`. The state then counts as captured only in part (REVIEW).
-
-Then run `pass.mjs report`; each problem it lists names the place to change.

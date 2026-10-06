@@ -819,7 +819,7 @@ test('schemas: errorMessage text never contains a ${…} template (ajv-errors re
     }
     return out;
   };
-  for (const name of ['report', 'config', 'state-matrix', 'decisions']) assert.deepEqual(walk(loadSchema(name), name, []), [], name);
+  for (const name of ['report', 'config', 'state-matrix', 'decisions', 'annotations']) assert.deepEqual(walk(loadSchema(name), name, []), [], name);
 });
 
 test('config: report.debtLog must be a .md path', () => {

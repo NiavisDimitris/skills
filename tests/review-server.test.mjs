@@ -746,3 +746,38 @@ test('review.mjs: the test-only build-verification skip is loud on stderr and on
   assert.equal(refused.code, 1);
   assert.match(refused.stderr, /fails the evidence gates, so it is not ready for a person to review:\n {2}meta\.build\.findings: names no findings file/);
 });
+
+test('review.mjs: a document with annotations is checked against report.json, saved as sent, and its summary counts them', async (t) => {
+  const ws = workspace(t);
+  const srv = await startReview(t, ['--report', ws.reportFile]);
+  const annotation = {
+    state: 'with-data',
+    side: 'app',
+    box: { x: 120, y: 340, w: 48, h: 24 },
+    severity: 'WARNING',
+    note: 'Promo code field is missing its error message',
+    decision: 'debt',
+    by: null,
+    date: null,
+  };
+  const d = { ...loadFixture('decisions.json'), annotations: [annotation] };
+  const unknownState = await post(srv, { ...d, annotations: [{ ...annotation, state: 'checkout' }] });
+  assert.equal(unknownState.status, 409);
+  assert.match(unknownState.json.error, /^annotations\[0\] names state "checkout", not a state of this report \(have: with-data, empty/);
+  const noImage = await post(srv, { ...d, annotations: [{ ...annotation, state: 'empty' }] });
+  assert.equal(noImage.status, 409);
+  assert.match(noImage.json.error, /no app capture for that state/);
+  const blockerDebt = await post(srv, { ...d, annotations: [{ ...annotation, severity: 'BLOCKER' }] });
+  assert.equal(blockerDebt.status, 400);
+  assert.match(blockerDebt.json.error, /a BLOCKER cannot be debt/);
+  assert.ok(!existsSync(path.join(ws.dir, 'decisions.json')), 'nothing is saved for a rejected document');
+
+  const ok = await post(srv, d);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.json.summary, 'fix now 4 · later 3 · dismissed 2 · annotations 1 · tickets: yes');
+  const result = await srv.exited;
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(ws.dir, 'decisions.json'), 'utf8')).annotations, [annotation]);
+  assert.match(result.stdout, /\nDecisions received from Dana: fix now 4 · later 3 · dismissed 2 · annotations 1 · tickets: yes\n/);
+  assert.ok(!existsSync(path.join(ws.dir, 'annotations.json')), 'only apply-decisions.mjs records annotations');
+});

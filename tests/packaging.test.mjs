@@ -70,8 +70,9 @@ test('the plugin stays small: examples, tests and docs are not in it', () => {
   const tracked = execFileSync('git', ['ls-files', '-z', '--', entry.source], { cwd: ROOT, encoding: 'utf8' }).split('\0').filter((f) => f && existsSync(path.join(ROOT, f)));
   const bytes = tracked.reduce((n, f) => n + statSync(path.join(ROOT, f)).size, 0);
   // Raised from 2 MB in 0.2.2, which added the pass pipeline, design-system audit, worklist and
-  // onboarding (about 2.34 MB); binaries and examples still stay out.
-  assert.ok(bytes < 2.5 * 1024 * 1024, `plugin is ${(bytes / 1048576).toFixed(2)} MB`);
+  // onboarding (about 2.34 MB), and from 2.5 MB in 0.2.3, which added reviewer annotations
+  // (about 2.50 MB); binaries and examples still stay out.
+  assert.ok(bytes < 2.75 * 1024 * 1024, `plugin is ${(bytes / 1048576).toFixed(2)} MB`);
   assert.ok(!tracked.some((f) => /\.(png|woff2|jpg|mp4)$/.test(f)), 'no binary assets in the plugin');
 });
 

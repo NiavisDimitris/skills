@@ -197,6 +197,12 @@
               "required": ["path", "sha256"],
               "properties": { "path": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" } }
             },
+            "annotations": {
+              "type": ["object", "null"],
+              "description": "The reviewer's annotations the report was built from (<report dir>/annotations.json, written by apply-decisions.mjs), null when there were none. A change, a removal or a new annotations.json since the build means rebuild.",
+              "required": ["path", "sha256"],
+              "properties": { "path": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" } }
+            },
             "evidence": {
               "type": "array",
               "items": {
@@ -654,7 +660,23 @@
           "$ref": "#/definitions/nullableString",
           "description": "Why an open FIX_CODE finding has no pin (no evidence entry with both state and crop): at least 20 characters naming what is absent from every capture. Not needed when the finding's state is MISSING_IN_CODE and has no app capture. Ignored (a warning) when the finding has a pin."
         },
-        "acRef": { "$ref": "#/definitions/nullableString" }
+        "acRef": { "$ref": "#/definitions/nullableString" },
+        "annotation": {
+          "type": ["object", "null"],
+          "description": "Set by build-report.mjs on a finding a person added in the review (an annotation on the capture that the pass missed): the entry of <report dir>/annotations.json it was built from, which the agent filed in findings.json ({ \"annotation\": \"AN-001\", … }). The severity and the reviewer-drawn pin come from it. Absent on findings the agent found.",
+          "required": ["id", "note", "side", "box", "source"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "string", "pattern": "^AN-\\d{3,}$" },
+            "note": { "type": "string", "minLength": 1, "description": "The reviewer's description of the issue, as written." },
+            "by": { "$ref": "#/definitions/nullableString" },
+            "date": { "type": ["string", "null"], "format": "date-time" },
+            "side": { "enum": ["app", "design"], "description": "The image the reviewer marked: the app capture or the design." },
+            "box": { "$ref": "#/definitions/crop", "description": "The box the reviewer drew, in that image's pixels, as recorded (the evidence crop may be clipped to a later capture)." },
+            "decision": { "enum": ["fix-now", "debt"], "description": "Fix now or later, as the reviewer chose it when adding the annotation." },
+            "source": { "enum": ["report-ui"] }
+          }
+        }
       },
       "allOf": [
         {

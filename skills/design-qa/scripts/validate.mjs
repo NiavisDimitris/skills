@@ -1,17 +1,22 @@
 #!/usr/bin/env node
-// Validate a design-qa report.json, design-qa.config.json, state-matrix.json or decisions.json.
+// Validate a design-qa report.json, design-qa.config.json, state-matrix.json, decisions.json or annotations.json.
 // Zero dependencies; the structural rules come from ../schemas/*.schema.json.
 import { statSync } from 'node:fs';
 import path from 'node:path';
 import { CliError, displayPath, parseCli, readJsonFile, runMain, usageError } from './lib/args.mjs';
+import { ANNOTATIONS_KIND, AnnotationError, parseAnnotationsFile } from './lib/annotations.mjs';
 import { DECISIONS_KIND, DecisionsError, normalizeDecisions } from './lib/decisions.mjs';
 import { TYPES as SCHEMA_TYPES, inferType as inferSchemaType, loadSchema, validate, validateAgainstSchema, validateConfig, verifyBuiltFile } from './lib/schema-check.mjs';
 
-const TYPES = [...SCHEMA_TYPES, 'decisions'];
+const TYPES = [...SCHEMA_TYPES, 'decisions', 'annotations'];
 
-/** report | config | state-matrix as schema-check infers them; kind "design-qa-decisions" → decisions. */
+/**
+ * report | config | state-matrix as schema-check infers them; kind "design-qa-decisions" →
+ * decisions; kind "design-qa-annotations" → annotations.
+ */
 function inferType(data) {
   if (data && typeof data === 'object' && !Array.isArray(data) && data.kind === DECISIONS_KIND) return 'decisions';
+  if (data && typeof data === 'object' && !Array.isArray(data) && data.kind === ANNOTATIONS_KIND) return 'annotations';
   return inferSchemaType(data);
 }
 
@@ -29,17 +34,34 @@ function validateDecisionsFile(data) {
   return { valid: errors.length === 0, errors, warnings };
 }
 
+/** The annotations schema, then the rules it cannot express (scripts/lib/annotations.mjs). */
+function validateAnnotationsFile(data) {
+  const { errors, warnings } = validateAgainstSchema(data, loadSchema('annotations'));
+  if (!errors.length) {
+    try {
+      parseAnnotationsFile(data);
+    } catch (err) {
+      if (!(err instanceof AnnotationError)) throw err;
+      errors.push({ path: '(root)', message: err.message });
+    }
+  }
+  return { valid: errors.length === 0, errors, warnings };
+}
+
 const HELP = `Validate a design-qa file.
 
 Usage:
-  node scripts/validate.mjs <file> [--type report|config|state-matrix|decisions] [--config design-qa.config.json] [--quiet] [--json]
+  node scripts/validate.mjs <file> [--type report|config|state-matrix|decisions|annotations] [--config design-qa.config.json] [--quiet] [--json]
 
 Options:
-  --type <type>      report | config | state-matrix | decisions. Inferred when omitted:
-                     schemaVersion or findings → report; app or surfaces → config;
+  --type <type>      report | config | state-matrix | decisions | annotations. Inferred when
+                     omitted: schemaVersion or findings → report; app or surfaces → config;
                      an array of { state, result } rows → state-matrix;
                      kind "design-qa-decisions" → decisions (the review decisions
-                     document, schemas/decisions.schema.json)
+                     document, schemas/decisions.schema.json); kind "design-qa-annotations"
+                     → annotations (<report dir>/annotations.json, the reviewer's
+                     annotations that apply-decisions.mjs records,
+                     schemas/annotations.schema.json)
   --config <file>    for reports: take tolerances.pixelDiff, report.topN and
                      report.ranking from this design-qa.config.json
                      (defaults: pass < 1%, review <= 5%, top 5)
@@ -181,7 +203,8 @@ async function validateCli(argv, seen) {
 
   // The Phase 8 gate: the evidence gates are errors here (other scripts only warn, so reports
   // written before these rules can still be dismissed, triaged and applied).
-  const result = type === 'decisions' ? validateDecisionsFile(data) : validate(data, type, { config, evidenceGates: 'error' });
+  const result =
+    type === 'decisions' ? validateDecisionsFile(data) : type === 'annotations' ? validateAnnotationsFile(data) : validate(data, type, { config, evidenceGates: 'error' });
   if (type === 'report') {
     // A built report is checked against the files it was built from: a hand edit after the build is refused.
     const built = await verifyBuiltFile(file, data);

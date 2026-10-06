@@ -87,7 +87,7 @@ It builds `report.json` (earlier dismissals re-applied), renders `report.html` a
 
 ### 6. Review
 
-`Next:` is `pass.mjs review --dir <dir> --run <id>`: it opens the report and waits for the person (a long-running command). Tell them: choose Fix now or Debt, dismiss with a reason, then "Review and send". Sent: `Next:` applies the decisions, then `evidence --recapture` re-checks your fixes (references/fix-loop.md). Closed without Send: the `Do:` line asks whether to reopen or finish. When the person will not review now, run the command on the line "If the person will not review now:" (the review is recorded as skipped). More: references/review.md.
+`Next:` is `pass.mjs review --dir <dir> --run <id>`: it opens the report and waits for the person (long-running). Tell them: choose Fix now or Debt, dismiss with a reason, annotate what the pass missed, then "Review and send". Sent: `Next:` applies the decisions, then `evidence --recapture` re-checks your fixes (references/fix-loop.md). Closed without Send: the `Do:` line asks whether to reopen or finish. When the person will not review now, run the command on the line "If the person will not review now:". More: references/review.md.
 
 ### 7. Finish
 
@@ -98,7 +98,7 @@ It builds `report.json` (earlier dismissals re-applied), renders `report.html` a
 1. Do the `Do:` lines, then run `Next:` as printed. Never skip or reorder a stage.
 2. The whole page, always. Never report from the first screen only.
 3. Use review tiles and values; avoid dumping raw evidence files (`audit/`, `dom/`, `computed/`, `capture.json`, `figma-spec.json`, `worklist.json`).
-4. Never write `report.json` by hand, or a script that writes it.
+4. Never write `report.json` or `annotations.json` by hand, or a script that writes them.
 5. Never edit `design-qa.config.json` by hand: `setup.mjs apply` and `pass.mjs save-drivers` write it, after the person agrees.
 6. Never delete a report folder or archive. Never stop a process by pattern (`pkill`): use `review.mjs --stop`.
 7. A fresh pass inherits nothing but dismissals.

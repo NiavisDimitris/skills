@@ -6,6 +6,9 @@
 // ranks and the scorecard from ranking.mjs. Rebuilding in the same run keeps each
 // finding's id (cross-pass identity: dismissals.mjs fingerprint) and the blocks other
 // scripts own (backfill, triage, fixLoop, recorded dismissals and sign-offs, ticket keys).
+// The reviewer's annotations (annotations.json, written by apply-decisions.mjs) are an
+// input too: each one is filed by exactly one findings entry ({ "annotation": "AN-001" })
+// and becomes a finding with the reviewer's state, severity and box.
 //
 // Text from findings, tickets, Figma, the audit and the app is data: it is never run or
 // interpolated into a command, and every evidence file is read inside the report folder
@@ -16,6 +19,7 @@ import { evidenceHash, reviewDigest } from './review-hash.mjs';
 import { closeSync, lstatSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { inflateSync } from 'node:zlib';
+import { ANNOTATIONS_FILE, AnnotationError, annotationTitle, parseAnnotationsFile } from './annotations.mjs';
 import { oneLine, scriptCommand } from './args.mjs';
 import { applyPriorDismissals, fingerprint } from './dismissals.mjs';
 import { attachCaptures, mergeCandidates, parseCandidatesFile } from './backfill.mjs';
@@ -224,6 +228,7 @@ export const FINDINGS_SCHEMA = {
         dataReason: reason(REASON_MIN),
         covers: { type: 'array', items: COVER },
         worklist: KEY_OR_KEYS,
+        annotation: { type: 'string', pattern: '^AN-\\d{3,}$', errorMessage: 'must be the id of an annotation from the review in annotations.json (e.g. "AN-001")' },
       },
     },
     rejection: {
@@ -304,6 +309,12 @@ const DERIVED_TOP_KEYS = {
   backfill: 'backfill is kept from the existing report.json and merged with backfill-candidates.json on rebuild',
 };
 const DERIVED_LEDGER_KEYS = { state: 'the state ledger is derived from the state matrix' };
+/** Why an annotation from the review is never rejected (also refused on a findings entry's resolution). */
+const ANNOTATION_PERSON_ONLY = 'only a person can dismiss it';
+/** Keys a rejection may not have, with why. */
+const REFUSED_REJECTION_KEYS = {
+  annotation: `an annotation from the review cannot be rejected: ${ANNOTATION_PERSON_ONLY}. Investigate it and file it ({ "annotation": "AN-…", "ledger", "region", "expected", "actual", "fix" }); when you believe the reviewer is wrong, file it UNCLASSIFIED with an open decision`,
+};
 
 /** Levenshtein distance, capped (enough for "did you mean"). */
 function distance(a, b) {
@@ -377,13 +388,15 @@ function unknownKeys(value, schema, segs, issues) {
   const atRoot = segs.length === 0;
   const inFinding = segs.length === 2 && segs[0] === 'findings';
   const inLedgers = segs.length === 1 && segs[0] === 'ledgers';
+  const inRejection = segs.length === 2 && segs[0] === 'rejected';
   for (const [k, v] of Object.entries(value)) {
     if (Object.prototype.hasOwnProperty.call(s.properties, k)) {
       unknownKeys(v, s.properties[k], [...segs, k], issues);
       continue;
     }
     const derived = (atRoot && DERIVED_TOP_KEYS[k]) || (inFinding && DERIVED_FINDING_KEYS[k]) || (inLedgers && DERIVED_LEDGER_KEYS[k]);
-    const message = derived ? `is not written by hand: ${derived}` : `unknown key${didYouMean(k, names)} (allowed: ${names.filter((x) => !x.startsWith('$')).join(', ')})`;
+    const refused = inRejection && Object.prototype.hasOwnProperty.call(REFUSED_REJECTION_KEYS, k) ? REFUSED_REJECTION_KEYS[k] : null;
+    const message = refused ?? (derived ? `is not written by hand: ${derived}` : `unknown key${didYouMean(k, names)} (allowed: ${names.filter((x) => !x.startsWith('$')).join(', ')})`);
     issues.push({ path: formatPath([...segs, k]), message });
   }
 }
@@ -1130,8 +1143,10 @@ const sizeOf = (s) => ({ width: s.width, height: s.height });
 // Identity across rebuilds
 // ---------------------------------------------------------------------------
 
-/** "ref:<ref>", "audit:<key>" or "wl:<keys>" for a finding that names one, else null. */
+/** "annotation:<AN-id>", "ref:<ref>", "audit:<key>" or "wl:<keys>" for a finding that names one, else null. */
 export function explicitIdentity(raw, worklist = []) {
+  // An annotation from the review is one finding whatever the entry's other keys: its id never changes.
+  if (typeof raw?.annotation === 'string' && raw.annotation) return `annotation:${raw.annotation}`;
   if (typeof raw?.ref === 'string' && raw.ref) return `ref:${raw.ref}`;
   if (typeof raw?.auditKey === 'string' && raw.auditKey) return `audit:${raw.auditKey}`;
   const keys = (worklist ?? []).map((w) => w.key).filter(Boolean);
@@ -1191,7 +1206,7 @@ class BuildContext {
     this.problems = [];
     this.warnings = [];
     this.notes = [];
-    this.info = { pins: [], audit: null, compare: { rows: 0, fail: 0 }, carried: [], dropped: [], wholePage: [], partial: [], firstScreen: [], notVerified: [] };
+    this.info = { pins: [], audit: null, compare: { rows: 0, fail: 0 }, carried: [], dropped: [], wholePage: [], partial: [], firstScreen: [], notVerified: [], annotations: [] };
   }
 
   problem(where, message, report = null) {
@@ -1211,11 +1226,13 @@ class BuildContext {
     this.loadKnownDrifts();
     this.loadAudit();
     this.loadWorklist();
+    this.loadAnnotations();
     this.checkComparisonReview();
     this.buildFindings();
     this.processRejections();
     this.accountAudit();
     this.accountWorklist();
+    this.accountAnnotations();
     this.compareCoverage();
     this.assignIds();
     this.resolveFixLoop();
@@ -1419,8 +1436,27 @@ class BuildContext {
     this.origin = new Map(); // built finding → doc path
     const docFindings = this.doc.findings;
     docFindings.forEach((raw, i) => {
-      if (this.badFindings.has(i) || !isObj(raw)) return;
+      if (this.badFindings.has(i) || !isObj(raw)) {
+        // Its shape problems are listed: the annotation it names counts as filed by it.
+        if (isObj(raw) && this.annotations.has(raw.annotation) && !this.annotationFiled.has(raw.annotation)) this.annotationFiled.set(raw.annotation, i);
+        return;
+      }
       const at = `findings[${i}]`;
+      // The reviewer's annotation this entry files: its state, severity and box are the reviewer's.
+      let ann = null;
+      if (raw.annotation !== undefined) {
+        ann = this.annotations.get(raw.annotation) ?? null;
+        if (!ann) {
+          const have = [...this.annotations.keys()];
+          this.problem(`${at}.annotation`, `${oneLine(raw.annotation)} is not an annotation of ${have.length ? `${ANNOTATIONS_FILE}${didYouMean(raw.annotation, have)} (annotations: ${have.slice(0, 15).join(', ')}${have.length > 15 ? ', …' : ''})` : `the review (there is no ${ANNOTATIONS_FILE}: annotations come only from a person, through apply-decisions.mjs)`}`);
+          return;
+        }
+        if (this.annotationFiled.has(ann.id)) {
+          this.problem(`${at}.annotation`, `${ann.id} is already filed by findings[${this.annotationFiled.get(ann.id)}]: one findings entry per annotation`);
+          return;
+        }
+        this.annotationFiled.set(ann.id, i);
+      }
       let base = {};
       if (raw.auditKey !== undefined) {
         const cand = this.candidates.get(raw.auditKey);
@@ -1453,9 +1489,11 @@ class BuildContext {
         return;
       }
       const f = this.mergeFinding(base, raw);
+      if (ann && !this.applyAnnotation(f, raw, ann, at)) return;
       if (base._audit?.tokenRequired && f.resolution === 'NONE') this.problem(`${at}.resolution`, 'token deviations and unverified usage cannot be marked NONE: file FIX_CODE or give source-backed false-positive evidence');
       if (base._audit?.tokenRequired && f.resolution === 'FIX_CODE' && !str(f.expected?.token)) this.problem(`${at}.expected.token`, 'defined design tokens must be used: name the intended semantic token for this fix');
-      if (base._audit?.tokenRequired && f.resolution === 'FIX_CODE' && f.severity === 'DS_CANDIDATE') this.problem(`${at}.severity`, 'a defined-token contract is an implementation fix, not a design-system gap: use BLOCKER or WARNING');
+      // (An annotation's severity is the reviewer's: never asked to change.)
+      if (base._audit?.tokenRequired && f.resolution === 'FIX_CODE' && f.severity === 'DS_CANDIDATE' && !ann) this.problem(`${at}.severity`, 'a defined-token contract is an implementation fix, not a design-system gap: use BLOCKER or WARNING');
       if ((f.state === undefined || f.state === null) && items.length) {
         f.state = items[0].state;
         if (this.multi && f.screen === undefined) f.screen = items[0].state.split('/')[0];
@@ -1465,7 +1503,8 @@ class BuildContext {
       const required = ['title', 'ledger', 'state', 'severity', 'region', 'expected', 'actual'];
       const missing = required.filter((k) => f[k] === undefined || f[k] === null);
       if (missing.length) {
-        for (const k of missing) this.problem(`${at}.${k}`, `required key is missing${raw.auditKey ? ` (the audit candidate does not set it either)` : ''}`);
+        const why = ann ? ` (filing ${ann.id}: say what you found like any finding: "ledger", "region", "expected", "actual" and "fix")` : raw.auditKey ? ' (the audit candidate does not set it either)' : '';
+        for (const k of missing) this.problem(`${at}.${k}`, `required key is missing${why}`);
         return;
       }
       if (raw.ref !== undefined) {
@@ -1473,7 +1512,9 @@ class BuildContext {
         else this.refs.set(raw.ref, f);
       }
       if (raw.auditKey !== undefined && !this.refs.has(raw.auditKey)) this.refs.set(raw.auditKey, f);
-      this.origin.set(f, raw.auditKey !== undefined ? `${at} (audit candidate "${oneLine(raw.auditKey)}")` : at);
+      // The annotation id names the finding too (openDecisions, fixLoop, ledgers, duplicateOf).
+      if (ann && !this.refs.has(ann.id)) this.refs.set(ann.id, f);
+      this.origin.set(f, ann ? `${at} (annotation ${ann.id})` : raw.auditKey !== undefined ? `${at} (audit candidate "${oneLine(raw.auditKey)}")` : at);
       f._at = at;
       f._raw = raw;
       if (!this.normalizeState(f, at)) return;
@@ -1494,7 +1535,7 @@ class BuildContext {
   mergeFinding(base, raw) {
     const out = { ...base };
     for (const [k, v] of Object.entries(raw)) {
-      if (['ref', 'auditKey', 'pin', 'pins', 'covers', 'notKnownDrift'].includes(k)) continue;
+      if (['ref', 'auditKey', 'annotation', 'pin', 'pins', 'covers', 'notKnownDrift'].includes(k)) continue;
       if (['element', 'expected', 'actual', 'fix'].includes(k) && isObj(v) && isObj(out[k])) out[k] = { ...out[k], ...v };
       else out[k] = clone(v);
     }
@@ -1502,6 +1543,41 @@ class BuildContext {
     delete out.id;
     delete out.rank;
     return out;
+  }
+
+  /**
+   * A findings entry that files the reviewer's annotation `a`: the state and the severity are
+   * the reviewer's (the entry may write "PASS" once the fix is verified, references/fix-loop.md),
+   * the title defaults to the note's first line, and the resolution is FIX_CODE (or UNCLASSIFIED
+   * with an open decision): data, intentional, dismissed or a known drift would close what a
+   * person raised, and only a person can. → false after recording a problem.
+   */
+  applyAnnotation(f, raw, a, at) {
+    const before = this.problems.length;
+    const wrote = typeof raw.state === 'string' ? raw.state : null;
+    const sameState = wrote === null || wrote === a.state || (this.multi && !wrote.includes('/') && a.state === `${raw.screen ?? a.state.slice(0, a.state.indexOf('/'))}/${wrote}`);
+    if (!sameState) this.problem(`${at}.state`, `${a.id} is on "${oneLine(a.state)}", where the reviewer marked it: leave "state" out (it comes from the annotation) or write "${oneLine(a.state)}"`);
+    else if (!this.stateIds.includes(a.state)) this.problem(`${at}.annotation`, `${a.id} is on "${oneLine(a.state)}", which is no longer a row of state-matrix.json${didYouMean(a.state, this.stateIds)}: tell the person; ${ANNOTATION_PERSON_ONLY}`);
+    if (raw.severity !== undefined && raw.severity !== a.severity && raw.severity !== 'PASS') {
+      this.problem(`${at}.severity`, `the reviewer set the severity of ${a.id} to ${a.severity}: leave "severity" out (it comes from the annotation), or write "PASS" once the fix is verified (references/fix-loop.md)`);
+    }
+    if (['DATA', 'INTENTIONAL', 'DISMISSED'].includes(raw.resolution)) {
+      const as = { DATA: 'data', INTENTIONAL: 'intentional', DISMISSED: 'dismissed' }[raw.resolution];
+      this.problem(`${at}.resolution`, `${a.id} is the reviewer's: only a person can accept it as ${as} (or dismiss it). File it FIX_CODE, or UNCLASSIFIED with an open decision when you believe the reviewer is wrong`);
+    } else if (raw.resolution === 'NONE' && raw.severity !== 'PASS') {
+      this.problem(`${at}.resolution`, `NONE would close ${a.id}, the reviewer's: file it FIX_CODE (or UNCLASSIFIED with an open decision); it closes with "severity": "PASS" once the fix is verified`);
+    }
+    if (raw.knownDrift !== undefined) {
+      this.problem(`${at}.knownDrift`, `${a.id} is the reviewer's: a known drift would close it, and ${ANNOTATION_PERSON_ONLY}. When it is a known drift, file it UNCLASSIFIED with an open decision naming the drift`);
+    }
+    if (this.problems.length > before) return false;
+    f.state = a.state;
+    f.severity = raw.severity === 'PASS' ? 'PASS' : a.severity;
+    if (raw.resolution === undefined) f.resolution = f.severity === 'PASS' ? 'NONE' : 'FIX_CODE';
+    if (!str(raw.title)) f.title = annotationTitle(a.note);
+    f._annotation = a;
+    f.annotation = { id: a.id, note: a.note, by: a.by, date: a.date, side: a.side, box: { ...a.box }, decision: a.decision, source: a.source };
+    return true;
   }
 
   normalizeState(f, at) {
@@ -1601,6 +1677,8 @@ class BuildContext {
   }
 
   checkDrift(f, raw, at) {
+    // The reviewer raised it knowingly: no "this looks like KD-n" (a drift cannot close it, applyAnnotation).
+    if (f._annotation) return;
     const cited = str(f.knownDrift);
     const byId = new Map(this.drifts.map((d) => [d.id, d]));
     if (cited) {
@@ -1640,6 +1718,11 @@ class BuildContext {
     const add = (e) => {
       if (!evidence.some((x) => x.type === e.type && x.path === e.path && x.state === e.state && JSON.stringify(x.crop) === JSON.stringify(e.crop))) evidence.push(e);
     };
+    // The reviewer's box comes first: it is what the person pointed at.
+    if (f._annotation) {
+      const own = this.annotationPin(f._annotation, at);
+      if (own) add(own);
+    }
     const pins = raw.pins ?? (raw.pin ? [raw.pin] : []);
     let pinFailed = false;
     pins.forEach((pin, j) => {
@@ -1801,6 +1884,40 @@ class BuildContext {
     this.info.pins.push({ state, side, y: clipped.crop.y, h: clipped.crop.h });
     const type = side === 'design' ? (this.sourceKind === 'prototype' ? 'design' : 'figma') : 'screenshot';
     return { type, path: image, crop: clipped.crop, state };
+  }
+
+  /**
+   * The reviewer's pin: the annotation's box on its state's app capture (type screenshot) or
+   * design image (type design), clipped into the image as it is now. A box that no longer
+   * fits (smaller than MIN_PIN × MIN_PIN once clipped: the image changed since the review) is
+   * moved inside the image keeping its size, capped to the image. The reviewer's geometry
+   * never fails the build: what was changed is a note. No image on that side any more: no
+   * reviewer pin (the entry's own pins then count as for any finding) and a note.
+   */
+  annotationPin(a, at) {
+    const { base, local } = this.locateState(a.state);
+    const image = a.side === 'design' ? this.designImage(base, local) : base.stateFile('app', local);
+    const where = `${at} (${a.id})`;
+    const box = `${a.box.x},${a.box.y} ${a.box.w}×${a.box.h}`;
+    if (!image) {
+      this.notes.push(`${where}: "${a.state}" has no ${a.side === 'design' ? 'design image' : 'app capture'} any more, so the reviewer's box (${a.side} ${box}) is not pinned; pin the finding yourself ("pin")`);
+      return null;
+    }
+    const size = this.f.pngSize(image);
+    const clipped = clipCrop(a.box, size);
+    let crop = clipped.crop ?? null;
+    if (!size) crop = { ...a.box }; // the size is unknown: the box as recorded
+    else if (crop && (crop.w < MIN_PIN || crop.h < MIN_PIN)) crop = null;
+    if (!crop) {
+      const w = Math.min(a.box.w, size.width);
+      const h = Math.min(a.box.h, size.height);
+      crop = { x: Math.max(0, Math.min(a.box.x, size.width - w)), y: Math.max(0, Math.min(a.box.y, size.height - h)), w, h };
+      this.notes.push(`${where}: the reviewer's box (${box}) no longer fits the ${size.width}×${size.height} ${a.side === 'design' ? 'design image' : 'app capture'} of "${a.state}"; pinned at ${crop.x},${crop.y} ${crop.w}×${crop.h} instead`);
+    } else if (clipped.clipped) {
+      this.notes.push(`${where}: the reviewer's box (${box}) runs past the edge of ${image}; the crop was clipped to the image`);
+    }
+    this.info.pins.push({ state: a.state, side: a.side, y: crop.y, h: crop.h });
+    return { type: a.side === 'design' ? 'design' : 'screenshot', path: image, crop, state: a.state };
   }
 
   /**
@@ -2014,6 +2131,39 @@ class BuildContext {
     if (this.multi) for (const id of this.screenIds) add(`evidence/screens/${id}/worklist.json`, id);
   }
 
+  /**
+   * The reviewer's annotations (<dir>/annotations.json, written by apply-decisions.mjs only):
+   * absent → none; unreadable or invalid → a problem (the agent never edits it).
+   */
+  loadAnnotations() {
+    this.annotations = new Map(); // id → annotations.json record
+    this.annotationFiled = new Map(); // id → findings index
+    const v = this.f.json(ANNOTATIONS_FILE);
+    if (v === null) return;
+    const redo = 'apply-decisions.mjs writes it from the review; never edit it by hand';
+    if (jsonError(v)) {
+      this.problem(ANNOTATIONS_FILE, `${jsonError(v)} (${redo})`);
+      return;
+    }
+    try {
+      for (const a of parseAnnotationsFile(v).annotations) this.annotations.set(a.id, a);
+    } catch (err) {
+      if (!(err instanceof AnnotationError)) throw err;
+      this.problem(ANNOTATIONS_FILE, `${err.message.replace(new RegExp(`^${ANNOTATIONS_FILE.replace('.', '\\.')}:? ?`), '')} (${redo})`);
+    }
+  }
+
+  /** Every annotation from the review is filed by one findings entry: the agent never drops or rejects one. */
+  accountAnnotations() {
+    for (const a of this.annotations.values()) {
+      if (this.annotationFiled.has(a.id)) continue;
+      this.problem(
+        'to file',
+        `the reviewer's annotation ${a.id} (${a.severity}, ${oneLine(a.state)}: ${show(annotationTitle(a.note))}) is not filed: investigate it and add { "annotation": "${a.id}", "ledger", "region", "expected", "actual", "fix" } to findings.json; ${ANNOTATION_PERSON_ONLY}`,
+      );
+    }
+  }
+
   processRejections() {
     this.rejections = [];
     this.rejectionRecords = []; // report.json rejections[]
@@ -2077,6 +2227,7 @@ class BuildContext {
       const field = (j) => (kind === 'audit' ? (r.auditKeys ? `${at}.auditKeys[${j}]` : `${at}.auditKey`) : Array.isArray(r.worklist) ? `${at}.worklist[${j}]` : `${at}.worklist`);
       let accepted = 0;
       list.forEach((key, j) => {
+        if (this.annotations.has(key)) return this.problem(field(j), `${key} is an annotation from the review: it cannot be rejected, ${ANNOTATION_PERSON_ONLY}. File it ({ "annotation": "${key}", … }), UNCLASSIFIED with an open decision when you believe the reviewer is wrong`);
         if (kind === 'audit') {
           if (!this.candidates.has(key)) return this.problem(field(j), `"${oneLine(key)}" is not an audit candidate${didYouMean(key, [...this.candidates.keys()])}`);
           if (this.filed.has(key)) return this.problem(field(j), `"${oneLine(key)}" is both filed (findings[${this.filed.get(key)}]) and rejected: keep one`);
@@ -2281,9 +2432,10 @@ class BuildContext {
   // ---- ids ------------------------------------------------------------------------------------
 
   /**
-   * Ids follow the finding, never its place in the file. A finding's identity is its "ref",
-   * else its "auditKey", else its worklist key(s), else its fingerprint (ledger, state,
-   * element, property) with its title and expected and actual values. The identities are
+   * Ids follow the finding, never its place in the file. A finding's identity is the
+   * annotation from the review it files, else its "ref", else its "auditKey", else its
+   * worklist key(s), else its fingerprint (ledger, state, element, property) with its title
+   * and expected and actual values. The identities are
    * recorded in meta.build.identities, so the next build matches on them; a report without
    * them is matched on the fallback key. Two findings with one identity: an error asking for
    * a "ref". A finding of the earlier report with no match keeps nothing (its id is not reused).
@@ -2325,6 +2477,7 @@ class BuildContext {
       used.add(f.id);
     }
     this.identities = Object.fromEntries(this.findings.map((f) => [f.id, f._identity]));
+    this.info.annotations = this.findings.filter((f) => f._annotation).map((f) => ({ id: f._annotation.id, findingId: f.id }));
     const kept = this.findings.filter((f) => this.prevFor.has(f)).length;
     if (prevFindings.length) this.notes.push(`ids: ${kept} finding(s) kept their id from the existing report.json, ${this.findings.length - kept} new, ${prevFindings.length - kept} earlier finding(s) gone`);
     const gone = prevFindings.filter((f) => ![...this.prevFor.values()].includes(f));
@@ -2932,7 +3085,7 @@ class BuildContext {
     this.prevById = new Map();
     const findings = this.findings.map((f) => {
       const out = {};
-      for (const k of ['id', 'title', 'ledger', 'state', 'screen', 'severity', 'resolution', 'region', 'element', 'property', 'expected', 'actual', 'delta', 'tolerance', 'fix', 'evidence', 'rank', 'signoff', 'knownDrift', 'acRef', 'dataReason', 'unpinnedReason']) {
+      for (const k of ['id', 'title', 'ledger', 'state', 'screen', 'severity', 'resolution', 'region', 'element', 'property', 'expected', 'actual', 'delta', 'tolerance', 'fix', 'evidence', 'rank', 'signoff', 'knownDrift', 'acRef', 'dataReason', 'unpinnedReason', 'annotation']) {
         if (f[k] !== undefined) out[k] = f[k];
       }
       if (!this.multi) delete out.screen;
@@ -3045,12 +3198,22 @@ class BuildContext {
       }
       const decided = new Set(kept.map((i) => i.findingId));
       const added = [];
+      const reviewed = [];
       for (const f of report.findings) {
         if (!isTriageable(f) || decided.has(f.id)) continue;
+        // A finding added in the review: fix now or later as the reviewer chose (a blocker always now).
+        const a = isObj(f.annotation) && ['fix-now', 'debt'].includes(f.annotation.decision) ? f.annotation : null;
+        if (a) {
+          const decision = f.severity === 'BLOCKER' ? 'fix-now' : a.decision;
+          kept.push({ findingId: f.id, decision, reason: `Added in the review as ${decision === 'debt' ? 'debt' : 'fix now'} (${a.id}).`, ticket: null });
+          reviewed.push(`${f.id} ${decision} (${a.id})`);
+          continue;
+        }
         const decision = f.severity === 'BLOCKER' || f.rank?.bucket === 'fix-now' ? 'fix-now' : 'debt';
         kept.push({ findingId: f.id, decision, reason: 'New since the recorded triage: the recommended split (build-report.mjs).', ticket: null });
         added.push(`${f.id} ${decision}`);
       }
+      if (reviewed.length) this.notes.push(`triage: ${reviewed.length} finding(s) from the review's annotations added as the reviewer chose (${reviewed.join(', ')})`);
       if (added.length) this.notes.push(`triage: ${added.length} new finding(s) added with the recommended split (${added.join(', ')}); the reviewer can change it in the review`);
       triage.items = kept;
       report.triage = triage;
@@ -3113,9 +3276,9 @@ class BuildContext {
   }
 
   /**
-   * meta.build: which tool built the report from which findings file, config and evidence
-   * (sha256 of each), and every finding's identity, so verifyBuiltReport can tell a built
-   * report from a hand-edited one and the next build can keep ids.
+   * meta.build: which tool built the report from which findings file, annotations file,
+   * config and evidence (sha256 of each), and every finding's identity, so verifyBuiltReport
+   * can tell a built report from a hand-edited one and the next build can keep ids.
    */
   buildRecord() {
     const evidence = evidenceFiles(this.dir, this.screenIds).map((rel) => fileRecord(this.f.root, path.join(this.f.root, rel))).filter(Boolean);
@@ -3127,6 +3290,8 @@ class BuildContext {
       tool: 'build-report',
       version: this.skillVersion,
       findings: this.findingsFile ? fileRecord(this.f.root, path.resolve(this.findingsFile)) : null,
+      // The reviewer's annotations: null when there is no annotations.json.
+      annotations: this.f.exists(ANNOTATIONS_FILE) ? fileRecord(this.f.root, path.join(this.f.root, ANNOTATIONS_FILE)) : null,
       config: this.configFile ? configRecord(this.f.root, path.resolve(this.configFile)) : null,
       evidence,
       identities: this.identities,
@@ -3376,6 +3541,7 @@ export function summaryLines(report, info) {
   }
   for (const p of info.partial) lines.push(`Only part of the page: ${p.state} ${p.reasons ? `(capture: ${p.reasons.join('; ')})` : `${p.image.width}×${p.image.height} of ${p.page.width}×${p.page.height} (declared in pass.degradations)`}`);
   if (info.notVerified.length) lines.push(`Not verified: ${info.notVerified.map((n) => `${n.state} ${n.result}`).join(' · ')}`);
+  if (info.annotations?.length) lines.push(`Annotations from the review: ${info.annotations.length} filed (${info.annotations.map((a) => `${a.id} → ${a.findingId}`).join(', ')})`);
   if (info.carried.length) lines.push(`Kept: ${info.carried.join(' · ')}`);
   if (info.dropped.length) lines.push(`Dropped from the existing report.json: ${info.dropped.join(' · ')}`);
   return lines.map(oneLine);
@@ -3387,9 +3553,17 @@ export function summaryLines(report, info) {
 
 const PERSON_RESOLUTIONS = (f) => (f?.resolution === 'DISMISSED' && isObj(f.dismissal)) || (f?.resolution === 'INTENTIONAL' && isObj(f.signoff));
 const pinsOf = (f) => JSON.stringify((Array.isArray(f?.evidence) ? f.evidence : []).map((e) => [e?.type, e?.path, e?.crop ?? null, e?.state ?? null]));
-const FINDING_FIELDS = ['title', 'ledger', 'state', 'screen', 'severity', 'region', 'property', 'element', 'expected', 'actual', 'fix', 'knownDrift', 'acRef', 'dataReason', 'unpinnedReason'];
+const FINDING_FIELDS = ['title', 'ledger', 'state', 'screen', 'severity', 'region', 'property', 'element', 'expected', 'actual', 'fix', 'knownDrift', 'acRef', 'dataReason', 'unpinnedReason', 'annotation'];
 const PIXEL_FIELDS = ['percent', 'structuralPercent', 'designHeight', 'appHeight', 'designWidth', 'appWidth', 'paddedRegions', 'masks'];
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+const present = (abs) => {
+  try {
+    lstatSync(abs);
+    return true;
+  } catch {
+    return false;
+  }
+};
 const brief = (v) => {
   const t = JSON.stringify(v ?? null);
   return t.length > 80 ? `${t.slice(0, 77)}…` : t;
@@ -3397,8 +3571,9 @@ const brief = (v) => {
 
 /**
  * Check that report.json is what build-report.mjs built and that nothing it decides was
- * edited since. First the files: meta.build names the findings file, the config and the
- * evidence with their sha256; one that changed, went missing or appeared since → "rebuild".
+ * edited since. First the files: meta.build names the findings file, the reviewer's
+ * annotations, the config and the evidence with their sha256; one that changed, went
+ * missing or appeared since → "rebuild".
  * Only when they all match, the report is rebuilt in memory from the same inputs (the
  * report itself as the previous one, so dismissals, sign-offs, triage, tickets, backfill and
  * fixLoop are carried as on a real rebuild) and compared: the finding ids; each finding's
@@ -3433,6 +3608,9 @@ export function verifyBuiltReport(reportFile, report) {
   };
   if (!isObj(build.findings)) err('meta.build.findings', `names no findings file: ${rebuild}`);
   const findingsBuf = check(build.findings, 'meta.build.findings');
+  // The reviewer's annotations: changed or gone since the build, or there now and not then.
+  if (isObj(build.annotations)) check(build.annotations, 'meta.build.annotations');
+  else if (present(path.join(dir, ANNOTATIONS_FILE))) err('meta.build.annotations', `${ANNOTATIONS_FILE} appeared since the report was built: ${rebuild}`);
   // The config counts only by what can change the result (configFingerprint); a report
   // built before that recorded the whole file's sha256, which still matches.
   let configBuf = null;

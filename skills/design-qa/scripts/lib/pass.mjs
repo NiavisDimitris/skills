@@ -5,6 +5,7 @@
 import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, lstatSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { ANNOTATIONS_FILE, parseAnnotationsFile } from './annotations.mjs';
 import { CliError, oneLine, scriptCommand, shellArg, writeJson } from './args.mjs';
 import { checkDriver, isDrivable } from './capture-helpers.mjs';
 import { RUN_LOCK_FILE, assertRunOwnsDir, callerRunId } from './run-lock.mjs';
@@ -547,6 +548,30 @@ export function fixNowLines(report, { max = 10, fixplan = 'report-fixplan.md' } 
   const lines = list.slice(0, max).map((f) => `  fix now ${oneLine(f.id)} ${oneLine(f.severity)}: ${cut(oneLine(f.title ?? ''))}`);
   if (list.length > max) lines.push(`  … ${list.length - max} more fix-now finding(s) in ${fixplan}`);
   return { count: list.length, lines };
+}
+
+/**
+ * The reviewer's annotations (<dir>/annotations.json, apply-decisions.mjs) that no entry of
+ * the findings file files yet ({ "annotation": "AN-001", … }), in id order: [records]. None
+ * when there is no annotations.json or it cannot be read (the build says why).
+ */
+export function unfiledAnnotations(dir, findingsFile = path.join(dir, 'findings.json')) {
+  const data = readJsonOrNull(path.join(dir, ANNOTATIONS_FILE));
+  if (!data) return [];
+  let records;
+  try {
+    records = parseAnnotationsFile(data).annotations;
+  } catch {
+    return [];
+  }
+  const doc = readJsonOrNull(findingsFile);
+  const filed = new Set((Array.isArray(doc?.findings) ? doc.findings : []).map((f) => f?.annotation).filter((id) => typeof id === 'string'));
+  return records.filter((a) => !filed.has(a.id));
+}
+
+/** The Do: sentence that asks the agent to file the annotations `ids` in the findings file `findings` (as printed). */
+export function fileAnnotationsDo(ids, findings) {
+  return `Investigate each annotation from the review (${ids.join(', ')}) on the page and in the design, and file it in ${findings} as { "annotation": "${ids[0]}", "ledger", "region", "expected", "actual", "fix" } (references/review.md, "Annotations from the review"). Never edit ${ANNOTATIONS_FILE}, and never reject an annotation: only a person can dismiss it.`;
 }
 
 /** Count rows with result FAIL anywhere in a compare.json. */

@@ -395,6 +395,7 @@ export function validateReport(report, opts = {}) {
 
   checkDismissals(findings, err, warn);
   checkSignoffs(findings, err);
+  checkAnnotations(findings, err);
   checkSource(report.meta, err);
   checkScreens(report, matrix, findings, err, warn);
   checkBackfill(report, matrix, o, err, warn);
@@ -502,6 +503,27 @@ function checkSignoffs(findings, err) {
     if (!isPlainObject(f.signoff) && !cited) {
       err(`findings[${i}].signoff`, `is required when resolution is INTENTIONAL: ${SIGNOFF_SHAPE} naming who accepted the divergence and why (or cite a known drift in knownDrift)`);
     }
+  });
+}
+
+/** The severities a finding added in the review can have: the reviewer's (annotations.mjs ANNOTATION_SEVERITIES), or PASS once its fix is verified. */
+const ANNOTATION_FINDING_SEVERITIES = ['BLOCKER', 'WARNING', 'DS_CANDIDATE', 'PASS'];
+
+/**
+ * A finding added in the review (finding.annotation, build-report.mjs) keeps the severity the
+ * reviewer gave it until its fix is verified (PASS), and one annotation is one finding.
+ */
+function checkAnnotations(findings, err) {
+  const seen = new Map();
+  findings.forEach((f, i) => {
+    if (!isPlainObject(f) || !isPlainObject(f.annotation)) return;
+    const id = typeof f.annotation.id === 'string' ? f.annotation.id : null;
+    if (!ANNOTATION_FINDING_SEVERITIES.includes(f.severity)) {
+      err(`findings[${i}].severity`, `is ${show(f.severity)}, but the finding was added in the review${id ? ` (${id})` : ''}: its severity is the reviewer's (BLOCKER, WARNING or DS_CANDIDATE), or PASS once the fix is verified`);
+    }
+    if (!id) return;
+    if (seen.has(id)) err(`findings[${i}].annotation.id`, `${id} is also findings[${seen.get(id)}]: one finding per annotation from the review`);
+    else seen.set(id, i);
   });
 }
 

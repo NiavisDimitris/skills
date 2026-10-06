@@ -29,6 +29,7 @@ per rejection), compare.json FAIL rows rejected, open decisions, per-state resul
 overrides, ledger rows, fix-loop iterations ("fixLoop": merged by iteration with the existing
 report's; the findings file wins for an iteration it lists) and pass-level overrides ("pass").
 Everything else is assembled from <dir>:
+  annotations.json (the reviewer's annotations, written by apply-decisions.mjs: never by hand),
   state-matrix.json, backfill-candidates.json, evidence/figma-spec.json, screens.json,
   ticket.json, capture.json, design-capture.json, diff.json (diff.mjs --json output),
   compare.json, ds-audit.json, worklist.json, computed/ dom/ motion/ audit/<state>.json
@@ -62,6 +63,13 @@ What the build does:
     candidate is filed ({ "auditKey" }) or rejected; every compare.json FAIL row is covered
     by a finding or rejected. One rejection may name several keys (auditKeys, worklist,
     compare lists) with one reason. Otherwise nothing is written.
+  - Annotations from the review (annotations.json): each one is filed by exactly one finding
+    ({ "annotation": "AN-001", "ledger", "region", "expected", "actual", "fix", … }) and is
+    never rejected: only a person can dismiss it. Its state and severity are the reviewer's
+    (the finding may say "PASS" once the fix is verified); its title defaults to the note's
+    first line; its first pin is the reviewer's box (moved inside the image when the image
+    changed); fix now or later is the reviewer's choice when a triage is recorded. --check
+    lists every annotation still to file, one line each.
   - Known drifts (designSystem.knownDrifts): a finding that looks like an active drift it
     does not cite fails with "this looks like KD-n"; cite it, or say why it differs in
     "notKnownDrift".

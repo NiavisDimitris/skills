@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "design-qa reviewer annotations",
+  "description": "<report dir>/annotations.json: the issues a person marked on the report's captures in report.html because the pass missed them. Written only by scripts/apply-decisions.mjs from the decisions document (never by hand, never by the agent); read by scripts/build-report.mjs, which makes each one a finding once the agent has investigated it and filed it in findings.json ({ \"annotation\": \"AN-001\", \"ledger\", \"region\", \"expected\", \"actual\", \"fix\" }). Only a person adds or dismisses an annotation. Rules JSON Schema cannot express (unique ids, no annotation recorded twice: the same state, side, box and note) are checked by scripts/lib/annotations.mjs.",
+  "type": "object",
+  "required": ["kind", "version", "annotations"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "kind": { "const": "design-qa-annotations" },
+    "version": { "const": 1, "description": "Format version. A higher version is a newer format: update the design-qa skill." },
+    "annotations": {
+      "type": "array",
+      "description": "In the order they were recorded; ids are never reused.",
+      "items": { "$ref": "#/definitions/annotation" }
+    }
+  },
+  "definitions": {
+    "annotation": {
+      "type": "object",
+      "required": ["id", "state", "side", "box", "severity", "note", "decision", "date", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^AN-\\d{3,}$", "description": "AN-001, AN-002 …, given by apply-decisions.mjs in the order the annotations were recorded." },
+        "state": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "The state of the report it was drawn on (stateMatrix[].state), e.g. \"with-data\" or \"cart/empty\"." },
+        "side": { "enum": ["app", "design"], "description": "The image the reviewer marked: the app capture or the design." },
+        "box": {
+          "type": "object",
+          "description": "The box the reviewer drew, in that image's pixels: whole numbers, starting inside the image, at least 8×8.",
+          "required": ["x", "y", "w", "h"],
+          "additionalProperties": false,
+          "properties": {
+            "x": { "type": "integer", "minimum": 0 },
+            "y": { "type": "integer", "minimum": 0 },
+            "w": { "type": "integer", "minimum": 8 },
+            "h": { "type": "integer", "minimum": 8 }
+          }
+        },
+        "severity": { "enum": ["BLOCKER", "WARNING", "DS_CANDIDATE"], "description": "The severity the reviewer gave; the finding keeps it (the agent may only mark a verified fix PASS)." },
+        "note": { "type": "string", "minLength": 1, "maxLength": 2000, "pattern": "\\S", "description": "The reviewer's description of the issue, trimmed. The finding's title defaults to its first line." },
+        "decision": { "enum": ["fix-now", "debt"], "description": "Fix now or later, as the reviewer chose. A BLOCKER is always fix-now." },
+        "by": { "type": ["string", "null"], "description": "Who added it (the decisions document's decidedBy when the annotation names nobody)." },
+        "date": { "type": "string", "format": "date-time", "description": "When it was added (the decisions document's decidedAt when the annotation has no date)." },
+        "source": { "enum": ["report-ui"], "description": "Where it came from: the review in report.html." }
+      },
+      "if": { "properties": { "severity": { "const": "BLOCKER" } } },
+      "then": { "properties": { "decision": { "const": "fix-now" } } }
+    }
+  }
+}

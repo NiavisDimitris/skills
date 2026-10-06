@@ -559,6 +559,7 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 @media (min-width: 1280px) {
   .hero.ann-open { grid-template-columns: minmax(0, 1fr) 22rem; }
   .hero > .ann-dock { grid-column: 2; grid-row: 1; align-self: stretch; contain: size; position: relative; margin-top: var(--ann-top, 0); }
+  .hero.ann-open > .rail { grid-column: 2; grid-row: 1; } /* under the panel, not below the capture */
   .hero > .ann-dock > .ann-panel { position: sticky; top: 0.5rem; height: 100%; max-height: calc(100vh - 1rem); }
   /* the panel covers the rail list; hide it (and take it out of the tab order), keep the head and its chips */
   .hero.ann-open > .rail > section > :not(.rail-head), .hero.ann-open > .rail > section ~ section { visibility: hidden; }
@@ -739,6 +740,55 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
 .table tbody tr.dismiss-tr > td { padding-top: 0; padding-bottom: 0.75rem; white-space: normal; }
 .table td.col-act { width: 1%; text-align: right; }
 .tri-foot .badge { text-decoration: none; }
+/* Your annotations (script section 9c): the Annotate toggle and its hint, drawing on a capture, the form (the Dismiss
+   panel's look as a popover by the box; a bottom sheet on phones), the pending pins and boxes, the rail block, and the
+   reviewer's note on a finding built from one. */
+.an-toggle[aria-pressed="true"], .an-toggle[aria-pressed="true"]:hover { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.an-hint { position: absolute; z-index: 21; left: 50%; top: calc(100% + 0.375rem); translate: -50% 0; width: max-content; max-width: calc(100% - 1rem); display: inline-flex; align-items: center; gap: 0.375rem; border-radius: 9999px; background: var(--foreground); color: var(--background); padding: 0.25rem 0.75rem; font-size: 0.75rem; line-height: 1rem; font-weight: 500; box-shadow: var(--shadow-md); pointer-events: none; animation: pop-in .15s ease-out; }
+.an-hint:empty { display: none; }
+.dialog-header .an-hint { position: static; translate: none; max-width: 100%; box-shadow: none; }
+.stage.annotating .imgbox, .stage.annotating .imgbox > img { cursor: crosshair !important; touch-action: none; }
+.stage.annotating .wipe-handle { pointer-events: none; }
+.an-draft { position: absolute; z-index: 7; border: 2px dashed #171717; border-radius: 3px; background: rgb(23 23 23 / 0.08); box-shadow: 0 0 0 1px #fff, inset 0 0 0 1px #fff; pointer-events: none; } /* on the image: the same in both themes */
+.an-outline { position: absolute; border: 1.5px dashed var(--c); border-radius: 3px; background: color-mix(in oklab, var(--c) 7%, transparent); pointer-events: none; opacity: 0.8; transition: opacity .15s, box-shadow .15s; }
+.an-outline.hot { opacity: 1; border-width: 2px; box-shadow: 0 0 0 1px var(--background); }
+.pin.an-pin { width: auto; min-width: 24px; padding-inline: 4px; margin: 0; translate: -50% -50%; border-radius: 6px; font-size: 11px; letter-spacing: -0.01em; }
+.pin.an-pin::after { content: ""; position: absolute; inset: -5px; border-radius: 9px; border: 1.5px dashed var(--c); pointer-events: none; }
+.pin.an-pin:focus-visible { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+.an-scrim { position: fixed; inset: 0; z-index: 46; }
+.dismiss-panel.an-form { position: fixed; z-index: 47; left: 0; top: 0; width: 24rem; max-width: calc(100vw - 2rem); max-height: calc(100vh - 1rem); overflow-y: auto; overscroll-behavior: contain; margin: 0; background: var(--popover); color: var(--popover-foreground); box-shadow: var(--shadow-lg); }
+.an-form .dp-head { justify-content: space-between; }
+.an-form .label { line-height: 1.25rem; }
+.an-form .textarea { min-height: 5.5rem; }
+.an-form .toggle-group.seg .toggle { gap: 0.375rem; padding-inline: 0.5rem; }
+.toggle-group.seg .toggle[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.an-form .dp-actions .an-delete { margin-right: auto; color: var(--destructive); }
+.an-count { font-variant-numeric: tabular-nums; }
+.an-count[data-near="true"] { color: var(--amber-fg); }
+@media (max-width: 639px) {
+  .dismiss-panel.an-form { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: auto; max-width: none; max-height: 85vh; border-radius: var(--radius-xl) var(--radius-xl) 0 0; border-width: 1px 0 0; padding-bottom: max(0.875rem, env(safe-area-inset-bottom)); animation: ann-in-up .22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
+.an-rail { display: grid; justify-items: start; gap: 0.25rem; margin: 0.25rem 0 0.5rem; padding: 0.5rem 0.25rem 0.25rem 0.5rem; border-radius: var(--radius-md); border: 1px dashed var(--border); }
+.an-rail > .an-list { justify-self: stretch; }
+.an-rail .an-add { margin-left: -0.25rem; }
+.an-rail-title { font-size: 0.75rem; line-height: 1rem; font-weight: 600; }
+.an-rail-status { display: block; font-weight: 400; color: var(--muted-foreground); }
+.an-empty { padding-right: 0.25rem; font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); }
+.an-list { display: grid; gap: 0.125rem; margin-top: 0.125rem; }
+.an-item { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) auto; align-items: start; gap: 0.25rem 0.375rem; padding: 0.125rem 0 0.125rem 0.125rem; border-radius: var(--radius-sm); transition: background-color .15s; }
+.an-item:hover, .an-item.hot { background: var(--muted); }
+.an-item .n { padding-top: 0.125rem; font-size: 0.75rem; font-weight: 600; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.an-body { display: block; min-width: 0; }
+.an-t { display: flex; align-items: baseline; gap: 0.375rem; min-width: 0; }
+.an-t .dot { transform: translateY(-0.0625rem); }
+.an-t > span:last-child { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere; }
+.an-sub { display: block; font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); }
+.an-acts { display: flex; align-items: center; }
+.an-acts .btn { width: 1.75rem; height: 1.75rem; color: var(--muted-foreground); }
+.an-acts .btn:hover { color: var(--foreground); }
+.an-note { display: grid; gap: 0.375rem; margin: 0; border-radius: var(--radius-md); border: 1px solid var(--border); background: color-mix(in oklab, var(--muted) 50%, transparent); padding: 0.625rem 0.75rem; }
+.an-note-text { margin: 0; padding-left: 0.625rem; border-left: 2px solid var(--border); color: var(--foreground); white-space: pre-wrap; overflow-wrap: anywhere; }
+.an-note-by { font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); }
 /* The review bar (Review and send) and its Send panel stack bottom-centre */
 .bar-stack { position: fixed; z-index: 40; left: 50%; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; }
 .dismiss-bar { pointer-events: auto; width: max-content; max-width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--popover); color: var(--popover-foreground); padding: 0.5rem 0.5rem 0.5rem 1rem; box-shadow: var(--shadow-lg); font-size: 0.875rem; line-height: 1.25rem; animation: toast-in .2s ease-out; }
@@ -832,7 +882,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
 @media print {
   body { background: #fff; }
   .no-print, .site-header, .tabs-list, .toolbar, .hero-bar, .card-action, .x-close, #lightbox, #sheet-root, .toaster, .thumb-view, .acc-head button:not(.acc-trigger), .ann-dock, .tri-show,
-  .bar-stack, .dismiss-bar, .dismiss-panel, .dismiss-tr, [data-dismiss], [data-undo], .screen-pick .native-select-wrap, .bf-actions, #copy-backfill-all { display: none !important; }
+  .bar-stack, .dismiss-bar, .dismiss-panel, .dismiss-tr, [data-dismiss], [data-undo], .screen-pick .native-select-wrap, .bf-actions, #copy-backfill-all,
+  .an-scrim, .an-form, .an-hint, .an-draft, .an-acts, .an-add, .an-empty { display: none !important; }
   body.has-bar #main { padding-bottom: 0 !important; }
   [role="tabpanel"][hidden], .acc-body[hidden], .fix-body[hidden] { display: block !important; }
   .card { box-shadow: none; break-inside: avoid; }
@@ -905,17 +956,21 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     "layers": "<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\" /><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\" /><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\" />",
     "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\" /><path d=\"M7 11V7a5 5 0 0 1 10 0v4\" />",
     "map-pin": "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\" /><circle cx=\"12\" cy=\"10\" r=\"3\" />",
+    "message-square-plus": "<path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\" /><path d=\"M12 7v6\" /><path d=\"M9 10h6\" />",
     "maximize":"<path d=\"M8 3H5a2 2 0 0 0-2 2v3\" /><path d=\"M21 8V5a2 2 0 0 0-2-2h-3\" /><path d=\"M3 16v3a2 2 0 0 0 2 2h3\" /><path d=\"M16 21h3a2 2 0 0 0 2-2v-3\" />",
     "minimize-2": "<path d=\"m14 10 7-7\" /><path d=\"M20 10h-6V4\" /><path d=\"m3 21 7-7\" /><path d=\"M4 14h6v6\" />",
     "monitor": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\" /><line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\" /><line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\" />",
     "moon": "<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />",
+    "pencil": "<path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\" /><path d=\"m15 5 4 4\" />",
     "printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\" /><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\" /><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\" />",
     "search": "<path d=\"m21 21-4.34-4.34\" /><circle cx=\"11\" cy=\"11\" r=\"8\" />",
     "settings-2": "<path d=\"M14 17H5\" /><path d=\"M19 7h-9\" /><circle cx=\"17\" cy=\"17\" r=\"3\" /><circle cx=\"7\" cy=\"7\" r=\"3\" />",
     "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\" /><path d=\"M12 2v2\" /><path d=\"M12 20v2\" /><path d=\"m4.93 4.93 1.41 1.41\" /><path d=\"m17.66 17.66 1.41 1.41\" /><path d=\"M2 12h2\" /><path d=\"M20 12h2\" /><path d=\"m6.34 17.66-1.41 1.41\" /><path d=\"m19.07 4.93-1.41 1.41\" />",
+    "trash-2": "<path d=\"M3 6h18\" /><path d=\"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6\" /><path d=\"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2\" /><line x1=\"10\" x2=\"10\" y1=\"11\" y2=\"17\" /><line x1=\"14\" x2=\"14\" y1=\"11\" y2=\"17\" />",
     "undo-2": "<path d=\"M9 14 4 9l5-5\" /><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\" />",
     "ban": "<circle cx=\"12\" cy=\"12\" r=\"10\" /><path d=\"m4.9 4.9 14.2 14.2\" />",
     "triangle-alert":"<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\" /><path d=\"M12 9v4\" /><path d=\"M12 17h.01\" />",
+    "user": "<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\" /><circle cx=\"12\" cy=\"7\" r=\"4\" />",
     "x": "<path d=\"M18 6 6 18\" /><path d=\"m6 6 12 12\" />",
     "zoom-in": "<circle cx=\"11\" cy=\"11\" r=\"8\" /><line x1=\"21\" x2=\"16.65\" y1=\"21\" y2=\"16.65\" /><line x1=\"11\" x2=\"11\" y1=\"8\" y2=\"14\" /><line x1=\"8\" x2=\"14\" y1=\"11\" y2=\"11\" />"
   };
@@ -1181,15 +1236,17 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       .join('\n').replace(/\s+$/, '').split('\n');
   }
   function agentPrompt(f) { // every value on one line; the snippet keeps its lines, indented
-    var el = f.element || {}, ex = f.expected || {}, ac = f.actual || {}, fx = f.fix || {};
-    var lines = [
-      '[' + oneLine(f.id) + '] ' + oneLine(f.title),
+    var el = f.element || {}, ex = f.expected || {}, ac = f.actual || {}, fx = f.fix || {}, an = f.annotation;
+    var lines = ['[' + oneLine(f.id) + '] ' + oneLine(f.title)];
+    // A finding a person added in the review: the coding agent reads their words first.
+    if (an && typeof an === 'object' && !blank(an.note)) lines.push('Reported in the review by ' + (oneLine(an.by) || 'the reviewer') + ': ' + oneLine(an.note));
+    lines.push(
       'Ledger: ' + line1(f.ledger) + ' · State: ' + line1(f.state) + ' · Severity: ' + line1(f.severity) + ' · Resolution: ' + line1(f.resolution),
       'Element: ' + line1(el.selector) + ' (Figma: ' + line1(el.figmaLayerPath) + ')',
       'Property: ' + line1(f.property),
       'Expected: ' + line1(ex.value) + ' (token: ' + (oneLine(ex.token) || 'none') + '; source: ' + line1(ex.source) + ')',
       'Actual: ' + line1(ac.value) + ' (token: ' + (oneLine(ac.token) || 'none') + ') at ' + sourceLocation(f)
-    ];
+    );
     var sn = ac.source && ac.source.snippet;
     if (!blank(sn)) snippetLines(sn).forEach(function (l) { lines.push('  ' + l); });
     var paths = arr(f.evidence).map(function (e) { return e && e.path; }).filter(Boolean).map(function (p) { return oneLine(p); }).filter(Boolean);
@@ -1301,7 +1358,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function fidLinks(ids) { ids = arr(ids); return ids.length ? h('span', { class: 'row', style: 'gap:0.375rem' }, ids.map(fidBtn)) : h('span', { class: 'muted' }, DASH); }
   function findingBadges(f) {
     var sc = SCREENS.length ? f.screen || screenOf(f.state) : null;
-    return h('div', { class: 'row muted', style: 'gap:0.5rem;font-size:0.875rem' }, h('span', { class: 'fid' }, f.id), dotText(f.severity),
+    return h('div', { class: 'row muted', style: 'gap:0.5rem;font-size:0.875rem' }, h('span', { class: 'fid' }, f.id), dotText(f.severity), fromReviewBadge(f),
       sc ? h('span', { class: 'badge badge-outline', 'data-screen': sc }, screenName(sc)) : null,
       h('span', null, [LEDGER_LABEL[f.ledger] || f.ledger, f.state ? (sc ? stateShort(f.state) : stateLabel(f.state)) : null, f.resolution + (f.__local ? ' (not recorded yet)' : '')].filter(Boolean).join(' · ')));
   }
@@ -1574,7 +1631,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       var app = pick('screenshot') || pick('diff'), des = pick('design') || pick('figma') || pick('diff');
       if (app || des) placed.push({ f: f, n: placed.length + 1, app: app, design: des }); else loose.push(f);
     });
-    return { placed: placed, loose: loose };
+    return { placed: placed, loose: loose, state: state };
   }
   function effMode(c) {
     var m = S.mode, des = designOf(c), any = c.app ? 'app' : des ? 'design' : 'none';
@@ -1600,7 +1657,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var on = false, sx = 0, sy = 0, sl = 0, st = 0;
     el.style.cursor = 'grab';
     el.addEventListener('pointerdown', function (e) {
-      if (e.button !== 0 || e.target.closest('.pin, .wipe-handle, button')) return;
+      if (S.annotate || e.button !== 0 || e.target.closest('.pin, .wipe-handle, button')) return; // Annotate draws instead
       on = true; sx = e.clientX; sy = e.clientY; sl = el.scrollLeft; st = el.scrollTop; el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing';
     });
     el.addEventListener('pointermove', function (e) { if (on) { el.scrollLeft = sl - (e.clientX - sx); el.scrollTop = st - (e.clientY - sy); } });
@@ -1631,7 +1688,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       if (over && over.naturalWidth) { W = Math.max(W, over.naturalWidth); H = Math.max(H, over.naturalHeight); }
       items = [];
       // Re-placing (image load) rebuilds the pins: keep keyboard focus on the same finding.
-      var ae = document.activeElement, focusFid = ae && layer.contains(ae) ? ae.getAttribute('data-fid') : null;
+      var ae = document.activeElement, focusFid = ae && layer.contains(ae) ? ae.getAttribute('data-fid') : null, focusAn = ae && layer.contains(ae) ? ae.getAttribute('data-an') : null;
       clear(layer);
       P.placed.forEach(function (p) {
         var crop = kind === 'app' ? p.app : p.design, hollow = false;
@@ -1659,6 +1716,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         layer.appendChild(pin);
         items.push({ x: cx / W, y: cy / H, pin: pin, leader: leader });
       });
+      // This browser's annotations on this image (section 9c): their boxes, and rounded-square pins A1, A2 … after the finding pins.
+      anOf(P.state, kind).forEach(function (x) { items.push(anPin(layer, x, W, H)); });
       spreadPins(layer, items);
       // Rejected worklist regions of this state: dimmed dashed outlines, distinct from finding pins (app-side images only).
       if (kind === 'app') REJ.forEach(function (x) {
@@ -1672,8 +1731,11 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       if (offDesign && ib.parentNode) ib.parentNode.insertBefore(h('p', { class: 'hollow-note', role: 'note' }, plural(offDesign, 'app pin has', 'app pins have') + ' no counterpart on the design (below or right of its edge): see them in App or Overlay.'), ib);
       var sel = function (fid) { return layer.querySelector('.pin[data-fid="' + String(fid).replace(/"/g, '') + '"]'); };
       if (focusFid && sel(focusFid)) sel(focusFid).focus({ preventScroll: true });
+      var anSel = focusAn && layer.querySelector('.an-pin[data-an="' + String(focusAn).replace(/"/g, '') + '"]');
+      if (anSel) anSel.focus({ preventScroll: true });
       markPanel();
     }
+    layer.__place = place; // a pending annotation added, changed or deleted: re-place this layer's pins (section 9c)
     place();
     if (!(img.complete && img.naturalWidth)) img.addEventListener('load', place);
     if (over && !(over.complete && over.naturalWidth)) over.addEventListener('load', place);
@@ -1721,7 +1783,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     if (!r) { box.appendChild(missingBox('No state selected.')); return; }
     var c = r.captured || {}, des = designOf(c), m = effMode(c), label = stateLabel(r.state), P = statePins(r.state), zoom = S.zoom === 'fit' ? 0 : Number(S.zoom) / 100;
     var noApp = 'not captured — ' + (r.note || 'no app screenshot for this state'), noFig = 'no design for this state';
-    var stage = h('div', { class: 'stage' + (zoom && m !== 'side' ? ' zoomed' : '') + (full ? ' fullscreen' : ''), 'data-mode': m });
+    var stage = h('div', { class: 'stage' + (zoom && m !== 'side' ? ' zoomed' : '') + (full ? ' fullscreen' : '') + (S.annotate ? ' annotating' : ''), 'data-mode': m });
     var covNote = coverageLine(r, P), padNote = paddedNote(r.state);
     if (covNote) box.appendChild(covNote);
     if (padNote) box.appendChild(padNote);
@@ -1733,6 +1795,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         if (!x[1]) return { el: h('div', null, h('div', { class: 'pane-label' }, x[2]), missingBox(x[3])), scroll: null };
         var ib = imgBox(x[1], x[2] + ', ' + label, zoom), pane = h('div', { class: 'pane' + (zoom ? ' zoomed' : '') }, ib.box);
         addPins(ib.box, ib.img, x[0], P);
+        drawSurface(ib.box, r.state, x[0], imageSpace(ib.img));
         if (zoom) dragPan(pane);
         return { el: h('div', { style: 'min-width:0' }, h('div', { class: 'pane-label' }, x[2]), pane), scroll: zoom ? pane : null };
       });
@@ -1765,7 +1828,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         var handle = h('div', { class: 'wipe-handle', role: 'slider', tabindex: '0', 'aria-label': 'Wipe divider: design on the left, app on the right', 'aria-valuemin': '0', 'aria-valuemax': '100' });
         var setWipe = function (p) { S.wipe = Math.max(0, Math.min(100, p)); over.style.clipPath = 'inset(0 0 0 ' + S.wipe + '%)'; handle.style.left = S.wipe + '%'; handle.setAttribute('aria-valuenow', String(Math.round(S.wipe))); };
         var dragging = false, fromEvent = function (e) { var rect = ib.box.getBoundingClientRect(); if (rect.width) setWipe((e.clientX - rect.left) / rect.width * 100); };
-        ib.box.addEventListener('pointerdown', function (e) { if (e.target.closest('.pin')) return; dragging = true; ib.box.setPointerCapture(e.pointerId); fromEvent(e); e.preventDefault(); });
+        ib.box.addEventListener('pointerdown', function (e) { if (S.annotate || e.target.closest('.pin')) return; dragging = true; ib.box.setPointerCapture(e.pointerId); fromEvent(e); e.preventDefault(); });
         ib.box.addEventListener('pointermove', function (e) { if (dragging) fromEvent(e); });
         ib.box.addEventListener('pointerup', function () { dragging = false; });
         ib.box.addEventListener('pointercancel', function () { dragging = false; });
@@ -1781,6 +1844,19 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       }
     }
     addPins(ib.box, ib.img, m === 'design' ? 'design' : 'app', P, over);
+    // Annotate: Design marks the design; App, Overlay, Wipe and Diff mark the app image, anchored top-left at its own scale.
+    if (m === 'design' || m === 'app') drawSurface(ib.box, r.state, m, imageSpace(ib.img));
+    else if (over) drawSurface(ib.box, r.state, 'app', function () {
+      var bi = ib.img; if (!bi || !bi.naturalWidth || !over.naturalWidth) return null;
+      return { W: Math.max(bi.naturalWidth, over.naturalWidth), H: Math.max(bi.naturalHeight, over.naturalHeight), iw: over.naturalWidth, ih: over.naturalHeight };
+    });
+    else if (m === 'diff' && c.app && imgSrc(c.app)) {
+      var probe = new Image(); probe.src = imgSrc(c.app); // the app image's size, to keep the box on it
+      drawSurface(ib.box, r.state, 'app', function () {
+        var bi = ib.img; if (!bi || !bi.naturalWidth || !probe.naturalWidth) return null;
+        return { W: bi.naturalWidth, H: bi.naturalHeight, iw: Math.min(probe.naturalWidth, bi.naturalWidth), ih: Math.min(probe.naturalHeight, bi.naturalHeight) };
+      });
+    }
     if (zoom && m !== 'wipe') dragPan(stage);
   }
   // diff.mjs padded the smaller image of this state (bottom: padded, right: paddedRight): say so in plain words.
@@ -1885,7 +1961,11 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     heroBar.appendChild(switchCtl('Pins', S.pins, function (on) { S.pins = on; Array.prototype.forEach.call(document.querySelectorAll('.pins'), function (l) { l.hidden = !on; }); }, 'pins-switch'));
     heroBar.appendChild(switchCtl('Show on design', S.designPins, function (on) { S.designPins = on; renderStage(heroStage, false); }, 'design-pins-switch'));
     if (REJ.some(function (x) { return x.state === S.state && x.crop; })) heroBar.appendChild(switchCtl('Rejected regions', S.rejected, function (on) { S.rejected = on; S.rejFocus = null; renderStage(heroStage, false); }, 'rejected-switch'));
-    heroBar.appendChild(btn('Fullscreen', { variant: 'ghost', size: 'sm', icon: 'maximize', id: 'btn-fullscreen', cls: 'end', onclick: openFullscreen }));
+    if (!canAnnotateHere()) S.annotate = false; // no image to mark on this state
+    else heroBar.appendChild(annotateToggle('annotate-toggle'));
+    heroBar.appendChild(anHint('an-hint'));
+    // Icon only, so the bar keeps one row with Annotate at 1440px.
+    heroBar.appendChild(btn(null, { variant: 'ghost', size: 'icon-sm', icon: 'maximize', id: 'btn-fullscreen', cls: 'end', aria: 'Fullscreen', tip: 'Fullscreen', onclick: openFullscreen }));
   }
   function fallbackNote(m) {
     if (m === S.mode || m === 'none') return null;
@@ -2095,7 +2175,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     if (annDis) annDis.setAttribute('data-focus-key', 'dismiss');
     var panel = h('div', { class: 'ann-panel', id: 'ann-panel', role: 'dialog', 'aria-labelledby': 'ann-title', 'data-fid': f.id },
       h('div', { class: 'ann-head' },
-        h('div', { class: 'ann-kicker' }, h('span', { class: 'badge badge-outline', 'data-sev': f.severity }, dot(f.severity), sevLabel(f.severity)),
+        h('div', { class: 'ann-kicker' }, h('span', { class: 'badge badge-outline', 'data-sev': f.severity }, dot(f.severity), sevLabel(f.severity)), fromReviewBadge(f),
           h('span', { class: 'fid' }, (n !== null ? 'Pin ' + n : 'Not positioned') + ' · ' + f.id)),
         h('div', { class: 'ann-nav' }, i >= 0 ? h('span', { class: 'muted tabular ann-count', 'aria-label': 'Annotation ' + (i + 1) + ' of ' + list.length }, (i + 1) + ' / ' + list.length) : null,
           nav('prev', prev), nav('next', next),
@@ -2105,6 +2185,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         h('div', { class: 'ann-bucket' },
           h('div', { class: 'ann-decide' }, (function (g) { if (g) g.setAttribute('aria-describedby', 'ann-bucket-hint'); return g; })(triageSeg(f, 'panel', { large: true })), annDis),
           h('p', { class: 'ann-hint', id: 'ann-bucket-hint' }, hint), dslot),
+        reviewerNote(f, 'ann-review-note'),
         h('div', { class: 'ea-grid ann-ea' },
           h('div', { class: 'ea-box' }, h('div', { class: 'section-label' }, 'Expected' + (blank(ex.source) ? '' : ' · ' + ex.source)), h('div', { class: 'val' }, orDash(ex.value)), ex.token ? h('span', { class: 'tok' }, ex.token) : null),
           h('div', { class: 'ea-box' }, h('div', { class: 'section-label' }, 'Actual'), h('div', { class: 'val' }, orDash(ac.value)), ac.token ? h('span', { class: 'tok' }, ac.token) : null)),
@@ -2193,7 +2274,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function sevLabel(v) { return v.replace('_', ' ').toLowerCase(); }
   // Severity chips filter the rail rows and every pin layer (hero + fullscreen) without re-numbering.
   function applySevFilter() {
-    Array.prototype.forEach.call(document.querySelectorAll('.pins .pin[data-sev], .pins .crop-outline[data-sev], .pins .pin-leader[data-sev]'), function (el) { el.hidden = !!S.sevOff[el.getAttribute('data-sev')]; });
+    // Finding pins only: this browser's annotations (section 9c) are not filtered.
+    Array.prototype.forEach.call(document.querySelectorAll('.pins .pin[data-fid][data-sev], .pins .crop-outline[data-fid][data-sev], .pins .pin-leader[data-fid][data-sev]'), function (el) { el.hidden = !!S.sevOff[el.getAttribute('data-sev')]; });
     var rows = heroRail.querySelectorAll('.pin-list > li[data-sev]'), shown = 0;
     Array.prototype.forEach.call(rows, function (li) { var off = !!S.sevOff[li.getAttribute('data-sev')]; li.hidden = off; if (!off) shown++; });
     Array.prototype.forEach.call(heroRail.querySelectorAll('.chip[data-sev]'), function (c) { c.setAttribute('aria-pressed', String(!S.sevOff[c.getAttribute('data-sev')])); });
@@ -2230,6 +2312,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         triHere ? h('p', { class: 'bucket-key', id: 'bucket-key' }, h('span', null, h('span', { class: 'key-pin', 'aria-hidden': 'true' }), 'Fix now'),
           h('span', null, h('span', { class: 'key-pin debt', 'aria-hidden': 'true' }), 'Debt: dashed ring')) : null,
         triHere ? h('p', { class: 'tri-summary', id: 'rail-tri-summary', 'aria-live': 'polite' }) : null),
+      anRail(r.state),
       h('ol', { class: 'pin-list' }, P.placed.map(function (p) { return row(p.f, String(p.n)); })),
       !all.length ? h('p', { class: 'muted' }, 'No findings for this state.') : null,
       all.length ? h('p', { class: 'rail-empty', id: 'rail-empty', role: 'status', hidden: true }) : null,
@@ -2251,7 +2334,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var body = h('div', { class: 'dialog-body' });
     var dlg = h('div', { class: 'dialog full', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'fs-title' },
       h('div', { class: 'dialog-header' }, h('h2', { class: 'dialog-title', id: 'fs-title' }, stateLabel(S.state)),
-        toggleGroup('Fullscreen zoom', ZOOMS, S.zoom, function (v) { S.zoom = v; renderStage(body, true); renderHeroBar(); renderStage(heroStage, false); refocus(dlg, '[aria-label="Fullscreen zoom"] [aria-checked="true"]'); }, 'outline sm')),
+        toggleGroup('Fullscreen zoom', ZOOMS, S.zoom, function (v) { S.zoom = v; renderStage(body, true); renderHeroBar(); renderStage(heroStage, false); refocus(dlg, '[aria-label="Fullscreen zoom"] [aria-checked="true"]'); }, 'outline sm'),
+        canAnnotateHere() ? annotateToggle('fs-annotate-toggle') : null, anHint('fs-an-hint')),
       body, h('button', { type: 'button', class: 'x-close', 'aria-label': 'Close', 'data-close': '', onclick: closeLightbox }, icon('x')));
     dlg.addEventListener('keydown', function (e) { trapFocus(dlg, e); });
     lb.appendChild(h('div', { class: 'overlay', style: 'z-index:60', onclick: closeLightbox }));
@@ -2275,6 +2359,448 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     Array.prototype.forEach.call(stateBody.rows, function (tr) { if (tr.getAttribute('data-state-id') === state) tr.setAttribute('aria-current', 'true'); else tr.removeAttribute('aria-current'); });
     renderHero();
     if (go) { setTab('overview'); heroSection.scrollIntoView({ block: 'start' }); }
+  }
+
+  /* ===== 9c. Your annotations: what the reviewer marks on a capture because the pass missed it =====
+     Annotate (A) makes the captures a drawing surface: a click or a drag marks a box on the app or the design image,
+     then a form takes a severity, the reviewer's words and Fix now / Later. Kept in this browser (AN_KEY, in the order
+     added) until Review and send hands them over in the one decisions document (annotations[], section 10c);
+     apply-decisions.mjs records them in annotations.json and the rebuilt report shows each as a finding "From the
+     review". Until then they are not findings: the headline, match, verdict and counts never change.
+     annotationTitle() and annotationIdentity() mirror scripts/lib/annotations.mjs. */
+  var AN_KEY = 'design-qa:annotations:' + (meta.feature || '') + ':' + (meta.generatedAt || '');
+  var AN_SEVS = ['BLOCKER', 'WARNING', 'DS_CANDIDATE'];
+  var AN_SEV_LABEL = { BLOCKER: 'Blocker', WARNING: 'Warning', DS_CANDIDATE: 'Design-system gap' };
+  // Smallest box side, a plain click's box, the drag threshold (CSS px), note length, annotations per review, title length.
+  var AN_MIN = 8, AN_CLICK = 32, AN_DRAG = 4, AN_NOTE_MAX = 2000, AN_MAX = 200, AN_TITLE_MAX = 100, AN_MOST = 0.9;
+  var AN_LOCK = "Blockers can't be deferred";
+  var AN_HINT = 'Click or drag on the capture to add an annotation \u00b7 Esc to stop';
+  function annotationTitle(note) { // the first non-blank line, on one line, cut to 100 characters with "…"
+    var lines = String(note === null || note === undefined ? '' : note).split(/\r\n|[\n\r\v\f\u0085\u2028\u2029]/), first = '';
+    for (var i = 0; i < lines.length && !first; i++) first = oneLine(lines[i]);
+    return first.length > AN_TITLE_MAX ? first.slice(0, AN_TITLE_MAX - 1).replace(/\s+$/, '') + '\u2026' : first;
+  }
+  function annotationIdentity(a) { // the same state, side, box and trimmed note: the same annotation
+    var b = (a && a.box) || {};
+    function v(x) { return x === undefined || x === null ? null : x; }
+    return JSON.stringify([v(a && a.state), v(a && a.side), v(b.x), v(b.y), v(b.w), v(b.h), a && typeof a.note === 'string' ? a.note.trim() : null]);
+  }
+  // The annotations this report already carries as findings (build-report.mjs sets finding.annotation; its state is the finding's).
+  var RECORDED_AN = {};
+  findings.forEach(function (f) { var a = f.annotation; if (a && typeof a === 'object') RECORDED_AN[annotationIdentity({ state: f.state, side: a.side, box: a.box, note: a.note })] = true; });
+  function sideImage(state, side) { var r = stateRow[state], c = r && r.captured; return c ? (side === 'app' ? c.app : side === 'design' ? designOf(c) : null) || null : null; }
+  function wholePx(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v; }
+  function anKey() { return 'an-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
+  // { key (local, never sent), state, side, box, severity, note, decision, by, date }. On load, drop what cannot be sent
+  // (state gone, no image on that side, a broken entry) and what the report already records.
+  var AN = (function () {
+    var v = null, out = [], seen = {};
+    try { v = JSON.parse(store.get(AN_KEY) || 'null'); } catch (e) { v = null; }
+    arr(v).forEach(function (a) {
+      if (!a || typeof a !== 'object' || !sideImage(a.state, a.side) || AN_SEVS.indexOf(a.severity) === -1) return;
+      var b = a.box || {}, note = typeof a.note === 'string' ? a.note.trim() : '';
+      if (![b.x, b.y, b.w, b.h].every(wholePx) || b.x < 0 || b.y < 0 || b.w < AN_MIN || b.h < AN_MIN || !note || note.length > AN_NOTE_MAX) return;
+      var item = { key: typeof a.key === 'string' && a.key ? a.key : anKey(), state: a.state, side: a.side, box: { x: b.x, y: b.y, w: b.w, h: b.h }, severity: a.severity, note: note,
+        decision: a.decision === 'debt' && a.severity !== 'BLOCKER' ? 'debt' : 'fix-now', by: nameOrNull(a.by),
+        date: typeof a.date === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z$/.test(a.date) ? a.date : null };
+      var id = annotationIdentity(item);
+      if (RECORDED_AN[id] || seen[id] || out.length >= AN_MAX) return;
+      seen[id] = true; out.push(item);
+    });
+    if (v !== null && JSON.stringify(v) !== JSON.stringify(out)) store.set(AN_KEY, JSON.stringify(out));
+    return out;
+  })();
+  function saveAN() { return store.set(AN_KEY, JSON.stringify(AN)); }
+  function anByKey(key) { for (var i = 0; i < AN.length; i++) if (AN[i].key === key) return AN[i]; return null; }
+  function anSel(key) { return '[data-an="' + String(key).replace(/"/g, '') + '"]'; }
+  // A state's annotations numbered A1, A2 … in the order added (both sides); side: only those marked on that image.
+  function anOf(state, side) {
+    var out = [], n = 0;
+    AN.forEach(function (a) { if (a.state !== state) return; n++; if (!side || a.side === side) out.push({ a: a, n: n }); });
+    return out;
+  }
+  function anLabel(a) { var x = anOf(a.state).filter(function (y) { return y.a === a; })[0]; return 'A' + (x ? x.n : '?'); }
+  function anDebt() { return AN.filter(function (a) { return a.severity !== 'BLOCKER' && a.decision === 'debt'; }).length; }
+  function anHot(key, on) {
+    Array.prototype.forEach.call(document.querySelectorAll('.an-outline' + anSel(key) + ', .an-pin' + anSel(key) + ', .an-item' + anSel(key)), function (el) { el.classList.toggle('hot', on); });
+  }
+
+  // The Annotate toggle (hero bar, fullscreen header), its hint, and the mode itself (S.annotate).
+  function canAnnotateHere() { var r = stateRow[S.state]; return !!r && effMode(r.captured || {}) !== 'none'; }
+  function fullscreenOpen() { return !lb.hidden && !!lb.querySelector('.dialog.full'); }
+  function annotateToggle(id) {
+    var b = h('button', { type: 'button', id: id, class: 'btn btn-outline btn-sm an-toggle', 'aria-pressed': String(!!S.annotate), 'aria-keyshortcuts': 'A',
+      'data-tip': 'Add your own annotation: click or drag on the capture (A)' }, icon('message-square-plus'), 'Annotate');
+    b.addEventListener('click', function () { setAnnotate(!S.annotate); });
+    return b;
+  }
+  function anHint(id) { return h('span', { class: 'an-hint', id: id, role: 'status' }, S.annotate ? AN_HINT : ''); }
+  function setAnnotate(on) {
+    on = !!on && canAnnotateHere();
+    if (!on && DRAW) DRAW.cancel();
+    S.annotate = on;
+    Array.prototype.forEach.call(document.querySelectorAll('.an-toggle'), function (b) { b.setAttribute('aria-pressed', String(on)); });
+    Array.prototype.forEach.call(document.querySelectorAll('.stage'), function (st) { st.classList.toggle('annotating', on); });
+    Array.prototype.forEach.call(document.querySelectorAll('.an-hint'), function (x) { setText(x, on ? AN_HINT : ''); });
+  }
+
+  /* Drawing. Each image box the reviewer can mark is a surface: space() says how many coordinate pixels the box spans
+     ({ W, H }) and where the marked image lies in it ([0, iw] × [0, ih] from the top-left: in Overlay, Wipe and Diff
+     the app image keeps its own scale, anchored top-left), or null until the images have loaded. A drag of more than
+     4px draws the box; a plain click makes a 32×32 box centred on the point. Boxes are whole image pixels, inside the
+     image, at least 8×8. Pins are not surfaces: a click on one still opens it. */
+  var DRAW = null; // the box being drawn: { cancel }
+  function imageSpace(img) { return function () { return img && img.naturalWidth ? { W: img.naturalWidth, H: img.naturalHeight, iw: img.naturalWidth, ih: img.naturalHeight } : null; }; }
+  function placeBox(node, b, s) {
+    node.style.left = (b.x / s.W * 100) + '%'; node.style.top = (b.y / s.H * 100) + '%';
+    node.style.width = (b.w / s.W * 100) + '%'; node.style.height = (b.h / s.H * 100) + '%';
+  }
+  function fitBox(b, iw, ih) { // whole pixels inside the image; a side under 8px grows around its centre
+    function axis(p, len, max) {
+      if (len < AN_MIN) { p = Math.round(p + len / 2 - AN_MIN / 2); len = AN_MIN; }
+      len = Math.min(len, max);
+      return [Math.max(0, Math.min(p, max - len)), len];
+    }
+    var ax = axis(b.x, b.w, Math.floor(iw)), ay = axis(b.y, b.h, Math.floor(ih));
+    return { x: ax[0], y: ay[0], w: ax[1], h: ay[1] };
+  }
+  function dragBox(x0, y0, x1, y1, iw, ih) {
+    var x = Math.floor(Math.min(x0, x1)), y = Math.floor(Math.min(y0, y1));
+    return fitBox({ x: x, y: y, w: Math.ceil(Math.max(x0, x1)) - x, h: Math.ceil(Math.max(y0, y1)) - y }, iw, ih);
+  }
+  function clickBox(px, py, iw, ih) { return fitBox({ x: Math.round(px - AN_CLICK / 2), y: Math.round(py - AN_CLICK / 2), w: AN_CLICK, h: AN_CLICK }, iw, ih); }
+  function drawSurface(el, state, side, space) {
+    el.classList.add('an-surface');
+    el.__an = { state: state, side: side, space: space };
+    var d = null;
+    function at(e, s) {
+      var r = el.getBoundingClientRect();
+      return { x: Math.max(0, Math.min(s.iw, (e.clientX - r.left) / r.width * s.W)), y: Math.max(0, Math.min(s.ih, (e.clientY - r.top) / r.height * s.H)) };
+    }
+    function stop() {
+      if (!d) return;
+      if (d.draft) d.draft.remove();
+      try { el.releasePointerCapture(d.id); } catch (x) { /* already released */ }
+      d = null; DRAW = null;
+    }
+    el.addEventListener('pointerdown', function (e) {
+      if (!S.annotate || FORM || d || e.button !== 0 || e.target.closest('.pin, button')) return;
+      var s = space(); if (!s || !s.iw || !s.ih) return;
+      e.preventDefault(); e.stopPropagation(); // no drag-pan, no wipe drag, no text selection
+      var p = at(e, s);
+      d = { id: e.pointerId, cx: e.clientX, cy: e.clientY, s: s, x0: p.x, y0: p.y, x1: p.x, y1: p.y, moved: false, draft: null };
+      DRAW = { cancel: stop };
+      try { el.setPointerCapture(e.pointerId); } catch (x) { /* a synthetic pointer */ }
+    });
+    el.addEventListener('pointermove', function (e) {
+      if (!d || e.pointerId !== d.id) return;
+      var dx = e.clientX - d.cx, dy = e.clientY - d.cy;
+      if (!d.moved && dx * dx + dy * dy <= AN_DRAG * AN_DRAG) return;
+      d.moved = true;
+      var p = at(e, d.s); d.x1 = p.x; d.y1 = p.y;
+      if (!d.draft) { d.draft = h('span', { class: 'an-draft', 'aria-hidden': 'true' }); el.appendChild(d.draft); }
+      placeBox(d.draft, { x: Math.min(d.x0, d.x1), y: Math.min(d.y0, d.y1), w: Math.abs(d.x1 - d.x0), h: Math.abs(d.y1 - d.y0) }, d.s);
+    });
+    el.addEventListener('pointerup', function (e) {
+      if (!d || e.pointerId !== d.id) return;
+      var s = d.s, box = d.moved ? dragBox(d.x0, d.y0, d.x1, d.y1, s.iw, s.ih) : clickBox(d.x0, d.y0, s.iw, s.ih);
+      stop();
+      startAnnotation(el, box, null);
+    });
+    el.addEventListener('pointercancel', stop);
+  }
+  function startAnnotation(el, box, trigger) {
+    var s = el.__an.space();
+    if (!s) return;
+    if (AN.length >= AN_MAX) { toast('You can add up to ' + AN_MAX + ' annotations in one review: send these first.', true); return; }
+    if (box.w < AN_MIN || box.h < AN_MIN) { toast('This image is too small to mark.', true); return; }
+    if (box.w * box.h > AN_MOST * s.iw * s.ih) { toast('That box covers almost the whole image: draw it around what is wrong.', true); return; }
+    openForm({ state: el.__an.state, side: el.__an.side, box: box, el: el, trigger: trigger });
+  }
+  // The keyboard path (the rail's Add annotation): a box at the centre of the part of the capture in view.
+  function addFromRail(trigger) {
+    var vw = window.innerWidth || document.documentElement.clientWidth, vh = window.innerHeight || document.documentElement.clientHeight;
+    var top = Math.max(0, heroBar.getBoundingClientRect().bottom), bottom = reviewBar.hidden ? vh : Math.min(vh, reviewBar.getBoundingClientRect().top);
+    var best = null;
+    Array.prototype.forEach.call(heroStage.querySelectorAll('.an-surface'), function (el) {
+      var s = el.__an && el.__an.state === S.state ? el.__an.space() : null; if (!s) return;
+      var r = el.getBoundingClientRect(), clip = el.closest('.stage.zoomed, .pane.zoomed'), c = clip ? clip.getBoundingClientRect() : null;
+      var im = { left: r.left, top: r.top, right: r.left + r.width * s.iw / s.W, bottom: r.top + r.height * s.ih / s.H };
+      var v = { left: Math.max(im.left, c ? c.left : 0, 0), top: Math.max(im.top, c ? c.top : 0, top), right: Math.min(im.right, c ? c.right : vw, vw), bottom: Math.min(im.bottom, c ? c.bottom : vh, bottom) };
+      var area = Math.max(0, v.right - v.left) * Math.max(0, v.bottom - v.top);
+      if (!best || area > best.area || (area === best.area && el.__an.side === 'app' && best.el.__an.side !== 'app')) best = { el: el, s: s, r: r, im: im, v: v, area: area };
+    });
+    if (!best) { toast('The capture is still loading: try again in a moment.', true); return; }
+    var v = best.area ? best.v : best.im, cx = (v.left + v.right) / 2, cy = (v.top + v.bottom) / 2;
+    startAnnotation(best.el, clickBox((cx - best.r.left) / best.r.width * best.s.W, (cy - best.r.top) / best.r.height * best.s.H, best.s.iw, best.s.ih), trigger);
+  }
+
+  /* The form: a popover by the box (a bottom sheet on phones), the Dismiss panel's look. Modal while open: focus stays
+     inside, Esc cancels, ⌘/Ctrl+Enter saves; a click outside cancels when nothing was changed. */
+  var FORM = null; // { key (editing) | null, a: { state, side, box }, node, scrim, draft, anchor, trigger, host, note, sev(), dec() }
+  // A radio-style segmented control whose options can be disabled (arrow keys skip them).
+  function segPick(labelId, opts, current, onpick) {
+    var g = h('div', { class: 'toggle-group seg', role: 'radiogroup', 'aria-labelledby': labelId });
+    opts.forEach(function (o) {
+      var b = h('button', { type: 'button', role: 'radio', class: 'toggle', 'data-v': o.v, 'aria-checked': 'false', tabindex: '-1' }, o.dot ? dot(o.v) : null, o.label);
+      b.addEventListener('click', function () { if (b.getAttribute('aria-disabled') !== 'true') onpick(o.v); }); // the help line below says why it is off
+      g.appendChild(b);
+    });
+    g.set = function (v, off) { // off: { value: why } disables those options
+      Array.prototype.forEach.call(g.children, function (b) {
+        var k = b.getAttribute('data-v'), on = k === v, why = off && off[k];
+        b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1;
+        if (why) { b.setAttribute('aria-disabled', 'true'); b.setAttribute('data-tip', why); } else { b.removeAttribute('aria-disabled'); b.removeAttribute('data-tip'); }
+      });
+    };
+    g.addEventListener('keydown', function (e) {
+      if (['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].indexOf(e.key) === -1) return;
+      e.preventDefault();
+      var items = Array.prototype.filter.call(g.children, function (b) { return b.getAttribute('aria-disabled') !== 'true'; }), i = items.indexOf(document.activeElement);
+      if (!items.length) return;
+      var j = (i + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length;
+      items[j].focus(); items[j].click();
+    });
+    g.set(current);
+    return g;
+  }
+  function trapIn(container, e) { // Tab stays inside (roving radios: only their tabbable item counts)
+    var f = Array.prototype.filter.call(container.querySelectorAll('button, a[href], input, textarea, select, [tabindex]'), function (x) { return x.tabIndex >= 0 && !x.disabled && x.offsetParent !== null; });
+    if (!f.length) return;
+    if (e.shiftKey && (document.activeElement === f[0] || !container.contains(document.activeElement))) { f[f.length - 1].focus(); e.preventDefault(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { f[0].focus(); e.preventDefault(); }
+  }
+  function anOutline(key, scope) { var o = (scope || heroStage).querySelector('.an-outline' + anSel(key)); return o && o.offsetParent ? o : null; }
+  function openForm(o) {
+    var cur = o.key ? anByKey(o.key) : null;
+    if (o.key && !cur) return;
+    closeForm(false); hideTip();
+    if (PANEL.fid) closePanel(false);
+    closeSend(false); closeDismiss(false);
+    var el = o.el || null, trigger = o.trigger || (document.activeElement !== document.body ? document.activeElement : null);
+    var host = (el && el.closest('.dialog')) || (trigger && trigger.closest && trigger.closest('.dialog')) || document.body;
+    var a = cur || { state: o.state, side: o.side, box: o.box, severity: 'WARNING', note: '', decision: 'fix-now' };
+    var sev = a.severity, dec = a.severity === 'BLOCKER' ? 'fix-now' : a.decision, label = cur ? anLabel(cur) : null;
+    var draft = null, anchor = null;
+    if (cur) anchor = (trigger && trigger.classList && trigger.classList.contains('an-pin') && anOutline(cur.key, trigger.parentNode)) || anOutline(cur.key, host === document.body ? heroStage : host);
+    else if (el) { draft = h('span', { class: 'an-draft', 'aria-hidden': 'true' }); placeBox(draft, a.box, el.__an.space()); el.appendChild(draft); anchor = draft; }
+    var note = h('textarea', { class: 'textarea', id: 'an-note', name: 'note', rows: '4', maxlength: String(AN_NOTE_MAX), required: true, 'aria-required': 'true', 'aria-describedby': 'an-note-help',
+      placeholder: 'What is wrong, and what should it be?' });
+    note.value = cur ? cur.note : '';
+    var count = h('span', { class: 'an-count' }), whenHelp = h('p', { class: 'dp-help', id: 'an-when-help' });
+    var save = btn(cur ? 'Save' : 'Add annotation', { variant: 'default', size: 'sm', id: 'an-save', cls: 'an-save' });
+    var sevSeg = segPick('an-sev-label', AN_SEVS.map(function (v) { return { v: v, label: AN_SEV_LABEL[v], dot: true }; }), sev, function (v) { sev = v; if (v === 'BLOCKER') dec = 'fix-now'; paint(); });
+    var decSeg = segPick('an-when-label', [{ v: 'fix-now', label: 'Fix now' }, { v: 'debt', label: 'Later' }], dec, function (v) { dec = v; paint(); });
+    decSeg.setAttribute('aria-describedby', 'an-when-help');
+    function paint() {
+      sevSeg.set(sev); decSeg.set(dec, sev === 'BLOCKER' ? { debt: AN_LOCK } : null);
+      whenHelp.textContent = sev === 'BLOCKER' ? AN_LOCK + ': a blocker is always fixed now.'
+        : dec === 'debt' ? 'Later: tracked as design debt, with a ticket if you approve tickets.' : 'Fix now: your agent fixes it with the other Fix now items.';
+      var n = note.value.length;
+      count.textContent = n > AN_NOTE_MAX - 200 ? ' \u00b7 ' + n + ' / ' + AN_NOTE_MAX : '';
+      count.setAttribute('data-near', String(n > AN_NOTE_MAX - 200));
+      save.disabled = !note.value.trim();
+    }
+    var start = JSON.stringify([sev, dec, note.value]);
+    function changed() { return JSON.stringify([sev, dec, note.value]) !== start; }
+    var node = h('div', { class: 'dismiss-panel an-form', id: 'an-form', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'an-form-title', 'aria-describedby': 'an-form-where', 'data-an': cur ? cur.key : null },
+      h('div', { class: 'dp-head' }, h('h3', { class: 'dp-title', id: 'an-form-title' }, cur ? 'Edit annotation ' + label : 'New annotation'),
+        cur ? h('span', { class: 'badge badge-secondary' }, 'Not in the report yet') : null),
+      h('p', { class: 'dp-help', id: 'an-form-where' }, stateLabel(a.state) + ' \u00b7 marked on the ' + (a.side === 'design' ? 'design' : 'app')),
+      h('div', { class: 'dp-field' }, h('span', { class: 'label', id: 'an-sev-label' }, 'Severity'), sevSeg),
+      h('div', { class: 'dp-field' }, h('label', { class: 'label', for: 'an-note' }, 'Describe the issue'), note,
+        h('p', { class: 'dp-help', id: 'an-note-help' }, 'Required \u00b7 Esc cancels \u00b7 \u2318/Ctrl+Enter saves', count)),
+      h('div', { class: 'dp-field' }, h('span', { class: 'label', id: 'an-when-label' }, 'When to fix'), decSeg, whenHelp),
+      h('div', { class: 'dp-actions' },
+        cur ? btn('Delete', { variant: 'ghost', size: 'sm', icon: 'trash-2', id: 'an-delete', cls: 'an-delete', aria: 'Delete ' + label, onclick: function () { deleteAnnotation(cur.key); } }) : null,
+        btn('Cancel', { variant: 'ghost', size: 'sm', id: 'an-cancel', onclick: function () { closeForm(true); } }), save));
+    var scrim = h('div', { class: 'an-scrim', 'aria-hidden': 'true' });
+    scrim.addEventListener('pointerdown', function (e) { e.preventDefault(); if (changed()) note.focus(); else closeForm(true); });
+    node.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeForm(true); }
+      else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); saveForm(); }
+      else if (e.key === 'Tab') { trapIn(node, e); e.stopPropagation(); }
+    });
+    note.addEventListener('input', paint);
+    save.addEventListener('click', saveForm);
+    host.appendChild(scrim); host.appendChild(node);
+    FORM = { key: cur ? cur.key : null, a: a, node: node, scrim: scrim, draft: draft, anchor: anchor, trigger: trigger, host: host, note: note,
+      sev: function () { return sev; }, dec: function () { return dec; } };
+    paint();
+    if (anchor) {
+      var ar = anchor.getBoundingClientRect(), vh = window.innerHeight || document.documentElement.clientHeight;
+      if (ar.top < 0 || ar.bottom > vh) anchor.scrollIntoView({ block: 'center', inline: 'nearest' });
+    }
+    placeForm();
+    if (anchor && !node.style.left) { // a bottom sheet (phones): scroll the box above it
+      var sheetTop = (window.innerHeight || document.documentElement.clientHeight) - node.offsetHeight, ab = anchor.getBoundingClientRect().bottom;
+      if (ab > sheetTop - 12) window.scrollBy(0, ab - sheetTop + 24);
+    }
+    if (cur) anHot(cur.key, true);
+    note.focus({ preventScroll: true });
+  }
+  function placeForm() {
+    var F = FORM; if (!F) return;
+    var node = F.node;
+    if (window.matchMedia && window.matchMedia('(max-width: 639px)').matches) { node.style.left = ''; node.style.top = ''; return; } // a bottom sheet (CSS)
+    node.style.left = '0px'; node.style.top = '0px';
+    var o = node.getBoundingClientRect(); // where (0, 0) lands: the viewport, or the transformed fullscreen dialog
+    var vh = window.innerHeight || document.documentElement.clientHeight, bar = reviewBar.hidden ? vh : reviewBar.getBoundingClientRect().top - 4;
+    var vb = F.host === document.body ? { left: 0, top: 0, right: window.innerWidth || document.documentElement.clientWidth, bottom: bar > vh / 2 ? Math.min(vh, bar) : vh } // above the review bar
+      : F.host.getBoundingClientRect();
+    var a = F.anchor && F.anchor.isConnected ? F.anchor.getBoundingClientRect() : null;
+    if (a && !a.width && !a.height) a = null;
+    var w = o.width, ht = o.height, gap = 12, pad = 8, x, y;
+    if (!a) { x = (vb.left + vb.right - w) / 2; y = (vb.top + vb.bottom - ht) / 2; }
+    else if (a.right + gap + w <= vb.right - pad) { x = a.right + gap; y = a.top; }
+    else if (a.left - gap - w >= vb.left + pad) { x = a.left - gap - w; y = a.top; }
+    else { x = a.left + a.width / 2 - w / 2; y = a.bottom + gap + ht <= vb.bottom - pad ? a.bottom + gap : a.top - gap - ht; }
+    x = Math.max(vb.left + pad, Math.min(x, vb.right - pad - w)); y = Math.max(vb.top + pad, Math.min(y, vb.bottom - pad - ht));
+    node.style.left = (x - o.left) + 'px'; node.style.top = (y - o.top) + 'px';
+  }
+  window.addEventListener('scroll', placeForm, true);
+  window.addEventListener('resize', placeForm);
+  function closeForm(refocus) {
+    var F = FORM; if (!F) return;
+    FORM = null;
+    F.node.remove(); F.scrim.remove();
+    if (F.draft) F.draft.remove();
+    if (F.key) anHot(F.key, false);
+    if (!refocus) return;
+    var t = F.trigger && F.trigger.focus && document.contains(F.trigger) && F.trigger.offsetParent ? F.trigger
+      : document.getElementById(F.host === document.body ? 'annotate-toggle' : 'fs-annotate-toggle');
+    if (t) t.focus({ preventScroll: true });
+  }
+  function saveForm() {
+    var F = FORM; if (!F) return;
+    var note = F.note.value.trim(), sev = F.sev(), dec = sev === 'BLOCKER' ? 'fix-now' : F.dec();
+    if (!note) { F.note.focus(); return; }
+    var id = annotationIdentity({ state: F.a.state, side: F.a.side, box: F.a.box, note: note });
+    if (RECORDED_AN[id] || AN.some(function (x) { return x.key !== F.key && annotationIdentity(x) === id; })) { toast('This annotation is already in your list.', true); F.note.focus(); return; }
+    var a = F.key ? anByKey(F.key) : null;
+    if (F.key && !a) { closeForm(false); return; }
+    if (a) { a.severity = sev; a.note = note; a.decision = dec; }
+    else {
+      a = { key: anKey(), state: F.a.state, side: F.a.side, box: { x: F.a.box.x, y: F.a.box.y, w: F.a.box.w, h: F.a.box.h }, severity: sev, note: note, decision: dec,
+        by: nameOrNull(reviewerName()), date: new Date().toISOString() };
+      AN.push(a);
+    }
+    var ok = saveAN();
+    closeForm(false);
+    refreshAnnotations();
+    toast(anLabel(a) + (F.key ? ' saved' : ' added: Review and send passes it to your agent') + (ok ? '' : ' (this session only: browser storage is unavailable)'));
+    focusAnnotation(a.key, F.host);
+  }
+  function focusAnnotation(key, host) {
+    var scope = host && host !== document.body ? host : heroSection;
+    var pin = scope.querySelector('.an-pin' + anSel(key)), row = heroRail.querySelector('.an-item' + anSel(key) + ' .an-edit');
+    var t = pin && pin.offsetParent ? pin : row;
+    if (t) t.focus({ preventScroll: true });
+  }
+  function deleteAnnotation(key) {
+    var i = -1;
+    AN.forEach(function (x, k) { if (x.key === key) i = k; });
+    if (i < 0) return;
+    var a = AN[i], label = anLabel(a), host = FORM ? FORM.host : document.body;
+    AN.splice(i, 1);
+    var ok = saveAN();
+    closeForm(false);
+    refreshAnnotations();
+    toast('Deleted ' + label + (ok ? '' : ' (this session only: browser storage is unavailable)'), false, { label: 'Undo', onclick: function () { undoDelete(a, i); } });
+    var t = (host !== document.body && host.querySelector('.an-toggle')) || document.getElementById('an-add') || reviewMsg;
+    if (t) t.focus({ preventScroll: true });
+  }
+  function undoDelete(a, i) {
+    if (anByKey(a.key) || AN.some(function (x) { return annotationIdentity(x) === annotationIdentity(a); })) return;
+    AN.splice(Math.min(i, AN.length), 0, a);
+    saveAN();
+    refreshAnnotations();
+    toast('Restored ' + anLabel(a));
+    focusAnnotation(a.key);
+  }
+  // A pending annotation added, changed or deleted: re-place every pin layer (hero, fullscreen), the rail and the bar.
+  function refreshAnnotations() {
+    Array.prototype.forEach.call(document.querySelectorAll('.pins'), function (l) { if (l.__place && l.isConnected) l.__place(); });
+    renderRail(); paintReview();
+  }
+  // A view that shows a side's image: Design and Side by side show the design; App, Side by side, Overlay, Wipe and Diff the app.
+  function showsSide(side) {
+    var r = stateRow[S.state], m = r ? effMode(r.captured || {}) : 'none';
+    return side === 'design' ? m === 'design' || m === 'side' : ['app', 'side', 'overlay', 'wipe', 'diff'].indexOf(m) !== -1;
+  }
+  // Show a pending annotation on the capture: its state, a view with its image, pins on; returns its pin.
+  function showAnnotation(key, o) {
+    var a = anByKey(key); if (!a) return null;
+    o = o || {};
+    setTab('overview', { hash: false });
+    if (S.state !== a.state) selectState(a.state, false);
+    var redo = false;
+    if (!showsSide(a.side)) { S.mode = a.side; redo = true; }
+    if (!S.pins) { S.pins = true; redo = true; }
+    if (redo) { renderHeroBar(); renderStage(heroStage, false); }
+    writeHash();
+    var pin = heroStage.querySelector('.an-pin' + anSel(key));
+    if (pin && o.scroll !== false) pin.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+    if (pin && o.flash) {
+      pin.classList.add('flash');
+      setTimeout(function () { pin.classList.remove('flash'); }, 2400);
+      pin.focus({ preventScroll: true });
+    }
+    return pin;
+  }
+  // One pending annotation on a pin layer: its box, and its pin (spread with the finding pins).
+  function anPin(layer, x, W, H) {
+    var a = x.a, b = a.box, label = 'A' + x.n, title = annotationTitle(a.note), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    layer.appendChild(h('span', { class: 'an-outline', 'data-sev': a.severity, 'data-an': a.key, 'aria-hidden': 'true',
+      style: 'left:' + (b.x / W * 100) + '%;top:' + (b.y / H * 100) + '%;width:' + (b.w / W * 100) + '%;height:' + (b.h / H * 100) + '%' }));
+    var leader = h('span', { class: 'pin-leader', 'data-sev': a.severity, 'data-an': a.key, 'aria-hidden': 'true' });
+    layer.appendChild(leader);
+    var pin = h('button', { type: 'button', class: 'pin an-pin', 'data-sev': a.severity, 'data-an': a.key, 'data-n': label, 'aria-haspopup': 'dialog',
+      'aria-label': 'Your annotation ' + label + ', ' + AN_SEV_LABEL[a.severity].toLowerCase() + ': ' + title + '. Edit', 'data-tip': label + ' \u00b7 ' + title + ' (your annotation)',
+      style: 'left:' + (cx / W * 100) + '%;top:' + (cy / H * 100) + '%' }, label);
+    pin.addEventListener('click', function () { openForm({ key: a.key, trigger: pin }); });
+    ['mouseenter', 'focus'].forEach(function (ev) { pin.addEventListener(ev, function () { anHot(a.key, true); }); });
+    ['mouseleave', 'blur'].forEach(function (ev) { pin.addEventListener(ev, function () { if (!FORM || FORM.key !== a.key) anHot(a.key, false); }); });
+    layer.appendChild(pin);
+    return { x: cx / W, y: cy / H, pin: pin, leader: leader };
+  }
+  // The rail block: "Your annotations (n) · not sent yet", each one with Edit and Delete, and Add annotation (the keyboard path).
+  function anRailStatus() { return reviewState() === 'sent' ? 'Sent, not in the report yet' : 'Not sent yet'; }
+  function anRail(state) {
+    var list = anOf(state), can = canAnnotateHere();
+    if (!can && !list.length) return null;
+    return h('div', { class: 'an-rail', id: 'an-rail', role: 'group', 'aria-labelledby': 'an-rail-title' },
+      h('h3', { class: 'an-rail-title', id: 'an-rail-title' }, list.length ? ['Your annotations (' + list.length + ')', h('span', { class: 'an-rail-status', id: 'an-rail-status' }, anRailStatus())] : 'Your annotations'),
+      list.length ? h('ol', { class: 'an-list', id: 'an-list' }, list.map(anRow)) : h('p', { class: 'an-empty' }, 'Missed something? Turn on Annotate (A), then click or drag on the capture.'),
+      can ? btn('Add annotation', { variant: 'ghost', size: 'xs', icon: 'message-square-plus', id: 'an-add', cls: 'an-add', tip: 'Mark something the QA missed: a box in the middle of the capture in view',
+        onclick: function (e) { addFromRail(e.currentTarget); } }) : null);
+  }
+  function anRow(x) {
+    var a = x.a, label = 'A' + x.n, title = annotationTitle(a.note);
+    var edit = btn(null, { variant: 'ghost', size: 'icon-sm', icon: 'pencil', cls: 'an-edit', aria: 'Edit ' + label + ': ' + title, tip: 'Edit' });
+    edit.addEventListener('click', function () { showAnnotation(a.key, { scroll: true }); openForm({ key: a.key, trigger: edit }); });
+    var del = btn(null, { variant: 'ghost', size: 'icon-sm', icon: 'trash-2', cls: 'an-del', aria: 'Delete ' + label + ': ' + title, tip: 'Delete' });
+    del.addEventListener('click', function () { deleteAnnotation(a.key); });
+    var li = h('li', { class: 'an-item', 'data-an': a.key },
+      h('span', { class: 'n' }, label),
+      h('span', { class: 'an-body' }, h('span', { class: 'an-t' }, dot(a.severity), h('span', null, title)),
+        h('span', { class: 'an-sub' }, AN_SEV_LABEL[a.severity] + ' \u00b7 ' + (a.decision === 'debt' && a.severity !== 'BLOCKER' ? 'Later' : 'Fix now') + (a.side === 'design' ? ' \u00b7 on the design' : ''))),
+      h('span', { class: 'an-acts' }, edit, del));
+    li.addEventListener('mouseenter', function () { anHot(a.key, true); });
+    li.addEventListener('mouseleave', function () { if (!FORM || FORM.key !== a.key) anHot(a.key, false); });
+    return li;
+  }
+  // A finding built from a reviewer's annotation (finding.annotation): a "From the review" badge and the note, in full.
+  function fromReviewBadge(f) {
+    var a = f && f.annotation; if (!a || typeof a !== 'object') return null;
+    return h('span', { class: 'badge badge-secondary an-from', 'data-tip': 'Added by ' + (oneLine(a.by) || 'the reviewer') + ' in the review' + (blank(a.id) ? '' : ' (' + a.id + ')') }, icon('user'), 'From the review');
+  }
+  function reviewerNote(f, id) {
+    var a = f && f.annotation; if (!a || typeof a !== 'object' || blank(a.note)) return null;
+    return h('figure', { class: 'an-note', id: id }, h('figcaption', { class: 'section-label' }, "Reviewer's note"),
+      h('blockquote', { class: 'an-note-text' }, String(a.note)),
+      h('p', { class: 'an-note-by', style: 'margin:0' }, ['by ' + (oneLine(a.by) || 'the reviewer'), blank(a.date) ? null : fmtDay(a.date),
+        a.side === 'design' ? 'marked on the design' : 'marked on the app', blank(a.id) ? null : oneLine(a.id)].filter(Boolean).map(function (x, i) { return [i ? ' \u00b7 ' : null, h('span', { style: 'white-space:nowrap' }, x)]; })));
   }
 
   /* ===== 10. Triage board: choose what to fix ===== */
@@ -2902,6 +3428,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         h('div', { class: 'alert-description' }, agentSigned(f) ? h('p', { class: 'agent-signoff', style: 'margin:0;font-weight:600' }, AGENT_SIGNOFF + ' (by ' + orDash(f.signoff.by) + '): it stays open until you accept it.') : null, h('p', { class: 'data-reason', style: 'margin:0;color:inherit' }, blank(f.dataReason) ? 'No reason given: the agent did not say which data differs.' : String(f.dataReason)))) : null;
     return [
       status,
+      reviewerNote(f, 'sheet-review-note'),
       h('div', { class: 'row' },
         dismissBtn(f, slot, { variant: 'outline', size: 'sm' }),
         copyBtn('Copy agent prompt', function () { return agentPrompt(f); }, f.id),
@@ -3439,7 +3966,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   }
 
   /* ===== 10c. Review and send: one review bar, one Send panel, one decisions document =====
-     The triage, this browser's pending dismissals and its pending backfill decisions leave the page together as
+     The triage, this browser's pending dismissals, its pending backfill decisions and its annotations (section 9c) leave the page together as
      ONE decisions document (kind "design-qa-decisions", scripts/lib/decisions.mjs). In file mode it is copied as
      a plain-language message any coding agent can act on, or downloaded as decisions.json. When scripts/review.mjs
      serves the page (LIVE), "Send to agent" POSTs it to the waiting agent: the only network request this page
@@ -3461,14 +3988,19 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   // The decisions document exactly as normalizeDecisions() in scripts/lib/decisions.mjs returns it (same keys, same
   // order): fix now / debt in rank order without this browser's dismissals; only the pending (not recorded)
   // dismissals and backfill decisions, by id; a blank item "by" falls back to the reviewer's name.
+  // This browser's annotations (section 9c) follow the backfill, in the order they were added, only when there are some.
   function decisionsDoc(at) {
     var name = nameOrNull(reviewerName()), debt = idList(selected('debt'));
     var doc = { kind: 'design-qa-decisions', version: 1, slug: SLUG, feature: typeof meta.feature === 'string' ? meta.feature : null,
-      reportGeneratedAt: meta.generatedAt || null, decidedBy: name, decidedAt: at || new Date().toISOString(), tickets: debt.length ? ticketsWanted() : false };
-    if (HAS_TRIAGE) doc.triage = { fixNow: idList(selected('fix-now')), debt: debt };
+      reportGeneratedAt: meta.generatedAt || null, decidedBy: name, decidedAt: at || new Date().toISOString(), tickets: debt.length || anDebt() ? ticketsWanted() : false };
+    if (HAS_TRIAGE || AN.length) doc.triage = { fixNow: idList(selected('fix-now')), debt: debt };
     doc.dismissals = pendingIds().map(function (id) { var d = DIS[id]; return { findingId: id, kind: d.kind, reason: d.reason, by: nameOrNull(d.by) || name, date: d.date || null }; });
     doc.backfill = bfPendingIds().map(function (id) {
       var d = BFL[id]; return { id: id, decision: d.decision, reason: d.decision === 'not-needed' ? d.reason : null, by: nameOrNull(d.by) || name, date: d.date || null };
+    });
+    if (AN.length) doc.annotations = AN.map(function (a) {
+      return { state: a.state, side: a.side, box: { x: a.box.x, y: a.box.y, w: a.box.w, h: a.box.h }, severity: a.severity, note: a.note.trim(),
+        decision: a.severity === 'BLOCKER' ? 'fix-now' : a.decision, by: nameOrNull(a.by) || name, date: a.date || null };
     });
     return doc;
   }
@@ -3490,8 +4022,9 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   }
   function folded(v) { return typeof v === 'string' ? oneLine(v) : v; } // a finding value as decisions.mjs folds it
   function decisionsSummaryLine(d) {
-    var bf = d.backfill.length, parts = ['fix now ' + (d.triage ? d.triage.fixNow.length : 0), 'later ' + (d.triage ? d.triage.debt.length : 0), 'dismissed ' + d.dismissals.length];
+    var bf = d.backfill.length, an = arr(d.annotations).length, parts = ['fix now ' + (d.triage ? d.triage.fixNow.length : 0), 'later ' + (d.triage ? d.triage.debt.length : 0), 'dismissed ' + d.dismissals.length];
     if (bf) parts.push('backfill ' + bf);
+    if (an) parts.push('annotations ' + an);
     parts.push('tickets: ' + (d.tickets === true ? 'yes' : 'no'));
     return parts.join(' · ');
   }
@@ -3499,7 +4032,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var file = REPORT_PATH || 'qa-reports/' + d.slug + '/report.json';
     var feature = oneLine(d.feature !== null && d.feature !== undefined ? d.feature : meta.feature !== null && meta.feature !== undefined ? meta.feature : d.slug);
     function finding(id) { return byId[id] || { id: id, title: '(not in this report)' }; }
-    var fixNow = d.triage ? d.triage.fixNow : [], debt = d.triage ? d.triage.debt : [];
+    var fixNow = d.triage ? d.triage.fixNow : [], debt = d.triage ? d.triage.debt : [], an = arr(d.annotations);
     var lines = [
       'Apply my design QA review for ' + feature + ' (' + oneLine(d.slug) + ').',
       '',
@@ -3509,9 +4042,10 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       'What to do:',
       '1. Use the design-qa skill, section "Apply review decisions". Save this whole message to a file and run its script:',
       '   node scripts/apply-decisions.mjs --report ' + shellArg(file) + ' --from <that file>' + (CONFIG_PATH ? ' --config ' + shellArg(CONFIG_PATH) : ''),
-      '   (the script path is relative to the design-qa skill folder). No design-qa skill available? Skip step 1 and do steps 2 and 3 from the text below.',
+      '   (the script path is relative to the design-qa skill folder). No design-qa skill available? Skip step 1 and do steps ' + (an.length ? '2 to 4' : '2 and 3') + ' from the text below.',
       '2. Fix the "Fix now" findings below, in the order given. Do not change data or copy beyond what each item says. Run the project\'s tests after each item.',
-      '3. Do not fix the "Fix later" items; they are tracked as debt. Leave dismissed items alone.',
+      '3. Do not fix the "Fix later" items; they are tracked as debt. Leave dismissed items alone.'
+    ].concat(an.length ? ['4. "Annotations added in the review" lists issues the reviewer found that the QA missed: check each one in the app, then fix it now or later as marked.'] : [], [
       '',
       '```design-qa-decisions',
       JSON.stringify(d, null, 2),
@@ -3522,7 +4056,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       fixNow.length ? fixNow.map(function (id) { return agentPrompt(finding(id)); }).join('\n\n') : 'None.',
       '',
       'Fix later (' + debt.length + ')'
-    ].concat(debt.length ? debt.map(function (id) { var f = finding(id); return '- ' + id + ' [' + (f.severity !== null && f.severity !== undefined ? folded(f.severity) : DASH) + '] ' + folded(f.title); }) : ['None.']);
+    ]).concat(debt.length ? debt.map(function (id) { var f = finding(id); return '- ' + id + ' [' + (f.severity !== null && f.severity !== undefined ? folded(f.severity) : DASH) + '] ' + folded(f.title); }) : ['None.']);
     if (d.dismissals.length) {
       lines.push('', 'Dismissed (' + d.dismissals.length + ')');
       d.dismissals.forEach(function (x) { lines.push('- ' + x.findingId + ' ' + x.kind + ' — ' + oneLine(x.reason)); });
@@ -3530,6 +4064,13 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     if (d.backfill.length) {
       lines.push('', 'Design backfill (' + d.backfill.length + ')');
       d.backfill.forEach(function (b) { lines.push(b.decision === 'not-needed' ? '- ' + b.id + ' not-needed — ' + oneLine(b.reason) : '- ' + b.id + ' build'); });
+    }
+    if (an.length) {
+      lines.push('', 'Annotations added in the review (' + an.length + ')');
+      an.forEach(function (a) {
+        var b = a.box;
+        lines.push('- [' + a.severity + '] ' + oneLine(a.state) + ' (' + a.side + ' ' + b.x + ',' + b.y + ' ' + b.w + '\u00d7' + b.h + ') ' + (a.decision === 'fix-now' ? 'fix now' : 'fix later') + ' \u2014 ' + oneLine(a.note));
+      });
     }
     return lines.join('\n');
   }
@@ -3548,7 +4089,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   }
   function reviewState() {
     if (SENT && docKey(SENT.doc) === docKey(decisionsDoc(SENT.doc.decidedAt))) return 'sent';
-    if (!pendingIds().length && !bfPendingIds().length && triageRecorded()) return 'recorded';
+    if (!pendingIds().length && !bfPendingIds().length && !AN.length && triageRecorded()) return 'recorded'; // pending annotations are never recorded
     return 'unsent';
   }
   function hhmm(iso) { var d = new Date(iso); return isNaN(d.getTime()) ? DASH : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
@@ -3567,6 +4108,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     if (doc.triage) p.push('Fix now ' + doc.triage.fixNow.length, 'Later ' + doc.triage.debt.length);
     if (doc.dismissals.length) p.push('Dismissed ' + doc.dismissals.length);
     if (doc.backfill.length) p.push('Backfill ' + doc.backfill.length);
+    if (doc.annotations) p.push('Annotations ' + doc.annotations.length);
     return p.join(' · ');
   }
   function setText(el, text) { if (el.textContent !== text) el.textContent = text; }
@@ -3580,6 +4122,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       : st === 'sent' ? (SENT.via === 'agent' ? 'Sent to your agent at ' + hhmm(SENT.at) : 'Copied at ' + hhmm(SENT.at) + ': paste it into your agent\'s chat')
         : SENT ? 'Changed since you sent' : 'Not sent yet');
     reviewBtn.disabled = SP.sending;
+    var anStatus = heroRail.querySelector('#an-rail-status'); if (anStatus) setText(anStatus, anRailStatus());
     if (reviewBar.hidden && SP.open) closeSend(false);
     if (SP.open) fillSendLive();
     layoutBars();
@@ -3653,10 +4196,15 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     if (doc.backfill.length) sum.appendChild(sendGroup('Backfill', doc.backfill.length, [h('ul', { class: 'sp-list' }, doc.backfill.slice(0, LIM).map(function (b) {
       return h('li', null, h('span', { class: 'fid' }, b.id), h('span', { class: 'sp-t' }, (b.decision === 'build' ? 'Build in Figma' : 'Not needed') + (bfById[b.id] ? ' · ' + bfLabel(bfById[b.id]) : '')));
     })), more(doc.backfill.length - LIM)], reviewLink('Review', function () { setTab('backfill'); var t = document.getElementById('h-backfill'); if (t) { t.scrollIntoView({ block: 'start' }); } })));
-    // "Create tickets for the n later items": only with later items; checked by default only when the report has a ticket.
-    var text = debt.length ? 'Create tickets for the ' + plural(debt.length, 'later item') : '';
+    var an = arr(doc.annotations);
+    if (an.length) sum.appendChild(sendGroup('Annotations', an.length, [h('ul', { class: 'sp-list', id: 'send-annotations' }, an.slice(0, LIM).map(function (a) {
+      return h('li', null, h('span', { class: 'fid' }, '[' + a.severity + ']'), h('span', { class: 'sp-t' }, stateLabel(a.state) + ' \u2014 ' + annotationTitle(a.note)));
+    })), more(an.length - LIM)], reviewLink('Review', function () { if (AN.length) showAnnotation(AN[0].key, { flash: true }); })));
+    // "Create tickets for the n later items": only with later items (debt annotations count); checked by default only when the report has a ticket.
+    var later = debt.length + anDebt();
+    var text = later ? 'Create tickets for the ' + plural(later, 'later item') : '';
     var cur = tk.querySelector('[role="checkbox"]');
-    if (!debt.length) { clear(tk); tk.hidden = true; return; }
+    if (!later) { clear(tk); tk.hidden = true; return; }
     tk.hidden = false;
     if (cur && cur.querySelector('.sp-check-label').textContent === text) { cur.setAttribute('aria-checked', String(ticketsWanted())); return; }
     var box = h('button', { type: 'button', role: 'checkbox', class: 'sp-check', id: 'send-tickets-box', 'aria-checked': String(ticketsWanted()) },
@@ -3779,16 +4327,23 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       if (menu) { closeMenu(true); e.preventDefault(); }
+      else if (FORM) { closeForm(true); e.preventDefault(); }
+      else if (DRAW) { DRAW.cancel(); e.preventDefault(); }
       else if (PANEL.fid && (lb.hidden || lb.contains(annDock))) { closePanel(true); e.preventDefault(); }
+      else if (S.annotate && sheetRoot.hidden && (lb.hidden || fullscreenOpen())) { setAnnotate(false); e.preventDefault(); }
       else if (!lb.hidden) { closeLightbox(); e.preventDefault(); }
       else if (DP && DP.node && DP.node.contains(document.activeElement)) { closeDismiss(true); e.preventDefault(); }
       else if (!sheetRoot.hidden) { closeSheet(); e.preventDefault(); }
       else hideTip();
       return;
     }
-    if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || menu || !lb.hidden || !sheetRoot.hidden) return;
-    var t = e.target, tag = t && t.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+    var t = e.target, tag = t && t.tagName, typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable);
+    // A: Annotate on the capture (the Overview, or the fullscreen capture), when not typing in a field.
+    if ((e.key === 'a' || e.key === 'A') && !e.metaKey && !e.ctrlKey && !e.altKey && !typing && !menu && !FORM && sheetRoot.hidden && (lb.hidden ? S.tab === 'overview' : fullscreenOpen())) {
+      if (canAnnotateHere()) { e.preventDefault(); setAnnotate(!S.annotate); }
+      return;
+    }
+    if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || menu || !lb.hidden || !sheetRoot.hidden || typing) return;
     e.preventDefault(); setTab('findings'); searchInput.focus(); searchInput.select();
   });
   var printOpened = [];
@@ -3799,7 +4354,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   window.addEventListener('afterprint', function () { printOpened.forEach(function (d) { if (d.tagName === 'DETAILS') d.open = false; else d.hidden = true; }); printOpened = []; });
 
   /* ===== 17. Mount ===== */
-  S.state = defaultState(); S.screen = screenOf(S.state); S.mode = 'app'; S.zoom = 'fit'; S.pins = true; S.designPins = false; S.group = false; S.openChecks = {}; S.filters.__triage = {};
+  S.state = defaultState(); S.screen = screenOf(S.state); S.mode = 'app'; S.zoom = 'fit'; S.pins = true; S.designPins = false; S.group = false; S.openChecks = {}; S.filters.__triage = {}; S.annotate = false;
   applyTheme(store.get(THEME_KEY) || 'auto');
   if (!document.title || document.title.indexOf(PH + 'TITLE__') !== -1) document.title = 'Design QA — ' + (meta.feature || 'report');
   TABS.forEach(function (t) {

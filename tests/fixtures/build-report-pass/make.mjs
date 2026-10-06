@@ -4,6 +4,7 @@
 // tests/*.test.mjs). Generic names only (Acme, ABC-123).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { emptyAnnotationsFile, mergeAnnotations } from '../../../skills/design-qa/scripts/lib/annotations.mjs';
 import { createPng, writePng } from '../../../skills/design-qa/scripts/lib/png.mjs';
 
 export const W = 1440;
@@ -157,7 +158,8 @@ const KNOWN_DRIFTS = `# Known drifts — Acme DS
  * remote when not localhost), failures ({ state: failure }), top (capture.json failure),
  * clipped, partial (with-data captured viewport-only), audit (ds-audit.json candidates),
  * compare (compare.json states), backfill (backfill-candidates.json), worklist (worklist.json items;
- * false: no worklist.json), lock (false: no run lock).
+ * false: no worklist.json), lock (false: no run lock), annotations (the reviewer's annotations:
+ * decisions-document items, recorded in annotations.json as apply-decisions.mjs does).
  */
 export function makePass(root, opts = {}) {
   const slug = opts.slug ?? 'abc-123';
@@ -225,7 +227,32 @@ export function makePass(root, opts = {}) {
   if (opts.lock !== false) json(path.join(dir, '.design-qa-run.json'), { kind: 'design-qa-run', version: 1, runId: RUN_ID, label: null, status: 'active', startedAt: '2026-10-04T10:00:00.000Z' });
   if (opts.compare) json(path.join(dir, 'evidence', 'compare.json'), { generatedAt: '2026-10-04T10:06:00.000Z', options: {}, states: opts.compare, figmaMotion: [], missingInApp: [], summary: {} });
   if (opts.backfill) json(path.join(dir, 'backfill-candidates.json'), { generatedAt: '2026-10-04T10:00:00Z', surface: 'orders', candidates: opts.backfill });
+  if (opts.annotations) writeAnnotations(dir, opts.annotations);
   return { root, dir, config: path.join(root, 'design-qa.config.json'), findingsFile: path.join(dir, 'findings.json') };
+}
+
+/** The reviewer's default name and date for annotations a fixture records. */
+export const ANNOTATED_BY = 'A. Lee';
+export const ANNOTATED_AT = '2026-10-06T10:00:00.000Z';
+
+/**
+ * Record annotations from the review in <dir>/annotations.json as apply-decisions.mjs does
+ * (ids AN-001, AN-002 …; by and date default to ANNOTATED_BY and ANNOTATED_AT). items: the
+ * decisions document's { state, side, box, severity, note, decision, by?, date? }. → the records.
+ */
+export function writeAnnotations(dir, items) {
+  const { annotations } = mergeAnnotations([], items, { by: ANNOTATED_BY, date: ANNOTATED_AT });
+  json(path.join(dir, 'annotations.json'), { ...emptyAnnotationsFile(), annotations });
+  return annotations;
+}
+
+/** One annotation as the decisions document carries it: a blocker on the with-data app capture, fix now. */
+export function annotationItem(overrides = {}) {
+  return {
+    state: 'with-data', side: 'app', box: { x: 120, y: 340, w: 48, h: 24 }, severity: 'BLOCKER',
+    note: 'Promo code field is missing its error message\nIt should say the code has expired.', decision: 'fix-now', by: null, date: null,
+    ...overrides,
+  };
 }
 
 /** An audit candidate as ds-audit.mjs writes it (a finding without id and rank, pinned, with a key). */

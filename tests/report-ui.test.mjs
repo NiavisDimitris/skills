@@ -1,7 +1,8 @@
 // Browser tests for templates/report.html with report 2.0 data: no Figma sync, Dismiss (panel,
 // Undo), the Design system tab, multi-screen state picking, the Design backfill tab (step 2:
-// decisions, design-agent prompts) and Review and send (one review bar, one Send panel, one
-// decisions document: copied for any agent, downloaded, or sent to scripts/review.mjs).
+// decisions, design-agent prompts), Review and send (one review bar, one Send panel, one
+// decisions document: copied for any agent, downloaded, or sent to scripts/review.mjs) and
+// the reviewer's own annotations (Annotate: drawn on a capture, kept in the browser, sent with the decisions).
 // Skipped when Chromium cannot launch.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -1674,4 +1675,497 @@ test('match: the summary shows match and findings settled, each state its match,
   const high = await open(t, 'ui-report.json', { mutate: (r) => { r.scorecard.match = 97; } });
   assert.equal(await high.page.textContent('#match-note'), 'The page matches 97%, but the verdict is FAIL: it follows the severity of what is still open (2 open blockers, 1 missing state), not the share of the page.');
   assert.deepEqual(errors, []);
+});
+
+/* ===== Your annotations: what the reviewer marks on a capture because the pass missed it ===== */
+const AN_KEY = 'design-qa:annotations:Orders list:2026-10-01T12:00:00Z';
+const pendingAnnotations = (page) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), AN_KEY);
+// The screen points of image pixels [[px, py], …] of the image `sel`, the first one scrolled to the middle of the viewport.
+async function pointsOf(page, sel, pts) {
+  return page.evaluate(([s, list]) => {
+    const img = document.querySelector(s);
+    let r = img.getBoundingClientRect();
+    const k = r.width / img.naturalWidth;
+    window.scrollBy(0, r.top + list[0][1] * k - innerHeight / 2);
+    r = img.getBoundingClientRect();
+    return list.map(([x, y]) => ({ x: r.left + x * k, y: r.top + y * k }));
+  }, [sel, pts]);
+}
+const pointOf = async (page, sel, px, py) => (await pointsOf(page, sel, [[px, py]]))[0];
+async function drag(page, a, b) {
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 3 });
+  await page.mouse.move(b.x, b.y, { steps: 3 });
+  await page.mouse.up();
+}
+// Seed this browser's pending annotations (as report.html stores them) and reload.
+async function seedAnnotations(page, list) {
+  await page.evaluate(([k, v]) => localStorage.setItem(k, JSON.stringify(v)), [AN_KEY, list]);
+  await page.reload();
+  await page.waitForSelector('#page-title');
+}
+const nearBox = (actual, expected, tol, what) => { for (const k of ['x', 'y', 'w', 'h']) near(actual[k], expected[k], tol, `${what} ${k}`); };
+
+test('Annotate: toggle and A, drag on the app, click on the design, the form, pins with boxes, the rail, reload, edit, delete with Undo', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const { page, errors, url } = await open(t, 'ui-report.json', { hash: '#state=with-data' });
+  await settled(page);
+
+  // The toggle: off, its tooltip names the shortcut; A turns the mode on and off (not while typing in a field)
+  const toggle = page.locator('#annotate-toggle');
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
+  assert.equal(await toggle.getAttribute('data-tip'), 'Add your own annotation: click or drag on the capture (A)');
+  await page.keyboard.press('a');
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.textContent('#an-hint'), 'Click or drag on the capture to add an annotation · Esc to stop');
+  assert.equal(await page.evaluate(() => document.querySelector('#hero-stage .stage').classList.contains('annotating')), true);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#hero-stage .imgbox')).cursor), 'crosshair');
+  await page.keyboard.press('Escape');
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'false', 'Esc stops');
+  assert.equal(await page.textContent('#an-hint'), '');
+  await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+
+  // A drag on the app capture draws a box in app pixels and opens the form, focus in the description
+  const img = '#hero-stage .imgbox > img';
+  await drag(page, ...(await pointsOf(page, img, [[40, 600], [200, 680]])));
+  await page.waitForSelector('#an-form');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'an-note');
+  assert.equal(await page.textContent('#an-form-title'), 'New annotation');
+  assert.equal(await page.textContent('#an-form-where'), 'With data · marked on the app');
+  assert.equal(await page.getAttribute('#an-note', 'placeholder'), 'What is wrong, and what should it be?');
+  assert.equal(await page.getAttribute('#an-form [data-v="WARNING"]', 'aria-checked'), 'true', 'Warning by default');
+  assert.equal(await page.getAttribute('#an-form [data-v="fix-now"]', 'aria-checked'), 'true');
+  assert.equal(await page.isDisabled('#an-save'), true, 'a description is required');
+  assert.equal(await page.locator('#hero-stage .an-draft').count(), 1, 'the box stays drawn while the form is open');
+  // Esc cancels: no form, no box, nothing kept; focus back on the toggle
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#an-form, .an-draft').count(), 0);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'annotate-toggle');
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true', 'the first Esc only cancels the form');
+  assert.equal(await pendingAnnotations(page), null);
+
+  // Again: a blocker can never be Later
+  await drag(page, ...(await pointsOf(page, img, [[40, 600], [200, 680]])));
+  await page.waitForSelector('#an-form');
+  await page.click('#an-form [data-v="debt"]');
+  assert.equal(await page.getAttribute('#an-form [data-v="debt"]', 'aria-checked'), 'true');
+  await page.click('#an-form [data-v="BLOCKER"]');
+  assert.equal(await page.getAttribute('#an-form [data-v="fix-now"]', 'aria-checked'), 'true', 'Blocker forces Fix now');
+  assert.equal(await page.getAttribute('#an-form [data-v="debt"]', 'aria-disabled'), 'true');
+  assert.equal(await page.getAttribute('#an-form [data-v="debt"]', 'data-tip'), "Blockers can't be deferred");
+  await page.click('#an-form [data-v="debt"]', { force: true });
+  assert.equal(await page.getAttribute('#an-form [data-v="fix-now"]', 'aria-checked'), 'true', 'Later stays off for a blocker');
+  assert.match(await page.textContent('#an-when-help'), /^Blockers can't be deferred/);
+  await page.fill('#an-note', '  \n  The promo code field has no error message  \nIt should say "Code not valid" under the field.\n');
+  // Focus stays inside: Shift+Tab from the first control lands on the last one
+  await page.focus('#an-form [data-v="BLOCKER"]');
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'an-save');
+  await page.click('#an-save');
+  assert.equal(await page.locator('#an-form').count(), 0);
+  const [a1] = await pendingAnnotations(page);
+  assert.equal(a1.state, 'with-data'); assert.equal(a1.side, 'app'); assert.equal(a1.severity, 'BLOCKER'); assert.equal(a1.decision, 'fix-now');
+  assert.equal(a1.note, 'The promo code field has no error message  \nIt should say "Code not valid" under the field.', 'kept trimmed');
+  assert.equal(a1.by, null); assert.match(a1.date, ISO); assert.match(a1.key, /^an-/);
+  nearBox(a1.box, { x: 40, y: 600, w: 160, h: 80 }, 2, 'A1');
+  for (const k of ['x', 'y', 'w', 'h']) assert.ok(Number.isInteger(a1.box[k]), 'whole pixels');
+
+  // Its pin and box on the app capture, distinct from finding pins; the rail; the review bar
+  const pin = page.locator('#hero-stage .an-pin');
+  assert.equal(await pin.count(), 1);
+  assert.equal(await pin.textContent(), 'A1');
+  assert.equal(await pin.getAttribute('data-sev'), 'BLOCKER');
+  assert.match(await pin.getAttribute('aria-label'), /^Your annotation A1, blocker: The promo code field has no error message\. Edit$/);
+  const outline = await page.evaluate(() => { const o = document.querySelector('#hero-stage .an-outline'); return { l: parseFloat(o.style.left), t: parseFloat(o.style.top), w: parseFloat(o.style.width), h: parseFloat(o.style.height) }; });
+  near(outline.l, a1.box.x / 1440 * 100, 0.01, 'outline left'); near(outline.t, a1.box.y / 900 * 100, 0.01, 'outline top');
+  near(outline.w, a1.box.w / 1440 * 100, 0.01, 'outline width'); near(outline.h, a1.box.h / 900 * 100, 0.01, 'outline height');
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-an') !== null && document.activeElement.classList.contains('an-pin')), true, 'focus lands on the new pin');
+  assert.match(await page.textContent('#an-rail'), /^Your annotations \(1\)Not sent yet/);
+  assert.equal(await page.textContent('#an-list .an-item .an-t'), 'The promo code field has no error message');
+  assert.equal(await page.textContent('#an-list .an-item .an-sub'), 'Blocker · Fix now');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3 · Annotations 1');
+  assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet');
+  assert.equal(await page.textContent('#rail-count'), '7', 'not a finding: the rail count, the summary and the board are unchanged');
+  assert.match(await page.textContent('#summary'), /^Match 76% · 2 of 11 findings settled/);
+
+  // A click on the design pane of Side by side: a 32×32 box centred on the point, in design pixels
+  await page.click('[aria-label="View"] [data-v="side"]');
+  await settled(page);
+  const des = '.side > div:nth-child(1) .imgbox > img';
+  const p = await pointOf(page, des, 700, 120);
+  await page.mouse.click(p.x, p.y);
+  await page.waitForSelector('#an-form');
+  assert.equal(await page.textContent('#an-form-where'), 'With data · marked on the design');
+  await page.click('#an-form [data-v="DS_CANDIDATE"]');
+  await page.click('#an-form [data-v="debt"]');
+  await page.fill('#an-note', 'Header avatar is a local component, not the library Avatar');
+  await page.keyboard.press('Control+Enter');
+  const [, a2] = await pendingAnnotations(page);
+  assert.deepEqual({ ...a2, key: null, date: null }, { key: null, state: 'with-data', side: 'design', box: a2.box, severity: 'DS_CANDIDATE', note: 'Header avatar is a local component, not the library Avatar', decision: 'debt', by: null, date: null });
+  nearBox(a2.box, { x: 684, y: 104, w: 32, h: 32 }, 2, 'A2');
+  assert.equal(await page.textContent('.side > div:nth-child(1) .an-pin'), 'A2', 'on the design pane');
+  assert.equal(await page.textContent('.side > div:nth-child(2) .an-pin'), 'A1', 'on the app pane');
+  assert.equal(await page.textContent('#an-list .an-item:nth-child(2) .an-sub'), 'Design-system gap · Later · on the design');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3 · Annotations 2');
+
+  // Clicking a finding pin still opens it while annotating
+  await page.locator('.side > div:nth-child(2) .pin[data-fid="DQ-002"]').click();
+  assert.equal(await page.getAttribute('#ann-panel', 'data-fid'), 'DQ-002');
+  assert.equal(await page.locator('#an-form').count(), 0);
+  await page.keyboard.press('Escape');
+
+  // Reload: both are kept (this browser, per report); the mode is off again
+  await page.goto(`${url}#state=with-data`);
+  await page.reload();
+  await page.waitForSelector('#page-title');
+  await settled(page);
+  assert.equal(await page.getAttribute('#annotate-toggle', 'aria-pressed'), 'false');
+  assert.deepEqual(await page.$$eval('#an-list .an-item .n', (els) => els.map((e) => e.textContent)), ['A1', 'A2']);
+  assert.equal(await page.locator('#hero-stage .an-pin').count(), 1, 'App view: only the app-side one');
+
+  // Edit from the pin (annotate off): Save keeps the box, changes the words and the choices
+  await page.click('#hero-stage .an-pin');
+  await page.waitForSelector('#an-form');
+  assert.equal(await page.textContent('#an-form-title'), 'Edit annotation A1');
+  assert.equal(await page.inputValue('#an-note'), a1.note);
+  assert.equal(await page.textContent('#an-save'), 'Save');
+  await page.click('#an-form [data-v="WARNING"]');
+  await page.click('#an-form [data-v="debt"]');
+  await page.fill('#an-note', 'Promo code error message is missing');
+  await page.click('#an-save');
+  const edited = (await pendingAnnotations(page))[0];
+  assert.deepEqual({ ...edited, note: null, severity: null, decision: null }, { ...a1, note: null, severity: null, decision: null }, 'same key, box and date');
+  assert.deepEqual([edited.note, edited.severity, edited.decision], ['Promo code error message is missing', 'WARNING', 'debt']);
+  assert.equal(await page.getAttribute('#hero-stage .an-pin', 'data-sev'), 'WARNING');
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3 · Annotations 2');
+
+  // Delete from the form, then Undo: back in its place
+  await page.click('#an-list .an-item:nth-child(1) .an-edit');
+  await page.click('#an-delete');
+  assert.equal(await page.locator('#an-form').count(), 0);
+  assert.deepEqual(await page.$$eval('#an-list .an-item .an-t', (els) => els.map((e) => e.textContent)), ['Header avatar is a local component, not the library Avatar']);
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3 · Annotations 1');
+  await page.locator('.toast', { hasText: 'Deleted A1' }).getByRole('button', { name: 'Undo' }).click();
+  assert.deepEqual((await pendingAnnotations(page)).map((a) => a.key), [a1.key, a2.key], 'restored in its place');
+  // Delete from the rail, Undo again
+  await page.click('#an-list .an-item:nth-child(2) .an-del');
+  assert.equal((await pendingAnnotations(page)).length, 1);
+  await page.locator('.toast', { hasText: 'Deleted A2' }).getByRole('button', { name: 'Undo' }).click();
+  assert.equal((await pendingAnnotations(page)).length, 2);
+
+  // The keyboard path: Add annotation drops a box in the middle of the capture in view and opens the form
+  await page.click('#an-add');
+  await page.waitForSelector('#an-form');
+  assert.equal(await page.textContent('#an-form-where'), 'With data · marked on the app');
+  await page.keyboard.type('Row hover colour is missing');
+  await page.keyboard.press('Control+Enter');
+  const a3 = (await pendingAnnotations(page))[2];
+  assert.equal(a3.box.w, 32); assert.equal(a3.box.h, 32);
+  assert.equal(await page.textContent('#hero-stage .an-pin[data-n="A3"]'), 'A3');
+  assert.deepEqual(errors, []);
+});
+
+test('Annotate: correct image pixels in every view mode and at 100%; pan and wipe drags are suspended; a box over most of the image is refused', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  // Design 1440×2000, app 1600×1400: Overlay, Wipe and Diff span 1600×2000 with the app anchored top-left at its own scale.
+  const { page, errors } = await openTall(t, 2000, 1400, { designW: 1440, appW: 1600, height: 1300 });
+  await page.click('#annotate-toggle');
+  const KEY = 'design-qa:annotations:Orders list:2026-10-01T12:00:00Z';
+  const last = () => page.evaluate((k) => { const v = JSON.parse(localStorage.getItem(k) || '[]'); return v[v.length - 1]; }, KEY);
+  async function mark(sel, px, py, note) {
+    await settled(page);
+    const pt = await pointOf(page, sel, px, py);
+    await page.mouse.click(pt.x, pt.y);
+    await page.waitForSelector('#an-form');
+    await page.fill('#an-note', note);
+    await page.click('#an-save');
+    return last();
+  }
+  const centred = (a, px, py, side, what) => { assert.equal(a.side, side, what); nearBox(a.box, { x: px - 16, y: py - 16, w: 32, h: 32 }, 2, what); };
+  centred(await mark('.stage .imgbox > img', 1300, 1000, 'app'), 1300, 1000, 'app', 'App');
+  await page.click('[aria-label="View"] [data-v="design"]');
+  centred(await mark('.stage .imgbox > img', 300, 1900, 'design'), 300, 1900, 'design', 'Design');
+  for (const mode of ['overlay', 'wipe']) {
+    await page.click(`[aria-label="View"] [data-v="${mode}"]`);
+    await page.waitForFunction(() => document.querySelector('.stage img.over')?.complete);
+    const wipe = mode === 'wipe' ? await page.getAttribute('.wipe-handle', 'aria-valuenow') : null;
+    centred(await mark('.stage img.over', 1550, 700, mode), 1550, 700, 'app', mode);
+    if (wipe !== null) assert.equal(await page.getAttribute('.wipe-handle', 'aria-valuenow'), wipe, 'the wipe divider did not move');
+  }
+  // Below the app page (the design is taller): the box is kept on the app image
+  await page.click('[aria-label="View"] [data-v="overlay"]');
+  await settled(page);
+  const below = await pointOf(page, '.stage .imgbox > img', 600, 1800); // design pixels = box pixels here (same left edge, same scale)
+  await page.mouse.click(below.x, below.y);
+  await page.waitForSelector('#an-form');
+  await page.fill('#an-note', 'below the app page');
+  await page.click('#an-save');
+  const clamped = await last();
+  assert.equal(clamped.side, 'app');
+  assert.equal(clamped.box.y + clamped.box.h, 1400, 'clamped to the bottom of the app image');
+  await page.click('[aria-label="View"] [data-v="diff"]');
+  centred(await mark('.stage .imgbox > img', 1200, 1100, 'diff'), 1200, 1100, 'app', 'Diff');
+  await page.click('[aria-label="View"] [data-v="side"]');
+  centred(await mark('.side > div:nth-child(1) .imgbox > img', 700, 1950, 'side design'), 700, 1950, 'design', 'Side by side, design pane');
+  centred(await mark('.side > div:nth-child(2) .imgbox > img', 1595, 5, 'side app'), 1584, 16, 'app', 'Side by side, app pane (kept inside the image)');
+
+  // 100%: a drag draws instead of panning; a drag under 8 image pixels grows to 8×8
+  await page.click('[aria-label="View"] [data-v="app"]');
+  await page.click('[aria-label="Zoom"] [data-v="100"]');
+  await settled(page);
+  await page.evaluate(() => window.scrollBy(0, document.querySelector('.stage').getBoundingClientRect().top - 120));
+  const before = await page.evaluate(() => { const s = document.querySelector('.stage'); s.scrollLeft = 100; s.scrollTop = 200; return [s.scrollLeft, s.scrollTop]; });
+  const at = await page.evaluate(() => {
+    const s = document.querySelector('.stage').getBoundingClientRect(), i = document.querySelector('.stage .imgbox > img').getBoundingClientRect();
+    return { x: s.left + 300, y: s.top + 150, px: s.left + 300 - i.left, py: s.top + 150 - i.top, scale: i.width / 1600 };
+  });
+  near(at.scale, 1, 0.01, '100% scale');
+  await drag(page, at, { x: at.x + 6, y: at.y + 5 });
+  await page.waitForSelector('#an-form');
+  assert.deepEqual(await page.evaluate(() => { const s = document.querySelector('.stage'); return [s.scrollLeft, s.scrollTop]; }), before, 'no pan');
+  await page.fill('#an-note', 'tiny');
+  await page.click('#an-save');
+  const tiny = await last();
+  assert.deepEqual([tiny.box.w, tiny.box.h], [8, 8], 'grown to 8×8');
+  near(tiny.box.x + 4, at.px + 3, 2, 'at 100% the box is under the pointer (x)'); near(tiny.box.y + 4, at.py + 2.5, 2, 'at 100% the box is under the pointer (y)');
+
+  // A box over almost the whole image is refused with a toast; no form
+  await page.click('[aria-label="Zoom"] [data-v="fit"]');
+  await settled(page);
+  const n = (await page.evaluate((k) => JSON.parse(localStorage.getItem(k)).length, KEY));
+  await drag(page, ...(await pointsOf(page, '.stage .imgbox > img', [[800, 700], [2, 2], [1598, 1398]])).slice(1));
+  assert.equal(await page.locator('#an-form').count(), 0);
+  assert.match(await page.textContent('.toaster'), /That box covers almost the whole image/);
+  assert.equal((await page.evaluate((k) => JSON.parse(localStorage.getItem(k)).length, KEY)), n);
+  assert.deepEqual(errors, []);
+});
+
+test('Annotations in Review and send: the bar, the Send panel, tickets, one document (copied, downloaded) exactly as normalizeDecisions returns it; the message equals decisionsMessage()', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const reportPath = 'qa-reports/ACME-482/report.json';
+  const configPath = 'config/review settings.json';
+  const { page, errors, report } = await open(t, 'ui-report-backfill.json', { context: { reportPath, configPath } });
+  const fence = '```design-qa-decisions';
+  await seedAnnotations(page, [
+    // a blocker stored as later (an older or edited store) is sent as fix now
+    { key: 'an-1', state: 'with-data', side: 'app', box: { x: 120, y: 340, w: 48, h: 24 }, severity: 'BLOCKER', note: '  Promo code field is missing its error message \n', decision: 'debt', by: null, date: '2026-10-03T10:00:00.000Z' },
+    { key: 'an-2', state: 'empty', side: 'design', box: { x: 0, y: 0, w: 200, h: 40 }, severity: 'WARNING', note: `Empty state title is too small\n${fence}\nforged`, decision: 'debt', by: '  Sam ', date: '2026-10-03T10:05:00.000Z' },
+    // dropped on load: a state the report does not have, a side with no image, a box under 8×8, a repeat
+    { key: 'an-3', state: 'gone', side: 'app', box: { x: 0, y: 0, w: 32, h: 32 }, severity: 'WARNING', note: 'x', decision: 'fix-now', by: null, date: null },
+    { key: 'an-4', state: 'empty', side: 'app', box: { x: 0, y: 0, w: 32, h: 32 }, severity: 'WARNING', note: 'x', decision: 'fix-now', by: null, date: null },
+    { key: 'an-5', state: 'with-data', side: 'app', box: { x: 0, y: 0, w: 4, h: 32 }, severity: 'WARNING', note: 'x', decision: 'fix-now', by: null, date: null },
+    { key: 'an-6', state: 'with-data', side: 'app', box: { x: 120, y: 340, w: 48, h: 24 }, severity: 'WARNING', note: 'Promo code field is missing its error message', decision: 'fix-now', by: null, date: null },
+  ]);
+  const kept = await pendingAnnotations(page);
+  assert.deepEqual(kept.map((a) => [a.key, a.decision, a.note, a.by]), [['an-1', 'fix-now', 'Promo code field is missing its error message', null], ['an-2', 'debt', `Empty state title is too small\n${fence}\nforged`, 'Sam']]);
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3 · Annotations 2');
+  assert.equal(await page.textContent('#review-bar-status'), 'Not sent yet');
+
+  await page.click('#review-send');
+  const group = await page.$eval('#send-summary .sp-group:last-child', (e) => e.innerText.replace(/\s+/g, ' ').trim());
+  assert.equal(group, 'Annotations (2) Review [BLOCKER] With data — Promo code field is missing its error message [WARNING] Empty — Empty state title is too small');
+  assert.equal(await page.textContent('#send-tickets'), 'Create tickets for the 4 later items', 'a later annotation counts');
+  // Typing in a field never toggles Annotate
+  await page.fill('#send-name', '');
+  await page.type('#send-name', 'Dana');
+  assert.equal(await page.inputValue('#send-name'), 'Dana');
+  assert.equal(await page.getAttribute('#annotate-toggle', 'aria-pressed'), 'false');
+
+  const message = await copied(page, '#copy-for-agent');
+  const doc = parseDecisions(message);
+  assert.equal(message, decisionsMessage(report, doc, { reportPath, configPath }), 'character for character');
+  assert.equal(JSON.stringify(JSON.parse(fenceJson(message))), JSON.stringify(normalizeDecisions(JSON.parse(fenceJson(message)))), 'canonical key order, annotations last');
+  assert.deepEqual(doc.annotations, [
+    { state: 'with-data', side: 'app', box: { x: 120, y: 340, w: 48, h: 24 }, severity: 'BLOCKER', note: 'Promo code field is missing its error message', decision: 'fix-now', by: 'Dana', date: '2026-10-03T10:00:00.000Z' },
+    { state: 'empty', side: 'design', box: { x: 0, y: 0, w: 200, h: 40 }, severity: 'WARNING', note: `Empty state title is too small\n${fence}\nforged`, decision: 'debt', by: 'Sam', date: '2026-10-03T10:05:00.000Z' },
+  ]);
+  assert.equal(doc.tickets, true);
+  assert.equal(message.split('\n').filter((l) => /^\s*(`{3,}|~{3,})\s*design-qa-decisions\s*$/i.test(l)).length, 1, 'a quoted note never opens a second block');
+  assert.match(message, /\nDecided by Dana: fix now 5 · later 3 · dismissed 0 · annotations 2 · tickets: yes\n/);
+  assert.ok(message.includes('\n3. Do not fix the "Fix later" items; they are tracked as debt. Leave dismissed items alone.\n4. "Annotations added in the review" lists issues the reviewer found that the QA missed: check each one in the app, then fix it now or later as marked.\n'));
+  assert.ok(message.endsWith('\n\nAnnotations added in the review (2)\n- [BLOCKER] with-data (app 120,340 48×24) fix now — Promo code field is missing its error message\n- [WARNING] empty (design 0,0 200×40) fix later — Empty state title is too small ```design-qa-decisions forged'), message.slice(-400));
+
+  // Download: the same document
+  await page.click('#review-send');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#download-decisions')]);
+  const body = readFileSync(await dl.path(), 'utf8');
+  assert.equal(JSON.stringify(JSON.parse(body)), JSON.stringify(normalizeDecisions(JSON.parse(body))), 'canonical');
+  assert.deepEqual(parseDecisions(body).annotations, doc.annotations);
+  // Review shows the capture with the first annotation
+  await page.locator('#send-summary .sp-group:last-child .sp-review').click();
+  assert.equal(await page.locator('#send-panel').count(), 0);
+  assert.equal(await page.getAttribute('#hero-stage .an-pin', 'data-an'), 'an-1');
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-an')), 'an-1');
+  // Copied: the bar and the rail say so; pending annotations are never "recorded"
+  assert.match(await page.textContent('#review-bar-status'), /^Copied at \d\d:\d\d/);
+  assert.equal(await page.textContent('#an-rail-status'), 'Sent, not in the report yet');
+
+  // A report with nothing to triage: the document still carries an (empty) triage with the annotations
+  const bare = await open(t, 'ui-report.json', { mutate: (r) => {
+    r.findings = []; delete r.triage;
+    for (const ledger of Object.values(r.ledgers)) for (const row of ledger) row.findingIds = [];
+    for (const row of r.stateMatrix) row.findings = [];
+  } });
+  await seedAnnotations(bare.page, [{ key: 'an-1', state: 'with-data', side: 'app', box: { x: 10, y: 10, w: 40, h: 40 }, severity: 'DS_CANDIDATE', note: 'Local button', decision: 'fix-now', by: null, date: null }]);
+  assert.equal(await bare.page.textContent('#review-bar-msg'), 'Fix now 0 · Later 0 · Annotations 1');
+  await bare.page.click('#review-send');
+  const bareMsg = await copied(bare.page, '#copy-for-agent');
+  const bareDoc = parseDecisions(bareMsg);
+  assert.deepEqual(bareDoc.triage, { fixNow: [], debt: [] });
+  assert.equal(bareDoc.tickets, false);
+  assert.equal(bareMsg, decisionsMessage(bare.report, bareDoc));
+  assert.deepEqual([...errors, ...bare.errors], []);
+});
+
+test('A finding built from an annotation: "From the review", the reviewer\'s note, the agent prompt; a pending one the report records is dropped; no image, no Annotate', { timeout: 90000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const annotation = { id: 'AN-001', note: 'Card padding looks too tight\nCompare with the design: 24px around the content.', by: 'A. Lee', date: '2026-10-02T09:00:00.000Z',
+    side: 'app', box: { x: 40, y: 600, w: 160, h: 80 }, decision: 'fix-now', source: 'report-ui' };
+  const { page, errors, report } = await open(t, 'ui-report.json', { hash: '#state=with-data', mutate: (r) => {
+    Object.assign(r.findings.find((f) => f.id === 'DQ-004'), { annotation, title: 'Card padding looks too tight' });
+    r.stateMatrix.push({ state: 'blank', label: 'Blank', designed: null, specified: null, implemented: null, captured: { design: null, app: null, diff: null }, result: 'CANNOT_VERIFY', note: 'nothing captured', findings: [] });
+  } });
+  // The report records it: a pending copy (same state, side, box and trimmed note) is dropped on load; another one stays
+  await seedAnnotations(page, [
+    { key: 'an-1', state: 'with-data', side: 'app', box: { x: 40, y: 600, w: 160, h: 80 }, severity: 'WARNING', note: `  ${annotation.note}\n`, decision: 'fix-now', by: 'A. Lee', date: annotation.date },
+    { key: 'an-2', state: 'with-data', side: 'app', box: { x: 40, y: 600, w: 160, h: 80 }, severity: 'WARNING', note: 'Something else', decision: 'fix-now', by: null, date: null },
+  ]);
+  assert.deepEqual((await pendingAnnotations(page)).map((a) => a.key), ['an-2']);
+  assert.equal(await page.textContent('#review-bar-msg'), 'Fix now 5 · Later 3 · Annotations 1');
+
+  // The annotation panel: badge and the note in full, by and date
+  await page.click('.pin-row[data-fid="DQ-004"]');
+  await page.waitForSelector('#ann-panel');
+  assert.equal(await page.textContent('#ann-panel .an-from'), 'From the review');
+  assert.equal(await page.textContent('#ann-review-note blockquote'), annotation.note);
+  assert.equal(await page.textContent('#ann-review-note .an-note-by'), 'by A. Lee · 2026-10-02 · marked on the app · AN-001');
+  await page.evaluate(() => { window.__copied = null; });
+  await page.locator('#ann-panel').getByRole('button', { name: 'Copy agent prompt' }).click();
+  await page.waitForFunction(() => window.__copied !== null);
+  const prompt = await page.evaluate(() => window.__copied);
+  const f4 = report.findings.find((f) => f.id === 'DQ-004');
+  assert.equal(prompt, agentPrompt(f4), 'Copy agent prompt = lib/fixplan.mjs agentPrompt()');
+  assert.equal(prompt.split('\n')[1], 'Reported in the review by A. Lee: Card padding looks too tight Compare with the design: 24px around the content.');
+  await page.keyboard.press('Escape');
+
+  // The finding detail sheet
+  await page.click('#tab-findings');
+  await page.click('#f-DQ-004');
+  assert.match(await page.textContent('#finding-sheet .sheet-header'), /From the review/);
+  assert.equal(await page.textContent('#sheet-review-note blockquote'), annotation.note);
+  // Without a by: "the reviewer"
+  const anon = await open(t, 'ui-report.json', { mutate: (r) => { r.findings.find((f) => f.id === 'DQ-004').annotation = { ...annotation, by: null }; } });
+  assert.equal(agentPrompt(anon.report.findings.find((f) => f.id === 'DQ-004')).split('\n')[1], 'Reported in the review by the reviewer: Card padding looks too tight Compare with the design: 24px around the content.');
+  await anon.page.goto(`${anon.url}#finding=DQ-004`);
+  await anon.page.evaluate(() => { window.__copied = null; });
+  await anon.page.locator('#sheet-root').getByRole('button', { name: 'Copy agent prompt' }).first().click();
+  await anon.page.waitForFunction(() => window.__copied !== null);
+  assert.equal(await anon.page.evaluate(() => window.__copied), agentPrompt(anon.report.findings.find((f) => f.id === 'DQ-004')));
+  await page.keyboard.press('Escape');
+
+  // A state with no image: no Annotate, no Add annotation, and A does nothing
+  await page.click('#tab-overview');
+  await page.goto(page.url().replace(/#.*$/, '') + '#state=blank');
+  await page.reload();
+  await page.waitForSelector('#page-title');
+  assert.equal(await page.locator('#annotate-toggle, #an-add').count(), 0);
+  await page.keyboard.press('a');
+  assert.equal(await page.locator('.stage.annotating').count(), 0);
+  assert.deepEqual([...errors, ...anon.errors], []);
+});
+
+test('Annotate in fullscreen and at 390px dark: the form fits (a bottom sheet on phones), the rail title follows annotationTitle()', { timeout: 90000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const { page, errors } = await open(t, 'ui-report.json', { hash: '#state=hover' });
+  await settled(page);
+  // Fullscreen: its own toggle; the form opens inside the dialog; the pin shows there and on the page
+  await page.click('#btn-fullscreen');
+  await page.click('#fs-annotate-toggle');
+  assert.equal(await page.getAttribute('#fs-annotate-toggle', 'aria-pressed'), 'true');
+  assert.equal(await page.textContent('#fs-an-hint'), 'Click or drag on the capture to add an annotation · Esc to stop');
+  const fsImg = '.dialog.full .imgbox > img';
+  await page.waitForFunction((s) => document.querySelector(s)?.naturalWidth, fsImg);
+  const pt = await page.evaluate((s) => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.left + r.width * 0.1, y: r.top + Math.min(r.height, 400) * 0.5 }; }, fsImg);
+  await page.mouse.click(pt.x, pt.y);
+  await page.waitForSelector('.dialog.full #an-form');
+  const form = await page.locator('#an-form').boundingBox();
+  const dlg = await page.locator('.dialog.full').boundingBox();
+  assert.ok(form.x >= dlg.x && form.y >= dlg.y && form.x + form.width <= dlg.x + dlg.width && form.y + form.height <= dlg.y + dlg.height, `the form is inside the dialog ${JSON.stringify({ form, dlg })}`);
+  const long = `\n\n   ${'Hover state of the row uses the wrong tint and the focus ring is missing entirely on keyboard focus '.repeat(2)}\nsecond line`;
+  await page.fill('#an-note', long);
+  await page.keyboard.press('Control+Enter');
+  assert.equal(await page.locator('.dialog.full .an-pin').count(), 1);
+  // Esc stops annotating first, then closes the dialog
+  await page.keyboard.press('Escape');
+  assert.equal(await page.getAttribute('#fs-annotate-toggle', 'aria-pressed'), 'false');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.isHidden('#lightbox'), true);
+  assert.equal(await page.locator('#hero-stage .an-pin').count(), 1, 'and on the page');
+  const title = await page.textContent('#an-list .an-item .an-t');
+  const first = 'Hover state of the row uses the wrong tint and the focus ring is missing entirely on keyboard focus Hover state of the row uses the wrong tint';
+  assert.equal(title, `${first.slice(0, 99).trimEnd()}…`, 'annotationTitle(): the first non-blank line, 100 characters at most');
+  assert.equal(title.length, 100);
+
+  // 390px, dark: the form is a bottom sheet inside the viewport; no horizontal scroll
+  const narrow = await open(t, 'ui-report.json', { hash: '#state=with-data', width: 390, height: 844 });
+  await narrow.page.click('[data-theme-btn="dark"]');
+  await settled(narrow.page);
+  await narrow.page.click('#annotate-toggle');
+  const p = await pointOf(narrow.page, '#hero-stage .imgbox > img', 60, 700);
+  await narrow.page.mouse.click(p.x, p.y);
+  await narrow.page.waitForSelector('#an-form');
+  await narrow.page.waitForFunction(() => document.getElementById('an-form').getAnimations().every((a) => a.playState === 'finished'));
+  const sheet = await narrow.page.locator('#an-form').boundingBox();
+  assert.ok(sheet.x >= 0 && sheet.x + sheet.width <= 390 && sheet.y >= 0 && Math.abs(sheet.y + sheet.height - 844) <= 1, `a bottom sheet ${JSON.stringify(sheet)}`);
+  const save = await narrow.page.locator('#an-save').boundingBox();
+  assert.ok(save.y + save.height <= 844, 'Save is in view');
+  assert.equal(await narrow.page.evaluate(() => document.documentElement.scrollWidth <= 390), true, 'no horizontal page scroll');
+  await narrow.page.fill('#an-note', 'Avatar overlaps the title');
+  await narrow.page.click('#an-save');
+  assert.equal(await narrow.page.locator('#hero-stage .an-pin').count(), 1);
+  assert.equal(await narrow.page.evaluate(() => document.documentElement.scrollWidth <= 390), true);
+  assert.deepEqual([...errors, ...narrow.errors], []);
+});
+
+test('live mode: an annotation drawn in the page is sent with the decisions and apply-decisions records it in annotations.json', { timeout: 120000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const live = await liveReview(t);
+  // The capture images, served from the report folder (same origin)
+  for (const [kind, from] of [['app', 'app'], ['design', 'figma'], ['diff', 'diff']]) {
+    mkdirSync(path.join(live.dir, 'evidence', kind), { recursive: true });
+    writeFileSync(path.join(live.dir, 'evidence', kind, 'with-data.png'), readFileSync(path.join(SAMPLE_EVIDENCE, from, 'with-data.png')));
+  }
+  const { page, errors, requests } = await openUrl(t, `${live.url}#state=with-data`);
+  await page.waitForLoadState('networkidle');
+  await settled(page);
+  const from = requests.length;
+  await page.click('#annotate-toggle');
+  await drag(page, ...(await pointsOf(page, '#hero-stage .imgbox > img', [[40, 600], [200, 680]])));
+  await page.waitForSelector('#an-form');
+  await page.click('#an-form [data-v="BLOCKER"]');
+  await page.fill('#an-note', 'Promo code field is missing its error message');
+  await page.click('#an-save');
+  await page.click('#review-send');
+  await page.fill('#send-name', 'Dana');
+  await page.click('#send-to-agent');
+  await page.waitForFunction(() => /^Sent to your agent at \d\d:\d\d$/.test(document.getElementById('review-bar-status').textContent));
+  const sent = afterLoad(requests, from);
+  assert.deepEqual(sent.map((r) => `${r.method()} ${new URL(r.url()).pathname}`), ['POST /decisions'], 'exactly one request');
+  const posted = JSON.parse(sent[0].postData());
+  assert.equal(JSON.stringify(posted), JSON.stringify(normalizeDecisions(posted)), 'canonical document');
+  assert.equal(posted.annotations.length, 1);
+  const [a] = posted.annotations;
+  assert.deepEqual([a.state, a.side, a.severity, a.decision, a.by, a.note], ['with-data', 'app', 'BLOCKER', 'fix-now', 'Dana', 'Promo code field is missing its error message']);
+  assert.equal(await page.textContent('#an-rail-status'), 'Sent, not in the report yet');
+  const result = await live.exited;
+  assert.equal(result.code, 0, result.stderr);
+
+  const apply = await run(script('apply-decisions.mjs'), ['--report', live.reportFile], { cwd: live.root });
+  assert.equal(apply.code, 0, apply.stderr);
+  const recorded = JSON.parse(readFileSync(path.join(live.dir, 'annotations.json'), 'utf8'));
+  assert.equal(recorded.kind, 'design-qa-annotations');
+  assert.deepEqual(recorded.annotations.map((r) => ({ ...r, date: null })), [{ id: 'AN-001', ...a, date: null, source: 'report-ui' }]);
+  assert.deepEqual(liveErrors(errors), []);
 });

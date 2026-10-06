@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "design-qa review decisions",
-  "description": "Everything a reviewer decided in report.html, in one document: fix now / debt, dismissals with a written reason, design-backfill decisions, and whether tickets may be created. report.html sends it to scripts/review.mjs (saved as <report dir>/decisions.json) or embeds it in the \"Copy for your agent\" message inside a ```design-qa-decisions fence; scripts/apply-decisions.mjs applies it to report.json. Finding ids are renumbered on every pass, so reportGeneratedAt must equal the report's meta.generatedAt. Rules JSON Schema cannot express (no id in both triage.fixNow and triage.debt, no dismissed id also in triage, unique ids) are checked by scripts/lib/decisions.mjs.",
+  "description": "Everything a reviewer decided in report.html, in one document: fix now / debt, dismissals with a written reason, design-backfill decisions, annotations the reviewer added on a capture (issues the pass missed), and whether tickets may be created. report.html sends it to scripts/review.mjs (saved as <report dir>/decisions.json) or embeds it in the \"Copy for your agent\" message inside a ```design-qa-decisions fence; scripts/apply-decisions.mjs applies it to report.json. Finding ids are renumbered on every pass, so reportGeneratedAt must equal the report's meta.generatedAt. Rules JSON Schema cannot express (no id in both triage.fixNow and triage.debt, no dismissed id also in triage, unique ids, no annotation listed twice, a BLOCKER annotation is never debt) are checked by scripts/lib/decisions.mjs.",
   "type": "object",
   "required": ["kind", "version", "slug", "reportGeneratedAt", "decidedAt"],
   "additionalProperties": false,
@@ -57,9 +57,43 @@
         "if": { "properties": { "decision": { "const": "not-needed" } } },
         "then": { "required": ["reason"], "properties": { "reason": { "type": "string", "pattern": "\\S" } } }
       }
+    },
+    "annotations": {
+      "type": "array",
+      "maxItems": 200,
+      "description": "Issues the reviewer marked on a state's capture because the pass missed them, in the order they were added. scripts/apply-decisions.mjs records each in <report dir>/annotations.json (ids AN-001, AN-002 …; never twice: the same state, side, box and note is the same annotation); the agent investigates and files each in findings.json, and the rebuilt report shows it as a finding. Omitted when there are none.",
+      "items": { "$ref": "#/definitions/annotation" }
     }
   },
   "definitions": {
-    "findingId": { "type": "string", "pattern": "^DQ-\\d{3,}$" }
+    "findingId": { "type": "string", "pattern": "^DQ-\\d{3,}$" },
+    "annotation": {
+      "type": "object",
+      "required": ["state", "side", "box", "severity", "note", "decision"],
+      "additionalProperties": false,
+      "properties": {
+        "state": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "A state of the report (stateMatrix[].state), e.g. \"with-data\" or \"cart/empty\"." },
+        "side": { "enum": ["app", "design"], "description": "The image the reviewer marked: the app capture or the design. That state must have it." },
+        "box": {
+          "type": "object",
+          "description": "The box the reviewer drew, in that image's pixels: whole numbers, starting inside the image, at least 8×8.",
+          "required": ["x", "y", "w", "h"],
+          "additionalProperties": false,
+          "properties": {
+            "x": { "type": "integer", "minimum": 0 },
+            "y": { "type": "integer", "minimum": 0 },
+            "w": { "type": "integer", "minimum": 8 },
+            "h": { "type": "integer", "minimum": 8 }
+          }
+        },
+        "severity": { "enum": ["BLOCKER", "WARNING", "DS_CANDIDATE"] },
+        "note": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "The reviewer's description of the issue (at most 2000 characters once trimmed)." },
+        "decision": { "enum": ["fix-now", "debt"], "description": "Fix now or later. A BLOCKER is always fix-now." },
+        "by": { "type": ["string", "null"] },
+        "date": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "if": { "properties": { "severity": { "const": "BLOCKER" } } },
+      "then": { "properties": { "decision": { "const": "fix-now" } } }
+    }
   }
 }
