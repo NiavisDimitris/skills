@@ -111,6 +111,15 @@ async function copied(page, sel) {
   return page.evaluate(() => window.__copied);
 }
 
+test('markup in the URL hash never becomes an element', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  const markup = encodeURIComponent('<img src=x onerror="window.__pwned=1"><b id=injected>bold</b>');
+  const { page, errors } = await open(t, 'ui-report.json', { hash: `#state=${markup}&finding=${markup}&tab=${markup}` });
+  assert.equal(await page.locator('img[src="x"], #injected').count(), 0);
+  assert.equal(await page.evaluate(() => window.__pwned), undefined);
+  assert.deepEqual(errors, []);
+});
+
 test('template carries no Figma-sync remnants', () => {
   const src = readFileSync(TEMPLATE, 'utf8');
   for (const s of ['SYNC_FIGMA', 'Sync to Figma', 'sync-figma', 'Copy Figma prompt', 'design agent', 'MISSING_IN_DESIGN', 'figmaPromptText']) {

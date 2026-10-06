@@ -230,8 +230,8 @@ test('fillTemplate: placeholder text in a finding title or the feature (even wit
 
 test('CSP: the shipped template gets the sha256 of its inline script; data blocks are not hashed', () => {
   const html = fillTemplate(readFileSync(DEFAULT_TEMPLATE, 'utf8'), loadFixture('report-valid.json'));
-  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
-  const code = scripts.filter((m) => !/type=/.test(m[1]));
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)];
+  const code = scripts.filter((m) => !/\btype\s*=/i.test(m[1]));
   assert.equal(code.length, 1, 'one executable inline script');
   const hash = createHash('sha256').update(code[0][2], 'utf8').digest('base64');
   const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/.exec(html)[1];

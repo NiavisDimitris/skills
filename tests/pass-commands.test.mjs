@@ -15,17 +15,16 @@ import { SKILL, fixture, tmpDir } from './_helpers.mjs';
 
 const ENV = { NO_COLOR: '1', DESIGN_QA_RUN_ID: '', FIGMA_TOKEN: '', DESIGN_QA_APP_STORAGE_STATE: '', DESIGN_QA_NO_DISPLAY: '1', DESIGN_QA_COMMIT: 'c', DESIGN_QA_BRANCH: 'b' };
 
-/** Run argv (or a shell line with { shell: true }) in cwd. */
-function exec(cwd, argv, { shell = false, timeout = 120000 } = {}) {
+/** Resolves { code, stdout, stderr, out } once the child exits. */
+function collect(child, label, timeout = 120000) {
   return new Promise((resolve, reject) => {
-    const child = shell ? spawn('sh', ['-c', argv], { cwd, env: { ...process.env, ...ENV } }) : spawn(process.execPath, argv, { cwd, env: { ...process.env, ...ENV } });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => (stdout += d));
     child.stderr.on('data', (d) => (stderr += d));
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
-      reject(new Error(`timed out: ${argv}`));
+      reject(new Error(`timed out: ${label}`));
     }, timeout);
     child.on('close', (code) => {
       clearTimeout(timer);
@@ -34,10 +33,16 @@ function exec(cwd, argv, { shell = false, timeout = 120000 } = {}) {
   });
 }
 
+/** Run a script with node (argv: the script, then its arguments) in cwd; never through a shell. */
+const exec = (cwd, argv) => collect(spawn(process.execPath, argv, { cwd, env: { ...process.env, ...ENV } }), argv.join(' '));
+
+/** Run a command line a script printed through `sh -c` in cwd, as the agent would. */
+const shell = (cwd, line) => collect(spawn('sh', ['-c', line], { cwd, env: { ...process.env, ...ENV } }), line);
+
 /** The printed command found it: no "command not found" (127), no missing module or script. */
 async function runsAsPrinted(cwd, line, label) {
   assert.ok(line && line.startsWith('node '), `${label}: a command (${line})`);
-  const r = await exec(cwd, line, { shell: true });
+  const r = await shell(cwd, line);
   assert.notEqual(r.code, 127, `${label}: ${line}\n${r.out}`);
   assert.doesNotMatch(r.out, /Cannot find module|MODULE_NOT_FOUND|No such file or directory|ERR_MODULE_NOT_FOUND/, `${label}: ${line}`);
   return r;

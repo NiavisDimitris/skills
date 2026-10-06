@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import path from 'node:path';
 import test from 'node:test';
 import { classifySignIn, compileSignInPattern, looksLikeSignInUrl, signInHelp } from '../skills/design-qa/scripts/lib/capture-helpers.mjs';
-import { fixture, run, script, sendJson, startServer, tmpDir } from './_helpers.mjs';
+import { fixture, run, script, scriptLiteral, sendJson, startServer, tmpDir } from './_helpers.mjs';
 
 const CAPTURE = script('capture.mjs');
 const SIGN_IN_HTML = readFileSync(fixture('signin-form.html'), 'utf8');
@@ -174,7 +174,7 @@ browserTest('capture (b) and (c): a redirect to /login, a client-side redirect, 
     if (u.pathname === '/server') return redirect(res, '/login?next=/server');
     if (u.pathname === '/client') return html(res, '<!doctype html><h1>Loading</h1><script>setTimeout(() => location.replace("/signin"), 300)</script>');
     if (u.pathname === '/pushstate') {
-      return html(res, `<!doctype html><h1>Loading</h1><script>setTimeout(() => { history.pushState({}, '', '/login'); document.body.innerHTML = ${JSON.stringify(SIGN_IN_HTML.replace(/<!doctype[\s\S]*<body>|<\/body>[\s\S]*/gi, ''))}; }, 300)</script>`);
+      return html(res, `<!doctype html><h1>Loading</h1><script>setTimeout(() => { history.pushState({}, '', '/login'); document.body.innerHTML = ${scriptLiteral(SIGN_IN_HTML.replace(/<!doctype[\s\S]*<body>|<\/body>[\s\S]*/gi, ''))}; }, 300)</script>`);
     }
     if (u.pathname === '/hash') return html(res, '<!doctype html><title>App</title><h1>Loading</h1><script>setTimeout(() => { location.hash = "#/login"; }, 200)</script>');
     return html(res, APP_PAGE);

@@ -5,7 +5,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { run } from './_helpers.mjs';
+import { escapeRegExp, run } from './_helpers.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const json = (p) => JSON.parse(readFileSync(path.join(ROOT, p), 'utf8'));
@@ -42,7 +42,7 @@ test('one version everywhere', () => {
     repoPackage: json('package.json').version,
   };
   assert.equal(new Set(Object.values(versions)).size, 1, JSON.stringify(versions));
-  assert.match(readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'), new RegExp(`## \\[${versions.plugin.replace(/\./g, '\\.')}\\]`), 'CHANGELOG has the version');
+  assert.match(readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'), new RegExp(`## \\[${escapeRegExp(versions.plugin)}\\]`), 'CHANGELOG has the version');
 });
 
 test('the skill folder declares and locks every package its scripts import', () => {

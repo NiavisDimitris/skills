@@ -198,7 +198,8 @@ browserTest('save-session: the person signs in, the session is verified, saved w
     assert.match(logs.join('\n'), /Sign in there yourself; I notice when "\[data-testid=app-nav\]" shows/);
     assert.match(result.message, /Saved the session to .*acme\.json \(only you can read it\) and checked it/);
     const exportCmd = result.message.split('\n').find((l) => l.includes('export DESIGN_QA_APP_STORAGE_STATE='));
-    const pasted = execFileSync('sh', ['-c', `${exportCmd.slice(exportCmd.indexOf('export '))}; printf %s "$DESIGN_QA_APP_STORAGE_STATE"`], { env: { HOME: process.env.HOME ?? '', PATH: process.env.PATH }, encoding: 'utf8' });
+    // Pasted: the shell reads the printed line from its input, as typed into a terminal.
+    const pasted = execFileSync('sh', ['-s'], { input: `${exportCmd.slice(exportCmd.indexOf('export '))}\nprintf %s "$DESIGN_QA_APP_STORAGE_STATE"\n`, env: { HOME: process.env.HOME ?? '', PATH: process.env.PATH }, encoding: 'utf8' });
     assert.equal(pasted, out, 'the printed export line works when pasted');
     for (const text of [result.message, ...logs, JSON.stringify(result.changes)]) assert.ok(!text.includes(SESSION_VALUE), 'never prints the session');
 
