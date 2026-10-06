@@ -77,7 +77,7 @@ export function startServer(handler) {
       try {
         await handler(req, res, body);
       } catch (err) {
-        console.error(`test server: the handler for ${req.method} ${req.url} threw:`, err); // the stack goes to the test log, not the client
+        console.error('test server: the handler for %s %s threw:', req.method, req.url, err); // the stack goes to the test log, not the client
         res.writeHead(500, { 'content-type': 'text/plain' });
         res.end('test server: the handler threw');
       }

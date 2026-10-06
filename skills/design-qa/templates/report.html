@@ -934,8 +934,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function append(el, kid) {
     if (kid === null || kid === undefined || kid === false) return;
     if (Array.isArray(kid)) { kid.forEach(function (k) { append(el, k); }); return; }
-    if (typeof kid === 'object' && kid.nodeType) el.appendChild(kid); // a node built here
-    else el.appendChild(document.createTextNode(String(kid))); // any value (report text, the URL hash) only ever as text
+    el.append(kid); // a node as is; any other value (report text, the URL hash) as a text node: append() never parses markup
   }
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }
   function icon(name, cls) {
