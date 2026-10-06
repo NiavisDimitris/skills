@@ -95,14 +95,17 @@ export function sourceLocation(finding) {
  */
 export function agentPrompt(finding) {
   const f = finding || {};
-  const lines = [
-    `[${oneLine(f.id)}] ${oneLine(f.title)}`,
+  const lines = [`[${oneLine(f.id)}] ${oneLine(f.title)}`];
+  // A finding a person added in the review: the coding agent reads their words first.
+  const a = f.annotation;
+  if (a && typeof a === 'object' && !blank(a.note)) lines.push(`Reported in the review by ${oneLine(a.by) || 'the reviewer'}: ${oneLine(a.note)}`);
+  lines.push(
     `Ledger: ${line(f.ledger)} · State: ${line(f.state)} · Severity: ${line(f.severity)} · Resolution: ${line(f.resolution)}`,
     `Element: ${line(f.element?.selector)} (Figma: ${line(f.element?.figmaLayerPath)})`,
     `Property: ${line(f.property)}`,
     `Expected: ${line(f.expected?.value)} (token: ${lineOrNone(f.expected?.token)}; source: ${line(f.expected?.source)})`,
     `Actual: ${line(f.actual?.value)} (token: ${lineOrNone(f.actual?.token)}) at ${sourceLocation(f)}`,
-  ];
+  );
   const snippet = f.actual?.source?.snippet;
   if (!blank(snippet)) {
     for (const l of snippetLines(snippet)) lines.push(`  ${l}`);
@@ -136,6 +139,9 @@ function fence(content) {
 }
 
 const stateOf = (f) => mdDash(f.state);
+/** Marks a finding a person added in the review (finding.annotation) in the Fix now and Debt lists. */
+export const FROM_REVIEW = '(from the review)';
+const fromReview = (f) => (f && typeof f.annotation === 'object' && f.annotation ? ` ${FROM_REVIEW}` : '');
 
 /**
  * A state's label for the plan: the stateMatrix label (else the state id), prefixed with
@@ -386,7 +392,7 @@ export function renderFixplan(report, opts = {}) {
   } else {
     fixNow.forEach((f, i) => {
       const selector = oneLine(f.element?.selector) ? `selector ${inlineCode(f.element.selector)}` : `selector ${DASH}`;
-      out.push(`${i + 1}. **${md(f.id)} — ${md(f.title)}** (${md(f.severity)}, ${md(f.ledger)}, state ${stateOf(f)})`);
+      out.push(`${i + 1}. **${md(f.id)} — ${md(f.title)}**${fromReview(f)} (${md(f.severity)}, ${md(f.ledger)}, state ${stateOf(f)})`);
       out.push(`   - Where: ${md(sourceLocation(f))} · ${selector}`);
       out.push(
         `   - Expected: ${mdDash(f.expected?.value)} (token ${mdNone(f.expected?.token)}) · Actual: ${mdDash(f.actual?.value)} (token ${mdNone(f.actual?.token)})`,
@@ -426,7 +432,7 @@ export function renderFixplan(report, opts = {}) {
   if (!debt.length) out.push('- None');
   for (const f of debt) {
     const ticket = mdText(tickets.get(f.id)?.ticket?.key) || 'no ticket yet';
-    out.push(`- ${mdLead(f.id)} — ${md(f.title)} (${md(f.severity)}, owner ${DEBT_OWNER}) — ${ticket} — ${mdDash(f.fix?.summary)}`);
+    out.push(`- ${mdLead(f.id)} — ${md(f.title)}${fromReview(f)} (${md(f.severity)}, owner ${DEBT_OWNER}) — ${ticket} — ${mdDash(f.fix?.summary)}`);
   }
   out.push('');
 
@@ -486,9 +492,10 @@ export function renderFixplan(report, opts = {}) {
 
 /**
  * Parse the "## Debt" bullets of a fix plan back into items
- * [{ id, title, meta, severity, owner, ticket, summary, evidence, line }]. Reads both
+ * [{ id, title, meta, severity, owner, ticket, summary, evidence, fromReview, line }]. Reads both
  * "- DQ-004 — Title (WARNING, owner engineering) — ACME-511 — Fix" and the older
- * "- DQ-004 — Title (WARNING, style, state x) — Fix — evidence: path".
+ * "- DQ-004 — Title (WARNING, style, state x) — Fix — evidence: path". A finding added in the
+ * review ("- DQ-004 — Title (from the review) (WARNING, …") has the mark out of its title.
  */
 export function parseDebtItems(markdown) {
   const lines = String(markdown).split(/\r?\n/);
@@ -504,7 +511,9 @@ export function parseDebtItems(markdown) {
     const rest = m[2];
     const metas = [...rest.matchAll(metaRe)];
     const last = metas[metas.length - 1];
-    const title = last ? rest.slice(0, last.index) : rest;
+    let title = last ? rest.slice(0, last.index) : rest;
+    const fromReviewMark = title.endsWith(` ${FROM_REVIEW}`);
+    if (fromReviewMark) title = title.slice(0, -FROM_REVIEW.length - 1);
     const meta = last ? last[1] : null;
     const tail = last ? rest.slice(last.index + last[0].length).replace(/^ — /, '') : '';
     const parts = tail ? tail.split(' — ') : [];
@@ -529,6 +538,7 @@ export function parseDebtItems(markdown) {
       ticket: ticket === null ? null : unMd(ticket),
       summary: summary === DASH || summary === null ? null : unMd(summary),
       evidence: evidence === DASH || evidence === null ? null : unMd(evidence),
+      fromReview: fromReviewMark,
       line: line.trim().replace(/^-\s+/, ''),
     });
   }

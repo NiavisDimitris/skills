@@ -1,13 +1,14 @@
 // Review decisions: ONE document that carries everything a reviewer decided in
 // report.html (fix now / debt, dismissals with a reason, design-backfill decisions,
-// and whether tickets may be created) to any coding agent. Pure functions: parse the
-// document (bare JSON, or the whole "Copy for your agent" message with the JSON in a
-// ```design-qa-decisions fence), validate it, summarise it, apply it to a report by
-// composing the existing triage / dismissal / backfill functions, and write the
-// plain-language message. report.html mirrors decisionsMessage() character for
+// annotations the reviewer added on a capture, and whether tickets may be created) to
+// any coding agent. Pure functions: parse the document (bare JSON, or the whole "Copy
+// for your agent" message with the JSON in a ```design-qa-decisions fence), validate
+// it, summarise it, apply it to a report by composing the existing triage / dismissal /
+// backfill / annotation functions, and write the plain-language message. report.html mirrors decisionsMessage() character for
 // character, so keep its output stable and deterministic. Every name, title or value
 // that comes from the report or the document is folded to one line (oneLine) before
 // it is printed, so data can never forge a line (a "Next:" command, a second fence).
+import { ANNOTATIONS_MAX, AnnotationError, annotationIdentity, mergeAnnotations, normalizeAnnotation } from './annotations.mjs';
 import { oneLine } from './args.mjs';
 import { decideItems, DECIDE_CHOICES } from './backfill.mjs';
 import { DISMISS_KINDS, applyDismissal, normalizeKind } from './dismissals.mjs';
@@ -24,7 +25,7 @@ export const DECISIONS_FENCE = 'design-qa-decisions';
 
 const FINDING_ID_RE = /^DQ-\d{3,}$/;
 const BACKFILL_ID_RE = /^BF-\d{3,}$/;
-const TOP_KEYS = ['kind', 'version', 'slug', 'feature', 'reportGeneratedAt', 'decidedBy', 'decidedAt', 'tickets', 'triage', 'dismissals', 'backfill'];
+const TOP_KEYS = ['kind', 'version', 'slug', 'feature', 'reportGeneratedAt', 'decidedBy', 'decidedAt', 'tickets', 'triage', 'dismissals', 'backfill', 'annotations'];
 const ALLOWED_TOP = new Set([...TOP_KEYS, '$schema']);
 const DISMISSAL_KEYS = new Set(['findingId', 'kind', 'reason', 'by', 'date']);
 const BACKFILL_KEYS = new Set(['id', 'decision', 'reason', 'by', 'date']);
@@ -86,9 +87,11 @@ function idList(value, where) {
 
 /**
  * Validate a decisions object and return it in canonical form (fixed key order;
- * dismissals and backfill always arrays; triage only when given; names trimmed, null
- * when blank; reasons verbatim). Idempotent: normalizeDecisions(normalizeDecisions(x))
- * deep-equals normalizeDecisions(x). Throws DecisionsError (code "invalid" or "version").
+ * dismissals and backfill always arrays; triage only when given; annotations only when
+ * there are any, so a document without them is exactly what it was before annotations
+ * existed; names trimmed, null when blank; reasons verbatim). Idempotent:
+ * normalizeDecisions(normalizeDecisions(x)) deep-equals normalizeDecisions(x). Throws
+ * DecisionsError (code "invalid" or "version").
  */
 export function normalizeDecisions(data) {
   if (!isObj(data)) throw invalid('the decisions document must be a JSON object');
@@ -165,6 +168,27 @@ export function normalizeDecisions(data) {
     return { id: raw.id, decision: raw.decision, reason, by: optionalName(raw.by, `${where}.by`), date: optionalDate(raw.date, `${where}.date`) };
   });
 
+  // Annotations: issues the reviewer marked on a capture (scripts/lib/annotations.mjs), in the given order.
+  if (data.annotations !== undefined && !Array.isArray(data.annotations)) throw invalid('"annotations" must be an array');
+  const rawAnnotations = data.annotations ?? [];
+  if (rawAnnotations.length > ANNOTATIONS_MAX) throw invalid(`"annotations" lists ${rawAnnotations.length}; at most ${ANNOTATIONS_MAX} in one document`);
+  const seenAnnotations = new Map();
+  const annotations = rawAnnotations.map((raw, i) => {
+    let a;
+    try {
+      a = normalizeAnnotation(raw, `annotations[${i}]`);
+    } catch (err) {
+      if (err instanceof AnnotationError) throw invalid(err.message);
+      throw err;
+    }
+    const key = annotationIdentity(a);
+    if (seenAnnotations.has(key)) {
+      throw invalid(`annotations lists the same annotation twice: annotations[${seenAnnotations.get(key)}] and annotations[${i}] (same state, side, box and note)`);
+    }
+    seenAnnotations.set(key, i);
+    return a;
+  });
+
   const doc = {
     kind: DECISIONS_KIND,
     version: DECISIONS_VERSION,
@@ -178,6 +202,7 @@ export function normalizeDecisions(data) {
   if (triage) doc.triage = triage;
   doc.dismissals = dismissals;
   doc.backfill = backfill;
+  if (annotations.length) doc.annotations = annotations;
   return doc;
 }
 
@@ -268,7 +293,7 @@ export function parseDecisions(text) {
 // ---------------------------------------------------------------------------
 // Summary
 
-/** Counts: { fixNow, debt, dismissed, backfillBuild, backfillNotNeeded, tickets }. */
+/** Counts: { fixNow, debt, dismissed, backfillBuild, backfillNotNeeded, annotations, tickets }. */
 export function summarizeDecisions(doc) {
   const backfill = Array.isArray(doc?.backfill) ? doc.backfill : [];
   return {
@@ -277,16 +302,21 @@ export function summarizeDecisions(doc) {
     dismissed: Array.isArray(doc?.dismissals) ? doc.dismissals.length : 0,
     backfillBuild: backfill.filter((b) => b?.decision === 'build').length,
     backfillNotNeeded: backfill.filter((b) => b?.decision === 'not-needed').length,
+    annotations: Array.isArray(doc?.annotations) ? doc.annotations.length : 0,
     tickets: doc?.tickets === true,
   };
 }
 
-/** "fix now 5 · later 3 · dismissed 2 · backfill 1 · tickets: yes" (the backfill part only when there are backfill decisions). */
+/**
+ * "fix now 5 · later 3 · dismissed 2 · backfill 1 · annotations 2 · tickets: yes" (the
+ * backfill and annotations parts only when there are any). report.html mirrors it.
+ */
 export function summaryLine(doc) {
   const s = summarizeDecisions(doc);
   const backfill = s.backfillBuild + s.backfillNotNeeded;
   const parts = [`fix now ${s.fixNow}`, `later ${s.debt}`, `dismissed ${s.dismissed}`];
   if (backfill) parts.push(`backfill ${backfill}`);
+  if (s.annotations) parts.push(`annotations ${s.annotations}`);
   parts.push(`tickets: ${s.tickets ? 'yes' : 'no'}`);
   return parts.join(' · ');
 }
@@ -343,19 +373,25 @@ function triageComparable(triage) {
  * Apply a (normalized) decisions document to a report. Pure: no file I/O, the input is
  * not mutated. Order: dismissals (applyDismissal, source "report-ui"), then triage
  * (buildTriage / applyTriage, source "report-ui", with triage.ticketsAuthorized = doc.tickets),
- * then backfill (decideItems); the scorecard is recomputed when anything changed.
- * Missing by / date fall back to doc.decidedBy / doc.decidedAt, so the result is
- * deterministic and re-applying the same document changes nothing (changes: []).
+ * then backfill (decideItems); the scorecard is recomputed when any of them changed the
+ * report. Then the annotations: each must name a state of the report with an image on
+ * its side; they are merged into the recorded ones (mergeAnnotations: never twice, next
+ * id after the highest) and never change report.json (they become findings when the
+ * report is rebuilt). Missing by / date fall back to doc.decidedBy / doc.decidedAt, so
+ * the result is deterministic and re-applying the same document changes nothing (changes: []).
  * opts: { now (fallback date when the doc has no decidedAt), allowStale, options
- * (ranking options / design-qa config) }.
- * Returns { report, changes, warnings }; changes are
+ * (ranking options / design-qa config), annotations (the records already in
+ * <report dir>/annotations.json) }.
+ * Returns { report, changes, warnings, annotations (every record after the merge) }; changes are
  *   { type: "dismissal", findingId, kind, updated }
  *   { type: "triage", fixNow: [ids], debt: [ids] }   (the recorded split, rank order of the report)
  *   { type: "backfill", id, decision, previous }
+ *   { type: "annotation", id, state, severity, decision }   (one per newly recorded annotation)
  * Throws DecisionsError: "slug" / "stale" (see checkDecisionsTarget), "unknown-id",
- * "apply" (e.g. a PASS finding dismissed, a backfill item already built).
+ * "apply" (e.g. a PASS finding dismissed, a backfill item already built, an annotation
+ * on a side of a state that has no image).
  */
-export function applyDecisions(report, doc, { now = new Date().toISOString(), allowStale = false, options = {} } = {}) {
+export function applyDecisions(report, doc, { now = new Date().toISOString(), allowStale = false, options = {}, annotations = [] } = {}) {
   if (!isObj(report) || !Array.isArray(report.findings)) throw new DecisionsError('not a design-qa report (no "findings" array)', 'apply');
   const d = normalizeDecisions(doc);
   const o = resolveOptions(options);
@@ -378,6 +414,21 @@ export function applyDecisions(report, doc, { now = new Date().toISOString(), al
       const have = hasBackfill(report) ? [...known].join(', ') || 'none' : 'the report has no backfill block';
       throw new DecisionsError(`unknown backfill id${missing.length === 1 ? '' : 's'} ${missing.join(', ')} (have: ${have})`, 'unknown-id');
     }
+  }
+  const docAnnotations = d.annotations ?? [];
+  if (docAnnotations.length) {
+    const rows = new Map((Array.isArray(report.stateMatrix) ? report.stateMatrix : []).filter((r) => typeof r?.state === 'string').map((r) => [r.state, r]));
+    docAnnotations.forEach((a, i) => {
+      const row = rows.get(a.state);
+      if (!row) {
+        throw new DecisionsError(`annotations[${i}] names state ${show(a.state)}, not a state of this report (have: ${[...rows.keys()].join(', ') || 'none'})`, 'unknown-id');
+      }
+      const image = a.side === 'app' ? row.captured?.app : row.captured?.design;
+      if (typeof image !== 'string' || !image) {
+        const what = a.side === 'app' ? 'no app capture' : 'no design image';
+        throw new DecisionsError(`annotations[${i}] is on the ${a.side} image of ${show(a.state)}, but this report has ${what} for that state`, 'apply');
+      }
+    });
   }
 
   let next = report;
@@ -454,7 +505,20 @@ export function applyDecisions(report, doc, { now = new Date().toISOString(), al
     next = { ...next, findings: withRanks(next.findings, o) };
     next.scorecard = computeScorecard(next, o);
   }
-  return { report: next, changes, warnings };
+
+  // 4. Annotations: recorded beside the report (annotations.json), never in it.
+  let merged;
+  try {
+    merged = mergeAnnotations(annotations, docAnnotations, { by: d.decidedBy, date: decidedAt });
+  } catch (err) {
+    if (err instanceof AnnotationError) throw new DecisionsError(err.message, 'apply');
+    throw err;
+  }
+  for (const a of merged.added) changes.push({ type: 'annotation', id: a.id, state: a.state, severity: a.severity, decision: a.decision });
+  if (docAnnotations.length && !d.triage && !isObj(next.triage)) {
+    warnings.push('no triage is recorded yet, so the fix now / later choice on the annotations applies only once one is; until then the rebuilt report uses the recommended split');
+  }
+  return { report: next, changes, warnings, annotations: merged.annotations };
 }
 
 // ---------------------------------------------------------------------------
@@ -474,7 +538,7 @@ function foldedFinding(value, key = '') {
 /**
  * The message report.html copies for any coding agent: what to do, the document in a
  * ```design-qa-decisions fence, then the fix-now prompts (agentPrompt), the fix-later,
- * dismissed and backfill lists. Deterministic: everything comes from the (normalized)
+ * dismissed, backfill and annotation lists. Deterministic: everything comes from the (normalized)
  * document and the report's findings. reportPath defaults to qa-reports/<slug>/report.json.
  * Lines are joined with "\n"; there is no trailing newline. Feature, slug, names,
  * report path and every finding string (but the snippet) are folded with oneLine, so
@@ -488,6 +552,7 @@ export function decisionsMessage(report, doc, { reportPath, configPath } = {}) {
   const finding = (id) => foldedFinding(findings.get(id) ?? { id, title: '(not in this report)' });
   const fixNow = d.triage ? d.triage.fixNow : [];
   const debt = d.triage ? d.triage.debt : [];
+  const annotations = d.annotations ?? [];
 
   const lines = [
     `Apply my design QA review for ${feature} (${oneLine(d.slug)}).`,
@@ -498,9 +563,12 @@ export function decisionsMessage(report, doc, { reportPath, configPath } = {}) {
     'What to do:',
     '1. Use the design-qa skill, section "Apply review decisions". Save this whole message to a file and run its script:',
     `   node scripts/apply-decisions.mjs --report ${shellArg(file)} --from <that file>${configPath ? ` --config ${shellArg(configPath)}` : ''}`,
-    '   (the script path is relative to the design-qa skill folder). No design-qa skill available? Skip step 1 and do steps 2 and 3 from the text below.',
+    `   (the script path is relative to the design-qa skill folder). No design-qa skill available? Skip step 1 and do steps ${annotations.length ? '2 to 4' : '2 and 3'} from the text below.`,
     `2. Fix the "Fix now" findings below, in the order given. Do not change data or copy beyond what each item says. Run the project's tests after each item.`,
     '3. Do not fix the "Fix later" items; they are tracked as debt. Leave dismissed items alone.',
+    ...(annotations.length
+      ? ['4. "Annotations added in the review" lists issues the reviewer found that the QA missed: check each one in the app, then fix it now or later as marked.']
+      : []),
     '',
     `\`\`\`${DECISIONS_FENCE}`,
     JSON.stringify(d, null, 2),
@@ -520,6 +588,13 @@ export function decisionsMessage(report, doc, { reportPath, configPath } = {}) {
   if (d.backfill.length) {
     lines.push('', `Design backfill (${d.backfill.length})`);
     for (const b of d.backfill) lines.push(b.decision === 'not-needed' ? `- ${b.id} not-needed — ${oneLine(b.reason)}` : `- ${b.id} build`);
+  }
+  if (annotations.length) {
+    lines.push('', `Annotations added in the review (${annotations.length})`);
+    for (const a of annotations) {
+      const { x, y, w, h } = a.box;
+      lines.push(`- [${a.severity}] ${oneLine(a.state)} (${a.side} ${x},${y} ${w}×${h}) ${a.decision === 'fix-now' ? 'fix now' : 'fix later'} — ${oneLine(a.note)}`);
+    }
   }
   return lines.join('\n');
 }

@@ -132,13 +132,15 @@ warning with the render command.
 The page gets { live: true, token, reportPath } in its <script id="design-qa-context">
 element, so its "Send to agent" button can POST the decisions document
 (schemas/decisions.schema.json) to /decisions. The document is checked against
-report.json on disk (slug, reportGeneratedAt, known ids); a rejected one is answered
+report.json on disk (slug, reportGeneratedAt, known ids, and a state with an image on
+the marked side for each of the reviewer's annotations); a rejected one is answered
 with the reason and the server keeps waiting. An accepted one is saved atomically as
 <dir>/decisions.json, then this prints:
   Decisions received from <name>: <summary>
   Saved: <dir>/decisions.json
   Next: node <scripts>/apply-decisions.mjs --report <dir>/report.json
-and exits 0. Run that command next.
+and exits 0. Run that command next: it records the reviewer's annotations too (this
+server only saves them in the document).
 
 Security: binds 127.0.0.1 only; a random 128-bit token is required for the page and
 for POST /decisions (header X-Design-QA-Token); opening the page with it sets an

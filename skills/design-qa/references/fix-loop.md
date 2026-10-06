@@ -8,6 +8,7 @@ Drive the fix-now set to zero, test first, then re-check against the design. The
 
 - **Only the fix-now set**: `FIX_CODE` findings triaged fix now. The triage comes from the reviewer's Send (`apply-decisions.mjs` prints the set in order) or from `triage.mjs --fix` (references/review.md). No triage yet: open the review or offer the split in chat; if the person does not choose, use the default (the fix-now bucket plus every blocker).
 - Send approves this loop on that set, nothing wider.
+- A finding marked "From the review" came from a reviewer's annotation (references/review.md, "Annotations from the review"). Fix it like any other; its severity is the reviewer's, and it is never yours to reject.
 - Never touch debt, `DATA`, `INTENTIONAL` or `DISMISSED` findings. An undone dismissal re-enters the set only when it is back at `FIX_CODE`.
 - The design is the target. When the code seems better than the design, stop and ask: the person can sign it off or dismiss it.
 - Work in rank order. An item much bigger than expected: ask whether to move it to debt (blockers cannot move) rather than widen the change.
@@ -54,7 +55,7 @@ Run `commands.test` from `commands.cwd`, then each `commands.lint`. Investigate 
 ## 4. Re-verify
 
 1. Run the `Next:` command: `pass.mjs evidence … --recapture` captures the app again and rewrites the worklist; a fixed difference disappears. A local target recaptures on its own after a code change; a remote target, hot reload, or a checkout the summary says it cannot read needs `--recapture`. Gitignored build output is never seen: rebuild it first.
-2. Update `findings.json`. A verified fix keeps its `ledger`, `state`, element and `property` (so it keeps its id), gets `"severity": "PASS"`, and loses `fix` and any worklist or audit key that no longer exists. A fix that did not hold stays as it was. New items are filed or rejected as usual.
+2. Update `findings.json`. A verified fix keeps its `ledger`, `state`, element and `property` (so it keeps its id), gets `"severity": "PASS"`, and loses `fix` and any worklist or audit key that no longer exists. An annotation's entry keeps its `"annotation"` key: `"severity": "PASS"` is the only severity you may write on it. A fix that did not hold stays as it was. New items are filed or rejected as usual.
 3. Add the iteration to `fixLoop`, then run `pass.mjs report`:
 
 ```json

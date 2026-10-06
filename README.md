@@ -36,7 +36,8 @@ A pass is a handful of commands. `pass.mjs` runs everything mechanical in a fixe
         |            render-report.mjs -> report.html + report-fixplan.md, validate.mjs
         v
  pass.mjs review     opens report.html: you choose fix now or later, dismiss with
-        |            a reason, tick "Create tickets", click Send
+        |            a reason, annotate what the pass missed, tick "Create tickets",
+        |            click Send
         v
  apply-decisions.mjs -> fix loop on the fix-now set (evidence --recapture re-checks it),
         |              debt tickets if ticked, logs
@@ -49,9 +50,10 @@ A pass is a handful of commands. `pass.mjs` runs everything mechanical in a fixe
 - **`report.json`** — the full, agent-readable result: every screen, every state, every finding with its severity, evidence and location. Schema 2.0: [`skills/design-qa/schemas/report.schema.json`](skills/design-qa/schemas/report.schema.json).
 - **`report-fixplan.md`** — what you chose to fix now, the rest as ticketed debt, a paste-to-agent block for each fix-now item so you can hand it straight to a coding agent, the design-system mismatches (tokens, components, motion) and what was dismissed and why.
 - **Tickets and a debt log** — every diff you don't fix now becomes an entry in `qa-reports/design-debt.md` (and `.json`) and, when you tick "Create tickets", a ticket, so nothing is left unexplained. See [Review and send](#review-and-send-fix-now-later-or-dismiss).
+- **Your own annotations** — the pass will sometimes miss things you know about. In `report.html` you can click or drag on any capture (the app or the design) to add your own annotation, with a severity and a description of the issue, and choose to fix it now or later. It goes to the agent with the rest of your review; the agent investigates it, files it as a finding, and the rebuilt report shows it marked "From the review", with your note. See [Review and send](#review-and-send-fix-now-later-or-dismiss).
 - **Dismissals that stick** — any finding can be dismissed in one click ("not an issue", "remove from QA" or "accept as intentional") with a written reason. It is recorded in `report.json` and in `qa-reports/dismissed.md` (and `.json`), and later passes re-apply it instead of raising it again. See [Dismiss](#dismiss-not-an-issue).
 - **`report-backfill.md`** — step 2: the states the app has and the design lacks, which ones to build in Figma, and a paste-to-design-agent block that builds them from the design-system library. See [Two steps](#two-steps-parity-then-design-backfill).
-- **`report.html`** — a single-file interactive report for humans. The annotated capture is the page: the design and the app screenshot side by side, overlaid, wiped or diffed, per screen and state, with numbered pins on the capture coloured by severity that open each finding's detail with its design-versus-app crop. Below it: a "Choose what to fix" board, the fix-now list with copyable agent prompts, a Dismiss button on every finding, one review bar that sends all your decisions back to your agent, a Design system view (token, component and motion mismatches), collapsed debt and dismissed lists, a findings table with facet filters, state coverage and decisions. Styled on shadcn/ui (Neutral theme, Geist embedded under its OFL licence), implemented in plain CSS so the file opens offline with no network calls.
+- **`report.html`** — a single-file interactive report for humans. The annotated capture is the page: the design and the app screenshot side by side, overlaid, wiped or diffed, per screen and state, with numbered pins on the capture coloured by severity that open each finding's detail with its design-versus-app crop. Turn on **Annotate** to add your own annotations on it. Below it: a "Choose what to fix" board, the fix-now list with copyable agent prompts, a Dismiss button on every finding, one review bar that sends all your decisions back to your agent, a Design system view (token, component and motion mismatches), collapsed debt and dismissed lists, a findings table with facet filters, state coverage and decisions. Styled on shadcn/ui (Neutral theme, Geist embedded under its OFL licence), implemented in plain CSS so the file opens offline with no network calls.
 
 See a rendered example at [`examples/sample/report.html`](examples/sample/report.html), and a five-screen one at [`examples/mock-five-frames/report.html`](examples/mock-five-frames/report.html) (assembled by hand before the builder existed, so its page says "Not built by build-report.mjs").
 
@@ -192,8 +194,9 @@ You decide which diffs get fixed now. Everything else becomes debt with a log en
 
 1. After an audit, the agent opens `report.html` in your browser (`review.mjs`) and waits. The recommended split is already set: the top findings and every blocker are Fix now, the rest Debt (fix later).
 2. Move findings between Fix now and Debt, and dismiss the ones that are not an issue, with a reason (below). The review bar at the bottom counts it all: `Fix now 5 · Later 3 · Dismissed 2`.
-3. Click **Review and send**. Add your name if you like, tick **Create tickets for the n later items** if you want tickets, and click **Send to agent**. Sending approves it: the agent records your decisions (`apply-decisions.mjs`), creates the tickets if you ticked the box, updates the debt log, and starts on the Fix now items. It still asks before risky or wide edits.
-4. Claude Code continues as soon as you click Send. In other agents, tell the agent you are done.
+3. Spotted something the pass missed? Turn on **Annotate** (or press `A`), then click or drag on any capture to add your own annotation: pick a severity, describe the issue, and choose Fix now or Later. Your annotations are kept in this browser until you send them. The agent investigates each one and files it as a finding; it can't reject it (only you can dismiss it), and the rebuilt report shows it marked "From the review".
+4. Click **Review and send**. Add your name if you like, tick **Create tickets for the n later items** if you want tickets, and click **Send to agent**. Sending approves it: the agent records your decisions (`apply-decisions.mjs`), creates the tickets if you ticked the box, updates the debt log, and starts on the Fix now items. It still asks before risky or wide edits.
+5. Claude Code continues as soon as you click Send. In other agents, tell the agent you are done.
 
 The report opened as a plain file (a CI artifact, an attachment, a remote session) has **Copy for your agent** instead: it copies one plain-language message with your decisions and every Fix now finding in full. Paste it into any agent's chat; with the skill installed the agent applies it, and without it the message still says what to fix. **Download decisions.json** saves the same decisions as a file.
 
@@ -253,9 +256,9 @@ All under `skills/design-qa/scripts/`. An agent normally runs only `pass.mjs` an
 | `inspect.mjs` | Answers one question about the evidence: what is at this place, on the app and in the design. |
 | `build-report.mjs` | Builds `report.json` from `findings.json` and the evidence; checks that every worklist item, audit candidate and compare row is accounted for, and records a fingerprint that `validate.mjs` and the review check, so a hand-edited report is refused. |
 | `render-report.mjs` | Renders `report.json` into `report.html`, `report-fixplan.md` and `report-backfill.md`. |
-| `validate.mjs` | Validates a report, config, state matrix or decisions document. |
+| `validate.mjs` | Validates a report, config, state matrix, decisions document or annotations file. |
 | `review.mjs` | Opens `report.html` on 127.0.0.1 with a one-time token and waits for Send; `--status` and `--stop` for its own server only. |
-| `apply-decisions.mjs` | Applies the reviewer's decisions to `report.json` and the logs, and prints the fix-now list. |
+| `apply-decisions.mjs` | Applies the reviewer's decisions to `report.json` and the logs, records their annotations in `annotations.json`, and prints the fix-now list. |
 | `triage.mjs`, `dismiss.mjs`, `debt-log.mjs` | Record a fix-now choice, a dismissal with its reason, and the cumulative debt log. |
 | `backfill.mjs` | Step 2: undesigned-state candidates, decisions, the gate override and built Figma frames. |
 | `doctor.mjs` | Checks Node, the packages and Playwright's Chromium, and prints the command for anything missing. |

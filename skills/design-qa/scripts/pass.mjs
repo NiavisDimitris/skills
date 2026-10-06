@@ -37,11 +37,13 @@ import {
   urlSecrets,
   writePrivate,
   expandedConfigStates,
+  fileAnnotationsDo,
   fixNowLines,
   relevantLines,
   scriptCmd,
   stamp,
   suggestDrivers,
+  unfiledAnnotations,
   urlArg,
   wholePageLine,
   writePass as writePassFile,
@@ -49,6 +51,7 @@ import {
 import { applyAnswers, looksSecret } from './lib/setup.mjs';
 import { designSystemNotChecked, explainVerdict, scorecardHeadline } from './lib/ranking.mjs';
 import { configFingerprint } from './lib/build-report.mjs';
+import { ANNOTATIONS_FILE } from './lib/annotations.mjs';
 import { triageLists } from './lib/triage.mjs';
 import { assertRunOwnsDir, assessDir, callerRunId, readReviewRegistration, readRunLock, registrationAlive } from './lib/run-lock.mjs';
 import { appKind, classifyInput } from './lib/target-url.mjs';
@@ -132,9 +135,12 @@ evidence  Needs the design in <dir>/evidence (figma-spec.json and figma PNGs fro
 report    build-report.mjs (findings.json + evidence → report.json; it re-applies earlier
           dismissals) → render-report.mjs (--recompute --write-back --embed-images, the fix
           plan, the backfill plan when there are items) → validate.mjs. Prints the verdict,
-          match, findings settled, states verified, whole-page coverage, counts and the review command.
+          match, findings settled, states verified, whole-page coverage, counts and the review command
+          (once the review's decisions are applied: status, for the fix loop).
           --check only checks findings.json (build-report.mjs --check: every audit candidate and
-          compare FAIL row still to decide, one line each). --review then runs review.mjs in the
+          compare FAIL row still to decide, and every annotation from the review still to file,
+          one line each). The report is stale when findings.json or <dir>/annotations.json (the
+          reviewer's annotations, apply-decisions.mjs) changed. --review then runs review.mjs in the
           foreground (only when the report is valid) and exits with its code. --mode ci (the
           default after start --ci) records the default triage (triage.mjs --default --source
           ci-default), renders again and ends with finish; it never opens the review.
@@ -144,8 +150,9 @@ review    review.mjs in the foreground (long-running: it waits for the person to
           above) or finish; Next is finish, so following Next never loops.
 status    What is done, what is stale, and the single next command, to the run holding the folder
           (--run; anyone else is told to start their own pass). Use it when unsure. After
-          applied decisions: the fix-now set to fix and evidence --recapture; once re-checked
-          and still open, Do: fix and check again or finish, Next: finish.
+          applied decisions: annotations from the review still to file (Do:) and the rebuild,
+          then the fix-now set to fix and evidence --recapture; once re-checked and still open,
+          Do: fix and check again or finish, Next: finish.
 finish    run.mjs finish; says how to stop your own review server when one is registered.
           Finishing a valid report that was never reviewed records the review as skipped (the
           recommended split stands): report prints this command as "If the person will not
@@ -1648,7 +1655,8 @@ async function report(o) {
     const { shown, hidden } = capLines(lines, 40);
     for (const l of shown) L.push(`  ${l.replace(/^findings: /, '')}`);
     if (hidden) L.push(`  … ${hidden} more in ${c.log}`);
-    return emit(ctx, 'report', EXIT.INPUT, nx(again(['--check']), `Create ${show(findings)} from references/templates/findings.template.json, deciding every line above (work through ${ctx.rel}/worklist.md).`));
+    const unfiled = unfiledAnnotations(dir, findings).map((a) => a.id);
+    return emit(ctx, 'report', EXIT.INPUT, nx(again(['--check']), `Create ${show(findings)} from references/templates/findings.template.json, deciding every line above (work through ${ctx.rel}/worklist.md).`, unfiled.length ? fileAnnotationsDo(unfiled, show(findings)) : null));
   }
   const build = await runChild(ctx, 'build-report.mjs', ['--dir', dir, '--findings', findings, ...cfg, ...(modeArg ? ['--mode', modeArg] : []), '--run', ctx.runId, ...(o.check ? ['--check'] : [])], { log: o.check ? 'report-check' : 'report-build' });
   if (build.missing) {
@@ -1668,7 +1676,8 @@ async function report(o) {
     if (hidden) L.push(`  … ${hidden} more in ${build.log}`);
     pass.stages.report = { at: new Date().toISOString(), built: false, valid: false };
     writePass(dir, pass);
-    return emit(ctx, 'report', EXIT.INPUT, nx(again(o.check ? ['--check'] : []), `Fix these in ${show(findings)}.`), { problems });
+    const unfiled = unfiledAnnotations(dir, findings).map((a) => a.id);
+    return emit(ctx, 'report', EXIT.INPUT, nx(again(o.check ? ['--check'] : []), `Fix these in ${show(findings)}.`, unfiled.length ? fileAnnotationsDo(unfiled, show(findings)) : null), { problems });
   }
   if (o.check) {
     const out = childLines(build.stdout);
@@ -1743,7 +1752,7 @@ async function report(o) {
   if (reviewLine) L.push(reviewLine);
   L.push(`Report: ${ctx.rel}/report.html · fix plan: ${ctx.rel}/report-fixplan.md`);
   const valid = Boolean(v?.valid) && validate.code === 0;
-  pass.stages.report = { at: new Date().toISOString(), built: true, valid, verdict: sc.verdict ?? null, headline: scorecardHeadline(sc), reasons, mode, findingsStamp: stamp(findings) };
+  pass.stages.report = { at: new Date().toISOString(), built: true, valid, verdict: sc.verdict ?? null, headline: scorecardHeadline(sc), reasons, mode, findingsStamp: stamp(findings), annotationsStamp: stamp(path.join(dir, ANNOTATIONS_FILE)) };
   writePass(dir, pass);
   if (!valid) {
     const errors = (v?.errors ?? []).map((e) => `${oneLine(e.path)}: ${oneLine(e.message)}`);
@@ -1770,6 +1779,12 @@ async function report(o) {
     })();
     L.push(`To show the person this report as it is anyway: ${passCmd(ctx, 'review')}`);
     return emit(ctx, 'report', EXIT.INPUT, nx(passCmd(ctx, 'evidence'), `INCOMPLETE is not a result: ${oneLine(last ?? 'capture and compare the designed states')}.`), { valid: true, verdict: 'INCOMPLETE' });
+  }
+  // The review was sent and its decisions applied (this is the rebuild after them, e.g. with the
+  // annotations from the review filed, or after a fix): the fix loop follows, not another review.
+  if (!o.review && existsSync(path.join(dir, 'decisions.applied.json')) && !existsSync(path.join(dir, 'decisions.json'))) {
+    L.push(`The decisions from the review are applied: the next command gives the step after this rebuild (references/fix-loop.md). To show the person this report again instead: ${passCmd(ctx, 'review')}`);
+    return emit(ctx, 'report', EXIT.OK, passCmd(ctx, 'status'), { valid: true, verdict: sc.verdict ?? null });
   }
   if (!o.review) {
     L.push(`The review is long-running: start the next command in the background (it waits for the person to click Send); when it exits, run ${passCmd(ctx, 'status')} for the step after it.`);
@@ -1925,12 +1940,18 @@ async function status(o) {
   const findings = path.join(dir, 'findings.json');
   const rep = pass.stages?.report;
   const reportFile = path.join(dir, 'report.json');
-  const fresh = rep?.built && existsSync(reportFile) && rep.findingsStamp === stamp(findings) && statSync(reportFile).mtimeMs >= Date.parse(evAt);
+  // The reviewer's annotations (apply-decisions.mjs writes them) are an input of the report like findings.json.
+  const fresh = rep?.built && existsSync(reportFile) && rep.findingsStamp === stamp(findings) && (rep.annotationsStamp ?? null) === stamp(path.join(dir, ANNOTATIONS_FILE)) && statSync(reportFile).mtimeMs >= Date.parse(evAt);
   L.push(`  findings  ${existsSync(findings) ? show(findings) : 'not written'}`);
-  L.push(`  report    ${!rep?.built ? 'not built' : !fresh ? 'stale (findings or evidence changed)' : rep.valid ? `valid · ${oneLine(rep.headline ?? rep.verdict ?? '')}` : 'invalid'}`);
+  L.push(`  report    ${!rep?.built ? 'not built' : !fresh ? 'stale (findings, annotations or evidence changed)' : rep.valid ? `valid · ${oneLine(rep.headline ?? rep.verdict ?? '')}` : 'invalid'}`);
   if (fresh && rep.valid && Array.isArray(rep.reasons)) L.push(...rep.reasons.slice(0, 7).map((r) => `  ${oneLine(r)}`));
   if (!existsSync(findings)) return emit(ctx, 'status', EXIT.OK, nx(passCmd(ctx, 'report', ['--check']), `Work through ${ctx.rel}/worklist.md and write ${show(findings)} (template: references/templates/findings.template.json).`));
-  if (!fresh || !rep.valid) return emit(ctx, 'status', EXIT.OK, passCmd(ctx, 'report'));
+  if (!fresh || !rep.valid) {
+    // Annotations from the review no findings entry files yet: the rebuild refuses until each is filed.
+    const unfiled = unfiledAnnotations(dir, findings).map((a) => a.id);
+    if (unfiled.length) L.push(`  annotations from the review to file: ${unfiled.join(', ')}`);
+    return emit(ctx, 'status', EXIT.OK, unfiled.length ? nx(passCmd(ctx, 'report'), fileAnnotationsDo(unfiled, show(findings))) : passCmd(ctx, 'report'));
+  }
   if (rep.mode === 'ci') return emit(ctx, 'status', EXIT.OK, passCmd(ctx, 'finish'));
   if (rep.verdict === 'INCOMPLETE') return emit(ctx, 'status', EXIT.OK, nx(passCmd(ctx, 'evidence'), 'INCOMPLETE is not a result: do what the last why: line says, then run evidence and report again.'));
   const reg = readReviewRegistration(dir);
