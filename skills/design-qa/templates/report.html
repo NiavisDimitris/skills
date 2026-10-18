@@ -184,7 +184,7 @@ code, pre, kbd, .mono { font-family: var(--font-mono); }
 .muted { color: var(--muted-foreground); }
 .skip { position: absolute; left: 0.5rem; top: -3rem; z-index: 90; }
 .skip:focus { top: 0.5rem; }
-.container { max-width: 1400px; margin: 0 auto; padding-inline: 1rem; }
+.container { max-width: 3000px; margin: 0 auto; padding-inline: 1rem; }
 @media (min-width: 768px) { .container { padding-inline: 1.5rem; } }
 .stack { display: flex; flex-direction: column; gap: 1rem; }
 @media (min-width: 768px) { .stack { gap: 1.5rem; } }
@@ -408,21 +408,19 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 .acc-body[hidden] { display: none; }
 .num-muted { font-weight: 400; color: var(--muted-foreground); margin-left: 0.375rem; font-variant-numeric: tabular-nums; }
 
-/* ===== 4. Severity colour (the only decorative colour on the page) ===== */
-:root { --sev-blocker: var(--destructive); --sev-warning: oklch(66.6% 0.179 58.318); --sev-ds: oklch(54.1% 0.281 293.009); --sev-cv: oklch(0.556 0 0); --sev-pass: oklch(59.6% 0.145 163.225);
-  /* pins carry white numbers, so their fills are the >=4.5:1 steps in both themes */
-  --pin-blocker: oklch(0.577 0.245 27.325); --pin-warning: oklch(55.5% 0.163 48.998); --pin-ds: oklch(54.1% 0.281 293.009); --pin-cv: oklch(0.556 0 0); --pin-pass: oklch(50.8% 0.118 165.612);
+/* ===== 4. Severity colour (the only decorative colour on the page) =====
+   ONE colour per severity, the same everywhere: pins on the capture, the rail's markers, chips, dots, the stacked
+   counts on pages and states, outlines. Pins carry white numbers, so the fills are the >=4.5:1 steps in both themes. */
+:root { --pin-blocker: oklch(0.577 0.245 27.325); --pin-warning: oklch(55.5% 0.163 48.998); --pin-ds: oklch(54.1% 0.281 293.009); --pin-cv: oklch(0.556 0 0); --pin-pass: oklch(50.8% 0.118 165.612);
   --switch-off: var(--input); --switch-thumb-off: var(--background); --switch-thumb-on: var(--background); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --sev-warning: oklch(82.8% 0.189 84.429); --sev-ds: oklch(70.2% 0.183 293.541); --sev-cv: oklch(0.708 0 0); --sev-pass: oklch(76.5% 0.177 163.223);
-  --switch-off: color-mix(in oklab, var(--input) 80%, transparent); --switch-thumb-off: var(--foreground); --switch-thumb-on: var(--primary-foreground); } }
-:root[data-theme="dark"], .dark { --sev-warning: oklch(82.8% 0.189 84.429); --sev-ds: oklch(70.2% 0.183 293.541); --sev-cv: oklch(0.708 0 0); --sev-pass: oklch(76.5% 0.177 163.223);
-  --switch-off: color-mix(in oklab, var(--input) 80%, transparent); --switch-thumb-off: var(--foreground); --switch-thumb-on: var(--primary-foreground); }
-.dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 9999px; flex-shrink: 0; background: var(--dc, transparent); box-shadow: inset 0 0 0 1px var(--dc, var(--muted-foreground)); }
-[data-sev="BLOCKER"] { --dc: var(--sev-blocker); --c: var(--pin-blocker); }
-[data-sev="WARNING"] { --dc: var(--sev-warning); --c: var(--pin-warning); }
-[data-sev="DS_CANDIDATE"] { --dc: var(--sev-ds); --c: var(--pin-ds); }
-[data-sev="CANNOT_VERIFY"] { --dc: var(--sev-cv); --c: var(--pin-cv); }
-[data-sev="PASS"] { --dc: var(--sev-pass); --c: var(--pin-pass); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --switch-off: color-mix(in oklab, var(--input) 80%, transparent); --switch-thumb-off: var(--foreground); --switch-thumb-on: var(--primary-foreground); } }
+:root[data-theme="dark"], .dark { --switch-off: color-mix(in oklab, var(--input) 80%, transparent); --switch-thumb-off: var(--foreground); --switch-thumb-on: var(--primary-foreground); }
+.dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 9999px; flex-shrink: 0; background: var(--c, transparent); box-shadow: inset 0 0 0 1px var(--c, var(--muted-foreground)); }
+[data-sev="BLOCKER"] { --c: var(--pin-blocker); }
+[data-sev="WARNING"] { --c: var(--pin-warning); }
+[data-sev="DS_CANDIDATE"] { --c: var(--pin-ds); }
+[data-sev="CANNOT_VERIFY"] { --c: var(--pin-cv); }
+[data-sev="PASS"] { --c: var(--pin-pass); }
 .dot-text { display: inline-flex; align-items: center; gap: 0.375rem; white-space: nowrap; }
 .band-fail { color: var(--destructive); } .band-review { color: var(--amber-fg); } .band-pass { color: var(--emerald-fg); }
 .verdict-FAIL { background: var(--destructive-bg); color: #fff; } .verdict-REVIEW { background: var(--pin-warning); color: #fff; } .verdict-PASS { background: var(--pin-pass); color: #fff; }
@@ -436,8 +434,10 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 .match-note { font-size: 0.875rem; line-height: 1.25rem; color: var(--destructive); }
 .match-note[hidden] { display: none; }
 .tab-match { font-weight: 400; }
-.stage-match { margin: 0; font-size: 0.875rem; line-height: 1.25rem; color: var(--muted-foreground); } .stage-match b { color: var(--foreground); font-weight: 600; }
-.stage-coverage-wrap { display: grid; gap: 0.375rem; margin-bottom: 0.375rem; }
+.stage-match { margin: 0; font-size: 0.8125rem; line-height: 1.25rem; color: var(--muted-foreground); } .stage-match b { color: var(--foreground); font-weight: 600; }
+.stage-coverage-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; margin-bottom: 0.5rem; }
+.stage-coverage-wrap > .stage-coverage { margin: 0; }
+.stage-match + .stage-coverage::before { content: "\00b7"; margin-right: 0.5rem; color: var(--muted-foreground); }
 .state-flag { justify-self: start; display: inline-flex; gap: 0.375rem; align-items: center; font-size: 0.875rem; padding: 0.25rem 0.625rem; border: 1px solid var(--amber); color: var(--amber-fg); background: color-mix(in oklab, var(--amber) 12%, transparent); }
 .state-flag[data-flag="uncompared"] { border-color: var(--destructive); color: var(--destructive); background: color-mix(in oklab, var(--destructive) 10%, transparent); }
 .state-flag svg { width: 1rem; height: 1rem; }
@@ -454,10 +454,26 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 
 /* ===== 5. Page layout ===== */
 .site-header { border-bottom: 1px solid var(--border); background: var(--background); }
-.site-header .container { display: flex; height: 3rem; align-items: center; gap: 0.5rem; }
+.site-header .container { display: flex; flex-wrap: wrap; min-height: 3.5rem; align-items: center; gap: 0.375rem 0.875rem; padding-block: 0.5rem; }
 .site-header .spacer { flex: 1; }
-.page-head { padding-top: 1.5rem; display: flex; flex-direction: column; gap: 0.375rem; }
-.page-title { font-size: 1.5rem; line-height: 2rem; font-weight: 600; letter-spacing: -0.025em; overflow-wrap: anywhere; }
+.head-id { display: flex; align-items: center; gap: 0.625rem; min-width: 0; }
+.page-title { font-size: 1.125rem; line-height: 1.5rem; font-weight: 600; letter-spacing: -0.015em; overflow-wrap: anywhere; }
+.headline { font-size: 0.8125rem; line-height: 1.25rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.headline b { color: var(--foreground); font-weight: 600; }
+.headline .badge { margin-left: 0.25rem; padding-block: 0; }
+.details-btn[aria-expanded="true"] { background: var(--accent); color: var(--accent-foreground); }
+.notice-count { display: inline-grid; place-items: center; min-width: 1.125rem; height: 1.125rem; padding: 0 0.3125rem; border-radius: 9999px; background: var(--pin-warning); color: #fff; font-size: 0.6875rem; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Details: links, run details, the full summary and the notices that do not block, one click away. */
+.page-head { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.875rem 1rem; border-radius: var(--radius-lg); border: 1px solid var(--border); background: color-mix(in oklab, var(--muted) 45%, transparent); }
+.page-head[hidden] { display: none; }
+.page-head .page-alerts { margin-top: 0.25rem; }
+#main { padding-top: 0.25rem; }
+/* Report sections: quiet underline tabs */
+.tabs-list.page-tabs { display: flex; width: 100%; height: auto; padding: 0; gap: 1.5rem; border-radius: 0; background: none; border-bottom: 1px solid var(--border); }
+.page-tabs .tabs-trigger { flex: 0 0 auto; height: 2.625rem; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--muted-foreground); font-weight: 500; }
+.page-tabs .tabs-trigger:hover { color: var(--foreground); }
+.page-tabs .tabs-trigger[aria-selected="true"] { background: none; border: 0; color: var(--foreground); box-shadow: inset 0 -2px 0 var(--foreground); }
+.page-tabs .tabs-trigger:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ring); border-radius: var(--radius-sm); }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; font-size: 0.875rem; line-height: 1.25rem; color: var(--muted-foreground); }
 .meta > span { display: inline-flex; align-items: center; gap: 0.375rem; min-width: 0; overflow-wrap: anywhere; }
 .meta a { color: var(--foreground); }
@@ -467,9 +483,9 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 .section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin-bottom: 0.75rem; }
 .hero { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr); }
 /* The capture column sets the row height; the rail is size-contained so it never stretches the row, then fills it and scrolls. */
-@media (min-width: 1280px) { .hero { grid-template-columns: minmax(0, 1fr) 17rem; } .hero > .rail { contain: size; align-self: stretch; min-height: 20rem; } }
+@media (min-width: 1280px) { .hero { grid-template-columns: minmax(0, 1fr) 20rem; } .hero > .rail { contain: size; align-self: stretch; min-height: 20rem; } }
 .hero-main { min-width: 0; display: flex; flex-direction: column; gap: 0.75rem; }
-.state-tabs { width: 100%; }
+.state-tabs { width: fit-content; }
 .state-tabs .tabs-trigger { flex: 0 0 auto; }
 .hero-bar { position: sticky; top: 0; z-index: 20; background: var(--background); padding-block: 0.5rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
 .hero-bar .end { margin-left: auto; }
@@ -543,7 +559,7 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 @media (prefers-reduced-motion: reduce) { .tseg-btn { transition: none; } }
 .tri-summary { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
 .tri-summary b { color: var(--foreground); font-weight: 600; }
-.rail-head .tri-summary { margin-top: 0.25rem; }
+.rail-head .tri-summary { margin-top: 0.375rem; }
 .sheet-triage { margin-top: 0.75rem; }
 .ann-hint { font-size: 0.8125rem; color: var(--muted-foreground); }
 .ann-hint > svg { display: inline-block; vertical-align: -0.125rem; margin-right: 0.25rem; }
@@ -602,17 +618,21 @@ details.alert > .alert-description { padding: 0.375rem 0 0 1.75rem; }
 .chip .chip-n { font-variant-numeric: tabular-nums; font-weight: 400; opacity: 0.8; }
 .rail-empty { padding: 0.5rem; font-size: 0.75rem; color: var(--muted-foreground); }
 .pin-list > li[hidden], .pin[hidden], .crop-outline[hidden], .pin-leader[hidden], .rail [hidden] { display: none !important; }
-.pin-row { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); gap: 0.5rem; width: 100%; padding: 0.5rem; border-radius: var(--radius-md); text-align: left; }
+.pin-row { display: grid; grid-template-columns: 1.625rem minmax(0, 1fr); gap: 0.5rem; width: 100%; padding: 0.5rem; border-radius: var(--radius-md); text-align: left; }
 .pin-item { border-radius: var(--radius-md); transition: background-color .15s, box-shadow .15s; }
 .pin-item:hover, .pin-item:has(> .pin-row.hot), .pin-item:has(> .pin-row[aria-current="true"]) { background: var(--muted); }
 .pin-item.flash { background: var(--accent); box-shadow: inset 0 0 0 1px var(--ring); }
 .pin-item > .pin-row:not(:last-child) { padding-bottom: 0.25rem; }
-.pin-meta { display: flex; align-items: center; gap: 0.375rem; padding: 0 0.5rem 0.5rem 2.25rem; }
+.pin-meta { display: flex; align-items: center; gap: 0.375rem; padding: 0 0.5rem 0.5rem 2.625rem; }
 .bucket-key { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; margin-top: 0.375rem; font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); }
 .bucket-key > span { display: inline-flex; align-items: center; gap: 0.375rem; }
 .key-pin { width: 0.625rem; height: 0.625rem; border-radius: 9999px; background: var(--muted-foreground); }
 .key-pin.debt { outline: 1px dashed var(--muted-foreground); outline-offset: 2px; }
 .pin-row .n { font-size: 0.75rem; font-weight: 600; color: var(--muted-foreground); font-variant-numeric: tabular-nums; padding-top: 0.0625rem; }
+.pin-row .n.mk { position: relative; display: inline-grid; place-items: center; width: 1.375rem; height: 1.375rem; margin: 0 0 0 0.125rem; padding: 0; border-radius: 9999px; background: var(--c); color: #fff; font-size: 0.6875rem; line-height: 1; font-weight: 700; }
+.pin-item[data-bucket="debt"] .mk::after { content: ""; position: absolute; inset: -4px; border-radius: 9999px; border: 1.5px dashed var(--c); pointer-events: none; }
+.pin-row .n.mk-loose { background: transparent; color: var(--c); box-shadow: inset 0 0 0 1.5px var(--c); }
+.pin-row .t { font-weight: 500; }
 .pin-row .t { display: flex; gap: 0.375rem; align-items: baseline; min-width: 0; }
 .pin-row .t .dot { transform: translateY(-0.0625rem); }
 .pin-row > span:last-child, .pin-row .t, .pin-row .w { display: block; min-width: 0; }
@@ -768,16 +788,16 @@ button.cap:hover { color: var(--foreground); text-decoration: underline; }
 @media (max-width: 639px) {
   .dismiss-panel.an-form { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: auto; max-width: none; max-height: 85vh; border-radius: var(--radius-xl) var(--radius-xl) 0 0; border-width: 1px 0 0; padding-bottom: max(0.875rem, env(safe-area-inset-bottom)); animation: ann-in-up .22s cubic-bezier(0.2, 0.8, 0.2, 1); }
 }
-.an-rail { display: grid; justify-items: start; gap: 0.25rem; margin: 0.25rem 0 0.5rem; padding: 0.5rem 0.25rem 0.25rem 0.5rem; border-radius: var(--radius-md); border: 1px dashed var(--border); }
+.an-rail { display: grid; justify-items: start; gap: 0.25rem; margin: 1rem 0 0.5rem; padding: 0.5rem 0.25rem 0.25rem 0.5rem; border-radius: var(--radius-md); border: 1px dashed var(--border); }
 .an-rail > .an-list { justify-self: stretch; }
 .an-rail .an-add { margin-left: -0.25rem; }
 .an-rail-title { font-size: 0.75rem; line-height: 1rem; font-weight: 600; }
 .an-rail-status { display: block; font-weight: 400; color: var(--muted-foreground); }
 .an-empty { padding-right: 0.25rem; font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); }
 .an-list { display: grid; gap: 0.125rem; margin-top: 0.125rem; }
-.an-item { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) auto; align-items: start; gap: 0.25rem 0.375rem; padding: 0.125rem 0 0.125rem 0.125rem; border-radius: var(--radius-sm); transition: background-color .15s; }
+.an-item { display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; align-items: start; gap: 0.25rem 0.375rem; padding: 0.125rem 0 0.125rem 0.125rem; border-radius: var(--radius-sm); transition: background-color .15s; }
 .an-item:hover, .an-item.hot { background: var(--muted); }
-.an-item .n { padding-top: 0.125rem; font-size: 0.75rem; font-weight: 600; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.an-item .n { justify-self: start; display: inline-grid; place-items: center; min-width: 1.5rem; height: 1.25rem; margin-top: 0.0625rem; padding: 0 0.25rem; border-radius: 0.3125rem; background: var(--c); color: #fff; font-size: 0.6875rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; } /* the A1 pin's own shape and colour */
 .an-body { display: block; min-width: 0; }
 .an-t { display: flex; align-items: baseline; gap: 0.375rem; min-width: 0; }
 .an-t .dot { transform: translateY(-0.0625rem); }
@@ -864,8 +884,48 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
 .bf-actions .bf-copy { margin-left: auto; }
 .bf-slot:empty { display: none; }
 .bf-slot .dismiss-panel { margin-top: 0; }
-.screen-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
-.screen-pick .state-tabs { width: auto; flex: 1 1 16rem; }
+/* Pages strip (multi-screen passes): one thumbnail per page, always in view; the page's states are tabs under it. */
+.shots { display: flex; gap: 0.625rem; overflow-x: auto; padding: 0.1875rem 0.125rem 0.25rem; scrollbar-width: thin; }
+.shot { flex: 0 0 auto; width: 9.75rem; padding: 0.1875rem; border-radius: var(--radius-lg); border: 1px solid transparent; text-align: left; transition: background-color .15s, border-color .15s; }
+.shot:hover { background: var(--muted); }
+.shot[aria-selected="true"] { border-color: var(--foreground); background: var(--muted); }
+.shot:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+.shot-img { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 10; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); background: var(--muted); color: var(--muted-foreground); }
+.shot-img > img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.shot-img > svg { width: 1.25rem; height: 1.25rem; }
+.shot-img > .stack-n, .shot-img > .ok-mark { position: absolute; top: 0.375rem; right: 0.375rem; }
+.shot-tag { position: absolute; left: 0.3125rem; bottom: 0.3125rem; padding: 0.0625rem 0.375rem; border-radius: var(--radius-sm); background: var(--pin-blocker); color: #fff; font-size: 0.65625rem; line-height: 1rem; font-weight: 600; }
+.shot-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 0.375rem; padding: 0.3125rem 0.1875rem 0.125rem; font-size: 0.75rem; line-height: 1rem; }
+.shot-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tabs-trigger .stack-n.tab-badge { height: 1.125rem; min-width: 1.25rem; padding: 0 0.3125rem; font-size: 0.6875rem; margin-left: 0.125rem; box-shadow: none; }
+.tabs-trigger .ok-mark.tab-badge { width: 1rem; height: 1rem; margin-left: 0.125rem; }
+.tab-flag[data-flag="missing"] { color: var(--destructive); }
+/* The stacked count: several findings in one mark (page and state counts, a group's pin and rail row). */
+.stack-n { display: inline-flex; align-items: center; justify-content: center; gap: 0.1875rem; min-width: 1.5rem; height: 1.25rem; padding: 0 0.375rem; border-radius: 0.4375rem; background: var(--c); color: #fff; font-size: 0.71875rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+  box-shadow: 0 0 0 2px var(--background), 3px -3px 0 0 color-mix(in oklab, var(--c) 50%, var(--background)), 3px -3px 0 2px var(--background); }
+.stack-n svg { width: 0.6875rem; height: 0.6875rem; stroke-width: 2.5; }
+.ok-mark { display: inline-grid; place-items: center; width: 1.125rem; height: 1.125rem; border-radius: 9999px; background: var(--pin-pass); color: #fff; box-shadow: 0 0 0 2px var(--background); }
+.ok-mark svg { width: 0.6875rem; height: 0.6875rem; stroke-width: 3; }
+/* A closed group on the capture (script section 9a): one stacked pin on its region; open, a dashed outline names it. */
+.pin.pin-group { width: auto; height: auto; margin: 0; translate: -50% -50%; display: block; background: none; box-shadow: none; border-radius: 0.5rem; }
+.pin.pin-group .stack-n { height: 1.5rem; min-width: 2.25rem; font-size: 0.78125rem; box-shadow: 0 0 0 2px var(--background), 3px -3px 0 0 color-mix(in oklab, var(--c) 50%, var(--background)), 3px -3px 0 2px var(--background), var(--shadow-md); }
+.pin.pin-group:focus-visible { box-shadow: none; }
+.pin.pin-group:focus-visible .stack-n { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+.group-outline { position: absolute; border: 1.5px dashed var(--c); border-radius: 6px; pointer-events: none; display: none; }
+.group-outline.show { display: block; background: color-mix(in oklab, var(--c) 7%, transparent); }
+.group-outline.open { display: block; }
+.group-outline-label { position: absolute; left: -1.5px; bottom: calc(100% + 2px); max-width: calc(100% - 0.75rem); overflow: hidden; text-overflow: ellipsis; padding: 0 0.375rem; border-radius: 0.3125rem; background: var(--c); color: #fff; font-size: 0.65625rem; line-height: 1.125rem; font-weight: 600; white-space: nowrap; }
+.pin-group-item { border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 0.25rem 0; }
+.group-row { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr) 1rem; gap: 0.25rem; align-items: center; width: 100%; padding: 0.5rem 0.5rem 0.5rem 0.375rem; border-radius: var(--radius-lg); text-align: left; }
+.group-row:hover, .group-row.hot { background: var(--muted); }
+.group-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ring); }
+.group-row .mk-group { justify-self: start; margin-left: 0.25rem; }
+.group-name { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.group-sub { display: block; font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); }
+.group-chev { width: 1rem; height: 1rem; color: var(--muted-foreground); transition: rotate .15s; }
+.group-row[aria-expanded="true"] .group-chev { rotate: 180deg; }
+.group-tri { margin: -0.25rem 0 0; padding: 0 0.5rem 0.5rem 3.375rem; }
+.group-list { display: grid; gap: 0.125rem; margin: 0 0.25rem 0.375rem 1.25rem; padding-left: 0.25rem; border-left: 1px dashed var(--border); }
 @media (max-width: 639px) {
   .dl, .run-grid { grid-template-columns: minmax(0, 1fr); } .dl dd { margin-bottom: 0.375rem; }
   .so-row, .ev-group { padding-inline: 1rem; }
@@ -881,11 +941,11 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
 }
 @media print {
   body { background: #fff; }
-  .no-print, .site-header, .tabs-list, .toolbar, .hero-bar, .card-action, .x-close, #lightbox, #sheet-root, .toaster, .thumb-view, .acc-head button:not(.acc-trigger), .ann-dock, .tri-show,
-  .bar-stack, .dismiss-bar, .dismiss-panel, .dismiss-tr, [data-dismiss], [data-undo], .screen-pick .native-select-wrap, .bf-actions, #copy-backfill-all,
+  .no-print, .site-header .toggle-group, .site-header .sep, #btn-print, #btn-details, .tabs-list, .toolbar, .hero-bar, .card-action, .x-close, #lightbox, #sheet-root, .toaster, .thumb-view, .acc-head button:not(.acc-trigger), .ann-dock, .tri-show,
+  .bar-stack, .dismiss-bar, .dismiss-panel, .dismiss-tr, [data-dismiss], [data-undo], .bf-actions, #copy-backfill-all,
   .an-scrim, .an-form, .an-hint, .an-draft, .an-acts, .an-add, .an-empty { display: none !important; }
   body.has-bar #main { padding-bottom: 0 !important; }
-  [role="tabpanel"][hidden], .acc-body[hidden], .fix-body[hidden] { display: block !important; }
+  [role="tabpanel"][hidden], .acc-body[hidden], .fix-body[hidden], #page-details[hidden] { display: block !important; }
   .card { box-shadow: none; break-inside: avoid; }
   .stage.zoomed, .pane.zoomed { max-height: none; overflow: visible; }
   .table-container { overflow: visible; }
@@ -1264,7 +1324,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     filters: { severity: {}, resolution: {}, ledger: {}, screen: {}, state: {}, region: {} },
     q: '', sort: { key: 'score', dir: 'desc' }, ledger: 'structure',
     hidden: {}, // hidden findings-table columns
-    sevOff: {} // severities toggled off in the Annotations rail (hides rows and pins; numbering is unchanged)
+    sevOff: {}, // severities toggled off in the Annotations rail (hides rows and pins; numbering is unchanged)
+    openGroups: {} // "<state>|<region>" of the annotation groups opened on the capture and in the rail (section 9a)
   };
   var THEME_KEY = 'design-qa:theme';
   function applyTheme(t) {
@@ -1377,11 +1438,29 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     Object.keys(px).forEach(function (s) { var p = (px[s] || {}).percent; if (typeof p === 'number' && (!best || p > best.p)) best = { s: s, p: p }; });
     return best;
   }
+  // One compact bar: the feature, the verdict and the three numbers that say where it stands. Links, run details,
+  // the full summary and the notices that are not blocking sit one click away under Details (renderPageHead).
+  var headlineEl = h('p', { class: 'headline', id: 'headline' });
+  var detailsBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm details-btn', id: 'btn-details', 'aria-expanded': 'false', 'aria-controls': 'page-details',
+    onclick: function () { setDetails(detailsBtn.getAttribute('aria-expanded') !== 'true'); } });
+  function setDetails(open) {
+    var el = document.getElementById('page-details'); if (!el) return;
+    el.hidden = !open; detailsBtn.setAttribute('aria-expanded', String(open));
+  }
+  function paintDetailsBtn() {
+    var n = pageAlerts().quiet.length;
+    clear(detailsBtn);
+    append(detailsBtn, [icon('info'), 'Details', n ? h('span', { class: 'notice-count', 'aria-label': plural(n, 'notice') }, String(n)) : null]);
+    if (n) detailsBtn.setAttribute('data-tip', plural(n, 'notice') + ' about this run'); else detailsBtn.removeAttribute('data-tip');
+  }
   function renderHeader() {
+    paintDetailsBtn();
     return h('header', { class: 'site-header' }, h('div', { class: 'container' },
-      h('nav', { class: 'breadcrumb', 'aria-label': 'Breadcrumb' }, h('ol', null, h('li', null, 'Design QA'), h('li', { 'aria-hidden': 'true' }, icon('chevron-right')),
-        h('li', null, h('span', { 'aria-current': 'page' }, orDash(meta.feature))))),
+      h('div', { class: 'head-id' }, h('h1', { class: 'page-title', id: 'page-title' }, orDash(meta.feature)),
+        h('span', { class: 'badge verdict-' + cls(SC.verdict || ''), id: 'verdict' }, 'Verdict: ' + orDash(SC.verdict))),
+      headlineEl,
       h('div', { class: 'spacer' }),
+      detailsBtn,
       toggleGroup('Colour theme', [{ v: 'light', theme: 'light', icon: 'sun', aria: 'Light theme', tip: 'Light' }, { v: 'dark', theme: 'dark', icon: 'moon', aria: 'Dark theme', tip: 'Dark' },
         { v: 'auto', theme: 'auto', icon: 'monitor', aria: 'System theme', tip: 'System' }], store.get(THEME_KEY) || 'auto', applyTheme, 'sm'),
       h('div', { class: 'sep sep-v', role: 'separator', 'aria-orientation': 'vertical' }),
@@ -1491,6 +1570,12 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var unexplained = typeof SC.unexplained === 'number'
       ? Math.max(0, SC.unexplained - pendingIds().filter(function (id) { var t = triItem[id]; return !(t && t.decision === 'debt' && t.ticket && t.ticket.key); }).length) : null;
     var dsTotal = (ds.tokens || 0) + (ds.components || 0) + (ds.motion || 0);
+    // The headline in the top bar: match, what is still open, coverage. The full line is under Details.
+    clear(headlineEl);
+    if (SC.loopClosed === true && !local) append(headlineEl, ['Loop closed']);
+    else append(headlineEl, ['Match ', h('b', null, parityText(mt.match)), ' · ', h('b', null, String(st.total - st.count)), ' open · ',
+      h('b', null, orDash(COV.verified) + '/' + orDash(COV.total)), (COV.total === 1 ? ' state' : ' states') + ' verified',
+      PARTIAL ? [' ', h('span', { class: 'badge badge-outline badge-partial' }, INCOMPLETE ? 'nothing compared' : 'partial')] : null]);
     clear(summaryEl);
     if (SC.loopClosed === true && !local) {
       append(summaryEl, ['Loop closed · ', h('b', null, String(arr(R.triage && R.triage.items).filter(function (i) { return i && i.decision === 'fix-now'; }).length)), ' fixed · ',
@@ -1528,9 +1613,10 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var app = meta.app || {}, tk = meta.ticket, degr = arr(meta.degradations);
     var vp = app.viewport ? app.viewport.width + '×' + app.viewport.height + (app.dpr ? ' @' + app.dpr + 'x' : '') : null;
     paintSummary();
-    return h('section', { class: 'page-head', 'aria-labelledby': 'page-title' },
-      h('div', { class: 'row', style: 'gap:0.75rem' }, h('h1', { class: 'page-title', id: 'page-title' }, orDash(meta.feature)),
-        h('span', { class: 'badge verdict-' + cls(SC.verdict || ''), id: 'verdict' }, 'Verdict: ' + orDash(SC.verdict))),
+    var al = pageAlerts();
+    // Blocking notices (nothing or not all of it was compared) stay in view; the rest waits under Details.
+    return [al.loud.length ? h('div', { class: 'page-alerts' }, al.loud) : null,
+      h('section', { class: 'page-head', id: 'page-details', 'aria-label': 'Report details', hidden: true },
       h('div', { class: 'meta' },
         sourceLine(),
         SCREENS.length ? h('span', { class: 'tabular' }, plural(SCREENS.length, 'screen')) : null,
@@ -1540,10 +1626,13 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
         app.commit ? h('span', { 'data-tip': app.commit + (app.branch ? ' on ' + app.branch : '') }, icon('git-branch', 'icon-3-5'), h('kbd', { class: 'kbd mono' }, String(app.commit).slice(0, 7))) : null),
       degr.length ? h('div', { class: 'meta' }, h('span', null, icon('info', 'icon-3-5'), degr.length + (degr.length === 1 ? ' check' : ' checks') + ' ran with reduced fidelity.',
         h('button', { type: 'button', class: 'link-btn', onclick: openRunDetails }, 'Run details'))) : null,
-      summaryEl, matchNoteEl, pageAlerts());
+      summaryEl, matchNoteEl, al.quiet.length ? h('div', { class: 'page-alerts' }, al.quiet) : null)];
   }
-  // Incomplete pass, partial coverage, deployed target: said once, at the top, in plain words.
+  // Incomplete pass, partial coverage, deployed target: said once, in plain words. { loud, quiet }: the incomplete
+  // and the captured-but-not-compared notices are role="alert" and stay on the page; the others go under Details.
+  var ALERTS = null;
   function pageAlerts() {
+    if (ALERTS) return ALERTS;
     var out = [], app = meta.app || {}, tg = meta.target && typeof meta.target === 'object' ? meta.target : {};
     if (INCOMPLETE) {
       var counts = {};
@@ -1597,7 +1686,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
           ? 'Source file references come from a local checkout at the deployed commit (' + short(lc) + ').'
           : 'Source file references are hints from a local checkout (commit ' + short(lc) + ') that may differ from the deployed build (commit ' + short(dc) + ').')))));
     }
-    return out.length ? h('div', { class: 'page-alerts' }, out) : null;
+    ALERTS = { loud: out.filter(function (a) { return a.getAttribute('role') === 'alert'; }), quiet: out.filter(function (a) { return a.getAttribute('role') !== 'alert'; }) };
+    return ALERTS;
   }
 
   /* ===== 9. Hero: the annotated capture ===== */
@@ -1633,6 +1723,52 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     });
     return { placed: placed, loose: loose, state: state };
   }
+  /* ===== 9a. Groups: a busy element stays one mark =====
+     When GROUP_MIN or more pinned findings of a state name the same region ("Line items", "Order summary"), they show
+     as one stacked pin on the capture and one row in the rail, in the colour of their worst severity, until opened
+     (the pin, the row, or opening one of them). Pin numbers never change; an open group outlines its region. */
+  var GROUP_MIN = 4;
+  function regionKey(f) { return oneLine(f.region).toLowerCase(); }
+  function stateGroups(state) {
+    var P = statePins(state), by = {}, list = [], of = {};
+    P.placed.forEach(function (p) {
+      var k = regionKey(p.f); if (!k) return;
+      if (!by[k]) list.push(by[k] = { key: k, label: oneLine(p.f.region), items: [] });
+      by[k].items.push(p);
+    });
+    list = list.filter(function (g) { return g.items.length >= GROUP_MIN; });
+    list.forEach(function (g, i) { g.id = 'g' + (i + 1); g.sev = g.items[0].f.severity; g.items.forEach(function (p) { of[p.f.id] = g; }); }); // placed: worst severity first
+    return { list: list, of: of };
+  }
+  function groupOpen(state, g) { return !!S.openGroups[state + '|' + g.key]; }
+  function groupSel(gid) { return '[data-group="' + String(gid).replace(/[^A-Za-z0-9_-]/g, '') + '"]'; }
+  // Open or close a group of the current state: every pin layer (hero, fullscreen) and the rail follow.
+  function setGroup(state, g, open) {
+    var id = state + '|' + g.key;
+    if (!!S.openGroups[id] === !!open) return false;
+    if (open) S.openGroups[id] = true; else delete S.openGroups[id];
+    Array.prototype.forEach.call(document.querySelectorAll('.pins'), function (l) { if (l.__place && l.isConnected) l.__place(); });
+    paintRailGroups();
+    return true;
+  }
+  // A finding inside a closed group gets its own pin back when it is opened, shown or navigated to.
+  function openGroupOf(fid) {
+    var r = stateRow[S.state], g = r ? stateGroups(r.state).of[fid] : null;
+    return g ? setGroup(r.state, g, true) : false;
+  }
+  function hotGroup(gid, on) {
+    Array.prototype.forEach.call(document.querySelectorAll('.group-outline' + groupSel(gid)), function (el) { el.classList.toggle('show', on); });
+    Array.prototype.forEach.call(document.querySelectorAll('.pin-group' + groupSel(gid)), function (el) { el.classList.toggle('hot', on); });
+  }
+  // A closed group's pin: the count of its members not switched off by the severity chips, in the worst one's colour.
+  function paintGroupPin(gp) {
+    var on = String(gp.getAttribute('data-members') || '').split(' ').map(function (id) { return byId[id]; }).filter(function (f) { return f && !S.sevOff[f.severity]; });
+    gp.hidden = !on.length;
+    if (on.length) gp.setAttribute('data-sev', worstSev(on));
+    var n = gp.querySelector('.stack-c'); if (n) n.textContent = String(on.length);
+    var label = gp.getAttribute('data-label') || '';
+    gp.setAttribute('aria-label', label + ': ' + plural(on.length, 'finding') + ' (pins ' + gp.getAttribute('data-pins') + '). Show each');
+  }
   function effMode(c) {
     var m = S.mode, des = designOf(c), any = c.app ? 'app' : des ? 'design' : 'none';
     if (m === 'app' && !c.app) return des ? 'design' : 'none';
@@ -1643,9 +1779,12 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     return m;
   }
   function hot(fid, on) {
-    Array.prototype.forEach.call(document.querySelectorAll('[data-fid="' + String(fid).replace(/"/g, '') + '"]'), function (el) {
+    var q = String(fid).replace(/["\\]/g, '');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-fid="' + q + '"]'), function (el) {
       if (el.classList.contains('crop-outline')) el.classList.toggle('show', on); else el.classList.toggle('hot', on);
     });
+    // A finding inside a closed group: its group pin lights up with its own outline.
+    Array.prototype.forEach.call(document.querySelectorAll('.pin-group[data-members~="' + q + '"]'), function (el) { el.classList.toggle('hot', on); });
   }
   function markRail(fid) { Array.prototype.forEach.call(heroRail.querySelectorAll('.pin-row'), function (r) { if (r.getAttribute('data-fid') === fid) r.setAttribute('aria-current', 'true'); else r.removeAttribute('aria-current'); }); }
   function missingBox(text) { return h('div', { class: 'missing' }, icon('image-off'), h('span', null, text)); }
@@ -1688,8 +1827,10 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       if (over && over.naturalWidth) { W = Math.max(W, over.naturalWidth); H = Math.max(H, over.naturalHeight); }
       items = [];
       // Re-placing (image load) rebuilds the pins: keep keyboard focus on the same finding.
-      var ae = document.activeElement, focusFid = ae && layer.contains(ae) ? ae.getAttribute('data-fid') : null, focusAn = ae && layer.contains(ae) ? ae.getAttribute('data-an') : null;
+      var ae = document.activeElement, focusFid = ae && layer.contains(ae) ? ae.getAttribute('data-fid') : null, focusAn = ae && layer.contains(ae) ? ae.getAttribute('data-an') : null, focusGrp = ae && layer.contains(ae) ? ae.getAttribute('data-group') : null;
       clear(layer);
+      // First the spots (a crop per pinned finding on this image), so a group's pin can sit on its whole region.
+      var G = stateGroups(P.state), spots = [], boxes = {}, made = {};
       P.placed.forEach(function (p) {
         var crop = kind === 'app' ? p.app : p.design, hollow = false;
         if (!crop && kind === 'design' && S.designPins && sizesMatch && p.app) {
@@ -1698,10 +1839,52 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
           crop = p.app; hollow = true;
         }
         if (!crop) return;
+        var g = G.of[p.f.id];
+        spots.push({ p: p, crop: crop, hollow: hollow, g: g });
+        if (!g) return;
+        var b = boxes[g.id] = boxes[g.id] || { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity, ids: [], ns: [] };
+        b.x0 = Math.min(b.x0, crop.x * k); b.y0 = Math.min(b.y0, crop.y * k); b.x1 = Math.max(b.x1, (crop.x + crop.w) * k); b.y1 = Math.max(b.y1, (crop.y + crop.h) * k);
+        b.ids.push(p.f.id); b.ns.push(p.n);
+      });
+      function boxStyle(b) { return 'left:' + (b.x0 / W * 100) + '%;top:' + (b.y0 / H * 100) + '%;width:' + ((b.x1 - b.x0) / W * 100) + '%;height:' + ((b.y1 - b.y0) / H * 100) + '%'; }
+      // A group stacks on this image only where two or more of its members have a spot; one alone keeps its own pin.
+      function stacks(g) { return !groupOpen(P.state, g) && boxes[g.id] && boxes[g.id].ids.length >= 2; }
+      G.list.forEach(function (g) {
+        var b = boxes[g.id]; if (!b || (!groupOpen(P.state, g) && !stacks(g))) return;
+        layer.appendChild(h('span', { class: 'group-outline' + (groupOpen(P.state, g) ? ' open' : ''), 'data-group': g.id, 'data-sev': g.sev, 'aria-hidden': 'true', style: boxStyle(b) },
+          groupOpen(P.state, g) ? h('span', { class: 'group-outline-label' }, g.label) : null));
+      });
+      spots.forEach(function (s) {
+        var p = s.p, crop = s.crop, hollow = s.hollow, g = s.g;
         var cx = (crop.x + crop.w / 2) * k, cy = (crop.y + crop.h / 2) * k;
         var off = !!S.sevOff[p.f.severity];
         layer.appendChild(h('span', { class: 'crop-outline', 'data-sev': p.f.severity, 'data-fid': p.f.id, hidden: off,
           style: 'left:' + (crop.x * k / W * 100) + '%;top:' + (crop.y * k / H * 100) + '%;width:' + (crop.w * k / W * 100) + '%;height:' + (crop.h * k / H * 100) + '%' }));
+        if (g && stacks(g)) { // one stacked pin for the closed group, where its first (worst) member comes in pin order
+          if (made[g.id]) return;
+          made[g.id] = true;
+          var b = boxes[g.id], gx = (b.x0 + b.x1) / 2, gy = (b.y0 + b.y1) / 2;
+          var gl = h('span', { class: 'pin-leader', 'data-sev': g.sev, 'data-group': g.id, 'aria-hidden': 'true' });
+          var gp = h('button', { type: 'button', class: 'pin pin-group', 'data-group': g.id, 'data-sev': g.sev, 'data-members': b.ids.join(' '), 'data-pins': b.ns.join(', '), 'data-label': g.label,
+            'aria-expanded': 'false', 'data-tip': g.label + ' · ' + plural(b.ids.length, 'finding') + ': click to show each', style: 'left:' + (gx / W * 100) + '%;top:' + (gy / H * 100) + '%' },
+            h('span', { class: 'stack-n' }, icon('layers'), h('span', { class: 'stack-c' }, String(b.ids.length))));
+          paintGroupPin(gp);
+          gp.addEventListener('mouseenter', function () { hotGroup(g.id, true); });
+          gp.addEventListener('mouseleave', function () { hotGroup(g.id, false); });
+          gp.addEventListener('focus', function () { hotGroup(g.id, true); });
+          gp.addEventListener('blur', function () { hotGroup(g.id, false); });
+          gp.addEventListener('click', function () {
+            var first = b.ids[0];
+            setGroup(P.state, g, true);
+            revealGroupRow(g.id);
+            var own = layer.querySelector('.pin[data-fid="' + String(first).replace(/"/g, '') + '"]');
+            if (own) own.focus({ preventScroll: true });
+          });
+          layer.appendChild(gl);
+          layer.appendChild(gp);
+          items.push({ x: gx / W, y: gy / H, pin: gp, leader: gl });
+          return;
+        }
         var leader = h('span', { class: 'pin-leader', 'data-sev': p.f.severity, 'data-fid': p.f.id, 'aria-hidden': 'true', hidden: off });
         layer.appendChild(leader);
         var pin = h('button', { type: 'button', class: 'pin' + (hollow ? ' hollow' : '') + (FLASH.fid === p.f.id ? ' flash' : ''), 'data-sev': p.f.severity, 'data-fid': p.f.id, 'data-n': String(p.n), hidden: off,
@@ -1731,6 +1914,10 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       if (offDesign && ib.parentNode) ib.parentNode.insertBefore(h('p', { class: 'hollow-note', role: 'note' }, plural(offDesign, 'app pin has', 'app pins have') + ' no counterpart on the design (below or right of its edge): see them in App or Overlay.'), ib);
       var sel = function (fid) { return layer.querySelector('.pin[data-fid="' + String(fid).replace(/"/g, '') + '"]'); };
       if (focusFid && sel(focusFid)) sel(focusFid).focus({ preventScroll: true });
+      else if (focusFid || focusGrp) { // a closed group took the finding's pin (or the group pin was rebuilt): its group pin
+        var gq = focusGrp ? '.pin-group' + groupSel(focusGrp) : '.pin-group[data-members~="' + String(focusFid).replace(/["\\]/g, '') + '"]', gpin = layer.querySelector(gq);
+        if (gpin) gpin.focus({ preventScroll: true });
+      }
       var anSel = focusAn && layer.querySelector('.an-pin[data-an="' + String(focusAn).replace(/"/g, '') + '"]');
       if (anSel) anSel.focus({ preventScroll: true });
       markPanel();
@@ -1900,37 +2087,79 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     if (!parts.length && !flags.length && !matchLine) return null;
     return h('div', { class: 'stage-coverage-wrap' }, flags, matchLine, parts.length ? h('p', { class: 'stage-coverage', 'data-whole': String(!!(pg && !partialOf(r) && parts[0].indexOf('Whole') === 0)) }, parts.join(' \u00b7 ')) : null);
   }
+  // Multi-screen passes: every page (meta.screens) as a thumbnail in a strip above the capture, always in view. Picking
+  // a page opens its states as tabs under the strip. Each thumbnail and tab counts its open findings in the colour of the
+  // worst one (the same stacked badge as a group pin), or shows a check when nothing is open.
+  var screenStrip = SCREENS.length ? h('div', { class: 'shots', role: 'tablist', 'aria-label': 'Pages' }) : null;
   var heroTabs = h('div', { class: 'tabs-list state-tabs', role: 'tablist', 'aria-label': 'State' });
   var heroBar = h('div', { class: 'hero-bar', role: 'toolbar', 'aria-label': 'Capture view' });
   var heroStage = h('div', { id: 'hero-stage', role: 'tabpanel', 'aria-label': 'Capture' });
   var heroRail = h('aside', { class: 'rail', 'aria-label': 'Annotations' });
-  // Multi-screen: a screen select next to the state tabs; the tabs list that screen's states.
-  var screenSelect = SCREENS.length ? h('select', { class: 'native-select', 'data-size': 'sm', id: 'screen-select', 'aria-label': 'Screen' },
-    SCREENS.map(function (sc) { return h('option', { value: sc.id }, screenOption(sc.id)); })) : null;
-  if (screenSelect) screenSelect.addEventListener('change', function () {
-    var st = defaultState(screenSelect.value); S.screen = screenSelect.value;
+  var heroSection = h('section', { class: 'hero', id: 'hero', 'aria-label': 'Annotated capture' }, h('div', { class: 'hero-main' }, heroTabs, heroBar, heroStage), heroRail);
+  // annDock (section 9b) is appended to the hero, or to the fullscreen dialog, when the panel opens.
+  var VIEWS = [{ v: 'side', label: 'Side by side' }, { v: 'overlay', label: 'Overlay' }, { v: 'wipe', label: 'Wipe' }, { v: 'diff', label: 'Diff' }, { v: 'design', label: 'Design' }, { v: 'app', label: 'App' }];
+  function tabStates() { return comparable.filter(function (r) { return !SCREENS.length || screenOf(r.state) === S.screen; }); }
+  function worstSev(list) { for (var i = 0; i < SEV.length; i++) for (var j = 0; j < list.length; j++) if (list[j].severity === SEV[i]) return SEV[i]; return null; }
+  function openHere(rows) { // the open findings of these state rows, as the rail lists them
+    var out = [];
+    rows.forEach(function (r) { var P = statePins(r.state); P.placed.forEach(function (p) { if (isOpen(p.f) && isDivergentF(p.f) && out.indexOf(p.f) === -1) out.push(p.f); }); P.loose.forEach(function (f) { if (isOpen(f) && isDivergentF(f) && out.indexOf(f) === -1) out.push(f); }); });
+    return out;
+  }
+  function openBadge(rows, cls2) {
+    var open = openHere(rows);
+    if (open.length) return h('span', { class: 'stack-n' + (cls2 ? ' ' + cls2 : ''), 'data-sev': worstSev(open), 'aria-hidden': 'true' }, String(open.length));
+    return rows.length && rows.every(function (r) { return r.result === 'PASS'; }) ? h('span', { class: 'ok-mark' + (cls2 ? ' ' + cls2 : ''), 'aria-hidden': 'true' }, icon('check')) : null;
+  }
+  function screenRows(id) { return comparable.filter(function (r) { return screenOf(r.state) === id; }); }
+  function renderScreens() {
+    if (!screenStrip) return;
+    var keep = screenStrip.scrollLeft;
+    clear(screenStrip);
+    SCREENS.forEach(function (sc) {
+      var rows = screenRows(sc.id); if (!rows.length) return;
+      var on = sc.id === S.screen, c = rows[0].captured || {}, src = imgSrc(c.app) || imgSrc(designOf(c)), n = openHere(rows).length;
+      var missing = matrix.filter(function (r) { return screenOf(r.state) === sc.id && r.result === 'MISSING_IN_CODE'; }).length;
+      screenStrip.appendChild(h('button', { type: 'button', role: 'tab', class: 'shot', 'aria-selected': String(on), tabindex: on ? '0' : '-1', 'data-screen': sc.id, 'aria-controls': 'hero-stage',
+        onclick: function () { pickScreen(sc.id); } },
+        h('span', { class: 'shot-img' }, src ? h('img', { src: src, alt: '', draggable: 'false', decoding: 'async' }) : icon('image-off'), openBadge(rows),
+          missing ? h('span', { class: 'shot-tag' }, plural(missing, 'state') + ' missing') : null),
+        h('span', { class: 'shot-meta' }, h('span', { class: 'shot-name', title: screenOption(sc.id) }, screenName(sc.id)), h('span', { class: 'muted tabular' }, plural(rows.length, 'state'))),
+        h('span', { class: 'sr-only' }, ', ' + plural(n, 'open finding'))));
+    });
+    screenStrip.scrollLeft = keep;
+    var cur = screenStrip.querySelector('[aria-selected="true"]');
+    if (cur) { // keep the selected page in view without moving the page
+      var tr = screenStrip.getBoundingClientRect(), cr = cur.getBoundingClientRect();
+      if (cr.left < tr.left || cr.right > tr.right) screenStrip.scrollLeft += cr.left - tr.left - (tr.width - cr.width) / 2;
+    }
+  }
+  function pickScreen(id) {
+    if (id === S.screen && stateRow[S.state] && screenOf(S.state) === id) return;
+    var st = defaultState(id); S.screen = id;
     if (st) selectState(st, false); else renderHero();
     writeHash();
+  }
+  if (screenStrip) screenStrip.addEventListener('keydown', function (e) {
+    var k = e.key; if (['ArrowRight', 'ArrowLeft', 'Home', 'End'].indexOf(k) === -1) return;
+    var ids = SCREENS.map(function (s) { return s.id; }).filter(function (id) { return screenRows(id).length; }), i = ids.indexOf(S.screen), n = ids.length;
+    if (!n) return;
+    pickScreen(k === 'Home' ? ids[0] : k === 'End' ? ids[n - 1] : ids[((i === -1 ? 0 : i) + (k === 'ArrowRight' ? 1 : n - 1)) % n]);
+    refocus(screenStrip, '[aria-selected="true"]'); e.preventDefault();
   });
-  var heroPick = screenSelect ? h('div', { class: 'screen-pick' }, h('label', { class: 'sr-only', for: 'screen-select' }, 'Screen'),
-    h('div', { class: 'native-select-wrap' }, screenSelect, icon('chevron-down')), heroTabs) : heroTabs;
-  var heroSection = h('section', { class: 'hero', id: 'hero', 'aria-label': 'Annotated capture' }, h('div', { class: 'hero-main' }, heroPick, heroBar, heroStage), heroRail);
-  // annDock (section 9b) is appended to the hero, or to the fullscreen dialog, when the panel opens.
-  var VIEWS = [{ v: 'app', label: 'App' }, { v: 'design', label: 'Design' }, { v: 'side', label: 'Side by side' }, { v: 'overlay', label: 'Overlay' }, { v: 'wipe', label: 'Wipe' }, { v: 'diff', label: 'Diff' }];
-  function tabStates() { return comparable.filter(function (r) { return !SCREENS.length || screenOf(r.state) === S.screen; }); }
   var ZOOMS = [{ v: 'fit', label: 'Fit' }, { v: '100', label: '100%' }, { v: '200', label: '200%' }];
-  function renderHero() { renderHeroTabs(); renderHeroBar(); renderStage(heroStage, false); renderRail(); }
+  function renderHero() { renderScreens(); renderHeroTabs(); renderHeroBar(); renderStage(heroStage, false); renderRail(); }
   function renderHeroTabs() {
     clear(heroTabs);
-    if (screenSelect) screenSelect.value = S.screen || '';
     tabStates().forEach(function (r) {
       var on = r.state === S.state, px = (SC.pixelDiff || {})[r.state];
-      heroTabs.appendChild(h('button', { type: 'button', role: 'tab', class: 'tabs-trigger', 'aria-selected': String(on), tabindex: on ? '0' : '-1', 'data-state': r.state, 'aria-controls': 'hero-stage',
+      heroTabs.appendChild(h('button', { type: 'button', role: 'tab', class: 'tabs-trigger', 'aria-selected': String(on), tabindex: on ? '0' : '-1', 'data-state': r.state, 'data-result': r.result, 'aria-controls': 'hero-stage',
         onclick: function () { selectState(r.state, false); writeHash(); } },
-        dot(r.result), stateShort(r.state), typeof matchNow().byState[r.state] === 'number' ? h('span', { class: 'muted tabular tab-match', 'data-tip': 'Match: how much of this designed page the app matches' + (px ? ' · pixel diff ' + pct(px.percent) : '') }, matchNow().byState[r.state] + '%') : px ? h('span', { class: 'muted tabular tab-match' }, pct(px.percent) + ' diff') : null,
-        (r.result === 'PASS' || r.result === 'FAIL') && !comparedHow(r) ? h('span', { class: 'tab-flag', 'data-flag': 'uncompared' }, 'not compared')
+        stateShort(r.state), typeof matchNow().byState[r.state] === 'number' ? h('span', { class: 'muted tabular tab-match', 'data-tip': 'Match: how much of this designed page the app matches' + (px ? ' · pixel diff ' + pct(px.percent) : '') }, matchNow().byState[r.state] + '%') : px ? h('span', { class: 'muted tabular tab-match' }, pct(px.percent) + ' diff') : null,
+        r.result === 'MISSING_IN_CODE' ? h('span', { class: 'tab-flag', 'data-flag': 'missing' }, 'missing in code')
+          : (r.result === 'PASS' || r.result === 'FAIL') && !comparedHow(r) ? h('span', { class: 'tab-flag', 'data-flag': 'uncompared' }, 'not compared')
           : partialOf(r) ? h('span', { class: 'tab-flag', 'data-flag': 'partial' }, 'part') : null,
-        h('span', { class: 'sr-only' }, ', ' + r.result)));
+        openBadge([r], 'tab-badge'),
+        h('span', { class: 'sr-only' }, ', ' + r.result + ', ' + plural(openHere([r]).length, 'open finding'))));
     });
   }
   heroTabs.addEventListener('keydown', function (e) {
@@ -1959,7 +2188,9 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
       heroBar.appendChild(h('label', { class: 'switch-label' }, 'Opacity', range));
     }
     heroBar.appendChild(switchCtl('Pins', S.pins, function (on) { S.pins = on; Array.prototype.forEach.call(document.querySelectorAll('.pins'), function (l) { l.hidden = !on; }); }, 'pins-switch'));
-    heroBar.appendChild(switchCtl('Show on design', S.designPins, function (on) { S.designPins = on; renderStage(heroStage, false); }, 'design-pins-switch'));
+    // Only in Design, and only when it changes something: some app pins have no design position of their own.
+    if (m === 'design' && sizesMatch && r && statePins(r.state).placed.some(function (p) { return p.app && !p.design; }))
+      heroBar.appendChild(switchCtl('Show on design', S.designPins, function (on) { S.designPins = on; renderStage(heroStage, false); }, 'design-pins-switch'));
     if (REJ.some(function (x) { return x.state === S.state && x.crop; })) heroBar.appendChild(switchCtl('Rejected regions', S.rejected, function (on) { S.rejected = on; S.rejFocus = null; renderStage(heroStage, false); }, 'rejected-switch'));
     if (!canAnnotateHere()) S.annotate = false; // no image to mark on this state
     else heroBar.appendChild(annotateToggle('annotate-toggle'));
@@ -1972,8 +2203,10 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     return 'No ' + (S.mode === 'app' ? 'app capture' : S.mode === 'design' ? 'design image' : S.mode === 'diff' ? 'diff image' : 'second image') + ' for this state: showing the ' + (m === 'app' ? 'app capture' : 'design');
   }
   function railRow(f, n) {
+    // The row's marker is the pin itself (same colour, number and Debt ring), so a row and its pin read as one thing.
     var b = h('button', { type: 'button', class: 'pin-row', 'data-fid': f.id, 'aria-haspopup': 'dialog', 'aria-expanded': 'false', onclick: function () { openPanel(f.id, { kind: 'row', trigger: b, toggle: true }); } },
-      h('span', { class: 'n' }, n), h('span', { style: 'min-width:0' }, h('span', { class: 't' }, dot(f.severity), h('span', null, f.title)), h('span', { class: 'w' }, whereText(f))));
+      h('span', { class: 'n mk' + (n === '–' ? ' mk-loose' : ''), 'data-sev': f.severity, 'aria-hidden': 'true' }, n),
+      h('span', { style: 'min-width:0' }, h('span', { class: 't' }, h('span', { class: 'sr-only' }, (n === '–' ? 'Not positioned' : 'Pin ' + n) + ', ' + sevLabel(f.severity) + ': '), h('span', null, f.title)), h('span', { class: 'w' }, whereText(f))));
     ['mouseenter', 'focus'].forEach(function (ev) { b.addEventListener(ev, function () { hot(f.id, true); }); });
     ['mouseleave', 'blur'].forEach(function (ev) { b.addEventListener(ev, function () { hot(f.id, false); }); });
     var ctl = triageSeg(f, 'rail');
@@ -2067,6 +2300,10 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var el = heroRail.querySelector('#rail-tri-summary'); if (!el) return;
     var list = Array.prototype.map.call(heroRail.querySelectorAll('.pin-item[data-tri-row]'), function (li) { return byId[li.getAttribute('data-tri-row')]; }).filter(Boolean);
     clear(el); append(el, triSummary(list));
+    Array.prototype.forEach.call(heroRail.querySelectorAll('[data-group-tri]'), function (gt) { // each group row's own split
+      var gi = gt.closest('.pin-group-item'), mine = gi ? Array.prototype.map.call(gi.querySelectorAll('.pin-item[data-tri-row]'), function (li) { return byId[li.getAttribute('data-tri-row')]; }).filter(Boolean) : [];
+      clear(gt); append(gt, triSummary(mine));
+    });
   }
   function paintTriageViews() {
     Array.prototype.forEach.call(document.querySelectorAll('[data-tseg]'), function (g) { var f = byId[g.getAttribute('data-tseg')]; if (f) paintSeg(g, f); });
@@ -2112,6 +2349,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     hideTip();
     if (o.kind) { PANEL.kind = o.kind; PANEL.trigger = o.trigger || null; PANEL.origin = fid; }
     PANEL.fid = fid;
+    openGroupOf(fid); // its own pin, not the group's
     if (PANEL.host !== host || annDock.parentNode !== host) { host.appendChild(annDock); PANEL.host = host; }
     heroSection.classList.toggle('ann-open', host === heroSection);
     annDock.hidden = false;
@@ -2254,6 +2492,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     setTab('overview', { hash: false });
     if (S.sevOff[f.severity]) delete S.sevOff[f.severity]; // the chip filter would hide it
     if (S.state !== loc.state) selectState(loc.state, false); else applySevFilter();
+    openGroupOf(fid);
     writeHash();
     markRail(fid); flash(fid);
     var row = revealRow(fid), pin = S.pins ? heroStage.querySelector('.pins .pin[data-fid="' + String(fid).replace(/"/g, '') + '"]:not([hidden])') : null;
@@ -2276,8 +2515,18 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function applySevFilter() {
     // Finding pins only: this browser's annotations (section 9c) are not filtered.
     Array.prototype.forEach.call(document.querySelectorAll('.pins .pin[data-fid][data-sev], .pins .crop-outline[data-fid][data-sev], .pins .pin-leader[data-fid][data-sev]'), function (el) { el.hidden = !!S.sevOff[el.getAttribute('data-sev')]; });
-    var rows = heroRail.querySelectorAll('.pin-list > li[data-sev]'), shown = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('.pins .pin-group'), paintGroupPin);
+    var rows = heroRail.querySelectorAll('.pin-list li.pin-item[data-sev]'), shown = 0;
     Array.prototype.forEach.call(rows, function (li) { var off = !!S.sevOff[li.getAttribute('data-sev')]; li.hidden = off; if (!off) shown++; });
+    // A group row: hidden when the chips hide all of its findings; its count and colour follow the ones left.
+    Array.prototype.forEach.call(heroRail.querySelectorAll('.pin-group-item'), function (gi) {
+      var on = Array.prototype.filter.call(gi.querySelectorAll('li.pin-item[data-sev]'), function (li) { return !li.hidden; }).map(function (li) { return { severity: li.getAttribute('data-sev') }; });
+      gi.hidden = !on.length;
+      if (!on.length) return;
+      var mk = gi.querySelector('.group-row .mk-group'), n = mk && mk.querySelector('.stack-c');
+      if (mk) mk.setAttribute('data-sev', worstSev(on));
+      if (n) n.textContent = String(on.length);
+    });
     Array.prototype.forEach.call(heroRail.querySelectorAll('.chip[data-sev]'), function (c) { c.setAttribute('aria-pressed', String(!S.sevOff[c.getAttribute('data-sev')])); });
     var loose = heroRail.querySelector('#not-positioned'), looseLabel = heroRail.querySelector('#not-positioned-label');
     if (loose && looseLabel) looseLabel.hidden = !loose.querySelector('li:not([hidden])');
@@ -2294,32 +2543,40 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   function renderRail() {
     clear(heroRail);
     var r = stateRow[S.state]; if (!r) return;
-    var P = statePins(r.state), beh = arr(LEDG.behavior).filter(function (b) { return b && b.state === r.state; });
+    var P = statePins(r.state), G = stateGroups(r.state), beh = arr(LEDG.behavior).filter(function (b) { return b && b.state === r.state; });
     var all = P.placed.map(function (p) { return p.f; }).concat(P.loose), per = {};
     all.forEach(function (f) { per[f.severity] = (per[f.severity] || 0) + 1; });
     function row(f, n) { return h('li', { class: 'pin-item', 'data-sev': f.severity, 'data-tri-row': bucketOf(f) ? f.id : null, 'data-bucket': bucketOf(f) }, railRow(f, n)); }
     var triHere = all.some(bucketOf);
-    var chips = all.length ? h('div', { class: 'chips', role: 'group', 'aria-label': 'Filter annotations by severity' }, SEV.map(function (v) {
-      var n = per[v] || 0;
+    // Chips for the severities this state has: they filter rows and pins, and double as the colour key.
+    var chips = all.length ? h('div', { class: 'chips', role: 'group', 'aria-label': 'Filter annotations by severity' }, SEV.filter(function (v) { return per[v]; }).map(function (v) {
+      var n = per[v];
       return h('button', { type: 'button', class: 'chip', 'data-sev': v, 'aria-pressed': String(!S.sevOff[v]), 'aria-label': sevLabel(v) + ', ' + n + (n === 1 ? ' annotation' : ' annotations'),
         onclick: function () { if (S.sevOff[v]) delete S.sevOff[v]; else S.sevOff[v] = true; applySevFilter(); } },
         dot(v), h('span', { class: 'chip-label' }, sevLabel(v)), h('span', { class: 'chip-n', 'aria-hidden': 'true' }, String(n)));
     })) : null;
+    // Pinned rows in pin order; a group's members sit under one group row, where its first member comes.
+    var rows = [], done = {};
+    P.placed.forEach(function (p) {
+      var g = G.of[p.f.id];
+      if (!g) { rows.push(row(p.f, String(p.n))); return; }
+      if (done[g.id]) return;
+      done[g.id] = true;
+      rows.push(railGroup(r.state, g, row));
+    });
     heroRail.appendChild(h('section', { 'aria-labelledby': 'rail-title' },
       h('div', { class: 'rail-head' },
         h('h2', { class: 'rail-title', id: 'rail-title' }, h('span', null, 'Annotations'), h('span', { class: 'muted tabular', id: 'rail-count', style: 'font-weight:400', 'aria-live': 'polite' }, String(all.length))),
         chips,
-        triHere ? h('p', { class: 'bucket-key', id: 'bucket-key' }, h('span', null, h('span', { class: 'key-pin', 'aria-hidden': 'true' }), 'Fix now'),
-          h('span', null, h('span', { class: 'key-pin debt', 'aria-hidden': 'true' }), 'Debt: dashed ring')) : null,
         triHere ? h('p', { class: 'tri-summary', id: 'rail-tri-summary', 'aria-live': 'polite' }) : null),
-      anRail(r.state),
-      h('ol', { class: 'pin-list' }, P.placed.map(function (p) { return row(p.f, String(p.n)); })),
-      !all.length ? h('p', { class: 'muted' }, 'No findings for this state.') : null,
+      h('ol', { class: 'pin-list' }, rows),
+      !all.length ? h('p', { class: 'muted rail-none' }, 'No findings for this state.') : null,
       all.length ? h('p', { class: 'rail-empty', id: 'rail-empty', role: 'status', hidden: true }) : null,
       P.loose.length ? [h('div', { class: 'section-label', id: 'not-positioned-label', style: 'margin:0.75rem 0 0.25rem 0.5rem' }, 'Not positioned'),
         h('ol', { class: 'pin-list', id: 'not-positioned' }, P.loose.map(function (f) { return row(f, '–'); }))] : null,
       r.note ? h('p', { class: 'note', style: 'margin:0.75rem 0.5rem 0' }, r.note) : null,
-      stateFindingsLink(r.state, { id: 'rail-findings', style: 'margin:0.75rem 0.5rem 0;font-size:0.75rem' })));
+      stateFindingsLink(r.state, { id: 'rail-findings', style: 'margin:0.75rem 0.5rem 0;font-size:0.75rem' }),
+      anRail(r.state)));
     paintRailSummary();
     if (beh.length) heroRail.appendChild(h('section', { 'aria-labelledby': 'beh-title' }, h('h2', { class: 'rail-title', id: 'beh-title' }, 'Behaviour'),
       h('ul', { class: 'checklist' }, beh.map(function (b) {
@@ -2327,6 +2584,43 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
           h('div', { class: 'muted' }, b.result + ' · ' + orDash(b.observed)), h('div', { class: 'row', style: 'gap:0.375rem;margin-top:0.25rem' }, b.acRef ? h('span', { class: 'muted', 'data-tip': acText(b.acRef) }, b.acRef) : null, arr(b.findingIds).map(fidBtn))));
       }))));
     applySevFilter();
+  }
+  // One rail row for a group (section 9a): its stacked marker, the region, its pins and Fix now / Debt split; it opens
+  // to list each finding, and opens the group on the capture with it.
+  function railGroup(state, g, row) {
+    var open = groupOpen(state, g), lid = 'group-list-' + g.id;
+    var members = g.items.map(function (p) { return p.f; });
+    var head = h('button', { type: 'button', class: 'group-row', 'data-group': g.id, 'aria-expanded': String(open), 'aria-controls': lid,
+      onclick: function () {
+        var now = !groupOpen(state, g);
+        setGroup(state, g, now);
+        if (now) { var pin = heroStage.querySelector('.pins .pin[data-fid="' + String(g.items[0].f.id).replace(/"/g, '') + '"]:not([hidden])'); if (pin && S.pins) revealPin(pin); }
+      } },
+      h('span', { class: 'stack-n mk-group', 'data-sev': g.sev, 'aria-hidden': 'true' }, icon('layers'), h('span', { class: 'stack-c' }, String(g.items.length))),
+      h('span', { class: 'group-body' }, h('span', { class: 'group-name' }, g.label),
+        h('span', { class: 'group-sub' }, plural(g.items.length, 'finding') + ' · pins ' + g.items.map(function (p) { return p.n; }).join(', '))),
+      icon('chevron-down', 'group-chev'));
+    ['mouseenter', 'focus'].forEach(function (ev) { head.addEventListener(ev, function () { hotGroup(g.id, true); }); });
+    ['mouseleave', 'blur'].forEach(function (ev) { head.addEventListener(ev, function () { hotGroup(g.id, false); }); });
+    var tri = members.some(bucketOf) ? h('p', { class: 'tri-summary group-tri', 'data-group-tri': g.id }, triSummary(members)) : null;
+    return h('li', { class: 'pin-group-item', 'data-group': g.id, 'data-sev': g.sev }, head, tri,
+      h('ol', { class: 'group-list', id: lid, hidden: !open }, g.items.map(function (p) { return row(p.f, String(p.n)); })));
+  }
+  // After a group opens or closes: the rail's group rows follow S.openGroups.
+  function paintRailGroups() {
+    var r = stateRow[S.state]; if (!r) return;
+    var G = stateGroups(r.state);
+    G.list.forEach(function (g) {
+      var head = heroRail.querySelector('.group-row' + groupSel(g.id)), list = heroRail.querySelector('#group-list-' + g.id);
+      if (head) head.setAttribute('aria-expanded', String(groupOpen(r.state, g)));
+      if (list) list.hidden = !groupOpen(r.state, g);
+    });
+  }
+  function revealGroupRow(gid) {
+    var head = heroRail.querySelector('.group-row' + groupSel(gid));
+    if (!head || !head.offsetParent) return;
+    var rr = heroRail.getBoundingClientRect(), r = head.getBoundingClientRect(), top = heroRail.querySelector('.rail-head'), hh = top ? top.offsetHeight : 0;
+    if (r.top < rr.top + hh || r.bottom > rr.bottom) heroRail.scrollTo({ top: heroRail.scrollTop + r.top - rr.top - hh - 8, behavior: reduceMotion() ? 'auto' : 'smooth' });
   }
   function openFullscreen() {
     if (lb.hidden) LB.lastFocus = document.activeElement;
@@ -2782,8 +3076,8 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     var del = btn(null, { variant: 'ghost', size: 'icon-sm', icon: 'trash-2', cls: 'an-del', aria: 'Delete ' + label + ': ' + title, tip: 'Delete' });
     del.addEventListener('click', function () { deleteAnnotation(a.key); });
     var li = h('li', { class: 'an-item', 'data-an': a.key },
-      h('span', { class: 'n' }, label),
-      h('span', { class: 'an-body' }, h('span', { class: 'an-t' }, dot(a.severity), h('span', null, title)),
+      h('span', { class: 'n', 'data-sev': a.severity }, label),
+      h('span', { class: 'an-body' }, h('span', { class: 'an-t' }, h('span', null, title)),
         h('span', { class: 'an-sub' }, AN_SEV_LABEL[a.severity] + ' \u00b7 ' + (a.decision === 'debt' && a.severity !== 'BLOCKER' ? 'Later' : 'Fix now') + (a.side === 'design' ? ' \u00b7 on the design' : ''))),
       h('span', { class: 'an-acts' }, edit, del));
     li.addEventListener('mouseenter', function () { anHot(a.key, true); });
@@ -4292,7 +4586,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   if (BF_ITEMS.length) TABS.push(['backfill', 'Design backfill', BF_ITEMS.length]); // step 2; hidden when there is nothing to backfill
   var TAB_ALIAS = { compare: 'overview', ledgers: 'findings', design: 'design-system', ds: 'design-system', tokens: 'design-system', motion: 'design-system', 'design-backfill': 'backfill', 'step-2': 'backfill' };
   var tabBtns = {}, panels = {}, tabCount = {};
-  var tablist = h('div', { class: 'tabs-list', role: 'tablist', 'aria-label': 'Report sections' });
+  var tablist = h('div', { class: 'tabs-list page-tabs', role: 'tablist', 'aria-label': 'Report sections' });
   function setTab(id, o) {
     id = TAB_ALIAS[id] || id;
     if (!panels[id]) id = 'overview';
@@ -4354,7 +4648,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
   window.addEventListener('afterprint', function () { printOpened.forEach(function (d) { if (d.tagName === 'DETAILS') d.open = false; else d.hidden = true; }); printOpened = []; });
 
   /* ===== 17. Mount ===== */
-  S.state = defaultState(); S.screen = screenOf(S.state); S.mode = 'app'; S.zoom = 'fit'; S.pins = true; S.designPins = false; S.group = false; S.openChecks = {}; S.filters.__triage = {}; S.annotate = false;
+  S.state = defaultState(); S.screen = screenOf(S.state); S.mode = 'side'; S.openGroups = {}; S.zoom = 'fit'; S.pins = true; S.designPins = false; S.group = false; S.openChecks = {}; S.filters.__triage = {}; S.annotate = false;
   applyTheme(store.get(THEME_KEY) || 'auto');
   if (!document.title || document.title.indexOf(PH + 'TITLE__') !== -1) document.title = 'Design QA — ' + (meta.feature || 'report');
   TABS.forEach(function (t) {
@@ -4363,7 +4657,7 @@ body.has-bar .toaster { bottom: calc(var(--bar-h, 3.5rem) + 1.75rem); }
     tablist.appendChild(tabBtns[t[0]]);
     panels[t[0]] = h('div', { class: 'stack', role: 'tabpanel', id: 'panel-' + t[0], 'aria-labelledby': 'tab-' + t[0], hidden: true });
   });
-  append(panels.overview, [heroSection, sectionTriage(), h('div', null, sectionRejected(), sectionAgentData(), sectionDismissed(), sectionRun())]);
+  append(panels.overview, [screenStrip, heroSection, sectionTriage(), h('div', null, sectionRejected(), sectionAgentData(), sectionDismissed(), sectionRun())]);
   panels.findings.appendChild(sectionFindings());
   append(panels['design-system'], sectionDesignSystem());
   panels.states.appendChild(sectionStates());
