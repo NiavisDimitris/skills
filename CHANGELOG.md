@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **A simpler `report.html`, built around the captures and their annotations.** The page opens on the design and the app side by side (the default view now; Overlay, Wipe, Diff, Design and App are one click away).
+  - **Top bar:** the verdict, the match, what is still open and how many states were verified. The links, run details, the full summary and the notices that do not block the result are under **Details**, which shows how many notices it holds. "Incomplete" and "captured but not compared" still show on the page.
+  - **Pages:** a multi-screen pass shows every page as a thumbnail, always in view, instead of a dropdown. Each thumbnail counts its open findings in the colour of the worst one, or shows a check when nothing is open. Picking a page shows its states (with data, empty, error …) as tabs, each with its match and its own count.
+  - **One colour per severity**, the same on the pins, the annotations list, the severity chips, the counts and the outlines. Each row in the list carries the pin itself: same number, same colour, same dashed ring for Debt. Your own annotations (A1, A2 …) do the same. Only the severities a state has get a chip.
+  - **Grouped annotations:** when four or more pinned findings of a state name the same region, they show as one stacked pin on the capture and one row in the list, in the worst one's colour. Opening it (the pin, the row, or a finding in it) brings back each finding's own pin and outlines the region with its name. Pin numbers never change.
+  - Your annotations block sits under the findings in the list. "Show on design" appears only in the Design view, when some app pins have no position on the design.
+
 ## [0.2.3] - 2026-10-06
 
 ### Added

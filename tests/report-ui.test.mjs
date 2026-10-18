@@ -3,6 +3,9 @@
 // decisions, design-agent prompts), Review and send (one review bar, one Send panel, one
 // decisions document: copied for any agent, downloaded, or sent to scripts/review.mjs) and
 // the reviewer's own annotations (Annotate: drawn on a capture, kept in the browser, sent with the decisions).
+// Multi-screen reports show a pages strip (.shots) instead of a screen select; the default view is Side by side
+// (tests that need the single app capture click App first); 4+ pinned findings in one region collapse into one
+// annotation group pin and rail row that opens to show the members.
 // Skipped when Chromium cannot launch.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -319,15 +322,17 @@ test('Design system tab: token, component and motion mismatches; Missing motion;
   assert.deepEqual(errors, []);
 });
 
-test('multi-screen: screen select filters the state tabs; badges name the screen; prototype source', { timeout: 60000 }, async (t) => {
+test('multi-screen: the pages strip filters the state tabs; badges name the screen; prototype source', { timeout: 60000 }, async (t) => {
   if (!CHROMIUM) return t.skip(SKIP_REASON);
   const { page, errors } = await open(t, 'ui-report-multiscreen.json');
-  const opts = await page.$$eval('#screen-select option', (els) => els.map((e) => [e.value, e.textContent]));
+  assert.equal(await page.locator('#screen-select').count(), 0, 'the screen select is replaced by the pages strip');
+  const opts = await page.$$eval('.shots[role="tablist"][aria-label="Pages"] button.shot[role="tab"]', (els) => els.map((e) => [e.getAttribute('data-screen'), e.querySelector('.shot-name').textContent.trim()]));
   assert.deepEqual(opts, [['cart', 'Cart'], ['checkout', 'Checkout']]);
-  assert.equal(await page.inputValue('#screen-select'), 'cart');
+  const currentPage = () => page.$eval('.shots .shot[aria-selected="true"]', (e) => e.getAttribute('data-screen'));
+  assert.equal(await currentPage(), 'cart');
   const tabs = () => page.$$eval('.state-tabs [role="tab"]', (els) => els.map((e) => e.getAttribute('data-state')));
   assert.deepEqual(await tabs(), ['cart/with-items', 'cart/empty']);
-  await page.selectOption('#screen-select', 'checkout');
+  await page.click('.shots .shot[data-screen="checkout"]');
   assert.deepEqual(await tabs(), ['checkout/form', 'checkout/error']);
   assert.match(await page.evaluate(() => location.hash), /state=checkout%2F(form|error)/);
   assert.equal(await page.textContent('.state-tabs [aria-selected="true"]').then((s) => /Form|Error/.test(s)), true);
@@ -345,7 +350,7 @@ test('multi-screen: screen select filters the state tabs; badges name the screen
 
   // A state deep link picks its screen
   await page.evaluate(() => { location.hash = '#state=cart%2Fempty'; });
-  await page.waitForFunction(() => document.querySelector('#screen-select').value === 'cart');
+  await page.waitForFunction(() => document.querySelector('.shots .shot[aria-selected="true"]').getAttribute('data-screen') === 'cart');
   assert.deepEqual(await tabs(), ['cart/with-items', 'cart/empty']);
   assert.deepEqual(errors, []);
 });
@@ -660,9 +665,9 @@ test('Overview screen/state picker never filters Findings; "Findings for this st
   const { page, errors, report } = await open(t, 'ui-report-multiscreen.json', { hash: '#state=cart%2Fwith-items' });
   const all = report.findings.map((f) => f.id).sort();
   // Browse captures: screen select, state tabs, the #state deep link
-  await page.selectOption('#screen-select', 'checkout');
+  await page.click('.shots .shot[data-screen="checkout"]');
   await page.click('.state-tabs [data-state="checkout/error"]');
-  await page.selectOption('#screen-select', 'cart');
+  await page.click('.shots .shot[data-screen="cart"]');
   await page.evaluate(() => { location.hash = '#state=cart%2Fwith-items'; });
   await page.waitForFunction(() => document.querySelector('.state-tabs [aria-selected="true"]').getAttribute('data-state') === 'cart/with-items');
   await page.click('#tab-findings');
@@ -682,7 +687,7 @@ test('Overview screen/state picker never filters Findings; "Findings for this st
   assert.equal(await page.textContent('#filter-count'), `Showing ${mine.length} of ${all.length}`);
   // Browsing the Overview again leaves that filter alone
   await page.click('#tab-overview');
-  await page.selectOption('#screen-select', 'checkout');
+  await page.click('.shots .shot[data-screen="checkout"]');
   await page.click('#tab-findings');
   assert.deepEqual(await findingRows(page), mine);
   await page.click('#filters-clear');
@@ -737,6 +742,18 @@ for (const width of [390, 1440]) {
       await page.click(`[aria-label="Zoom"] [data-v="${zoom}"]`);
       await page.waitForFunction(() => Array.from(document.querySelectorAll('#hero-stage .pins')).every((l) => l.clientWidth > 0));
       await nextFrames(page); // the ResizeObserver spreads the pins before the next paint
+      // Closed: the 4+ findings in region "Orders table" are one group pin per layer, with no pin of their own.
+      // Opening the group sticks across view modes, so only the first pass starts closed.
+      const closed = await page.evaluate(() => Array.from(document.querySelectorAll('#hero-stage .pins')).map((l) => ({
+        groups: Array.from(l.querySelectorAll('.pin-group')).filter((g) => (g.dataset.members || '').split(' ').includes('DQ-016')).length,
+        own: l.querySelectorAll('.pin[data-fid="DQ-016"]').length })));
+      if (mode === 'app' && zoom === 'fit') {
+        assert.equal(closed.filter((l) => l.groups === 1).length, 1, `${mode}/${zoom}: one closed group pin holds DQ-016`);
+        assert.ok(closed.every((l) => l.own === 0), `${mode}/${zoom}: no own pin for DQ-016 while the group is closed`);
+      }
+      if (closed.some((l) => l.groups)) await page.click('#hero-stage .pin-group[data-members~="DQ-016"]');
+      await page.waitForSelector('#hero-stage .pin[data-fid="DQ-016"]');
+      await nextFrames(page);
       const layers = await pinLayout(page);
       // The app capture carries the close pins (the design pane only has the design crops)
       assert.equal(layers.filter((l) => l.pins.some((p) => p.fid === 'DQ-016')).length, 1, `${mode}/${zoom}: one app layer`);
@@ -764,6 +781,50 @@ for (const width of [390, 1440]) {
     assert.deepEqual(errors, []);
   });
 }
+
+test('annotation groups: 4+ pinned findings of one region are one stacked pin and one rail row until opened; pins and rail markers share one colour', { timeout: 60000 }, async (t) => {
+  if (!CHROMIUM) return t.skip(SKIP_REASON);
+  // closePins: "Orders table" in with-data now pins DQ-002 (blocker), DQ-005, DQ-013 (ds candidate) and DQ-016/017/018.
+  const { page, errors } = await open(t, 'ui-report.json', { hash: '#state=with-data', mutate: closePins });
+  await page.click('[aria-label="View"] [data-v="app"]');
+  const row = page.locator('.rail .pin-group-item .group-row');
+  const gp = page.locator('#hero-stage .pin-group');
+  // Closed: one group row (its findings' rows hidden), one stacked pin in the worst member's colour, no own pins
+  assert.equal(await row.count(), 1);
+  assert.equal(await row.getAttribute('aria-expanded'), 'false');
+  assert.match(await row.textContent(), /Orders table.*6 findings/s);
+  assert.equal(await page.locator('.rail .group-list').isVisible(), false);
+  assert.equal(await gp.count(), 1);
+  assert.equal(await gp.getAttribute('data-sev'), 'BLOCKER');
+  assert.equal(await gp.locator('.stack-c').textContent(), '6');
+  assert.equal(await page.locator('#hero-stage .pin[data-fid="DQ-016"]').count(), 0);
+  // The severity chips recount and recolour the group from the findings left
+  await page.click('.rail .chip[data-sev="BLOCKER"]');
+  assert.equal(await gp.getAttribute('data-sev'), 'DS_CANDIDATE');
+  assert.equal(await gp.locator('.stack-c').textContent(), '5');
+  await page.click('.rail .chip[data-sev="BLOCKER"]');
+  // Opened from its rail row: each finding's own pin, the region outlined and named, the rows listed
+  await row.click();
+  assert.equal(await row.getAttribute('aria-expanded'), 'true');
+  assert.equal(await page.locator('.rail .group-list').isVisible(), true);
+  assert.equal(await gp.count(), 0);
+  assert.equal(await page.locator('#hero-stage .pin[data-fid="DQ-016"]').count(), 1);
+  assert.match(await page.textContent('#hero-stage .group-outline.open .group-outline-label'), /Orders table/);
+  // One colour per severity: every pin's fill is its rail marker's
+  const pairs = await page.evaluate(() => Array.from(document.querySelectorAll('#hero-stage .pins .pin[data-fid]')).map((p) => {
+    const mk = document.querySelector(`.rail .pin-row[data-fid="${p.dataset.fid}"] .mk`);
+    return [p.dataset.fid, getComputedStyle(p).backgroundColor, mk ? getComputedStyle(mk).backgroundColor : null];
+  }));
+  assert.ok(pairs.length >= 6, `${pairs.length} pins`);
+  for (const [fid, pin, mk] of pairs) assert.equal(mk, pin, `${fid}: the rail marker has the pin's colour`);
+  // Closed again from the row; "Show on capture" for one of its findings opens it
+  await row.click();
+  assert.equal(await gp.count(), 1);
+  await page.click('[data-show-fid="DQ-002"]');
+  assert.equal(await row.getAttribute('aria-expanded'), 'true');
+  assert.equal(await page.locator('#hero-stage .pin[data-fid="DQ-002"]').count(), 1);
+  assert.deepEqual(errors, []);
+});
 
 test('Design system: one Motion row per open motion finding, so rows equal the badge count', { timeout: 60000 }, async (t) => {
   if (!CHROMIUM) return t.skip(SKIP_REASON);
@@ -1384,6 +1445,7 @@ const near = (actual, expected, tol, what) => assert.ok(Math.abs(actual - expect
 test('tall padded state: full images, a plain-words padding note, pins along the full height in every view mode', { timeout: 90000 }, async (t) => {
   if (!CHROMIUM) return t.skip(SKIP_REASON);
   const { page, errors, crop } = await openTall(t, 4292, 3092);
+  await page.click('[aria-label="View"] [data-v="app"]'); // the default is Side by side
   const center = (c) => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 });
   assert.equal(await page.textContent('.stage-padded'), 'The app page is 1,200 px shorter than the design; the missing part is not compared.');
 
@@ -1505,6 +1567,7 @@ const pinVisible = (page) => page.evaluate(() => {
 test('tall and wide padded state: whole images in both axes, both paddings named, pins far below the fold and in the right-padded area, scrolled into view', { timeout: 120000 }, async (t) => {
   if (!CHROMIUM) return t.skip(SKIP_REASON);
   const { page, errors, crop } = await openTall(t, 4292, 3092, { designW: 1440, appW: 1780 });
+  await page.click('[aria-label="View"] [data-v="app"]'); // the default is Side by side
   const center = (c) => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 });
   assert.equal(await page.textContent('.stage-padded'),
     'The app page is 1,200 px shorter than the design; the missing part is not compared. The app page is 340 px wider than the design; the extra part is not compared.');
@@ -1601,6 +1664,7 @@ test('integrity: uncompared and partial states are flagged on the state, DATA sh
   // Rejections: summary link, a loud alert above the band, the grouped list, an outline on the capture.
   assert.match(await page.textContent('#summary-rejected'), /^2 rejected by the agent$/);
   assert.match(await page.textContent('#alert-rejected'), /12% of With data was rejected as same: check the rejected regions/);
+  await page.click('#btn-details'); // the summary lives in the Details panel
   await page.click('#summary-rejected');
   assert.match(await page.textContent('#rejected-list'), /same \(1\).*wl-7.*region.*With data.*12% of the page.*rendering noise only.*known-drift \(1\).*a-3.*audit candidate.*known drift KD-2/s);
   assert.equal(await page.locator('.reject-outline:not([hidden])').count(), 0, 'outlines are off until asked for');
@@ -1710,6 +1774,7 @@ const nearBox = (actual, expected, tol, what) => { for (const k of ['x', 'y', 'w
 test('Annotate: toggle and A, drag on the app, click on the design, the form, pins with boxes, the rail, reload, edit, delete with Undo', { timeout: 120000 }, async (t) => {
   if (!CHROMIUM) return t.skip(SKIP_REASON);
   const { page, errors, url } = await open(t, 'ui-report.json', { hash: '#state=with-data' });
+  await page.click('[aria-label="View"] [data-v="app"]'); // the default is Side by side
   await settled(page);
 
   // The toggle: off, its tooltip names the shortcut; A turns the mode on and off (not while typing in a field)
@@ -1820,6 +1885,7 @@ test('Annotate: toggle and A, drag on the app, click on the design, the form, pi
   await page.goto(`${url}#state=with-data`);
   await page.reload();
   await page.waitForSelector('#page-title');
+  await page.click('[aria-label="View"] [data-v="app"]'); // the default is Side by side again after a reload
   await settled(page);
   assert.equal(await page.getAttribute('#annotate-toggle', 'aria-pressed'), 'false');
   assert.deepEqual(await page.$$eval('#an-list .an-item .n', (els) => els.map((e) => e.textContent)), ['A1', 'A2']);
@@ -1871,6 +1937,7 @@ test('Annotate: correct image pixels in every view mode and at 100%; pan and wip
   if (!CHROMIUM) return t.skip(SKIP_REASON);
   // Design 1440×2000, app 1600×1400: Overlay, Wipe and Diff span 1600×2000 with the app anchored top-left at its own scale.
   const { page, errors } = await openTall(t, 2000, 1400, { designW: 1440, appW: 1600, height: 1300 });
+  await page.click('[aria-label="View"] [data-v="app"]'); // the default is Side by side
   await page.click('#annotate-toggle');
   const KEY = 'design-qa:annotations:Orders list:2026-10-01T12:00:00Z';
   const last = () => page.evaluate((k) => { const v = JSON.parse(localStorage.getItem(k) || '[]'); return v[v.length - 1]; }, KEY);
@@ -2139,6 +2206,7 @@ test('live mode: an annotation drawn in the page is sent with the decisions and 
   }
   const { page, errors, requests } = await openUrl(t, `${live.url}#state=with-data`);
   await page.waitForLoadState('networkidle');
+  await page.click('[aria-label="View"] [data-v="app"]'); // the default is Side by side
   await settled(page);
   const from = requests.length;
   await page.click('#annotate-toggle');
