@@ -569,3 +569,20 @@ test('CLI: a dismissed log whose JSON and Markdown paths collide is refused; Nex
   assert.match(next[0], /^Next: node scripts\/render-report\.mjs --in '[^']*\/ABC 12\/report\.json' --recompute --write-back/);
   assert.ok(!existsSync(path.join(root, 'qa-reports', 'dismissed.json.lock')) && !existsSync(`${file}.lock`), 'locks released');
 });
+
+test('CLI --issue-id: dismisses by stable issue id; unknown and malformed ids exit 2', async () => {
+  const { findingIssueId } = await import('../skills/design-qa/scripts/lib/issue-id.mjs');
+  const root = tmpDir();
+  const report = makeReport();
+  const file = place(root, report);
+  const issue = findingIssueId(byId(report, 'DQ-002'));
+  const res = await run(DISMISS, ['--report', file, '--issue-id', issue.toUpperCase().replace('ISS_', 'iss_'), '--kind', 'not-an-issue', '--reason', 'anti-aliasing', '--by', 'Maya']);
+  assert.equal(res.code, 0, res.stderr);
+  assert.equal(byId(read(file), 'DQ-002').resolution, 'DISMISSED');
+
+  const unknown = await run(DISMISS, ['--report', file, '--issue-id', 'iss_0000000000000000', '--kind', 'remove', '--reason', 'x']);
+  assert.equal(unknown.code, 2);
+  assert.match(unknown.stderr, /no finding in this report has issue id iss_0000000000000000/);
+  assert.equal((await run(DISMISS, ['--report', file, '--issue-id', 'DQ-002', '--kind', 'remove', '--reason', 'x'])).code, 2);
+  assert.equal((await run(DISMISS, ['--report', file, '--issue-id', issue, '--id', 'DQ-002', '--kind', 'remove', '--reason', 'x'])).code, 2);
+});

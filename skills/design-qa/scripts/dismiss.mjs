@@ -27,6 +27,7 @@ import {
   undoDismissal,
   upsertLogEntries,
 } from './lib/dismissals.mjs';
+import { findingIssueId } from './lib/issue-id.mjs';
 import { shellArg } from './lib/review-context.mjs';
 import { reportSlug } from './lib/triage.mjs';
 
@@ -41,6 +42,8 @@ Usage:
 Choose exactly one of:
   --id <ids>             finding id(s) to dismiss, comma-separated (e.g. DQ-004); needs
                          --kind and --reason
+  --issue-id <ids>       the same by stable issue id (iss_…, from run-result.json or the PR
+                         comment) instead of the per-pass DQ- id
   --from <file>          dismissals.json exported by report.html
                          { feature, slug, reportGeneratedAt, decidedBy,
                            items: [ { findingId, kind, reason, by, date } ] }
@@ -102,6 +105,23 @@ function parseIds(raw, flag) {
   return [...new Set(ids)];
 }
 
+/** Stable issue ids (iss_…) → this report's DQ- ids, as a comma-separated --id value. */
+function resolveIssueIds(report, raw) {
+  const wanted = [...new Set(String(raw).split(/[\s,]+/).filter(Boolean).map((id) => id.toLowerCase()))];
+  if (!wanted.length) throw usageError('--issue-id: give at least one issue id (e.g. iss_3f9a0c1d2e4b5a69)');
+  const bad = wanted.filter((id) => !/^iss_[0-9a-f]{16}$/.test(id));
+  if (bad.length) throw usageError(`--issue-id: not issue ids: ${bad.map(oneLine).join(', ')} (expected iss_ + 16 hex digits)`);
+  const byIssue = new Map();
+  for (const f of report.findings) {
+    const id = findingIssueId(f);
+    if (!byIssue.has(id)) byIssue.set(id, []);
+    byIssue.get(id).push(f.id);
+  }
+  const missing = wanted.filter((id) => !byIssue.has(id));
+  if (missing.length) throw usageError(`--issue-id: no finding in this report has issue id ${missing.join(', ')} (is it the right report, or was it fixed?)`);
+  return wanted.flatMap((id) => byIssue.get(id)).join(',');
+}
+
 function withExtension(file, ext) {
   return file.replace(/\.(json|md)$/i, '') + ext;
 }
@@ -115,6 +135,7 @@ async function main(argv) {
   const { values } = parseCli(argv, {
     report: { type: 'string' },
     id: { type: 'string' },
+    'issue-id': { type: 'string' },
     kind: { type: 'string' },
     reason: { type: 'string' },
     from: { type: 'string' },
@@ -132,12 +153,13 @@ async function main(argv) {
     return 0;
   }
   if (!values.report) throw usageError('--report <report.json> is required (see --help)');
-  const modes = [values.id !== undefined, values.from !== undefined, values.undo !== undefined, Boolean(values['apply-log'])].filter(Boolean).length;
-  if (modes !== 1) throw usageError('choose exactly one of --id <ids>, --from <file>, --undo <ids> or --apply-log');
+  if (values.id !== undefined && values['issue-id'] !== undefined) throw usageError('use --id or --issue-id, not both');
+  const modes = [values.id !== undefined || values['issue-id'] !== undefined, values.from !== undefined, values.undo !== undefined, Boolean(values['apply-log'])].filter(Boolean).length;
+  if (modes !== 1) throw usageError('choose exactly one of --id <ids> (or --issue-id <ids>), --from <file>, --undo <ids> or --apply-log');
   if (values.source && !CLI_SOURCES.includes(values.source)) {
     throw usageError(`--source must be one of ${CLI_SOURCES.join(', ')} (got "${oneLine(values.source)}")`);
   }
-  if (values.id === undefined && (values.kind !== undefined || values.reason !== undefined)) {
+  if (values.id === undefined && values['issue-id'] === undefined && (values.kind !== undefined || values.reason !== undefined)) {
     throw usageError('--kind and --reason go with --id (a --from file carries its own)');
   }
 
@@ -163,6 +185,7 @@ function dismiss(values, { reportFile, logFile, mdFile }) {
   }
   const slug = reportSlug(report);
   const byId = new Map(report.findings.map((f) => [f.id, f]));
+  if (values['issue-id'] !== undefined) values = { ...values, id: resolveIssueIds(report, values['issue-id']) };
 
   let previousLog = null;
   if (existsSync(logFile)) {
