@@ -356,7 +356,9 @@ jobs:
       - name: Write the run result
         # Stable issue ids, totals, and new / fixed before merge / dismissed since
         # the previous run. Runs here, not in the agent step, so the agent cannot
-        # shape the numbers.
+        # shape the numbers. Metrics never fail the QA: the report, comment and
+        # gate below still run if this step or the next two fail.
+        continue-on-error: true
         run: |
           PREV_ARGS=(--no-previous)
           PREV="$RUNNER_TEMP/design-qa-previous/run-result.json"
@@ -371,6 +373,7 @@ jobs:
       - name: Upload run result
         # Small JSON with no screenshots or page text, kept long enough to compare
         # every run of a pull request with the one before it.
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: design-qa-result
@@ -378,6 +381,7 @@ jobs:
           retention-days: 90
 
       - name: Store the run result in Supabase
+        continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

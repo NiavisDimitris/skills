@@ -63,14 +63,15 @@
     "previous_run_id": { "type": ["string", "null"] },
     "diff": {
       "type": "object",
-      "required": ["first_run", "new", "fixed", "dismissed", "reopened", "not_rechecked"],
+      "required": ["first_run", "new", "fixed", "dismissed", "reopened", "not_rechecked", "reclassified"],
       "properties": {
         "first_run": { "type": "boolean" },
         "new": { "type": "array", "items": { "type": "string" } },
         "fixed": { "type": "array", "items": { "type": "string" } },
         "dismissed": { "type": "array", "items": { "type": "string" } },
         "reopened": { "type": "array", "items": { "type": "string" } },
-        "not_rechecked": { "type": "array", "items": { "type": "string" } }
+        "not_rechecked": { "type": "array", "items": { "type": "string" } },
+        "reclassified": { "type": "array", "items": { "type": "string" }, "description": "Open before; this run records the same finding as DATA or similar, not as an issue. Neither fixed nor carried." }
       }
     }
   }

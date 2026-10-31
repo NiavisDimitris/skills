@@ -66,7 +66,7 @@ export function openDriftWeekly(runs) {
   return rows.sort((a, b) => a.week.localeCompare(b.week) || [a.repo, a.branch, a.feature, a.screen].join('|').localeCompare([b.repo, b.branch, b.feature, b.screen].join('|')));
 }
 
-/** 4. False positive rate: issues whose latest flagged status is dismissed ÷ issues ever flagged. Per repo and overall (repo null). */
+/** 4. False positive rate: issues whose latest flagged status is dismissed ÷ issues ever flagged. Per repo and overall (is_total). */
 export function falsePositiveRate(runs) {
   const last = new Map();
   for (const r of [...runs].sort(byTs)) {
@@ -88,8 +88,8 @@ export function falsePositiveRate(runs) {
   }
   const rows = [...perRepo.values()]
     .sort((a, b) => String(a.repo).localeCompare(String(b.repo)))
-    .map((g) => ({ ...g, false_positive_rate: rate(g.flagged, g.dismissed) }));
-  rows.push({ repo: null, flagged, dismissed, false_positive_rate: rate(flagged, dismissed) });
+    .map((g) => ({ is_total: false, ...g, false_positive_rate: rate(g.flagged, g.dismissed) }));
+  rows.push({ is_total: true, repo: null, flagged, dismissed, false_positive_rate: rate(flagged, dismissed) });
   return rows;
 }
 

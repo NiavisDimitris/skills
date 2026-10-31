@@ -161,3 +161,40 @@ test('CLI: bad arguments exit 2', async () => {
   assert.equal((await run(RUN_RESULT, ['--report', '/nonexistent/report.json'])).code, 2);
   assert.equal((await run(RUN_RESULT, ['--report', 'x', '--sha', 'not-hex!'])).code, 2);
 });
+
+test('a finding reclassified as DATA or CANNOT_VERIFY in the next run is not fixed', () => {
+  const report = loadFixture('../../examples/sample/sample-report.json');
+  const first = buildRunResult(report, { context: CTX }).result;
+  for (const change of [{ resolution: 'DATA' }, { severity: 'CANNOT_VERIFY', resolution: 'NONE' }]) {
+    const next = structuredClone(report);
+    const f = next.findings.find((x) => x.resolution === 'FIX_CODE' && x.state === 'with-data');
+    Object.assign(f, change);
+    const { diff } = buildRunResult(next, { previous: first, context: CTX }).result;
+    assert.deepEqual(diff.fixed, [], JSON.stringify(change));
+  }
+});
+
+test('the Figma node id anchors the issue id when the selector changes', () => {
+  const base = { ledger: 'style', property: 'gap', state: 's', region: 'r', severity: 'WARNING', resolution: 'FIX_CODE' };
+  const a = reportIssues({ findings: [{ ...base, element: { selector: '.btn', figmaNodeId: '1:2' } }] })[0];
+  const b = reportIssues({ findings: [{ ...base, element: { selector: 'button.btn', figmaNodeId: '1:2' } }] })[0];
+  assert.equal(a.issue_id, b.issue_id);
+});
+
+test('a previous run from another pull request on the same branch is not compared', () => {
+  const report = loadFixture('../../examples/sample/sample-report.json');
+  const first = buildRunResult(report, { context: { ...CTX, pr_number: 1 } }).result;
+  const { result, warnings } = buildRunResult({ ...report, findings: [] }, { previous: first, context: CTX });
+  assert.equal(result.diff.first_run, true);
+  assert.match(warnings[0], /pull request #1/);
+});
+
+test('the PR summary escapes & and # (no entity mentions or cross-references)', () => {
+  const { result } = buildRunResult(
+    { meta: { feature: 'x' }, findings: [{ id: 'DQ-001', title: '&#64;octocat see #12 and acme/web#3', ledger: 'style', property: 'gap', state: 's', region: 'r', severity: 'WARNING', resolution: 'FIX_CODE', element: {} }], stateMatrix: [] },
+    { context: CTX },
+  );
+  const md = summaryMarkdown(result);
+  assert.ok(md.includes('&amp;\\#64;'));
+  assert.ok(!/(^|[^\\])#12/.test(md));
+});

@@ -14,7 +14,7 @@ After `report.json` is final, `scripts/run-result.mjs --report <dir>/report.json
 
 **Issues** are BLOCKER, WARNING and DS_CANDIDATE findings with resolution FIX_CODE or UNCLASSIFIED (`open`) or DISMISSED or INTENTIONAL (`dismissed`), plus one `missing-state` issue per MISSING_IN_CODE state no open finding covers. PASS, CANNOT_VERIFY, DATA and NONE are not issues.
 
-**issue_id** = `iss_` + 16 hex of sha256(screen · state · element · ledger:property), lower-cased and whitespace-collapsed like the dismissals fingerprint. Element is the selector, else the Figma layer path, else the region. It does not change when findings are renumbered, when values change, or when severity changes. It changes when the selector does: a renamed class reads as one issue fixed and one new.
+**issue_id** = `iss_` + 16 hex of sha256(screen · state · element · ledger:property), lower-cased and whitespace-collapsed like the dismissals fingerprint. Element is the Figma node id when the finding has one, else the selector, else the Figma layer path, else the region. It does not change when findings are renumbered, when values change, or when severity changes. Without a Figma node id it changes when the selector does: a renamed class reads as one issue fixed and one new.
 
 **Categories**: spacing, color, typography, sizing, shape (radius, border, shadow), component, missing-state, motion, structure, copy, behavior, other.
 
@@ -28,8 +28,13 @@ After `report.json` is final, `scripts/run-result.mjs --report <dir>/report.json
 | open | dismissed | dismissed |
 | dismissed | open | reopened |
 | fixed | open | new (a regression) |
+| open | still in the report, now PASS | fixed |
+| open | still in the report, now CANNOT_VERIFY | not re-checked |
+| open | still in the report, now DATA (or another non-issue) | reclassified: dropped, neither fixed nor carried |
 
 A state that was skipped, excluded with `--states` or `CANNOT_VERIFY` never makes its issues "fixed".
+
+A finding with no state is re-checked when any state of its screen was verified. Runs are compared only within the same branch, feature and pull request.
 
 Locally the previous run is the existing `run-result.json` when it is from the same branch. In CI the workflow downloads the previous run's `design-qa-result` artifact (references/ci.md).
 
@@ -62,3 +67,5 @@ Tables `design_qa_runs` and `design_qa_issues` (a row per issue per run, status 
 | False positive rate | `design_qa_false_positive_rate` | issues whose latest flagged status is dismissed ÷ issues ever flagged |
 
 Issues are told apart by repo, feature and issue_id.
+
+**Limits.** "Before merge" means fixed in a pull request's runs; whether that pull request was merged is not checked, so fixes on a PR closed unmerged still count. The false positive rate counts every dismissal kind (not an issue, remove, intentional) as a false positive.

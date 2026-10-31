@@ -68,13 +68,13 @@ async function loadSupabase(repo) {
     selectAll(config, 'design_qa_issues_per_run_by_type', `select=*${filter}&order=ts.asc,category.asc`),
     selectAll(config, 'design_qa_fixed_before_merge_monthly', `select=*${filter}&order=month.asc,repo.asc`),
     selectAll(config, 'design_qa_open_drift_weekly', `select=*${filter}&order=week.asc,repo.asc,branch.asc,feature.asc,screen.asc`),
-    selectAll(config, 'design_qa_false_positive_rate', `select=*&order=repo.asc.nullslast`),
+    selectAll(config, 'design_qa_false_positive_rate', `select=*&order=is_total.asc,repo.asc.nullslast`),
   ]);
   return {
     issues_per_run_by_type: perRun,
     fixed_before_merge_monthly: fixed,
     open_drift_weekly: drift,
-    false_positive_rate: repo ? fp.filter((r) => r.repo === repo) : fp,
+    false_positive_rate: repo ? fp.filter((r) => r.repo === repo && !r.is_total) : fp,
   };
 }
 
@@ -82,7 +82,7 @@ function print(metrics, { recentRuns }) {
   const runIds = [...new Set(metrics.issues_per_run_by_type.map((r) => r.run_id))].slice(-recentRuns);
   const perRun = metrics.issues_per_run_by_type.filter((r) => runIds.includes(r.run_id)).map((r) => ({ ...r, ts: String(r.ts).slice(0, 16).replace('T', ' ') }));
   const totalFixed = metrics.fixed_before_merge_monthly.reduce((n, r) => n + r.fixed_before_merge, 0);
-  const fpAll = metrics.false_positive_rate.find((r) => r.repo === null) ?? metrics.false_positive_rate.at(-1);
+  const fpAll = metrics.false_positive_rate.find((r) => r.is_total) ?? metrics.false_positive_rate.at(-1);
   const pct = (v) => (v === null || v === undefined ? '—' : `${(Number(v) * 100).toFixed(1)}%`);
 
   console.log(`Design QA metrics\n`);
@@ -94,7 +94,7 @@ function print(metrics, { recentRuns }) {
   console.log(`\n3. Drift: open mismatches per screen, weekly`);
   console.log(table(metrics.open_drift_weekly, [['week', 'week of'], ['repo', 'repo'], ['branch', 'branch'], ['feature', 'feature'], ['screen', 'screen'], ['open_issues', 'open']]));
   console.log(`\n4. False positive rate (dismissed ÷ flagged)`);
-  console.log(table(metrics.false_positive_rate.map((r) => ({ ...r, repo: r.repo ?? 'all', false_positive_rate: pct(r.false_positive_rate) })), [['repo', 'repo'], ['flagged', 'flagged'], ['dismissed', 'dismissed'], ['false_positive_rate', 'rate']]));
+  console.log(table(metrics.false_positive_rate.map((r) => ({ ...r, repo: r.is_total ? 'all' : (r.repo ?? '(unknown)'), false_positive_rate: pct(r.false_positive_rate) })), [['repo', 'repo'], ['flagged', 'flagged'], ['dismissed', 'dismissed'], ['false_positive_rate', 'rate']]));
 }
 
 async function main(argv) {

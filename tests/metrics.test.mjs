@@ -47,7 +47,7 @@ test('the four metrics over a simulated history', () => {
   assert.equal(openIn('2026-10-05', 'feat/orders'), r2.totals.by_status.open);
   assert.equal(openIn('2026-10-12', 'main'), r3.totals.by_status.open);
 
-  const all = m.false_positive_rate.find((r) => r.repo === null);
+  const all = m.false_positive_rate.find((r) => r.is_total);
   // Issues are keyed by repo + feature + issue_id across branches; the main run (latest) has the
   // sample's own dismissals, so the latest flagged status wins.
   const dismissedNow = r3.issues.filter((i) => i.status === 'dismissed').length;

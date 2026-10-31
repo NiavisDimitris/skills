@@ -35,9 +35,13 @@ export function screenOf(item) {
   return slash > 0 ? state.slice(0, slash) : 'default';
 }
 
-/** Where the finding is: selector, else Figma layer path, else region (as fingerprint() in dismissals.mjs). */
+/**
+ * Where the finding is: the Figma node id when there is one (it does not change
+ * between passes), else the selector, else the Figma layer path, else the region.
+ */
 export function elementOf(finding) {
   const el = isObj(finding?.element) ? finding.element : {};
+  if (el.figmaNodeId) return `figma:${el.figmaNodeId}`;
   return el.selector || el.figmaLayerPath || finding?.region || '';
 }
 
@@ -90,6 +94,16 @@ export function categoryOf(finding) {
     default:
       return 'other';
   }
+}
+
+/**
+ * What a finding that is not an issue says about it: pass (verified match),
+ * unverified (CANNOT_VERIFY) or reclassified (DATA, NONE, anything else).
+ */
+export function nonIssueOutcomeOf(finding) {
+  if (finding?.severity === 'PASS') return 'pass';
+  if (finding?.severity === 'CANNOT_VERIFY') return 'unverified';
+  return 'reclassified';
 }
 
 /** open | dismissed | null (not an issue: PASS, CANNOT_VERIFY, DATA, NONE). */

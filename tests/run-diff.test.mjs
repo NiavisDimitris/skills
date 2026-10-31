@@ -89,3 +89,27 @@ test('multi-screen: verification is per screen and state', () => {
   assert.deepEqual(diff.fixed, ['a']);
   assert.deepEqual(diff.not_rechecked, ['b']);
 });
+
+test('still in the report but reclassified as DATA: neither fixed nor carried', () => {
+  const { diff, issues } = diffRuns({ issues: [issue('a')] }, { issues: [], checked: checked('with-data'), outcomes: new Map([['a', 'reclassified']]) });
+  assert.deepEqual(diff.fixed, []);
+  assert.deepEqual(diff.reclassified, ['a']);
+  assert.equal(issues.length, 0);
+});
+
+test('still in the report as CANNOT_VERIFY in a verified state: not re-checked', () => {
+  const { diff } = diffRuns({ issues: [issue('a')] }, { issues: [], checked: checked('with-data'), outcomes: new Map([['a', 'unverified']]) });
+  assert.deepEqual(diff.fixed, []);
+  assert.deepEqual(diff.not_rechecked, ['a']);
+});
+
+test('still in the report as a PASS row: fixed', () => {
+  const { diff } = diffRuns({ issues: [issue('a', 'open', 'hover')] }, { issues: [], checked: [], outcomes: new Map([['a', 'pass']]) });
+  assert.deepEqual(diff.fixed, ['a']);
+});
+
+test('an issue with no state is settled when any state of its screen was verified', () => {
+  const prev = { issues: [issue('a', 'open', null)] };
+  assert.deepEqual(diffRuns(prev, { issues: [], checked: checked('loading') }).diff.fixed, ['a']);
+  assert.deepEqual(diffRuns(prev, { issues: [], checked: [] }).diff.not_rechecked, ['a']);
+});

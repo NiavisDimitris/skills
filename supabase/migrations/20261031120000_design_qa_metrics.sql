@@ -95,7 +95,7 @@ join public.design_qa_issues i on i.run_id = l.run_id and i.status = 'open'
 group by l.week, l.repo, l.branch, l.feature, i.screen;
 
 -- 4. False positive rate: issues whose latest flagged status is dismissed,
---    over every issue ever flagged. Per repo, plus an overall row (repo null).
+--    over every issue ever flagged. Per repo, plus an overall row (is_total).
 create or replace view public.design_qa_false_positive_rate
 with (security_invoker = true) as
 with last_flag as (
@@ -105,7 +105,8 @@ with last_flag as (
   where i.status in ('open', 'dismissed')
   order by r.repo, r.feature, i.issue_id, r.ts desc
 )
-select repo,
+select grouping(repo) = 1 as is_total,
+       case when grouping(repo) = 1 then null else repo end as repo,
        count(*)::int as flagged,
        count(*) filter (where status = 'dismissed')::int as dismissed,
        round(count(*) filter (where status = 'dismissed')::numeric / nullif(count(*), 0), 4) as false_positive_rate

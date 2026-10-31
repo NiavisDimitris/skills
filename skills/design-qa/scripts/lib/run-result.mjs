@@ -10,6 +10,7 @@ import {
   issueId,
   issueStatusOf,
   issueTypeOf,
+  nonIssueOutcomeOf,
   screenOf,
 } from './issue-id.mjs';
 import { diffRuns } from './run-diff.mjs';
@@ -128,6 +129,20 @@ export function reportIssues(report) {
   return [...byId.values()].sort((a, b) => a.issue_id.localeCompare(b.issue_id));
 }
 
+/** issue_id → pass | unverified | reclassified for findings in this report that are not issues. */
+export function nonIssueOutcomes(report) {
+  const out = new Map();
+  for (const f of report.findings ?? []) {
+    if (issueStatusOf(f)) continue;
+    const id = findingIssueId(f);
+    const outcome = nonIssueOutcomeOf(f);
+    // When findings share an id, the most cautious outcome wins: unverified, then reclassified, then pass.
+    const rank = { unverified: 0, reclassified: 1, pass: 2 };
+    if (!out.has(id) || rank[outcome] < rank[out.get(id)]) out.set(id, outcome);
+  }
+  return out;
+}
+
 const count = (items, key) => items.reduce((acc, i) => ((acc[i[key]] = (acc[i[key]] ?? 0) + 1), acc), {});
 
 export function totalsOf(issues) {
@@ -154,9 +169,12 @@ export function buildRunResult(report, { previous = null, context, now = new Dat
   } else if (prev && prev.feature !== feature) {
     warnings.push(`previous run is for feature ${prev.feature}, this one for ${feature}: not compared`);
     prev = null;
+  } else if (prev && prev.pr_number != null && context.pr_number != null && prev.pr_number !== context.pr_number) {
+    warnings.push(`previous run is for pull request #${prev.pr_number}, this one for #${context.pr_number}: not compared`);
+    prev = null;
   }
   const checked = checkedStates(report);
-  const { issues, diff } = diffRuns(prev, { issues: reportIssues(report), checked });
+  const { issues, diff } = diffRuns(prev, { issues: reportIssues(report), checked, outcomes: nonIssueOutcomes(report) });
   issues.sort((a, b) => a.issue_id.localeCompare(b.issue_id));
   return {
     result: {
@@ -186,7 +204,8 @@ export function buildRunResult(report, { previous = null, context, now = new Dat
 const esc = (v) =>
   String(v ?? '')
     .replace(/[\r\n\u0085\u2028\u2029]+/g, ' ')
-    .replace(/[\\`*_<>|[\]]/g, '\\$&')
+    .replace(/&/g, '&amp;')
+    .replace(/[\\`*_<>|[\]#]/g, '\\$&')
     .replace(/@/g, '@\u200b');
 
 /** A short Markdown summary for the PR comment: new, fixed before merge, dismissed. */
@@ -216,6 +235,7 @@ export function summaryMarkdown(result, { maxListed = 10 } = {}) {
   section('Dismissed', d.dismissed);
   section('Reopened', d.reopened);
   section('Not re-checked (state not captured this run)', d.not_rechecked);
+  section('Reclassified (no longer counted as an issue)', d.reclassified);
   lines.push(
     "Not an issue? Dismiss it with a reason: `node scripts/dismiss.mjs --report <report.json> --issue-id <iss_…> --kind not-an-issue --reason '<why>'`.",
     '',
