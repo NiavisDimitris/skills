@@ -25,6 +25,12 @@
 #
 # GITHUB_TOKEN is provided by Actions automatically - you don't set it.
 #
+# Optional, for the metrics (see the skill's references/metrics.md):
+#   SUPABASE_URL                 - https://<project>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY    - that project's service-role key. Without these two
+#                                  the run result is still written, diffed and
+#                                  commented; it is just not stored.
+#
 # On a public repository the PR comment and the report artifact are public:
 # see "Secrets" in the skill's references/ci.md before turning this on.
 
@@ -58,6 +64,8 @@ permissions:
   # deployments call fails on private repositories.
   deployments: read
   pull-requests: write
+  # Download the previous run's result artifact, to tell what was fixed since.
+  actions: read
 
 jobs:
   design-qa:
@@ -85,7 +93,9 @@ jobs:
           repository: NiavisDimitris/skills
           # Pinned to a commit SHA (design-qa 0.2.2): this job runs the skill's
           # scripts with your secrets, so never point it at a moving branch.
-          # Bump the SHA deliberately when you want newer scripts.
+          # Bump the SHA deliberately when you want newer scripts. The run result,
+          # Supabase and metrics steps below need 0.3.0 or later: re-pin to the
+          # 0.3.0 release commit before turning them on.
           ref: 25072b053b4501c46dc0fddde0063b0a4754c2c8
           persist-credentials: false
           path: .design-qa-skill
@@ -321,6 +331,63 @@ jobs:
             --fixplan qa-reports/ci/report-fixplan.md \
             "${CONFIG_ARGS[@]}"
 
+      - name: Fetch the previous run result on this branch
+        # The last completed run of this workflow on the same branch that left a
+        # design-qa-result artifact (its gate may have failed: the result is still
+        # valid). None: this is the first run, and nothing counts as fixed.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW: ${{ github.workflow }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/design-qa-previous"
+          IDS=$(gh run list --repo "$REPO" --workflow "$WORKFLOW" --branch "$BRANCH" --status completed \
+            --limit 20 --json databaseId --jq ".[] | select(.databaseId != $RUN_ID) | .databaseId" || true)
+          for ID in $IDS; do
+            if gh run download "$ID" --repo "$REPO" --name design-qa-result --dir "$RUNNER_TEMP/design-qa-previous" 2>/dev/null; then
+              echo "Previous result: run $ID"
+              break
+            fi
+          done
+          [ -f "$RUNNER_TEMP/design-qa-previous/run-result.json" ] || echo "No previous result on $BRANCH: first run."
+
+      - name: Write the run result
+        # Stable issue ids, totals, and new / fixed before merge / dismissed since
+        # the previous run. Runs here, not in the agent step, so the agent cannot
+        # shape the numbers.
+        run: |
+          PREV_ARGS=(--no-previous)
+          PREV="$RUNNER_TEMP/design-qa-previous/run-result.json"
+          if [ -f "$PREV" ]; then PREV_ARGS=(--previous "$PREV"); fi
+          node .design-qa-skill/skills/design-qa/scripts/run-result.mjs \
+            --report qa-reports/ci/report.json \
+            --out qa-reports/ci/run-result.json \
+            --no-history \
+            --comment-md qa-reports/ci/run-summary.md \
+            "${PREV_ARGS[@]}"
+
+      - name: Upload run result
+        # Small JSON with no screenshots or page text, kept long enough to compare
+        # every run of a pull request with the one before it.
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: design-qa-result
+          path: qa-reports/ci/run-result.json
+          retention-days: 90
+
+      - name: Store the run result in Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set - not storing the run result."
+            exit 0
+          fi
+          node .design-qa-skill/skills/design-qa/scripts/supabase-push.mjs --result qa-reports/ci/run-result.json
+
       - name: Upload report artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -344,6 +411,10 @@ jobs:
           MARKER="<!-- design-qa -->"
           BODY_FILE=$(mktemp)
           echo "$MARKER" > "$BODY_FILE"
+          if [ -f qa-reports/ci/run-summary.md ]; then
+            cat qa-reports/ci/run-summary.md >> "$BODY_FILE"
+            echo "" >> "$BODY_FILE"
+          fi
           cat qa-reports/ci/report-fixplan.md >> "$BODY_FILE"
 
           # Every page of comments, and only this workflow's own: anyone can

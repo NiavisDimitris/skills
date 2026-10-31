@@ -22,7 +22,8 @@ The reference workflow is `examples/github-actions/design-qa.yml` in the skill r
 5. **Validate and render**: `validate.mjs` on `report.json`, then `render-report.mjs --embed-images --fixplan …` so the HTML is a single file. Pass `--config design-qa.config.json` to both when the file exists, so raised tolerances apply.
 6. **Upload** the output folder as a build artifact, kept for a few days (`retention-days`), without `evidence/ticket.json` and the captured DOM (`dom/`).
 7. **Comment** the fix plan on the PR. Update one marked comment instead of adding a new one on every push: search every page of comments and only the workflow's own (`github-actions[bot]`), since anyone can write the marker. Its Debt section lists the proposed debt, marked as having no ticket yet.
-8. **Gate** on the verdict. Fail closed: only the verdicts you list pass, so a missing or unexpected verdict fails.
+8. **Run result**: after rendering, the workflow (not the agent) fetches the previous run's `design-qa-result` artifact on the same branch, runs `run-result.mjs --previous …`, uploads the new `run-result.json` as `design-qa-result` (90 days, no screenshots) and, when `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set, stores it with `supabase-push.mjs`. The PR comment opens with its summary: new issues, fixed before merge, dismissed. Needs `actions: read`. → references/metrics.md
+9. **Gate** on the verdict. Fail closed: only the verdicts you list pass, so a missing or unexpected verdict fails.
 
    ```bash
    VERDICT=$(jq -r '.scorecard.verdict // empty' qa-reports/ci/report.json)
@@ -59,8 +60,9 @@ The gate is unchanged by triage. FAIL means an open 🔴 BLOCKER, a designed sta
 | `<P>_COOKIE` | App auth `cookie`. |
 | `<P>_STORAGE_STATE` | App auth `storageState`. The variable holds a path: store the JSON as a secret, write it to a file in an earlier step and export that file's path. |
 | A preview bypass secret | Protected previews, e.g. Vercel's automation bypass secret, referenced from `app.headers`. |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Optional: store run results for the metrics (references/metrics.md). Only the storing step gets them, never the agent's step. |
 
-`GITHUB_TOKEN` is provided by Actions for reading deployments and commenting. Never print secrets; they must not appear in `report.json`, the fix plan or the logs.
+`GITHUB_TOKEN` is provided by Actions for reading deployments, downloading the previous run result and commenting. Never print secrets; they must not appear in `report.json`, the fix plan or the logs.
 
 **Untrusted content.** The run reads text other people write: ticket descriptions, comments and links, Figma layer names and annotations, prototype and app text. Any of it can carry instructions aimed at the agent (prompt injection). The skill treats it as data (SKILL.md hard rule 15), and the reference workflow limits what a misled agent could do: no GitHub token on disk or in the agent's step (`persist-credentials: false`), Bash limited to the skill's scripts, edits limited to `qa-reports/`, no web fetch. Permission rules match command text and are not a sandbox, so give every secret the least privilege that works: a read-only Figma token, a Jira account that can only read the project, a test-only app user.
 
