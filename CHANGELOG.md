@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-31
+
+Numbers that show what the QA catches, collected on every run: issues caught, fixed before merge, drift and false positives. No time estimates.
+
+### Added
+
+- `scripts/run-result.mjs`: after each pass writes `run-result.json` (`schemas/run-result.schema.json`) with the repo, branch, commit and PR, the screens and states checked, every issue with a stable `issue_id`, totals by type, status and severity, and the diff against the previous run on the same branch (new, fixed, dismissed, reopened, not re-checked). A copy goes to `qa-reports/runs/`. `--comment-md` writes the PR comment summary.
+- Stable issue ids: `iss_` + a hash of screen, state, element and `ledger:property`, unchanged when findings are renumbered. Issues fall into categories: spacing, color, typography, sizing, shape, component, missing-state, motion, structure, copy, behavior.
+- An issue counts as fixed only when its screen and state were verified again; a skipped or unreachable state carries its issues forward instead.
+- `dismiss.mjs --issue-id`: dismiss by the stable id shown in the PR comment.
+- Supabase: `supabase/migrations/20261031120000_design_qa_metrics.sql` (`design_qa_runs`, `design_qa_issues`, RLS on) with four views, and `scripts/supabase-push.mjs` (credentials from the environment only).
+- `scripts/metrics.mjs`: issues caught per run by type, design defects fixed before merge per month, open drift per screen per week, false positive rate; from Supabase or from run results on disk.
+- Opt-in anonymous telemetry, off by default: `scripts/telemetry.mjs` (`status`, `enable`, `disable`, `print`, `send`). Sends only the plugin version and per-run counts; `DO_NOT_TRACK` is honoured. The agent asks once on the first interactive run. `telemetry/` holds the maintainer's ingest function and table.
+- `references/metrics.md`; README "Metrics" and "Telemetry".
+
+### Changed
+
+- Reference CI workflow: fetches the previous run's `design-qa-result` artifact on the branch, writes and uploads the run result (90 days), stores it in Supabase when `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set, and opens the PR comment with new, fixed-before-merge and dismissed issues. Needs `actions: read`.
+
 ## [0.2.2] - 2026-10-04
 
 The review goes back to the agent in one step, and works with any coding agent, not only Claude Code.

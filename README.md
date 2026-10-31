@@ -241,9 +241,13 @@ All under `skills/design-qa/scripts/`. The example paths are relative to a clone
 | `review.mjs` | Opens `report.html` on a local server (127.0.0.1, one-time token) and waits for Send; saves `decisions.json` and exits 0 (3 when nothing was sent) | `node skills/design-qa/scripts/review.mjs --report qa-reports/ACME-482/report.json`<br>no browser: `--no-open` · stop waiting after n minutes: `--timeout-min 60` |
 | `apply-decisions.mjs` | Applies the reviewer's decisions (fix now / later, dismissals, backfill, tickets yes or no) to `report.json` and the logs, and prints the fix-now list and the next commands | `node skills/design-qa/scripts/apply-decisions.mjs --report qa-reports/ACME-482/report.json`<br>a pasted message saved to a file: `--from review-message.txt` · preview: `--dry-run` |
 | `triage.mjs` | Records which findings are fixed now and which become debt (blockers can't be debt) | `node skills/design-qa/scripts/triage.mjs --report qa-reports/ACME-482/report.json --fix DQ-001,DQ-004 --by "A. Lee" --source chat`<br>default split: `--default` · preview: `--dry-run` |
-| `dismiss.mjs` | Records dismissals with a reason in `report.json` and the cumulative `qa-reports/dismissed.json` / `.md`; `--apply-log` re-applies earlier ones | `node skills/design-qa/scripts/dismiss.mjs --report qa-reports/ACME-482/report.json --id DQ-004 --kind not-an-issue --reason "Anti-aliasing only" --by "A. Lee" --source chat`<br>a saved `/design-qa dismiss` message: `--from message.txt` · undo: `--undo DQ-004` · each pass: `--apply-log` |
+| `dismiss.mjs` | Records dismissals with a reason in `report.json` and the cumulative `qa-reports/dismissed.json` / `.md`; `--apply-log` re-applies earlier ones | `node skills/design-qa/scripts/dismiss.mjs --report qa-reports/ACME-482/report.json --id DQ-004 --kind not-an-issue --reason "Anti-aliasing only" --by "A. Lee" --source chat`<br>by stable id from the PR comment: `--issue-id iss_…` · a saved `/design-qa dismiss` message: `--from message.txt` · undo: `--undo DQ-004` · each pass: `--apply-log` |
 | `backfill.mjs` | Step 2: records undesigned-state candidates, build / not-needed decisions, the gate override and built Figma frames in `report.json` `backfill` | `node skills/design-qa/scripts/backfill.mjs --report qa-reports/ACME-482/report.json --candidates qa-reports/ACME-482/backfill-candidates.json`<br>decide: `--build BF-001,BF-002` · `--not-needed BF-003 --reason "Transient"` · a saved `/design-qa backfill` message: `--from message.txt` · built: `--record BF-001 --figma-url <url> --round-trip 0.4` |
 | `doctor.mjs` | Checks Node, the script packages and Playwright's Chromium, prints the skill folder and the command for anything missing | `node skills/design-qa/scripts/doctor.mjs` |
+| `run-result.mjs` | Writes `run-result.json` after a pass: issues with stable `iss_` ids, totals, and new / fixed / dismissed since the previous run on the branch | `node skills/design-qa/scripts/run-result.mjs --report qa-reports/ACME-482/report.json --comment-md summary.md` |
+| `metrics.mjs` | Prints the four value metrics from Supabase or from run results on disk | `node skills/design-qa/scripts/metrics.mjs --source local --dir qa-reports` |
+| `supabase-push.mjs` | Stores a run result in Supabase (env credentials only) | `SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node skills/design-qa/scripts/supabase-push.mjs --result qa-reports/ci/run-result.json` |
+| `telemetry.mjs` | Opt-in anonymous counts: `status`, `enable`, `disable`, `print`, `send` | `node skills/design-qa/scripts/telemetry.mjs status` |
 | `debt-log.mjs` | Updates the cumulative design-debt log from a triaged report; entries are marked resolved when a later pass shows them fixed | `node skills/design-qa/scripts/debt-log.mjs --report qa-reports/ACME-482/report.json --log qa-reports/design-debt.json --md qa-reports/design-debt.md` |
 
 App auth, when the target app needs it, is env-only: `DESIGN_QA_APP_USER` / `DESIGN_QA_APP_PASS` / `DESIGN_QA_APP_COOKIE` / `DESIGN_QA_APP_STORAGE_STATE`. Never put credentials in `design-qa.config.json` — it's meant to be committed.
@@ -260,9 +264,49 @@ It runs the skill headlessly against a PR's preview URL and gates the PR on:
 
 In CI the skill records the default triage, never creates tickets, and lists the proposed debt in the PR comment for a person to confirm.
 
-Secrets the adopter sets: `ANTHROPIC_API_KEY`, `FIGMA_TOKEN`, `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and any of `DESIGN_QA_APP_USER`, `DESIGN_QA_APP_PASS`, `DESIGN_QA_APP_COOKIE` and `DESIGN_QA_APP_STORAGE_STATE_JSON` (a Playwright storageState JSON blob; the workflow writes it to a file) the target app needs. `GITHUB_TOKEN` is provided by Actions automatically. Give each secret the least privilege that works: the agent reads ticket, Figma and app text that other people write, and treats it as data, never as instructions.
+Each run also writes `run-result.json`, diffs it against the previous run on the branch, and opens the PR comment with new, fixed-before-merge and dismissed issues ([Metrics](#metrics)).
+
+Secrets the adopter sets: `ANTHROPIC_API_KEY`, `FIGMA_TOKEN`, `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and any of `DESIGN_QA_APP_USER`, `DESIGN_QA_APP_PASS`, `DESIGN_QA_APP_COOKIE` and `DESIGN_QA_APP_STORAGE_STATE_JSON` (a Playwright storageState JSON blob; the workflow writes it to a file) the target app needs, plus optionally `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to store run results. `GITHUB_TOKEN` is provided by Actions automatically. Give each secret the least privilege that works: the agent reads ticket, Figma and app text that other people write, and treats it as data, never as instructions.
 
 The workflow skips pull requests from forks and from Dependabot (they get no secrets), pins its actions and the Claude Code CLI to exact versions, and keeps the report artifact for 7 days. On a public repository the PR comment and the artifact are public; read [Secrets in `ci.md`](skills/design-qa/references/ci.md#secrets) first, along with what to commit under `qa-reports/` (the dismissal and debt logs, not the evidence).
+
+## Metrics
+
+Every run writes `run-result.json`: each issue with a stable id (`iss_…`, a hash of screen, state, element and issue type), totals by type, and what changed since the previous run on the branch. An issue open before and gone now counts as **fixed** only when its screen and state were checked again; otherwise it is carried forward, so skipped states never inflate the numbers. In CI the PR comment opens with new issues, fixed before merge and dismissed.
+
+Store runs in Supabase (apply [`supabase/migrations`](supabase/migrations), set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`) and print:
+
+1. issues caught per run, by type
+2. **design defects caught and fixed before merge, per month**
+3. drift: open mismatches per screen, weekly
+4. false positive rate: dismissed ÷ flagged
+
+```bash
+node skills/design-qa/scripts/metrics.mjs --source supabase
+```
+
+`--source local --dir qa-reports` gives the same numbers from run results on disk. There is no "hours saved": nobody times manual QA. Details: [`references/metrics.md`](skills/design-qa/references/metrics.md).
+
+## Telemetry
+
+Off unless you turn it on. On your first interactive run the agent asks once; your answer is stored in `~/.config/design-qa/telemetry.json`. Nothing is sent from CI unless you set `DESIGN_QA_TELEMETRY=1` there.
+
+**Exactly what is sent**, once per run, and nothing else:
+
+```json
+{ "v": 1, "plugin_version": "0.3.0", "runs": 1,
+  "issues_by_type": { "spacing": 3, "color": 1 }, "fixed": 2, "dismissed": 1 }
+```
+
+**Never sent:** code, file paths, selectors, screen or state names, design content, finding titles, repository or branch names, commit ids, user names or emails, machine or install ids, timestamps. It goes to the maintainer's Supabase project through one Edge Function ([`telemetry/`](telemetry) in this repo), which rejects any other key and stores the counts with the day they arrived. The function never reads or stores your IP address; Supabase's own platform request logs follow its retention policy.
+
+```bash
+node skills/design-qa/scripts/telemetry.mjs status    # enabled, disabled, undecided…
+node skills/design-qa/scripts/telemetry.mjs disable   # turn it off
+node skills/design-qa/scripts/telemetry.mjs print --result qa-reports/<slug>/run-result.json   # see the payload
+```
+
+`DO_NOT_TRACK=1` or `DESIGN_QA_TELEMETRY=0` turns it off whatever the file says.
 
 ## How it stays honest
 

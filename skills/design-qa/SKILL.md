@@ -133,6 +133,7 @@ by: <name>
 2. Validate the config: `node scripts/validate.mjs design-qa.config.json`. No config: bootstrap it.
 3. Read the project's design rules, token map, known drifts and component catalog (`designSystem.*`). Check the known drifts before reporting anything that looks like one.
 4. Check the app answers: `curl -sf <baseUrl><readyUrl>`. A local app that is down: run `app.start` in the background and poll. Never run migrations, seeds or other destructive setup without asking.
+5. Telemetry (audit and fix only, never ci): `node scripts/telemetry.mjs status`. Only when it prints `undecided`, ask once: "Share anonymous usage counts with the design-qa maintainer? Only the plugin version and per-run counts (issues by type, fixed, dismissed) — never code, paths, names, design content or repository details. Off unless you say yes; `telemetry.mjs disable` turns it off later." Record the answer with `telemetry.mjs enable` or `disable`. No answer is no: run `disable`. Never ask again once decided.
 
 → references/config.md
 
@@ -211,8 +212,8 @@ With a coded prototype, `compare.json` supplies style, token, component, motion 
 
 1. Write `<dir>/report.json` to the data contract (`schemaVersion` `"2.0"`). Never hand-write the HTML or the fix plan. Backfill candidates, when there are any, go into its `backfill` section, never into findings: `node scripts/backfill.mjs --report <dir>/report.json --candidates <dir>/backfill-candidates.json`, then `--captured <dir>/evidence/backfill/capture.json`.
 2. `node scripts/render-report.mjs --in <dir>/report.json --out <dir>/report.html --fixplan <dir>/report-fixplan.md [--backfill-plan <dir>/report-backfill.md] --config design-qa.config.json --embed-images --recompute --write-back` (derives the scorecard, fills ranks; `--backfill-plan` when `backfill` has items). Add `--top-n N` when the user passed `--top N`.
-3. `node scripts/validate.mjs <dir>/report.json --config design-qa.config.json` must exit 0.
-4. Reply with: the verdict and its reasons, parity, state (and screen) coverage, the fix-now list, and the design-system mismatches called out by name: **token mismatches** (expected token versus actual token or hardcoded value), **component mismatches** (expected component or variant versus what renders) and **motion** that is missing or different, each with its count from `scorecard.designSystem`. Then the dismissed count, any changed-value notices from `--apply-log`, and the path to `report.html`. Undesigned states get one line, "n undesigned states found — step 2, after parity", never a finding. If the pass changed a standard or settled a decision, propose the matching update to the project's design docs.
+3. `node scripts/validate.mjs <dir>/report.json --config design-qa.config.json` must exit 0. Then record the run: `node scripts/run-result.mjs --report <dir>/report.json` writes `<dir>/run-result.json` (stable issue ids, totals, new / fixed / dismissed since the previous run on this branch) and a copy under `qa-reports/runs/`. Then `node scripts/telemetry.mjs send --result <dir>/run-result.json --quiet`: it sends only when the person enabled telemetry and never fails the pass. In ci mode the workflow runs `run-result.mjs` itself; skip this step. Re-run both after a fix loop. → references/metrics.md
+4. Reply with: the verdict and its reasons, parity, state (and screen) coverage, the fix-now list, and the design-system mismatches called out by name: **token mismatches** (expected token versus actual token or hardcoded value), **component mismatches** (expected component or variant versus what renders) and **motion** that is missing or different, each with its count from `scorecard.designSystem`. Then the dismissed count, any changed-value notices from `--apply-log`, what `run-result.mjs` printed (new, fixed, dismissed since the previous run), and the path to `report.html`. Undesigned states get one line, "n undesigned states found — step 2, after parity", never a finding. If the pass changed a standard or settled a decision, propose the matching update to the project's design docs.
 5. **Open the review** (audit and fix; never ci; not again after a fix loop that started from an applied review). Run `node scripts/review.mjs --report <dir>/report.json` as a background or long-running command: in the background if your agent can be notified when a background command exits; otherwise with your longest command timeout, or start it and ask the user to tell you when they have clicked Send, then run `apply-decisions.mjs`. Tell the user the report is open, what to do (choose Fix now or Debt, dismiss with a reason, then "Review and send" → "Send to agent") and that you are waiting for Send. Exit 0: follow "Apply review decisions". Exit 3: nothing was sent; say so and offer the copy path ("Copy for your agent" in the report, pasted into chat). No browser can open (remote, SSH or cloud session): give the report path and ask the user to open it and use "Copy for your agent".
 
 → references/report.md
@@ -248,11 +249,13 @@ qa-reports/
   design-debt.md       the same, readable (report.debtLog)
   dismissed.json       cumulative dismissals log, written by scripts/dismiss.mjs
   dismissed.md         the same, readable
+  runs/<run_id>.json   one run result per pass, written by scripts/run-result.mjs (metrics.mjs --source local)
 qa-reports/<feature>/
   report.json          written by the agent, checked by scripts/validate.mjs
   report.html          rendered by scripts/render-report.mjs
   report-fixplan.md    rendered by scripts/render-report.mjs
   report-backfill.md   step 2 plan, rendered by scripts/render-report.mjs --backfill-plan
+  run-result.json      issues with stable ids, totals and the diff since the previous run, by scripts/run-result.mjs
   decisions.json       the reviewer's pending decisions, saved by scripts/review.mjs on Send (or by the reviewer)
   decisions.applied.json   the same, renamed by scripts/apply-decisions.mjs once applied
   state-matrix.json
