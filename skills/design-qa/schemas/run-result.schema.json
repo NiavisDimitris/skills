@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "design-qa run result",
+  "description": "One run's outcome as numbers: where it ran, what it checked, every issue with a stable issue_id and status, totals, and the diff against the previous run on the same branch. Written by scripts/run-result.mjs after report.json; read by scripts/supabase-push.mjs, scripts/metrics.mjs and scripts/telemetry.mjs.",
+  "type": "object",
+  "required": ["schemaVersion", "run_id", "timestamp", "skill_version", "repo", "branch", "commit_sha", "pr_number", "feature", "verdict", "checked", "issues", "totals", "previous_run_id", "diff"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "run_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "report_generated_at": { "type": ["string", "null"] },
+    "skill_version": { "type": "string" },
+    "repo": { "type": ["string", "null"], "description": "owner/name; null when it cannot be determined" },
+    "branch": { "type": ["string", "null"] },
+    "commit_sha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{7,64}$" },
+    "pr_number": { "type": ["integer", "null"], "minimum": 1 },
+    "feature": { "type": "string" },
+    "mode": { "type": ["string", "null"] },
+    "verdict": { "type": ["string", "null"] },
+    "checked": {
+      "type": "array",
+      "description": "Every screen/state the report's state matrix lists. verified: captured and compared (PASS, FAIL or MISSING_IN_CODE).",
+      "items": {
+        "type": "object",
+        "required": ["screen", "state", "verified"],
+        "properties": {
+          "screen": { "type": "string" },
+          "state": { "type": "string" },
+          "result": { "type": ["string", "null"] },
+          "verified": { "type": "boolean" }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["issue_id", "type", "category", "severity", "screen", "state", "status"],
+        "properties": {
+          "issue_id": { "type": "string", "pattern": "^iss_[0-9a-f]{16}$" },
+          "dq_id": { "type": ["string", "null"] },
+          "title": { "type": ["string", "null"] },
+          "type": { "type": "string" },
+          "category": { "enum": ["spacing", "color", "typography", "sizing", "shape", "component", "missing-state", "motion", "structure", "copy", "behavior", "other"] },
+          "severity": { "type": "string" },
+          "screen": { "type": "string" },
+          "state": { "type": ["string", "null"] },
+          "status": { "enum": ["open", "fixed", "dismissed"] },
+          "carried": { "type": "boolean", "description": "Not re-checked this run (its state was not verified): copied from the previous run." }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "required": ["flagged", "by_category", "by_status", "by_severity"],
+      "properties": {
+        "flagged": { "type": "integer", "minimum": 0, "description": "Issues this run found (open or dismissed, not carried)." },
+        "by_category": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "by_status": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "by_severity": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
+      }
+    },
+    "previous_run_id": { "type": ["string", "null"] },
+    "diff": {
+      "type": "object",
+      "required": ["first_run", "new", "fixed", "dismissed", "reopened", "not_rechecked"],
+      "properties": {
+        "first_run": { "type": "boolean" },
+        "new": { "type": "array", "items": { "type": "string" } },
+        "fixed": { "type": "array", "items": { "type": "string" } },
+        "dismissed": { "type": "array", "items": { "type": "string" } },
+        "reopened": { "type": "array", "items": { "type": "string" } },
+        "not_rechecked": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
