@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { buildRunResult } from '../skills/design-qa/scripts/lib/run-result.mjs';
-import { buildPayload, consentFile, sendPayload, telemetryState, telemetryUrl } from '../skills/design-qa/scripts/lib/telemetry.mjs';
+import { DEFAULT_TELEMETRY_URL, buildPayload, consentFile, sendPayload, telemetryState, telemetryUrl } from '../skills/design-qa/scripts/lib/telemetry.mjs';
 import { loadFixture, run, script, tmpDir } from './_helpers.mjs';
 
 const TELEMETRY = script('telemetry.mjs');
@@ -65,6 +65,8 @@ test('only https endpoints are used', () => {
   assert.equal(telemetryUrl({ DESIGN_QA_TELEMETRY_URL: 'http://example.com/t' }), null);
   assert.equal(telemetryUrl({ DESIGN_QA_TELEMETRY_URL: 'not a url' }), null);
   assert.equal(telemetryUrl({ DESIGN_QA_TELEMETRY_URL: 'https://x.supabase.co/functions/v1/telemetry-ingest' }), 'https://x.supabase.co/functions/v1/telemetry-ingest');
+  assert.equal(telemetryUrl({}), DEFAULT_TELEMETRY_URL);
+  assert.match(DEFAULT_TELEMETRY_URL, /^https:\/\/[a-z0-9]+\.supabase\.co\/functions\/v1\/telemetry-ingest$/);
 });
 
 test('sendPayload posts only the JSON body and never throws', async () => {
@@ -102,8 +104,6 @@ test('CLI send: never fails a run, and sends nothing unless enabled with an endp
   assert.match(undecided.stdout, /not sent: undecided/);
 
   await run(TELEMETRY, ['enable'], { env: env(dir) });
-  const noEndpoint = await run(TELEMETRY, ['send', '--result', file], { env: env(dir) });
-  assert.match(noEndpoint.stdout, /no endpoint/);
   const unreachable = await run(TELEMETRY, ['send', '--result', file], { env: env(dir, { DESIGN_QA_TELEMETRY_URL: 'https://127.0.0.1:1/x' }) });
   assert.equal(unreachable.code, 0);
   assert.match(unreachable.stdout, /not sent: cannot reach/);

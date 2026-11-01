@@ -10,10 +10,10 @@ import { CATEGORIES } from './issue-id.mjs';
 export const TELEMETRY_PAYLOAD_VERSION = 1;
 
 /**
- * Where counts go. Set by the maintainer before a release; null means this build
- * sends nothing even when enabled. DESIGN_QA_TELEMETRY_URL overrides it (https only).
+ * Where counts go: the maintainer's telemetry-ingest Edge Function (telemetry/ in
+ * the skill repository). DESIGN_QA_TELEMETRY_URL overrides it (https only).
  */
-export const DEFAULT_TELEMETRY_URL = null;
+export const DEFAULT_TELEMETRY_URL = 'https://frdxmrszirxtyqvhvzcj.supabase.co/functions/v1/telemetry-ingest';
 
 const OFF = new Set(['0', 'false', 'off', 'no']);
 const ON = new Set(['1', 'true', 'on', 'yes']);
