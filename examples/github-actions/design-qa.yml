@@ -91,12 +91,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: NiavisDimitris/skills
-          # Pinned to a commit SHA (design-qa 0.2.2): this job runs the skill's
+          # Pinned to a commit SHA (design-qa 0.3.0): this job runs the skill's
           # scripts with your secrets, so never point it at a moving branch.
           # Bump the SHA deliberately when you want newer scripts. The run result,
-          # Supabase and metrics steps below need 0.3.0 or later: re-pin to the
-          # 0.3.0 release commit before turning them on.
-          ref: 25072b053b4501c46dc0fddde0063b0a4754c2c8
+          # Supabase and metrics steps below need 0.3.0 or later.
+          ref: 273b46e2ccd176b1f49f3ee6cf347d39037f263f
           persist-credentials: false
           path: .design-qa-skill
           # If the repo you check out here is private to you (e.g. a
